@@ -26,3 +26,12 @@
 9. **Local dev:** create `.env.local` (it's gitignored) with the same two `VITE_` values, then run `npm run dev`.
 
 **Troubleshooting:** if a sign-in link opens `localhost` ("can't connect to server"), the Site URL or Redirect URL in step 4 doesn't exactly match `https://nealthezeng.github.io/Tribe-Fantasy/`. Fix it, then request a new link.
+
+## M3 stats (after 0001–0003)
+
+1. SQL Editor: paste and run `supabase/migrations/0004_stats.sql`, then `0005_stats_rpcs.sql`.
+2. Seasons created before M3 still store the old 8 stats. In **Admin → season → Settings**, set
+   `"stat_weights": {"goal": 3, "assist": 3, "block": 3, "callahan": 8, "turnover": -2}`,
+   `"normalize_mode": "none"` and add `"tap_merge_seconds": 10`, then save.
+3. Coaches: have each sign in and set a name, then **Admin → Stat keepers → Make keeper**. Don't make coaches admins.
+4. Players: **Admin → Athletes → linked account** for each player who wants to mark attendance/injuries.

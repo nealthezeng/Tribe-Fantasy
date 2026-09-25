@@ -3535,6 +3535,14 @@ Taskboard: t14 → `done`, t15 → `done` (note: "Magic link + 6-digit code; inv
 
 - **Before M3 adds RPCs:** one structural test calling every admin RPC as a non-admin, expecting `FORBIDDEN`, plus an audit-row check per RPC.
 - **M3:** enforce `points_played >= 0` with a check constraint.
+- **M5:** replace the `private.owns_athlete()` stub (always false in 0004) with a `roster_slots` check, add tests for
+  `OWNS_ATHLETE` on save_taps / verify_session / confirm_injury, and grey out owned athletes on the tally screen.
+- **M6:** injury pick rules: a free re-pick if the picked athlete has a confirmed, uncleared injury before `pick_lock_at`;
+  a week where the picked athlete had an active injury and no counted session does not use up the athlete.
+  Rescore every week touched by a `correct_stat_line` audit row (`details.rescore_needed`).
+- **M6:** `scoreWeek` input comes from `stat_lines` of sessions with `counts = true` that are locked.
+- **M5 (owns_athlete follow-ups):** once `owns_athlete` is real, also block owners in `reopen_session` (else an owner can keep a session from ever locking), `set_attendance` by a keeper, `correct_stat_line` by an admin who owns the athlete, and `report_injury` auto-confirm when the keeper is the athlete's own linked user.
+- **M6 (lock drift):** any reopen of an already-scored session must trigger a rescore, and raising `stat_lock_hours` re-opens old sessions — snapshot or re-check locks when scoring.
 - **M5, before real credits:**
   - a property test that no eligible higher bid is ever skipped;
   - golden-value tests pinning `hashSeed`, `mulberry32` and `fillLeftovers`;
