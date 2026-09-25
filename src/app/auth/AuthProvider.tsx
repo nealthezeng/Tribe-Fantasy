@@ -39,12 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) return;
+    const clearUrl = () => window.history.replaceState(null, '', window.location.pathname + '#/');
+    const hadCode = new URLSearchParams(window.location.search).has('code');
     const redirectError = readAuthRedirectError(window.location.search, window.location.hash);
     if (redirectError) {
       setAuthError(redirectError);
-      window.history.replaceState(null, '', window.location.pathname + '#/');
+      clearUrl();
     }
     supabase.auth.getSession().then(async ({ data }) => {
+      if (hadCode && !data.session) {
+        // PKCE: the code verifier lives in the browser that requested the link, so supabase-js skipped the exchange.
+        setAuthError(
+          'This sign-in link was opened in a different browser than the one you requested it from. Type the 6-digit code from the email in the original browser, or request a new link here.',
+        );
+        clearUrl();
+      }
       setSession(data.session);
       await loadProfile(data.session);
       setLoading(false);

@@ -48,7 +48,7 @@ export function LoginPage() {
         </form>
       ) : (
         <form onSubmit={verifyCode}>
-          <p>Check your email. Open the link <strong>on this device</strong>, or type the 6-digit code here:</p>
+          <p>Check your email. Open the link <strong>in this browser</strong>, or type the 6-digit code here:</p>
           <label>Code<input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></label>
           <button disabled={busy}>Sign in</button>
           <button type="button" className="linklike" onClick={() => setSent(false)}>Use a different email</button>
