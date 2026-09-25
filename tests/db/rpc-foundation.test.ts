@@ -76,6 +76,23 @@ describe('admin RPCs', () => {
     await as(db, admin, (tx) => rpc(tx, 'revoke_role', { p_user: admin, p_role: 'admin' }));
     await expect(as(db, admin, (tx) => rpc(tx, 'create_season', { p_name: 'X', p_settings: {} }))).rejects.toThrow('FORBIDDEN');
   });
+
+  it('rejects an invite with max_uses of 0', async () => {
+    const { league } = await setupLeague();
+    await expect(as(db, admin, (tx) => rpc(tx, 'create_invite', { p_league: league, p_code: 'ZEROUSE', p_max_uses: 0, p_expires_at: null }))).rejects.toThrow('INVALID_INVITE_SETTINGS');
+  });
+
+  it('rejects grant_role for an unknown user or a null role', async () => {
+    const unknown = crypto.randomUUID();
+    await expect(as(db, admin, (tx) => rpc(tx, 'grant_role', { p_user: unknown, p_role: 'admin' }))).rejects.toThrow('NOT_FOUND');
+    await expect(as(db, admin, (tx) => rpc(tx, 'grant_role', { p_user: alice, p_role: null }))).rejects.toThrow('INVALID_ROLE');
+  });
+
+  it('rejects add_athlete with an unknown user uuid', async () => {
+    const { season } = await setupLeague();
+    const unknown = crypto.randomUUID();
+    await expect(as(db, admin, (tx) => rpc(tx, 'add_athlete', { p_season: season, p_name: 'X', p_user: unknown }))).rejects.toThrow('NOT_FOUND');
+  });
 });
 
 describe('join_league', () => {

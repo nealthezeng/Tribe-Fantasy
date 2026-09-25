@@ -86,6 +86,7 @@ returns text language plpgsql security definer set search_path = '' as $$
 declare uid uuid := private.require_admin(); c text := upper(btrim(coalesce(p_code, '')));
 begin
   if c !~ '^[A-Z0-9]{6,20}$' then raise exception 'INVALID_CODE'; end if;
+  if coalesce(p_max_uses, 50) < 1 then raise exception 'INVALID_INVITE_SETTINGS'; end if;
   if not exists (select 1 from public.leagues where id = p_league) then raise exception 'NOT_FOUND'; end if;
   begin
     insert into public.invites (code, league_id, max_uses, expires_at, created_by)
@@ -103,6 +104,7 @@ begin
   perform private.require_admin();
   v := private.clean_name(p_name, 60);
   if not exists (select 1 from public.seasons where id = p_season) then raise exception 'NOT_FOUND'; end if;
+  if p_user is not null and not exists (select 1 from auth.users where id = p_user) then raise exception 'NOT_FOUND'; end if;
   begin
     insert into public.athletes (season_id, name, user_id) values (p_season, v, p_user) returning id into aid;
   exception when unique_violation then raise exception 'ATHLETE_EXISTS';
@@ -151,7 +153,8 @@ create function public.grant_role(p_user uuid, p_role text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   perform private.require_admin();
-  if p_role not in ('admin', 'stat_keeper', 'treasurer') then raise exception 'INVALID_ROLE'; end if;
+  if p_role is null or p_role not in ('admin', 'stat_keeper', 'treasurer') then raise exception 'INVALID_ROLE'; end if;
+  if not exists (select 1 from auth.users where id = p_user) then raise exception 'NOT_FOUND'; end if;
   insert into public.user_roles (user_id, role) values (p_user, p_role) on conflict do nothing;
   perform private.audit('grant_role', 'user', p_user::text, jsonb_build_object('role', p_role));
 end $$;
