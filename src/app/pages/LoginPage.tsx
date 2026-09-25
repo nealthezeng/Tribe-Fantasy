@@ -4,13 +4,14 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
 
 export function LoginPage() {
-  const { session } = useAuth();
+  const { session, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  if (loading) return <p>Loading…</p>;
   if (session) return <Navigate to="/" replace />;
 
   async function sendEmail(e: FormEvent) {

@@ -5,7 +5,7 @@ import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 
 export function JoinPage() {
-  const { session, displayName, refresh } = useAuth();
+  const { session, loading, displayName, refresh } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -13,6 +13,7 @@ export function JoinPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  if (loading) return <p>Loading…</p>;
   if (!session) return <Navigate to="/login" replace />;
 
   async function submit(e: FormEvent) {

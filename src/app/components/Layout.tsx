@@ -3,7 +3,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
 
 export function Layout() {
-  const { session, isAdmin, displayName, loading } = useAuth();
+  const { session, isAdmin, displayName, loading, authError, clearAuthError } = useAuth();
   return (
     <div className="shell">
       <header className="topbar">
@@ -18,6 +18,12 @@ export function Layout() {
         </nav>
       </header>
       <main>
+        {authError && (
+          <p className="error">
+            Sign-in link didn't work: {authError}. Request a new link, or use the 6-digit code from the email.{' '}
+            <button type="button" className="linklike" onClick={clearAuthError}>Dismiss</button>
+          </p>
+        )}
         {!loading && session && !displayName && (
           <p className="notice">Welcome! <Link to="/join">Set your name and join a league</Link>.</p>
         )}

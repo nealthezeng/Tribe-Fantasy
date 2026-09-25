@@ -1,12 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { readAuthRedirectError } from './authRedirectError';
 
 interface AuthState {
   session: Session | null;
   loading: boolean;
   displayName: string | null;
   isAdmin: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   refresh: () => Promise<void>;
 }
 
@@ -17,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async (s: Session | null) => {
     if (!supabase || !s) {
@@ -35,6 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) return;
+    const redirectError = readAuthRedirectError(window.location.search, window.location.hash);
+    if (redirectError) {
+      setAuthError(redirectError);
+      window.history.replaceState(null, '', window.location.pathname + '#/');
+    }
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session);
       await loadProfile(data.session);
@@ -49,9 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadProfile]);
 
   const refresh = useCallback(() => loadProfile(session), [loadProfile, session]);
+  const clearAuthError = useCallback(() => setAuthError(null), []);
 
   return (
-    <AuthContext.Provider value={{ session, loading, displayName, isAdmin, refresh }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ session, loading, displayName, isAdmin, authError, clearAuthError, refresh }}>
+      {children}
+    </AuthContext.Provider>
   );
 }
 
