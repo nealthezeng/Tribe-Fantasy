@@ -278,3 +278,5 @@ RLS summary:
 | M8 Hardening | security pass, backups/CSV export, mobile polish, FAQ | t48–t51 |
 
 The first implementation plan covers M1 + M2.
+
+> **Superseded** by `2026-09-25-year-stages-revision.md` §9 (stages, no trades, all milestones by Oct 17). That revision also replaces §5.2, §5.4 and parts of §4, §5.3, §5.8 and §5.9.
