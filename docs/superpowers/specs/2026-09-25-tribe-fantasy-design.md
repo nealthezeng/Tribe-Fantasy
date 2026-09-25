@@ -120,7 +120,7 @@ For athlete *a* in week *w*, over the counted sessions *s* in that week:
 ```
 raw(s)   = Σ_stat weight[stat] × count[stat]
 num      = Σ_s mult(s) × raw(s)
-den      = max( Σ_s mult(s) × points_played(s), min_points_denominator )
+den      = max( Σ_s points_played(s), min_points_denominator )   (unweighted, so multipliers really multiply)
 score    = num / den × normalize_per_points        (normalize_mode = per_point, default)
 score    = num                                     (normalize_mode = none)
 score    = absent_score                            (no counted sessions)
