@@ -24,3 +24,5 @@
    select id, 'admin' from auth.users where email = '<your email>';
    ```
 9. **Local dev:** create `.env.local` (it's gitignored) with the same two `VITE_` values, then run `npm run dev`.
+
+**Troubleshooting:** if a sign-in link opens `localhost` ("can't connect to server"), the Site URL or Redirect URL in step 4 doesn't exactly match `https://nealthezeng.github.io/Tribe-Fantasy/`. Fix it, then request a new link.
