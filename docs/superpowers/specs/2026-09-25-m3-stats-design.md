@@ -30,8 +30,9 @@ Coaches get `stat_keeper`, not admin.
 ```
 sessions     id, season_id, kind practice|tournament, held_on date, counts bool default true,
              created_by, verified_by null, verified_at null
-stat_taps    id uuid (client-generated, PK), session_id, athlete_id, stat text, delta smallint (-1|1),
-             keeper_id, tapped_at timestamptz (skew-corrected), received_at timestamptz default now()
+stat_taps    id uuid (client-generated, PK), session_id, athlete_id, stat text, keeper_id,
+             tapped_at timestamptz (skew-corrected), received_at timestamptz default now(),
+             undoes uuid null unique → stat_taps (an undo row names the tap it cancels)
 stat_lines   session_id, athlete_id, stats jsonb, points_played int not null default 0 check (points_played >= 0),
              PK (session_id, athlete_id)
 attendance   session_id, athlete_id, status present|absent, set_by, set_at, PK (session_id, athlete_id)
@@ -46,15 +47,17 @@ injuries     id, athlete_id, reported_by, reported_at, confirmed_by null, confir
 
 `mergeTaps(taps, tapMergeSeconds) → Map<athleteId, Record<stat, count>>`
 
-1. **Undo:** each −1 cancels the same keeper's latest earlier uncancelled +1 for the same athlete + stat.
-   A −1 with nothing to cancel is ignored. It never touches another keeper's taps.
-2. **Cross-keeper dedupe:** the remaining +1s by *different* keepers for the same athlete + stat are
-   paired one-to-one, nearest in time first, when `|Δt| ≤ tapMergeSeconds`. Each pair counts once.
-   (A taps 2 goals and B taps 1 within the window → 2.)
-3. Also returns the list of merged pairs so the verify screen can show them.
+1. **Undo:** an undo row names the tap it cancels (`undoes`); both drop out. The server only accepts undoing
+   your own tap, so an undo never touches another keeper's taps. Explicit references avoid ordering bugs when
+   two batches from one phone get different skew corrections.
+2. **Cross-keeper dedupe:** the remaining taps for the same athlete + stat are grouped into clusters, closest
+   pair first. Two clusters join only if they share no keeper and the joined cluster spans
+   `≤ tapMergeSeconds`. Each cluster counts once. (A taps 2 goals and B taps 1 within the window → 2;
+   three keepers tap the same goal → 1.)
+3. Also returns the merged clusters so the verify screen can show them.
 
-`ponytail:` greedy nearest-first pairing; may differ from optimal matching in rare 3-keeper tangles. Upgrade to
-proper bipartite matching only if that ever happens.
+`ponytail:` greedy closest-first clustering, O(n²) per athlete + stat; may differ from an optimal grouping in
+rare tangles. Fine for a practice's worth of taps.
 
 **Clock skew:** each save carries the phone's `client_now`. The RPC shifts every `tapped_at` in the batch by
 `now() − client_now`. This holds across long offline stretches as long as the phone clock does not jump.
@@ -64,7 +67,7 @@ proper bipartite matching only if that ever happens.
 | RPC | Who | Does |
 |---|---|---|
 | `create_session(season, kind, held_on, counts)` | keeper, admin | new session |
-| `save_taps(session, client_now, taps[])` | keeper, admin | `insert … on conflict (id) do nothing`; rejects owned athletes, verified sessions, unknown stats |
+| `save_taps(session, client_now, taps[])` | keeper, admin | `insert … on conflict (id) do nothing`; rejects owned athletes, verified sessions, unknown stats, undoing another keeper's tap |
 | `set_attendance(session, athlete, status)` | keeper, admin, or the athlete's linked user | upsert |
 | `report_injury(athlete)` / `clear_injury(athlete)` | keeper, admin, or linked user | open / close an injury |
 | `confirm_injury(injury)` | keeper, admin | sets `confirmed_by/at` |
@@ -74,12 +77,15 @@ proper bipartite matching only if that ever happens.
 
 "Owns" = has a current `roster_slots` row for the athlete in any league of the season.
 
-`ponytail:` the verifier's browser computes `lines` with `mergeTaps`. Any staff member can re-run it against the
-taps to check the result, the same trust model as scoring. Move merging into SQL if a staff member is ever
-not trusted.
+The verifier's browser computes `lines` with `mergeTaps`. The server checks every count is between the largest
+single keeper's live taps and the sum over keepers for that athlete + stat (`LINES_MISMATCH` otherwise), so a
+verifier can only choose how much to merge, never invent stats.
+
+`private.owns_athlete()` returns false until M5 creates `roster_slots`; M5 must replace it (gate).
 
 **Error codes:** `FORBIDDEN`, `OWNS_ATHLETE`, `VERIFIER_TAPPED`, `SESSION_VERIFIED`, `SESSION_LOCKED`,
-`SESSION_NOT_LOCKED`, `UNKNOWN_STAT`, `NOT_YOUR_ATHLETE`.
+`SESSION_NOT_VERIFIED`, `SESSION_NOT_LOCKED`, `UNKNOWN_STAT`, `NOT_YOUR_ATHLETE`, `INVALID_TAPS`,
+`INVALID_LINES`, `LINES_MISMATCH`, `INVALID_SESSION`, `INVALID_STATUS`, `USER_ALREADY_LINKED`.
 
 ## 6. Visibility (RLS)
 
@@ -105,7 +111,7 @@ grant loop is re-run.
   **Undo last tap**.
 - **Player list:** opted-in athletes with search. Each card has the name, injury badge, present/absent toggle,
   and five buttons (≥48px, fits 375px wide), each showing its count.
-- **Owned athletes:** greyed out with "you own this athlete".
+- **Owned athletes:** greyed out with "you own this athlete" (M5, once `roster_slots` exists).
 - **Tap queue:** taps queue in `localStorage`. Autosave runs 3s after the last tap, when the connection
   returns, and on `visibilitychange` to hidden.
   - Network errors: the taps stay queued and retry.
@@ -115,7 +121,7 @@ grant loop is re-run.
 **I'm back**.
 
 **Session detail** (keepers + admin): merged totals, per-keeper breakdown, merged pairs, attendance;
-**Verify** / **Reopen** / (admin, after lock) **Correct**. Unconfirmed injuries show "reported — confirm?".
+**Verify** / **Reopen** / (admin, after lock) **Correct**. Unconfirmed injuries show "Injury reported" + **Confirm injury** on the tally screen.
 
 **Admin console:** link an athlete to a member account; **Download CSV** of the season's stat lines.
 
