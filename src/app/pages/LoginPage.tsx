@@ -1,0 +1,59 @@
+import { useState, type FormEvent } from 'react';
+import { Navigate } from 'react-router';
+import { useAuth } from '../auth/AuthProvider';
+import { supabase } from '../lib/supabase';
+
+export function LoginPage() {
+  const { session } = useAuth();
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (session) return <Navigate to="/" replace />;
+
+  async function sendEmail(e: FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setBusy(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: window.location.origin + import.meta.env.BASE_URL },
+    });
+    setBusy(false);
+    if (error) setError(error.message);
+    else setSent(true);
+  }
+
+  async function verifyCode(e: FormEvent) {
+    e.preventDefault();
+    if (!supabase) return;
+    setBusy(true);
+    setError(null);
+    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' });
+    setBusy(false);
+    if (error) setError(error.message);
+  }
+
+  return (
+    <section className="card">
+      <h1>Sign in</h1>
+      {!sent ? (
+        <form onSubmit={sendEmail}>
+          <label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <button disabled={busy}>Email me a sign-in link</button>
+        </form>
+      ) : (
+        <form onSubmit={verifyCode}>
+          <p>Check your email. Open the link <strong>on this device</strong>, or type the 6-digit code here:</p>
+          <label>Code<input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></label>
+          <button disabled={busy}>Sign in</button>
+          <button type="button" className="linklike" onClick={() => setSent(false)}>Use a different email</button>
+        </form>
+      )}
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
