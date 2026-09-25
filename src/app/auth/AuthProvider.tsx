@@ -36,6 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
     ]);
+    // A failed fetch (e.g. on an hourly token refresh) keeps what we knew: it mustn't drop a keeper out of tallying.
+    if (profile.error || roles.error) return;
     setDisplayName(profile.data?.display_name ?? null);
     const roleNames = (roles.data ?? []).map((r: { role: string }) => r.role);
     setIsAdmin(roleNames.includes('admin'));

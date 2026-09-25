@@ -66,10 +66,10 @@ export function SessionPage() {
     setBusy(true);
     try {
       await action();
-      data.reload();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
+      data.reload(); // after a failure too: e.g. LINES_MISMATCH means the preview is stale
       setBusy(false);
     }
   }
