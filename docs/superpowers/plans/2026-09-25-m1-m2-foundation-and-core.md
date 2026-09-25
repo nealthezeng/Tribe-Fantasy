@@ -3533,8 +3533,8 @@ Taskboard: t14 → `done`, t15 → `done` (note: "Magic link + 6-digit code; inv
 
 ## Gates carried from M1+M2 reviews
 
-- **Before M3 adds RPCs:** one structural test calling every admin RPC as a non-admin, expecting `FORBIDDEN`, plus an audit-row check per RPC.
-- **M3:** enforce `points_played >= 0` with a check constraint.
+- **Before M3 adds RPCs:** ✅ done in M3 (tests/db/rpc-gate.test.ts) — one structural test calling every admin RPC as a non-admin, expecting `FORBIDDEN`, plus an audit-row check per RPC.
+- **M3:** ✅ done (0004_stats.sql check constraint) — enforce `points_played >= 0` with a check constraint.
 - **M5:** replace the `private.owns_athlete()` stub (always false in 0004) with a `roster_slots` check, add tests for
   `OWNS_ATHLETE` on save_taps / verify_session / confirm_injury, and grey out owned athletes on the tally screen.
 - **M6:** injury pick rules: a free re-pick if the picked athlete has a confirmed, uncleared injury before `pick_lock_at`;
