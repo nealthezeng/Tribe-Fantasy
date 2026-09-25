@@ -5,13 +5,19 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const read = (rel: string) => readFileSync(root + rel, 'utf8');
 
-export async function freshDb(): Promise<PGlite> {
+/** A database with every migration applied, or only those sorting before `stopBefore` (e.g. '0006'). */
+export async function freshDb(stopBefore?: string): Promise<PGlite> {
   const db = new PGlite();
   await db.exec(read('tests/db/shim.sql'));
   const files = readdirSync(root + 'supabase/migrations').filter((f) => f.endsWith('.sql')).sort();
-  for (const f of files) await db.exec(read(`supabase/migrations/${f}`));
+  for (const f of files) {
+    if (stopBefore && f >= stopBefore) break;
+    await db.exec(migrationSql(f));
+  }
   return db;
 }
+
+export const migrationSql = (file: string) => read(`supabase/migrations/${file}`);
 
 export async function createUser(db: PGlite, email: string): Promise<string> {
   const id = crypto.randomUUID();
