@@ -88,7 +88,8 @@ after which changes are logged in `audit_log`. Defaults below are placeholders w
 | `exclusive_ownership` | true | one owner per athlete per league |
 | `allow_self_ownership` | false | an athlete linked to a user can't be owned by that user |
 | `stat_weights` | goal 3, assist 3, block 3, callahan 8, completion 0.2, throwaway −2, drop −2, stall −2 | points per stat |
-| `normalize_per_points` | 10 | score is expressed per this many points played |
+| `normalize_mode` | `per_point` | `per_point` divides by points played; `none` uses raw totals |
+| `normalize_per_points` | 1 | scale: score is expressed per this many points played (1 = per point) |
 | `min_points_denominator` | 5 | floor on points played in the denominator (stops 1-point flukes) |
 | `session_multipliers` | practice 1, tournament 2 | |
 | `absent_score` | 0 | week score when a picked athlete played no counted session |
@@ -120,8 +121,13 @@ For athlete *a* in week *w*, over the counted sessions *s* in that week:
 raw(s)   = Σ_stat weight[stat] × count[stat]
 num      = Σ_s mult(s) × raw(s)
 den      = max( Σ_s mult(s) × points_played(s), min_points_denominator )
-score    = num / den × normalize_per_points        (absent_score if no sessions)
+score    = num / den × normalize_per_points        (normalize_mode = per_point, default)
+score    = num                                     (normalize_mode = none)
+score    = absent_score                            (no counted sessions)
 ```
+
+Default is score **per point played**. Mode and scale are settings, so switching to "per 10
+points" or raw totals later is a config change, not a code change.
 
 Only **locked** stat lines count.
 
