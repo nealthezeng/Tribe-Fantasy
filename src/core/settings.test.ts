@@ -11,7 +11,9 @@ describe('parseSettings', () => {
     expect(DEFAULT_SETTINGS.credits_per_dollar).toBe(20);
     expect(DEFAULT_SETTINGS.min_credits_to_play).toBe(100);
     expect(DEFAULT_SETTINGS.extra_credit_cap).toBeNull();
-    expect(DEFAULT_SETTINGS.normalize_mode).toBe('per_point');
+    expect(DEFAULT_SETTINGS.normalize_mode).toBe('none');
+    expect(DEFAULT_SETTINGS.stat_weights).toEqual({ goal: 3, assist: 3, block: 3, callahan: 8, turnover: -2 });
+    expect(DEFAULT_SETTINGS.tap_merge_seconds).toBe(10);
     expect(DEFAULT_SETTINGS.normalize_per_points).toBe(1);
     expect(DEFAULT_SETTINGS.points_mode).toBe('rank_weighted');
   });
@@ -53,6 +55,7 @@ describe('parseSettings', () => {
   it('rejects non-objects and non-finite numbers', () => {
     expect(() => parseSettings([1])).toThrow(SettingsError);
     expect(() => parseSettings({ upset_k: Number.NaN })).toThrow(/upset_k/);
+    expect(() => parseSettings({ tap_merge_seconds: 61 })).toThrow(/tap_merge_seconds/);
     expect(() => parseSettings({ stat_weights: { goal: 'x' } })).toThrow(/stat_weights/);
   });
 

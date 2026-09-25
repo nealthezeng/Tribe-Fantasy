@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
 import { acquiredKey, scoreWeek, type WeekInput } from './week';
 
-const s = parseSettings({ points_mode: 'fixed' });
+const s = parseSettings({ points_mode: 'fixed', normalize_mode: 'per_point' });
 const base = (over: Partial<WeekInput> = {}): WeekInput => ({
   week: 1,
   settings: s,

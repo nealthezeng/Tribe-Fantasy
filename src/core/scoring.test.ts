@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
 import { athleteWeekScore, rawScore, type StatLine } from './scoring';
 
-const s = parseSettings({});
+const s = parseSettings({ normalize_mode: 'per_point' });
 const line = (over: Partial<StatLine> = {}): StatLine => ({
   athleteId: 'a1',
   sessionType: 'practice',
@@ -14,12 +14,12 @@ const line = (over: Partial<StatLine> = {}): StatLine => ({
 describe('rawScore', () => {
   it('weights each stat and ignores unknown stats', () => {
     expect(rawScore({ goal: 2, assist: 1, layout: 5 }, s.stat_weights)).toBe(9);
-    expect(rawScore({ completion: 10, throwaway: 1 }, s.stat_weights)).toBeCloseTo(0);
+    expect(rawScore({ goal: 1, turnover: 1 }, s.stat_weights)).toBe(1);
   });
 });
 
 describe('athleteWeekScore', () => {
-  it('is per point played by default', () => {
+  it('divides by points played in per_point mode', () => {
     expect(athleteWeekScore([line()], s)).toBeCloseTo(0.9);
   });
 
@@ -34,12 +34,12 @@ describe('athleteWeekScore', () => {
 
   it('floors the denominator so tiny or zero points played stay finite', () => {
     expect(athleteWeekScore([line({ pointsPlayed: 0, stats: { goal: 1 } })], s)).toBeCloseTo(3 / 5);
-    expect(athleteWeekScore([line({ pointsPlayed: 0, stats: { throwaway: 4 } })], s)).toBeCloseTo(-8 / 5);
+    expect(athleteWeekScore([line({ pointsPlayed: 0, stats: { turnover: 4 } })], s)).toBeCloseTo(-8 / 5);
   });
 
   it('supports raw totals and other scales', () => {
     expect(athleteWeekScore([line()], parseSettings({ normalize_mode: 'none' }))).toBe(9);
-    expect(athleteWeekScore([line()], parseSettings({ normalize_per_points: 10 }))).toBeCloseTo(9);
+    expect(athleteWeekScore([line()], parseSettings({ normalize_mode: 'per_point', normalize_per_points: 10 }))).toBeCloseTo(9);
   });
 
   it('returns absent_score when the athlete has no counted sessions', () => {
