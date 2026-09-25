@@ -10,6 +10,7 @@ export function Layout() {
         <Link to="/" className="brand">Tribe Fantasy</Link>
         <nav>
           {isKeeper && <Link to="/tally">Tally</Link>}
+          {session && <Link to="/stats">Stats</Link>}
           {isAdmin && <Link to="/admin">Admin</Link>}
           {session ? (
             <button className="linklike" onClick={() => supabase?.auth.signOut()}>Sign out</button>
