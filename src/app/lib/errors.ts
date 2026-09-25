@@ -31,6 +31,14 @@ const MESSAGES: Record<string, string> = {
   NOT_YOUR_ATHLETE: 'You can only update your own attendance and injuries.',
   INVALID_STATUS: 'Attendance must be present or absent.',
   USER_ALREADY_LINKED: 'That account is already linked to another athlete this season.',
+  INVALID_DATES: 'The end date must be on or after the start date.',
+  STAGE_OVERLAP: 'Those dates overlap another stage.',
+  STAGE_EXISTS: 'A stage with that name already exists this year.',
+  LEAGUE_FULL: 'This league is full.',
+  DONATIONS_DISABLED: 'Recording donations to the team is turned off for this season.',
+  INVALID_AMOUNT: "That amount isn't valid.",
+  NOTE_REQUIRED: 'Add a note saying why.',
+  INVALID_NOTE: 'Notes must be 200 characters or fewer.',
 };
 
 export function errorMessage(err: unknown): string {
