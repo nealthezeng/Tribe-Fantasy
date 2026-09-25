@@ -25,16 +25,30 @@ export function StatsPage() {
     setError(null);
     try {
       const { season, sessions } = data.data;
-      const [lines, athletes] = await Promise.all([
-        supabase!.from('stat_lines').select('session_id, athlete_id, stats').in('session_id', sessions.map((s) => s.id)),
-        supabase!.from('athletes').select('id, name').eq('season_id', season.id),
-      ]);
-      if (lines.error) throw lines.error;
+      const sessionIds = sessions.map((s) => s.id);
+      const athletes = await supabase!.from('athletes').select('id, name').eq('season_id', season.id);
       if (athletes.error) throw athletes.error;
+
+      // ponytail: PostgREST max_rows=1000, page-fetch until short page
+      const PAGE = 1000;
+      const allLines: Array<{ session_id: string; athlete_id: string; stats: Record<string, number> }> = [];
+      for (let from = 0; ; from += PAGE) {
+        const lines = await supabase!.from('stat_lines')
+          .select('session_id, athlete_id, stats')
+          .in('session_id', sessionIds)
+          .order('session_id')
+          .order('athlete_id')
+          .range(from, from + PAGE - 1);
+        if (lines.error) throw lines.error;
+        if (!lines.data || lines.data.length === 0) break;
+        allLines.push(...lines.data);
+        if (lines.data.length < PAGE) break;
+      }
+
       const names = new Map((athletes.data ?? []).map((a: { id: string; name: string }) => [a.id, a.name]));
       const byId = new Map(sessions.map((s) => [s.id, s]));
       const stats = Object.keys(season.settings.stat_weights);
-      const rows = (lines.data ?? []).map((l: { session_id: string; athlete_id: string; stats: Record<string, number> }) => {
+      const rows = allLines.map((l: { session_id: string; athlete_id: string; stats: Record<string, number> }) => {
         const s = byId.get(l.session_id)!;
         return [s.held_on, s.kind, s.counts, names.get(l.athlete_id) ?? l.athlete_id, ...stats.map((k) => l.stats[k] ?? 0), s.verified_at ?? ''];
       });
