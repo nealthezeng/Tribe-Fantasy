@@ -33,5 +33,7 @@
 2. Seasons created before M3 still store the old 8 stats. In **Admin → season → Settings**, set
    `"stat_weights": {"goal": 3, "assist": 3, "block": 3, "callahan": 8, "turnover": -2}`,
    `"normalize_mode": "none"` and add `"tap_merge_seconds": 10`, then save.
+   Change `stat_weights` before the first tap of a season; removing a stat that already has taps makes those
+   sessions impossible to verify.
 3. Coaches: have each sign in and set a name, then **Admin → Stat keepers → Make keeper**. Don't make coaches admins.
 4. Players: **Admin → Athletes → linked account** for each player who wants to mark attendance/injuries.
