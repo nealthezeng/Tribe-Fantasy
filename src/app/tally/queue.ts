@@ -26,11 +26,13 @@ const REJECTIONS = [
   'FORBIDDEN', 'NOT_FOUND', 'SESSION_VERIFIED', 'UNKNOWN_STAT', 'OWNS_ATHLETE', 'INVALID_TAPS', 'NOT_SIGNED_IN',
 ];
 
-const storageKey = (sessionId: string) => `tribe.tally.${sessionId}`;
+// Per keeper as well as per session, so on a shared phone one keeper never sends another's taps.
+const storageKey = (userId: string, sessionId: string) => `tribe.tally.${userId}.${sessionId}`;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function loadQueue(sessionId: string): QueuedTap[] {
+export function loadQueue(userId: string, sessionId: string): QueuedTap[] {
   try {
-    const raw = localStorage.getItem(storageKey(sessionId));
+    const raw = localStorage.getItem(storageKey(userId, sessionId));
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? (parsed as QueuedTap[]) : [];
   } catch {
@@ -39,14 +41,32 @@ export function loadQueue(sessionId: string): QueuedTap[] {
 }
 
 /** False when the phone refused to store it (private mode, full storage): the taps then live only in memory. */
-export function storeQueue(sessionId: string, queue: QueuedTap[]): boolean {
+export function storeQueue(userId: string, sessionId: string, queue: QueuedTap[]): boolean {
   try {
-    if (queue.length === 0) localStorage.removeItem(storageKey(sessionId));
-    else localStorage.setItem(storageKey(sessionId), JSON.stringify(queue));
+    if (queue.length === 0) localStorage.removeItem(storageKey(userId, sessionId));
+    else localStorage.setItem(storageKey(userId, sessionId), JSON.stringify(queue));
     return true;
   } catch {
     return false;
   }
+}
+
+/** Sessions this keeper still has taps queued for on this phone, including ones since verified. */
+export function queuedSessions(userId: string): { sessionId: string; count: number }[] {
+  const prefix = storageKey(userId, '');
+  const out: { sessionId: string; count: number }[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) ?? '';
+      const sessionId = key.slice(prefix.length);
+      if (!key.startsWith(prefix) || !UUID.test(sessionId)) continue;
+      const count = loadQueue(userId, sessionId).length;
+      if (count > 0) out.push({ sessionId, count });
+    }
+  } catch {
+    // Storage unreadable: nothing to list.
+  }
+  return out;
 }
 
 export function removeSent(queue: QueuedTap[], sent: QueuedTap[]): QueuedTap[] {

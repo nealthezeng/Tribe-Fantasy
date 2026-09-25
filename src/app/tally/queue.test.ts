@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Tap } from '../../core/taps';
-import { canForgetLocally, isRejection, lastUndoable, loadQueue, removeSent, storeQueue, type QueuedTap } from './queue';
+import {
+  canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, removeSent, storeQueue, type QueuedTap,
+} from './queue';
 
 const q = (id: string, undoes: string | null = null): QueuedTap => ({
   id, athlete_id: 'sam', stat: 'goal', tapped_at: '2026-11-16T18:00:00.000Z', undoes,
@@ -13,18 +15,41 @@ const tap = (id: string, keeperId: string, tappedAt: number, undoes: string | nu
 beforeEach(() => localStorage.clear());
 
 describe('tap queue storage', () => {
+  const A = '11111111-1111-4111-8111-111111111111';
+  const B = '22222222-2222-4222-8222-222222222222';
+  const S1 = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const S2 = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
   it('survives a page reload (offline all practice)', () => {
-    expect(storeQueue('s1', [q('a'), q('b')])).toBe(true);
-    expect(loadQueue('s1').map((t) => t.id)).toEqual(['a', 'b']);
-    expect(loadQueue('s2')).toEqual([]);
+    expect(storeQueue(A, S1, [q('a'), q('b')])).toBe(true);
+    expect(loadQueue(A, S1).map((t) => t.id)).toEqual(['a', 'b']);
+    expect(loadQueue(A, S2)).toEqual([]);
+  });
+
+  it('keeps keepers apart on a shared phone', () => {
+    storeQueue(A, S1, [q('a')]);
+    expect(loadQueue(B, S1)).toEqual([]);
+    storeQueue(B, S1, [q('b')]);
+    expect(loadQueue(A, S1).map((t) => t.id)).toEqual(['a']);
   });
 
   it('clears the key when the queue empties, and shrugs off corrupt storage', () => {
-    storeQueue('s1', [q('a')]);
-    storeQueue('s1', []);
-    expect(localStorage.getItem('tribe.tally.s1')).toBeNull();
-    localStorage.setItem('tribe.tally.s1', '{not json');
-    expect(loadQueue('s1')).toEqual([]);
+    storeQueue(A, S1, [q('a')]);
+    storeQueue(A, S1, []);
+    expect(localStorage.getItem(`tribe.tally.${A}.${S1}`)).toBeNull();
+    localStorage.setItem(`tribe.tally.${A}.${S1}`, '{not json');
+    expect(loadQueue(A, S1)).toEqual([]);
+  });
+
+  it('lists the sessions this keeper still has taps queued for', () => {
+    storeQueue(A, S1, [q('a'), q('b')]);
+    storeQueue(A, S2, [q('c')]);
+    storeQueue(B, S1, [q('d')]);
+    localStorage.setItem(`tribe.tally.${A}.not-a-session`, JSON.stringify([q('e')]));
+    localStorage.setItem('unrelated', 'x');
+    expect(queuedSessions(A).sort((x, y) => x.sessionId.localeCompare(y.sessionId)))
+      .toEqual([{ sessionId: S1, count: 2 }, { sessionId: S2, count: 1 }]);
+    expect(queuedSessions(B)).toEqual([{ sessionId: S1, count: 1 }]);
   });
 
   it('removes only the taps that were sent', () => {

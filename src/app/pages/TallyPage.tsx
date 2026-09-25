@@ -11,7 +11,8 @@ import {
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import {
-  BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedToTap, removeSent, rowToTap, storeQueue,
+  BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, queuedToTap, removeSent, rowToTap,
+  storeQueue,
   type QueuedTap, type StatTapRow,
 } from '../tally/queue';
 
@@ -26,21 +27,27 @@ export function TallyPage() {
   return sessionId ? (
     <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setSessionId(null)} />
   ) : (
-    <SessionPicker season={season.data} onPick={setSessionId} />
+    <SessionPicker season={season.data} keeperId={session.user.id} onPick={setSessionId} />
   );
 }
 
-function SessionPicker({ season, onPick }: { season: CurrentSeason; onPick: (id: string) => void }) {
+function SessionPicker({ season, keeperId, onPick }: {
+  season: CurrentSeason; keeperId: string; onPick: (id: string) => void;
+}) {
   const [heldOn, setHeldOn] = useState(todayLocal());
   const [kind, setKind] = useState<'practice' | 'tournament'>('practice');
   const [counts, setCounts] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Taps still on this phone, so they're never stranded: their sessions are listed even once verified.
+  const [unsaved] = useState(() => new Map(queuedSessions(keeperId).map((q) => [q.sessionId, q.count])));
   const sessions = useLoad(async () => {
+    const open = `and(season_id.eq.${season.id},verified_at.is.null)`;
     const { data, error } = await supabase!.from('sessions').select(SESSION_COLUMNS)
-      .eq('season_id', season.id).is('verified_at', null).order('held_on', { ascending: false });
+      .or(unsaved.size ? `${open},id.in.(${[...unsaved.keys()].join(',')})` : open)
+      .order('held_on', { ascending: false });
     if (error) throw error;
     return (data ?? []) as SessionRow[];
-  }, [season.id]);
+  }, [season.id, unsaved]);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -61,8 +68,11 @@ function SessionPicker({ season, onPick }: { season: CurrentSeason; onPick: (id:
         <ul className="list">
           {sessions.data?.map((s) => (
             <li key={s.id}>
-              <span>{s.held_on} · {s.kind}{s.counts ? '' : ' (not counted)'}</span>
-              <button onClick={() => onPick(s.id)}>Tally</button>
+              <span>
+                {s.held_on} · {s.kind}{s.counts ? '' : ' (not counted)'}
+                {unsaved.has(s.id) && <strong> · {unsaved.get(s.id)} unsaved taps</strong>}
+              </span>
+              <button onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
             </li>
           ))}
         </ul>
@@ -94,9 +104,11 @@ interface InjuryRow { id: string; athlete_id: string; confirmed_at: string | nul
 function TallyBoard({ season, sessionId, keeperId, onBack }: {
   season: CurrentSeason; sessionId: string; keeperId: string; onBack: () => void;
 }) {
-  const [queue, setQueue] = useState<QueuedTap[]>(() => loadQueue(sessionId));
+  const [queue, setQueue] = useState<QueuedTap[]>(() => loadQueue(keeperId, sessionId));
+  // Saved batches until the reload shows them, so counts and "Undo last tap" don't skip them meanwhile.
+  const [sent, setSent] = useState<QueuedTap[]>([]);
   const [stored, setStored] = useState(true);
-  const [rejected, setRejected] = useState<string | null>(null);
+  const [rejected, setRejected] = useState<{ count: number; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [search, setSearch] = useState('');
@@ -125,8 +137,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
 
   useEffect(() => {
     queueRef.current = queue;
-    setStored(storeQueue(sessionId, queue));
-  }, [queue, sessionId]);
+    setStored(storeQueue(keeperId, sessionId, queue));
+  }, [queue, keeperId, sessionId]);
 
   const flush = useCallback(async () => {
     const batch = queueRef.current.slice(0, BATCH_MAX);
@@ -135,19 +147,23 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     inFlight.current = new Set(batch.map((t) => t.id));
     try {
       await api.saveTaps(sessionId, new Date().toISOString(), batch);
+      // Straight to storage too: after the board unmounts, the state update below goes nowhere.
+      storeQueue(keeperId, sessionId, removeSent(loadQueue(keeperId, sessionId), batch));
       setQueue((q) => removeSent(q, batch));
+      setSent((s) => [...s, ...batch]);
       reload();
     } catch (err) {
       if (isRejection(err)) {
         setQueue((q) => removeSent(q, batch));
-        setRejected(`${batch.length} taps not saved: ${errorMessage(err)}`);
+        setRejected((r) => ({ count: (r?.count ?? 0) + batch.length, message: errorMessage(err) }));
+        reload(); // e.g. SESSION_VERIFIED: show the board as closed
       }
       // Anything else (no signal, timeout): keep the taps and retry.
     } finally {
       sending.current = false;
       inFlight.current = new Set();
     }
-  }, [sessionId, reload]);
+  }, [keeperId, sessionId, reload]);
 
   // Autosave 3s after the last tap, retry every 15s, and save when the signal returns or the app is hidden.
   useEffect(() => {
@@ -156,6 +172,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     const retry = setInterval(() => void flush(), 15_000);
     return () => { clearTimeout(soon); clearInterval(retry); };
   }, [queue, flush]);
+  useEffect(() => () => void flush(), [flush]); // leaving the board (← Sessions) saves too
   useEffect(() => {
     const up = () => { setOnline(true); void flush(); };
     const down = () => setOnline(false);
@@ -171,14 +188,18 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   }, [flush]);
 
   const saved = useMemo(() => (data.data?.taps ?? []).map(rowToTap), [data.data]);
-  const queued = useMemo(() => queue.map((q) => queuedToTap(q, keeperId)), [queue, keeperId]);
+  const queued = useMemo(() => {
+    const savedIds = new Set(saved.map((t) => t.id));
+    // Sent taps are older than queued ones, so this stays in tap order.
+    return [...sent.filter((t) => !savedIds.has(t.id)), ...queue].map((q) => queuedToTap(q, keeperId));
+  }, [saved, sent, queue, keeperId]);
   // Display only: queued times aren't skew-corrected yet. Verify recomputes from the server's taps.
   const counts = useMemo(
     () => mergeTaps([...saved, ...queued], season.settings.tap_merge_seconds).counts,
     [saved, queued, season.settings.tap_merge_seconds],
   );
 
-  if (data.error) return <p className="error">{data.error}</p>;
+  if (data.error && !data.data) return <p className="error">{data.error}</p>;
   if (!data.data) return <p>Loading…</p>;
   const { session, athletes, attendance, injuries } = data.data;
   const closed = sessionState(session, season.settings.stat_lock_hours) !== 'open';
@@ -224,8 +245,9 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       </div>
       {closed && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {!stored && <p className="error">This phone won't store taps. Keep this page open until it says Saved.</p>}
-      {rejected && <p className="error">{rejected} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
+      {rejected && <p className="error">{rejected.count} taps not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
       {error && <p className="error">{error}</p>}
+      {data.error && <p className="error">Couldn't refresh: {data.error}</p>}
       <input type="search" placeholder="Find a player" value={search} onChange={(e) => setSearch(e.target.value)} />
       <p className="muted">A Callahan is one tap: it already includes the goal and the D.</p>
       <ul className="list">
