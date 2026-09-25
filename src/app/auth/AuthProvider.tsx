@@ -8,6 +8,7 @@ interface AuthState {
   loading: boolean;
   displayName: string | null;
   isAdmin: boolean;
+  isKeeper: boolean; // stat_keeper or admin
   authError: string | null;
   clearAuthError: () => void;
   refresh: () => Promise<void>;
@@ -20,12 +21,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isKeeper, setIsKeeper] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async (s: Session | null) => {
     if (!supabase || !s) {
       setDisplayName(null);
       setIsAdmin(false);
+      setIsKeeper(false);
       return;
     }
     const uid = s.user.id;
@@ -34,7 +37,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       supabase.from('user_roles').select('role').eq('user_id', uid),
     ]);
     setDisplayName(profile.data?.display_name ?? null);
-    setIsAdmin((roles.data ?? []).some((r: { role: string }) => r.role === 'admin'));
+    const roleNames = (roles.data ?? []).map((r: { role: string }) => r.role);
+    setIsAdmin(roleNames.includes('admin'));
+    setIsKeeper(roleNames.includes('admin') || roleNames.includes('stat_keeper'));
   }, []);
 
   useEffect(() => {
@@ -70,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
   return (
-    <AuthContext.Provider value={{ session, loading, displayName, isAdmin, authError, clearAuthError, refresh }}>
+    <AuthContext.Provider value={{ session, loading, displayName, isAdmin, isKeeper, authError, clearAuthError, refresh }}>
       {children}
     </AuthContext.Provider>
   );
