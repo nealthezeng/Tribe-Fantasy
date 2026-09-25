@@ -10,7 +10,8 @@ and amends §5.9 of `2026-09-25-tribe-fantasy-design.md` where they conflict.
 at), `created_at`. Every signed-in user can read stages, the same as `seasons`. Stages in the same season must not
 overlap; the RPCs enforce this.
 
-**`credit_ledger`**: `id bigint identity`, `membership_id` (cascade), `stage_id` (nullable, restrict), `kind`
+**`credit_ledger`**: `id bigint identity`, `membership_id` (cascade), `stage_id` (nullable; cascade, which only fires when
+the stage's whole season is deleted, since no RPC deletes a stage), `kind`
 (`allowance` | `donation` | `adjustment`; M5 adds `bid`), `amount int` (non-zero), `dollars numeric(10,2)` (set
 only for donations, > 0), `note text` (≤ 200 chars), `created_by`, `created_at`.
 
@@ -83,8 +84,8 @@ Donation recording stays off in the beta (`donations_enabled` false) until the l
    previous user's roles showing.
 3. The session picker no longer lists a queued session from an old season. Before, it showed that session with
    the current season's athletes. This was a display bug only.
-4. Taps rejected with `SESSION_VERIFIED` are dropped as now, but the board shows
-   "N taps not saved — session already verified".
+4. Taps rejected with `SESSION_VERIFIED` are dropped as now. The board already shows "N taps not saved: This
+   session is already verified…" (M3), so no change is needed.
 
 ## 7. Tests
 
