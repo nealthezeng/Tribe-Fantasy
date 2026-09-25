@@ -2,6 +2,7 @@ import { createHashRouter, RouterProvider } from 'react-router';
 import { AuthProvider } from './auth/AuthProvider';
 import { Layout } from './components/Layout';
 import { supabase } from './lib/supabase';
+import { AdminPage } from './pages/admin/AdminPage';
 import { HomePage } from './pages/HomePage';
 import { JoinPage } from './pages/JoinPage';
 import { LoginPage } from './pages/LoginPage';
@@ -15,6 +16,7 @@ const router = createHashRouter([
       { index: true, element: <HomePage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'join', element: <JoinPage /> },
+      { path: 'admin', element: <AdminPage /> },
     ],
   },
 ]);
