@@ -6,6 +6,7 @@ import { AdminPage } from './pages/admin/AdminPage';
 import { HomePage } from './pages/HomePage';
 import { JoinPage } from './pages/JoinPage';
 import { LoginPage } from './pages/LoginPage';
+import { MePage } from './pages/MePage';
 import { NotConfigured } from './pages/NotConfigured';
 import { SessionPage } from './pages/SessionPage';
 import { StatsPage } from './pages/StatsPage';
@@ -23,6 +24,7 @@ const router = createHashRouter([
       { path: 'tally', element: <TallyPage /> },
       { path: 'stats', element: <StatsPage /> },
       { path: 'stats/:id', element: <SessionPage /> },
+      { path: 'me', element: <MePage /> },
     ],
   },
 ]);

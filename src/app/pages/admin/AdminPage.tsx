@@ -5,6 +5,7 @@ import { AthletesPanel } from './AthletesPanel';
 import { LeaguesPanel } from './LeaguesPanel';
 import { SeasonsPanel } from './SeasonsPanel';
 import { SettingsEditor } from './SettingsEditor';
+import { StaffPanel } from './StaffPanel';
 
 export function AdminPage() {
   const { isAdmin, loading } = useAuth();
@@ -15,6 +16,7 @@ export function AdminPage() {
     <section>
       <h1>Admin</h1>
       <SeasonsPanel selected={seasonId} onSelect={setSeasonId} />
+      <StaffPanel />
       {seasonId && (
         <>
           <SettingsEditor key={seasonId} seasonId={seasonId} />
