@@ -3530,3 +3530,15 @@ Taskboard: t14 → `done`, t15 → `done` (note: "Magic link + 6-digit code; inv
 
 - Build a graphify knowledge graph of the repo (`/graphify`) so future sessions can query the structure instead of re-reading files.
 - Next plan: M3 (stats), starting with t20, evaluating the team's stat app export format, which needs the user.
+
+## Gates carried from M1+M2 reviews
+
+- **Before M3 adds RPCs:** one structural test calling every admin RPC as a non-admin, expecting `FORBIDDEN`, plus an audit-row check per RPC.
+- **M3:** enforce `points_played >= 0` with a check constraint.
+- **M5, before real credits:**
+  - a property test that no eligible higher bid is ever skipped;
+  - golden-value tests pinning `hashSeed`, `mulberry32` and `fillLeftovers`;
+  - compare `placed_at` as normalized integer µs (Date.parse drops µs and returns NaN on bad input);
+  - enforce `allow_self_ownership` in `fillLeftovers`.
+- **M6:** a missing `acquiredWeek` must throw instead of defaulting to multiplier 1; the caller pushes `absent_score` into default-pick history for weeks without stat lines.
+- **Every new migration:** add an explicit `grant select ... to authenticated` next to its policies (default privileges are revoked), re-run the function grant loop, and keep extensions out of `public`.
