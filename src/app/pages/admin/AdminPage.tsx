@@ -6,6 +6,8 @@ import { LeaguesPanel } from './LeaguesPanel';
 import { SeasonsPanel } from './SeasonsPanel';
 import { SettingsEditor } from './SettingsEditor';
 import { StaffPanel } from './StaffPanel';
+import { StagesPanel } from './StagesPanel';
+import { WalletsPanel } from './WalletsPanel';
 
 export function AdminPage() {
   const { isAdmin, loading } = useAuth();
@@ -20,7 +22,9 @@ export function AdminPage() {
       {seasonId && (
         <>
           <SettingsEditor key={seasonId} seasonId={seasonId} />
+          <StagesPanel key={seasonId} seasonId={seasonId} />
           <LeaguesPanel key={seasonId} seasonId={seasonId} />
+          <WalletsPanel key={seasonId} seasonId={seasonId} />
           <AthletesPanel key={seasonId} seasonId={seasonId} />
         </>
       )}
