@@ -103,6 +103,14 @@ const numberMap: Check = (v) => {
   }
   return null;
 };
+// Same rule as the stat_taps.stat check in 0004_stats.sql; a key it refuses would make every save of that stat fail.
+const STAT_NAME = /^[a-z_]{1,30}$/;
+const statWeights: Check = (v) => {
+  const problem = numberMap(v);
+  if (problem) return problem;
+  const bad = Object.keys(v as object).find((k) => !STAT_NAME.test(k));
+  return bad === undefined ? null : `key "${bad}" must be 1-30 lowercase letters or underscores`;
+};
 
 const CHECKS: Record<keyof SeasonSettings, Check> = {
   credits_per_dollar: num(1, 10_000, true),
@@ -113,7 +121,7 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   min_bid: num(0, 10_000_000, true),
   exclusive_ownership: bool,
   allow_self_ownership: bool,
-  stat_weights: numberMap,
+  stat_weights: statWeights,
   normalize_mode: oneOf('per_point', 'none'),
   normalize_per_points: num(0.001, 1000),
   min_points_denominator: num(1, 1000),

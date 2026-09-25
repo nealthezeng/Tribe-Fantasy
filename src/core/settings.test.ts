@@ -59,6 +59,13 @@ describe('parseSettings', () => {
     expect(() => parseSettings({ stat_weights: { goal: 'x' } })).toThrow(/stat_weights/);
   });
 
+  it('only takes stat names the database can store (lowercase letters and _, up to 30)', () => {
+    for (const bad of ['Goal', 'hockey-assist', 'layout d', '', 'a'.repeat(31)]) {
+      expect(() => parseSettings({ stat_weights: { [bad]: 1 } })).toThrow(/stat_weights key/);
+    }
+    expect(parseSettings({ stat_weights: { hand_block: 2, ['a'.repeat(30)]: 1 } }).stat_weights.hand_block).toBe(2);
+  });
+
   it('does not share nested objects with DEFAULT_SETTINGS', () => {
     const s = parseSettings({});
     s.stat_weights.goal = 99;
