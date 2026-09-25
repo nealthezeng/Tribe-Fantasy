@@ -53,4 +53,10 @@ describe('scoreWeek', () => {
     expect(r.ranks).toEqual({ m2: 1, m3: 2, m1: 3 });
     expect(r.matchups[0].home.delta).toBeCloseTo(6);
   });
+
+  it('scores unpicked athletes that played, for default-pick history', () => {
+    const extra = { athleteId: 'a9', sessionType: 'practice' as const, pointsPlayed: 10, stats: { goal: 4 } };
+    const r = scoreWeek(base({ statLines: [...base().statLines, extra] }));
+    expect(r.athleteScores.a9).toBeCloseTo(1.2);
+  });
 });

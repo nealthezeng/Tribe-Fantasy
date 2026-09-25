@@ -51,7 +51,10 @@ export function validatePick(
   return null;
 }
 
-/** `history`: each athlete's week scores in chronological order. */
+/**
+ * `history`: each athlete's week scores in chronological order, one entry per week.
+ * The caller pushes `absent_score` for weeks an athlete had no stat lines.
+ */
 export function defaultPick(
   available: string[],
   history: Record<string, number[]>,

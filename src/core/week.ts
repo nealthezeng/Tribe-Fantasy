@@ -53,6 +53,7 @@ export function scoreWeek(input: WeekInput): WeekResult {
   }
   const athleteScores: Record<string, number> = {};
   const scoreOf = (id: string) => (athleteScores[id] ??= athleteWeekScore(linesByAthlete.get(id) ?? [], s));
+  for (const id of linesByAthlete.keys()) scoreOf(id);
 
   const side = (managerId: string): SideResult => {
     const athleteId = input.picks[managerId] ?? null;

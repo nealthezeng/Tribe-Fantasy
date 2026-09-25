@@ -29,6 +29,20 @@ describe('simulateSeason', () => {
     }
   });
 
+  it('default-picks the unused athlete with the best week-1 score in week 2', () => {
+    const w1 = r.weeks[0].athleteScores;
+    let notAlphabetical = 0;
+    for (const [managerId, roster] of Object.entries(r.rosters)) {
+      const first = r.picks.find((p) => p.week === 1 && p.managerId === managerId)!.athleteId;
+      const unused = roster.filter((a) => a !== first);
+      expect(unused.every((a) => a in w1)).toBe(true);
+      const best = [...unused].sort((a, b) => w1[b] - w1[a] || (a < b ? -1 : 1))[0];
+      expect(r.picks.find((p) => p.week === 2 && p.managerId === managerId)!.athleteId).toBe(best);
+      if (best !== unused[0]) notAlphabetical++;
+    }
+    expect(notAlphabetical).toBeGreaterThan(0);
+  });
+
   it('is deterministic per seed', () => {
     expect(simulateSeason({ managers: 6, athletes: 30, weeks: 10, seed: 'test', tournamentWeeks: [4, 8] })).toEqual(r);
   });
