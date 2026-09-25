@@ -222,6 +222,8 @@ Round robin (circle method) repeated to cover the season's weeks; odd counts get
 
 ### 5.10 Stats
 
+> Superseded by `2026-09-25-m3-stats-design.md` (tally screen, tap log, attendance, injuries).
+
 - A `session` is a practice or tournament game with a date, type and `counts` flag.
 - `stat_lines`: one per athlete per session, with stat counts and `points_played`, entered via a
   phone form or CSV import (column mapping to be set after evaluating the team's stat app).
@@ -268,7 +270,7 @@ RLS summary:
 |---|---|---|
 | M1 Foundation | scaffold, CI, Pages deploy, schema v1, auth + invites, RLS, admin shell, audit log | t14–t19 |
 | M2 Core logic | scoring, degradation, rank points, allocation, schedule, picks, simulator | t08, t12, t33 (logic), t37, t39 (logic) |
-| M3 Stats | sessions, manual entry, CSV import, verify + lock | t21–t23 |
+| M3 Stats | sessions, tally screen, tap merge, attendance + injuries, verify + lock (see M3 addendum) | t21–t23 |
 | M4 Credits | ledger UI, donation confirm, activation, donor board | t25, t26, t28, t30 |
 | M5 Draft | bid UI, close, allocation run + verify, leftovers, results | t31–t36 |
 | M6 Weekly play | picks, lock, scoring run, standings, default pick, rescore | t38–t42 |
