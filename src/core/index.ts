@@ -7,3 +7,4 @@ export * from './allocation';
 export * from './schedule';
 export * from './picks';
 export * from './week';
+export * from './simulate';
