@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { JoinPage } from './pages/JoinPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotConfigured } from './pages/NotConfigured';
+import { TallyPage } from './pages/TallyPage';
 
 const router = createHashRouter([
   {
@@ -17,6 +18,7 @@ const router = createHashRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'join', element: <JoinPage /> },
       { path: 'admin', element: <AdminPage /> },
+      { path: 'tally', element: <TallyPage /> },
     ],
   },
 ]);
