@@ -163,6 +163,10 @@ create function public.revoke_role(p_user uuid, p_role text) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
   perform private.require_admin();
+  -- Lock the admin rows so two admins revoking each other can't both see a survivor.
+  if p_role = 'admin' then
+    perform 1 from public.user_roles where role = 'admin' for update;
+  end if;
   if p_role = 'admin' and (select count(*) from public.user_roles where role = 'admin' and user_id <> p_user) = 0 then
     raise exception 'LAST_ADMIN';
   end if;
