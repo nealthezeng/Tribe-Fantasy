@@ -11,7 +11,7 @@ import {
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import {
-  BATCH_MAX, isRejection, lastUndoable, loadQueue, queuedToTap, removeSent, rowToTap, storeQueue,
+  BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedToTap, removeSent, rowToTap, storeQueue,
   type QueuedTap, type StatTapRow,
 } from '../tally/queue';
 
@@ -102,6 +102,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   const [search, setSearch] = useState('');
   const queueRef = useRef(queue);
   const sending = useRef(false);
+  const inFlight = useRef<Set<string>>(new Set());
 
   const data = useLoad(async () => {
     const [sess, athletes, taps, attendance, injuries] = await Promise.all([
@@ -131,6 +132,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     const batch = queueRef.current.slice(0, BATCH_MAX);
     if (sending.current || batch.length === 0) return;
     sending.current = true;
+    inFlight.current = new Set(batch.map((t) => t.id));
     try {
       await api.saveTaps(sessionId, new Date().toISOString(), batch);
       setQueue((q) => removeSent(q, batch));
@@ -143,6 +145,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       // Anything else (no signal, timeout): keep the taps and retry.
     } finally {
       sending.current = false;
+      inFlight.current = new Set();
     }
   }, [sessionId, reload]);
 
@@ -190,7 +193,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   function undo() {
     const target = lastUndoable(saved, queued, keeperId);
     if (!target) return;
-    if (queue.some((q) => q.id === target.id)) {
+    if (canForgetLocally(target.id, queue, inFlight.current)) {
       setQueue((q) => q.filter((t) => t.id !== target.id)); // never sent: just forget it
     } else {
       setQueue((q) => [...q, {

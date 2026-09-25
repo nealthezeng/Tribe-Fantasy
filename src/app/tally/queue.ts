@@ -77,6 +77,11 @@ export const queuedToTap = (q: QueuedTap, keeperId: string): Tap => ({
   undoes: q.undoes,
 });
 
+/** Tap can be forgotten locally only if it's queued and not currently being sent to the server. */
+export function canForgetLocally(targetId: string, queue: QueuedTap[], inFlight: ReadonlySet<string>): boolean {
+  return queue.some((q) => q.id === targetId) && !inFlight.has(targetId);
+}
+
 /** The keeper's newest tap that is neither an undo nor already undone, for "Undo last tap". */
 export function lastUndoable(saved: Tap[], queued: Tap[], keeperId: string): Tap | null {
   const undone = new Set([...saved, ...queued].map((t) => t.undoes));

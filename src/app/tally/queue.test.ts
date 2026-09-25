@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Tap } from '../../core/taps';
-import { isRejection, lastUndoable, loadQueue, removeSent, storeQueue, type QueuedTap } from './queue';
+import { canForgetLocally, isRejection, lastUndoable, loadQueue, removeSent, storeQueue, type QueuedTap } from './queue';
 
 const q = (id: string, undoes: string | null = null): QueuedTap => ({
   id, athlete_id: 'sam', stat: 'goal', tapped_at: '2026-11-16T18:00:00.000Z', undoes,
@@ -53,5 +53,25 @@ describe('lastUndoable', () => {
     const queued = [tap('u', 'me', 4, 's2')];
     expect(lastUndoable(saved, queued, 'me')?.id).toBe('s1');
     expect(lastUndoable([], [], 'me')).toBeNull();
+  });
+});
+
+describe('canForgetLocally', () => {
+  it('returns true when queued and not in flight', () => {
+    const queue = [q('a'), q('b')];
+    const inFlight = new Set<string>();
+    expect(canForgetLocally('a', queue, inFlight)).toBe(true);
+  });
+
+  it('returns false when queued but in flight', () => {
+    const queue = [q('a'), q('b')];
+    const inFlight = new Set(['a']);
+    expect(canForgetLocally('a', queue, inFlight)).toBe(false);
+  });
+
+  it('returns false when not queued (already saved)', () => {
+    const queue = [q('a'), q('b')];
+    const inFlight = new Set<string>();
+    expect(canForgetLocally('c', queue, inFlight)).toBe(false);
   });
 });
