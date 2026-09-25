@@ -31,6 +31,7 @@ export interface SeasonSettings {
   trade_review_hours: number;
   trade_keeps_usage: boolean;
   stat_lock_hours: number;
+  tap_merge_seconds: number;
 }
 
 export const DEFAULT_SETTINGS: SeasonSettings = {
@@ -42,8 +43,8 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   min_bid: 1,
   exclusive_ownership: true,
   allow_self_ownership: false,
-  stat_weights: { goal: 3, assist: 3, block: 3, callahan: 8, completion: 0.2, throwaway: -2, drop: -2, stall: -2 },
-  normalize_mode: 'per_point',
+  stat_weights: { goal: 3, assist: 3, block: 3, callahan: 8, turnover: -2 },
+  normalize_mode: 'none',
   normalize_per_points: 1,
   min_points_denominator: 5,
   session_multipliers: { practice: 1, tournament: 2 },
@@ -64,6 +65,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   trade_review_hours: 24,
   trade_keeps_usage: true,
   stat_lock_hours: 48,
+  tap_merge_seconds: 10,
 };
 
 export class SettingsError extends Error {
@@ -101,6 +103,14 @@ const numberMap: Check = (v) => {
   }
   return null;
 };
+// Same rule as the stat_taps.stat check in 0004_stats.sql; a key it refuses would make every save of that stat fail.
+const STAT_NAME = /^[a-z_]{1,30}$/;
+const statWeights: Check = (v) => {
+  const problem = numberMap(v);
+  if (problem) return problem;
+  const bad = Object.keys(v as object).find((k) => !STAT_NAME.test(k));
+  return bad === undefined ? null : `key "${bad}" must be 1-30 lowercase letters or underscores`;
+};
 
 const CHECKS: Record<keyof SeasonSettings, Check> = {
   credits_per_dollar: num(1, 10_000, true),
@@ -111,7 +121,7 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   min_bid: num(0, 10_000_000, true),
   exclusive_ownership: bool,
   allow_self_ownership: bool,
-  stat_weights: numberMap,
+  stat_weights: statWeights,
   normalize_mode: oneOf('per_point', 'none'),
   normalize_per_points: num(0.001, 1000),
   min_points_denominator: num(1, 1000),
@@ -133,6 +143,7 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   trade_review_hours: num(0, 720),
   trade_keeps_usage: bool,
   stat_lock_hours: num(0, 720),
+  tap_merge_seconds: num(0, 60),
 };
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

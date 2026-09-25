@@ -28,3 +28,19 @@ button:disabled { opacity: 0.6; }
 .list li { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
 .row > * { flex: 1 1 160px; }
+.muted { color: var(--muted); }
+.secondary { background: var(--card); color: var(--fg); border: 1px solid var(--line); }
+.badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--error); color: #fff; }
+label.check { display: flex; gap: 8px; align-items: center; color: var(--fg); }
+label.check input { min-height: 0; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+.tally-bar { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.list li.tally-card { display: grid; gap: 8px; }
+.tally-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tally-head strong { flex: 1 1 auto; }
+.tally-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); gap: 6px; }
+.tally-buttons button { min-height: 56px; padding: 4px; font-size: 14px; display: grid; justify-items: center; gap: 2px; touch-action: manipulation; }
+.tally-count { font-size: 18px; font-weight: 700; }

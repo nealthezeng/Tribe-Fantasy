@@ -81,8 +81,8 @@ export function simulateSeason(cfg: SimConfig): SimResult {
           goal: Math.floor(rand() * 3 * k),
           assist: Math.floor(rand() * 3 * k),
           block: Math.floor(rand() * 2 * k),
-          completion: Math.floor(rand() * 20 * k),
-          throwaway: Math.floor(rand() * 3 * (1.5 - k / 1.5)),
+          callahan: rand() < 0.02 * k ? 1 : 0,
+          turnover: Math.floor(rand() * 3 * (1.5 - k / 1.5)),
         },
       };
     });

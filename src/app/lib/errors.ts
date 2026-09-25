@@ -17,6 +17,20 @@ const MESSAGES: Record<string, string> = {
   TEAM_NAME_TAKEN: 'Another team in this league already has that name.',
   INVALID_ROLE: 'Unknown role.',
   LAST_ADMIN: "You can't remove the last admin.",
+  INVALID_SESSION: 'Pick practice or tournament and a date.',
+  SESSION_VERIFIED: 'This session is already verified. Ask a keeper to reopen it.',
+  SESSION_LOCKED: 'This session is locked. Only an admin correction can change it now.',
+  SESSION_NOT_VERIFIED: 'This session is not verified yet.',
+  SESSION_NOT_LOCKED: 'Corrections are only for locked sessions. Reopen it instead.',
+  VERIFIER_TAPPED: 'You tallied this session, so another keeper has to verify it.',
+  OWNS_ATHLETE: "You own an athlete in this session, so you can't do that.",
+  UNKNOWN_STAT: "That stat isn't tracked this season.",
+  INVALID_TAPS: 'Some taps were malformed and were not saved.',
+  INVALID_LINES: 'Those stat totals are not valid.',
+  LINES_MISMATCH: "Those totals don't match the taps. Reload and try again.",
+  NOT_YOUR_ATHLETE: 'You can only update your own attendance and injuries.',
+  INVALID_STATUS: 'Attendance must be present or absent.',
+  USER_ALREADY_LINKED: 'That account is already linked to another athlete this season.',
 };
 
 export function errorMessage(err: unknown): string {

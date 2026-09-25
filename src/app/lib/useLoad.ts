@@ -1,4 +1,4 @@
-import { useEffect, useState, type DependencyList } from 'react';
+import { useCallback, useEffect, useState, type DependencyList } from 'react';
 import { errorMessage } from './errors';
 
 export function useLoad<T>(load: () => Promise<T>, deps: DependencyList) {
@@ -14,5 +14,7 @@ export function useLoad<T>(load: () => Promise<T>, deps: DependencyList) {
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, tick]);
-  return { data, error, reload: () => setTick((t) => t + 1) };
+  // Stable identity, so callers can list reload in effect/callback deps without re-running them every render.
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+  return { data, error, reload };
 }

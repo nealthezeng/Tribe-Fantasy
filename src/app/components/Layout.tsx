@@ -3,12 +3,15 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
 
 export function Layout() {
-  const { session, isAdmin, displayName, loading, authError, clearAuthError } = useAuth();
+  const { session, isAdmin, isKeeper, displayName, loading, authError, clearAuthError } = useAuth();
   return (
     <div className="shell">
       <header className="topbar">
         <Link to="/" className="brand">Tribe Fantasy</Link>
         <nav>
+          {isKeeper && <Link to="/tally">Tally</Link>}
+          {session && <Link to="/stats">Stats</Link>}
+          {session && <Link to="/me">Me</Link>}
           {isAdmin && <Link to="/admin">Admin</Link>}
           {session ? (
             <button className="linklike" onClick={() => supabase?.auth.signOut()}>Sign out</button>
