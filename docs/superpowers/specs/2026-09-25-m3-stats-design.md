@@ -86,8 +86,11 @@ not trusted.
 | Data | Readable by |
 |---|---|
 | `sessions` | league members + staff |
-| `stat_lines` of locked sessions | league members + staff |
-| `stat_lines` before lock, `stat_taps` | keepers + admin |
+| `stat_lines` (exist only once verified) | league members + staff |
+| `stat_taps` | keepers + admin |
+
+Members see stats as soon as a session is verified. Until it locks, a reopen can still change or remove those
+lines, so the UI marks unlocked lines "verified — locks <time>".
 | `attendance` | league members + staff |
 | `injuries` confirmed and active | league members + staff |
 | `injuries` unconfirmed | keepers, admin, the reporting user |
