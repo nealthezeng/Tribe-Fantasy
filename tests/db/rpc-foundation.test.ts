@@ -77,6 +77,13 @@ describe('admin RPCs', () => {
     await expect(as(db, admin, (tx) => rpc(tx, 'create_season', { p_name: 'X', p_settings: {} }))).rejects.toThrow('FORBIDDEN');
   });
 
+  it('lets an invite creator be deleted, keeping the invite with created_by null', async () => {
+    await setupLeague();
+    await db.query('delete from auth.users where id = $1', [admin]);
+    const inv = await db.query<{ created_by: string | null }>(`select created_by from public.invites where code = 'ABC123'`);
+    expect(inv.rows).toEqual([{ created_by: null }]);
+  });
+
   it('rejects an invite with max_uses of 0', async () => {
     const { league } = await setupLeague();
     await expect(as(db, admin, (tx) => rpc(tx, 'create_invite', { p_league: league, p_code: 'ZEROUSE', p_max_uses: 0, p_expires_at: null }))).rejects.toThrow('INVALID_INVITE_SETTINGS');

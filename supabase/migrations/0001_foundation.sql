@@ -41,7 +41,7 @@ create table public.invites (
   max_uses int not null default 50 check (max_uses > 0),
   uses int not null default 0 check (uses >= 0),
   expires_at timestamptz,
-  created_by uuid references auth.users (id),
+  created_by uuid references auth.users (id) on delete set null,
   created_at timestamptz not null default now()
 );
 
