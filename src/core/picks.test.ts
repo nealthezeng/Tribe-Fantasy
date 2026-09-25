@@ -36,6 +36,17 @@ describe('usedThisCycle', () => {
     const picks = [p(1, 'm1', 'gone')];
     expect([...usedThisCycle('m1', roster, picks, 2, s)]).toEqual([]);
   });
+
+  it('starts a new cycle when trade-carried usage completes the old one', () => {
+    const picks = [p(1, 'm1', 'a1'), p(2, 'm1', 'a2'), p(1, 'm2', 'a3'), p(3, 'm1', 'a1')];
+    expect([...usedThisCycle('m1', roster, picks, 4, s)]).toEqual(['a1']);
+  });
+
+  it('does not carry usage when ownership is not exclusive', () => {
+    const picks = [p(1, 'm1', 'a1'), p(1, 'm2', 'a3')];
+    const nonExclusive = parseSettings({ exclusive_ownership: false });
+    expect([...usedThisCycle('m1', roster, picks, 2, nonExclusive)]).toEqual(['a1']);
+  });
 });
 
 describe('validatePick', () => {

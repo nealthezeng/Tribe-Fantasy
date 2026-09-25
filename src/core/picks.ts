@@ -11,7 +11,7 @@ const coversRoster = (roster: string[], used: Set<string>) =>
 
 /**
  * Spec §5.7. Athletes on `roster` that the manager may not pick in week `beforeWeek`.
- * A cycle ends when every current rostered athlete has been used.
+ * A cycle ends when every current rostered athlete has been used. Tracks cycles across trade-carried usage.
  */
 export function usedThisCycle(
   managerId: string,
@@ -20,22 +20,18 @@ export function usedThisCycle(
   beforeWeek: number,
   s: SeasonSettings,
 ): Set<string> {
-  const past = picks.filter((p) => p.week < beforeWeek).sort((a, b) => a.week - b.week);
+  const rosterSet = new Set(roster);
+  // Without exclusive ownership another manager's pick is their own copy of the athlete,
+  // not usage that travelled with a trade, so only exclusive leagues carry usage over.
+  const carryOver = s.trade_keeps_usage && s.exclusive_ownership;
+  const relevant = picks
+    .filter((p) => p.week < beforeWeek && (p.managerId === managerId || (carryOver && rosterSet.has(p.athleteId))))
+    .sort((a, b) => a.week - b.week);
   let used = new Set<string>();
-  let cycleStart = 0;
-  for (const p of past) {
-    if (p.managerId !== managerId) continue;
-    used.add(p.athleteId);
-    if (coversRoster(roster, used)) {
-      used = new Set();
-      cycleStart = p.week + 1;
-    }
-  }
-  if (s.trade_keeps_usage && s.exclusive_ownership) {
-    const rosterSet = new Set(roster);
-    for (const p of past) {
-      if (p.managerId !== managerId && p.week >= cycleStart && rosterSet.has(p.athleteId)) used.add(p.athleteId);
-    }
+  let i = 0;
+  while (i < relevant.length) {
+    const week = relevant[i].week;
+    for (; i < relevant.length && relevant[i].week === week; i++) used.add(relevant[i].athleteId);
     if (coversRoster(roster, used)) used = new Set();
   }
   return new Set(roster.filter((a) => used.has(a)));
