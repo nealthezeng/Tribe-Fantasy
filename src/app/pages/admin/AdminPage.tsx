@@ -17,9 +17,9 @@ export function AdminPage() {
       <SeasonsPanel selected={seasonId} onSelect={setSeasonId} />
       {seasonId && (
         <>
-          <SettingsEditor seasonId={seasonId} />
-          <LeaguesPanel seasonId={seasonId} />
-          <AthletesPanel seasonId={seasonId} />
+          <SettingsEditor key={seasonId} seasonId={seasonId} />
+          <LeaguesPanel key={seasonId} seasonId={seasonId} />
+          <AthletesPanel key={seasonId} seasonId={seasonId} />
         </>
       )}
     </section>
