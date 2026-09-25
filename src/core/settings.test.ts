@@ -61,4 +61,12 @@ describe('parseSettings', () => {
     s.stat_weights.goal = 99;
     expect(DEFAULT_SETTINGS.stat_weights.goal).toBe(3);
   });
+
+  it('rejects inherited Object.prototype keys', () => {
+    expect(() => parseSettings({ toString: 'x' })).toThrow(/unknown setting "toString"/);
+  });
+
+  it('rejects unknown session types in session_multipliers', () => {
+    expect(() => parseSettings({ session_multipliers: { tournamnet: 3 } })).toThrow(/unknown session type "tournamnet"/);
+  });
 });

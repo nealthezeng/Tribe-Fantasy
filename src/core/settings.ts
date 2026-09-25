@@ -146,7 +146,16 @@ export function parseSettings(input: unknown): SeasonSettings {
 
   const issues: string[] = [];
   for (const key of Object.keys(input)) {
-    if (!(key in CHECKS)) issues.push(`unknown setting "${key}"`);
+    if (!Object.hasOwn(CHECKS, key)) issues.push(`unknown setting "${key}"`);
+  }
+
+  // Validate session_multipliers keys before merging
+  if (isPlainObject(input.session_multipliers)) {
+    for (const key of Object.keys(input.session_multipliers)) {
+      if (key !== 'practice' && key !== 'tournament') {
+        issues.push(`session_multipliers has unknown session type "${key}"`);
+      }
+    }
   }
 
   const merged = { ...base, ...structuredClone(input) } as Record<string, unknown>;
@@ -160,6 +169,6 @@ export function parseSettings(input: unknown): SeasonSettings {
   }
   if (issues.length > 0) throw new SettingsError(issues);
 
-  for (const key of Object.keys(merged)) if (!(key in CHECKS)) delete merged[key];
+  for (const key of Object.keys(merged)) if (!Object.hasOwn(CHECKS, key)) delete merged[key];
   return merged as unknown as SeasonSettings;
 }
