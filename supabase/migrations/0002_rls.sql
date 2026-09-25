@@ -34,14 +34,23 @@ language sql stable security definer set search_path = '' as $$
   select public.has_role('admin')
 $$;
 
-create policy profiles_read on public.profiles for select to authenticated using (true);
+-- Anyone can sign up with the public anon key, so roster data is for league members and staff only.
+create function public.can_read_league_data() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (select 1 from public.memberships where user_id = auth.uid())
+      or exists (select 1 from public.user_roles where user_id = auth.uid())
+$$;
+
+create policy profiles_read on public.profiles for select to authenticated
+  using (id = auth.uid() or public.can_read_league_data());
 create policy user_roles_read on public.user_roles for select to authenticated
   using (user_id = auth.uid() or public.is_admin());
 create policy seasons_read on public.seasons for select to authenticated using (true);
 create policy leagues_read on public.leagues for select to authenticated using (true);
 create policy invites_read on public.invites for select to authenticated using (public.is_admin());
-create policy memberships_read on public.memberships for select to authenticated using (true);
-create policy athletes_read on public.athletes for select to authenticated using (true);
+create policy memberships_read on public.memberships for select to authenticated
+  using (user_id = auth.uid() or public.can_read_league_data());
+create policy athletes_read on public.athletes for select to authenticated using (public.can_read_league_data());
 create policy audit_log_read on public.audit_log for select to authenticated using (public.is_admin());
 
 -- Functions: authenticated only. Re-run this block at the end of every migration that adds functions.

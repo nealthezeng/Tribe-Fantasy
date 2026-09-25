@@ -44,6 +44,25 @@ describe('RLS', () => {
     expect(all).toEqual([{ role: 'admin' }]);
   });
 
+  it('hides athletes and other profiles from accounts outside the league', async () => {
+    await db.exec(`
+      insert into public.profiles (id, display_name) values ('${admin}', 'Admin'), ('${alice}', 'Alice');
+      insert into public.athletes (season_id, name) values ('00000000-0000-0000-0000-000000000001', 'Zed');`);
+    const read = async () => as(db, alice, async (tx) => ({
+      athletes: (await tx.query('select name from public.athletes')).rows,
+      profiles: (await tx.query('select display_name from public.profiles order by display_name')).rows,
+    }));
+    expect(await read()).toEqual({ athletes: [], profiles: [{ display_name: 'Alice' }] });
+    await db.query(`insert into public.memberships (league_id, user_id, team_name) values ('00000000-0000-0000-0000-000000000002', $1, 'Hucks')`, [alice]);
+    expect(await read()).toEqual({ athletes: [{ name: 'Zed' }], profiles: [{ display_name: 'Admin' }, { display_name: 'Alice' }] });
+  });
+
+  it('lets staff with a role but no membership read roster data', async () => {
+    await db.exec(`insert into public.athletes (season_id, name) values ('00000000-0000-0000-0000-000000000001', 'Zed');`);
+    const rows = await as(db, admin, async (tx) => (await tx.query('select name from public.athletes')).rows);
+    expect(rows).toEqual([{ name: 'Zed' }]);
+  });
+
   it('rejects direct writes', async () => {
     await expect(as(db, admin, (tx) => tx.query(`insert into public.seasons (name) values ('Hack')`))).rejects.toThrow(/permission denied/);
   });
