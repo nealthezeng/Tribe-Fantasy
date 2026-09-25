@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import {
   BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, queuedToTap, removeSent, rowToTap,
-  storeQueue,
+  storeQueue, unsavedTaps,
   type QueuedTap, type StatTapRow,
 } from '../tally/queue';
 
@@ -117,14 +117,17 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   const inFlight = useRef<Set<string>>(new Set());
 
   const data = useLoad(async () => {
-    const [sess, athletes, taps, attendance, injuries] = await Promise.all([
-      supabase!.from('sessions').select(SESSION_COLUMNS).eq('id', sessionId).single(),
-      supabase!.from('athletes').select('id, name').eq('season_id', season.id).eq('opted_in', true).order('name'),
+    const sess = await supabase!.from('sessions').select(SESSION_COLUMNS).eq('id', sessionId).single();
+    if (sess.error) throw sess.error;
+    // The session's own season: a queued session from an earlier season must show that season's athletes.
+    const seasonId = (sess.data as SessionRow).season_id;
+    const [athletes, taps, attendance, injuries] = await Promise.all([
+      supabase!.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name'),
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
       supabase!.from('attendance').select('athlete_id, status').eq('session_id', sessionId),
       supabase!.from('injuries').select('id, athlete_id, confirmed_at').is('cleared_at', null),
     ]);
-    for (const r of [sess, athletes, taps, attendance, injuries]) if (r.error) throw r.error;
+    for (const r of [athletes, taps, attendance, injuries]) if (r.error) throw r.error;
     return {
       session: sess.data as SessionRow,
       athletes: (athletes.data ?? []) as AthleteRow[],
@@ -132,7 +135,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       attendance: (attendance.data ?? []) as AttendanceRow[],
       injuries: (injuries.data ?? []) as InjuryRow[],
     };
-  }, [sessionId, season.id]);
+  }, [sessionId]);
   const reload = data.reload;
 
   useEffect(() => {
@@ -188,11 +191,11 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   }, [flush]);
 
   const saved = useMemo(() => (data.data?.taps ?? []).map(rowToTap), [data.data]);
-  const queued = useMemo(() => {
-    const savedIds = new Set(saved.map((t) => t.id));
-    // Sent taps are older than queued ones, so this stays in tap order.
-    return [...sent.filter((t) => !savedIds.has(t.id)), ...queue].map((q) => queuedToTap(q, keeperId));
-  }, [saved, sent, queue, keeperId]);
+  const savedIds = useMemo(() => new Set(saved.map((t) => t.id)), [saved]);
+  const queued = useMemo(
+    () => unsavedTaps(sent, queue, savedIds).map((q) => queuedToTap(q, keeperId)),
+    [savedIds, sent, queue, keeperId],
+  );
   // Display only: queued times aren't skew-corrected yet. Verify recomputes from the server's taps.
   const counts = useMemo(
     () => mergeTaps([...saved, ...queued], season.settings.tap_merge_seconds).counts,
@@ -214,7 +217,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   function undo() {
     const target = lastUndoable(saved, queued, keeperId);
     if (!target) return;
-    if (canForgetLocally(target.id, queue, inFlight.current)) {
+    if (canForgetLocally(target.id, queue, inFlight.current, savedIds)) {
       setQueue((q) => q.filter((t) => t.id !== target.id)); // never sent: just forget it
     } else {
       setQueue((q) => [...q, {

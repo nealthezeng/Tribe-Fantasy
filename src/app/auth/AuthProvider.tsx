@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { readAuthRedirectError } from './authRedirectError';
@@ -23,15 +23,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isKeeper, setIsKeeper] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const loadedFor = useRef<string | null>(null);
 
   const loadProfile = useCallback(async (s: Session | null) => {
-    if (!supabase || !s) {
+    const uid = s?.user.id ?? null;
+    if (loadedFor.current !== uid) {
+      // A different user (or none): drop the last user's name and roles before a fetch that might fail.
+      loadedFor.current = uid;
       setDisplayName(null);
       setIsAdmin(false);
       setIsKeeper(false);
-      return;
     }
-    const uid = s.user.id;
+    if (!supabase || !s || !uid) return;
     const [profile, roles] = await Promise.all([
       supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
