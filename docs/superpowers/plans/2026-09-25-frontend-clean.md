@@ -5,8 +5,10 @@ Sources: `PRODUCT.md`, `docs/frontend-principles.md`, the graphify code graph, a
 
 ## Direction
 
-This is a refinement, not a redesign. Keep what's there: pine-green accent, system font, warm off-white paper,
-cards, the 720px column. The goal is a calm, readable phone app for use at the field. That means fewer boxes,
+This is a refinement, not a redesign. **Update after approval:** the user chose the team colours, so the pine
+green is gone. Golden yellow `#f5b700` marks actions, baby blue `#8cc8f2` marks info and selection, deep blue
+`#0b5d99` is the light-mode link colour, and a black top bar carries a gold disc mark. Kept: the system font,
+cards and the 720px column. The goal is a calm, readable phone app for use at the field. That means fewer boxes,
 a real type scale, big numbers where they matter (balance, tally counts), and every state spelled out in words.
 Most screens are task screens ("Operate" mode). The signed-out landing page is the only one that has to sell
 anything, and it keeps its current copy.
@@ -101,6 +103,6 @@ anything, and it keeps its current copy.
 - New copy or claims on the landing page.
 
 ## Questions (defaults in brackets)
-1. Keep the pine green, or use the team's colours? [keep green]
+1. ~~Keep the pine green, or use the team's colours?~~ Team colours (golden yellow, baby blue, black and white).
 2. Execution: done inline by me in one coherent pass, with a subagent finish review [yes], or the full
    per-task subagent flow like M3 and M4?
