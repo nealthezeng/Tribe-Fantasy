@@ -7,7 +7,7 @@ on GitHub Pages, with Supabase as the backend. Live at https://nealthezeng.githu
 ## Front-end work
 
 Read `docs/frontend-principles.md` and `DESIGN.md` (team colours, tokens, components) before any UI change, and run its checklist before calling a page done.
-Keep the look clean and simple. Reuse the tokens and classes in `src/app/styles.css`. Add no UI libraries.
+Keep the look clean and simple. Colours, fonts and sizes live in `src/app/tokens.css`; reuse the classes in `src/app/styles.css`. Add no UI libraries.
 
 ## Where things are
 

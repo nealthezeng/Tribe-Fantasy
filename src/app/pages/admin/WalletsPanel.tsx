@@ -13,7 +13,7 @@ interface LeagueRow {
 }
 interface Team { id: string; label: string }
 
-export function WalletsPanel({ seasonId, ledgerVersion }: { seasonId: string; ledgerVersion: number }) {
+export function WalletsPanel({ seasonId }: { seasonId: string }) {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const data = useLoad(async () => {
@@ -30,7 +30,7 @@ export function WalletsPanel({ seasonId, ledgerVersion }: { seasonId: string; le
       creditsPerDollar: Number(settings.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar),
       leagues: (leagues.data ?? []) as LeagueRow[],
     };
-  }, [seasonId, ledgerVersion]);
+  }, [seasonId]);
 
   /** True when the action succeeded, so the form can clear itself. */
   async function run(action: () => Promise<string>): Promise<boolean> {

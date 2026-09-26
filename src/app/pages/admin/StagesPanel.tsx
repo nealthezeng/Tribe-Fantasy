@@ -8,7 +8,7 @@ import { useLoad } from '../../lib/useLoad';
 interface StageRow { id: string; name: string; starts_on: string; ends_on: string; tournament: string | null }
 const EMPTY = { id: null as string | null, name: '', starts_on: '', ends_on: '', tournament: '' };
 
-export function StagesPanel({ seasonId, onGranted }: { seasonId: string; onGranted: () => void }) {
+export function StagesPanel({ seasonId }: { seasonId: string }) {
   const [form, setForm] = useState(EMPTY);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +62,6 @@ export function StagesPanel({ seasonId, onGranted }: { seasonId: string; onGrant
               <button className="secondary" onClick={() => setForm({ ...s, tournament: s.tournament ?? '' })}>Edit</button>
               <button onClick={() => void run(async () => {
                 const n = await api.grantStageAllowance(s.id);
-                onGranted();
                 return `${s.name}: credited ${n} teams.`;
               })}>
                 Grant allowance

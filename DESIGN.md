@@ -3,7 +3,10 @@
 What the shipped UI looks like, recorded from `src/app/styles.css`, `src/app/components/Layout.tsx` and
 `src/app/pages/`. How a page should behave (one job per screen, plain words, show state, the checklist) lives
 in [docs/frontend-principles.md](docs/frontend-principles.md). Who it is for lives in [PRODUCT.md](PRODUCT.md).
-All tokens and classes are in `src/app/styles.css`. Reuse them before adding new ones. No UI libraries.
+**To change the look, edit `src/app/tokens.css`**: every colour, font, size, radius and the menu shadow live there,
+light and dark. `src/app/styles.css` imports it and only reads the tokens. The favicon and `theme-color` in
+`index.html` can't read CSS, so they repeat gold, baby blue and the bar colour by hand. Reuse the classes in
+`styles.css` before adding new ones. No UI libraries.
 
 ## Colour
 
@@ -11,7 +14,8 @@ The team's two colours are fixed by the user. Black and white carry everything e
 
 | Token | Light | Dark | Role |
 |---|---|---|---|
-| `--gold` | #f5b700 | same | Actions: primary buttons, current tab underline, text selection, checkboxes, the disc |
+| `--gold` | #f5b700 | same | Actions: primary buttons, current tab underline, text selection, checkboxes, the disc, the avatar |
+| `--gold-deep` | #c99400 | same | The ring in the disc mark |
 | `--gold-hover` / `--gold-press` | #ffc629 / #dba300 | same | Button hover and press |
 | `--on-gold` | #111111 | same | Text on gold. Never white. |
 | `--blue` | #8cc8f2 | same | Info and selection: `.subnav` hover border, the disc centre |
@@ -52,16 +56,19 @@ in the black top bar, and at 168px, cropped off the corner, behind the signed-ou
 
 ## Type
 
-One family: `system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`. Monospace (`ui-monospace, 'Cascadia Mono',
-Consolas`) only for `code`, the settings textarea and `.code` (invite codes, 18px, spaced out).
+Font tokens: `--font-sans` (system-ui stack) for everything, `--font-heading` (headings and the brand; points at
+`--font-sans` today, so a display face can be swapped in later) and `--font-mono` only for `code`, the settings
+textarea and `.code` (invite codes, 18px, spaced out).
 
 | Token | Size | Use |
 |---|---|---|
+| `--fs-xs` | 13px | Pills, table headers |
 | `--fs-sm` | 14px | Labels, `small`, tables, subnav |
 | `--fs-md` | 16px | Body, `h3` |
 | `--fs-lg` | 20px | `h2` |
 | `--fs-xl` | 26px | `h1` (weight 750, slightly tight tracking) |
 | `--fs-num` | 32px | `.big` headline numbers (tabular) |
+| `--fs-hero` | 40px | The signed-out hero headline |
 
 Body line height 1.5, headings 1.2 and balanced. Numbers that line up use `.num` or tabular figures.
 Small fixed sizes exist only inside their component: pills and table headers 13px, brand 17px, tally counts 24px,
@@ -72,15 +79,20 @@ tally labels 12px and weights 11px, hero headline 40px and hero text 18px.
 Spacing: `--s1` 4, `--s2` 8, `--s3` 12, `--s4` 16, `--s5` 24, `--s6` 32 (px). Layouts stack with grid `gap`, not margins.
 
 Radii: `--radius` 14px for cards and the hero, `--radius-sm` 10px for buttons, inputs, list rows and notices,
-999px for pills and subnav chips. No shadows anywhere.
+999px for pills and subnav chips. One shadow, `--shadow-pop`, only on the floating account menu.
 
-Frame: a full-width black top bar, then one 720px column (`.shell`, 16px side padding, 24px top).
+Frame: a full-width black top bar, then one column (`--shell` 720px, 16px side padding, 24px top).
+
+**Phones (600px and narrower):** cards, the hero and page-level list rows run edge to edge as full-width bands
+(no side borders, no radius), like a native settings screen. Rounded floating cards are for wider screens only.
 
 ## Components
 
-- **Top bar** (`.topbar`): black, brand on the left, nav on the right. Nav links are muted until hovered; the
-  current tab is white with a 3px gold underline. On narrow phones a nav of three or more items wraps to its own
-  full-width row.
+- **Top bar** (`.topbar`): black. Brand on the left, the account avatar on the right, and tabs: League, Stats,
+  Tally (keepers), Admin (admins). On phones the tabs are a second full-width row of equal tabs; from 640px it's
+  one row. Tabs are muted until hovered; the current tab is white with a 3px gold underline.
+- **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
+  and *Sign out*. The avatar gets a baby blue ring while you're on Me.
 - **`.page`**: a page's outer stack (16px gaps, a little extra space under the heading).
 - **`.card`**: white surface, 1px line border, 14px radius, 16px padding. `details.card` is a collapsible card
   with a drawn chevron.
@@ -91,6 +103,7 @@ Frame: a full-width black top bar, then one 720px column (`.shell`, 16px side pa
   like a link. `.button` makes a link look like a button. Buttons in a stack sit at their natural width, left.
 - **`.list`**: on the page, each row is its own bordered box (min 56px tall). Inside a `.card`, rows become
   plain rows split by divider lines.
+- **Banners** like "Welcome! Set your name" show only on the League page, never on task screens like Tally.
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
   `.warn`, `.bad`.
 - **`.notice`**: a soft blue box for information and next steps ("Set your name and join a league").
@@ -98,8 +111,8 @@ Frame: a full-width black top bar, then one 720px column (`.shell`, 16px side pa
   `role="alert"` for a failure, saying what to do next. Loading is `.muted` text with `role="status"`.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
   as background). Used for attendance.
-- **`.subnav`**: a sticky, sideways-scrolling strip of rounded chips that jump to `[data-section]` blocks on
-  the long admin page. Hover turns them soft blue.
+- **`.subnav`**: admin's sticky, sideways-scrolling row of rounded tabs (`aria-pressed`). Admin shows one section
+  at a time; the chosen tab is inverted like `.segmented`. Admin opens on the newest season.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
   gold call to action, the large disc behind.
 - **Tables** (`.table-wrap`): 14px tabular figures, right-aligned numbers, first column left, divider rows.

@@ -9,41 +9,39 @@ import { StaffPanel } from './StaffPanel';
 import { StagesPanel } from './StagesPanel';
 import { WalletsPanel } from './WalletsPanel';
 
-// ponytail: buttons + scrollIntoView, not #anchors: the app uses hash routing.
-const SECTIONS = [
+/** Most-used first. Each tab mounts fresh, so Wallets always shows balances after a grant on Stages. */
+const TABS = [
   ['stages', 'Stages'], ['leagues', 'Leagues'], ['wallets', 'Wallets'],
   ['athletes', 'Athletes'], ['keepers', 'Keepers'], ['settings', 'Settings'],
 ] as const;
+type Tab = (typeof TABS)[number][0];
 
 export function AdminPage() {
   const { isAdmin, loading } = useAuth();
   const [seasonId, setSeasonId] = useState<string | null>(null);
-  const [ledgerVersion, setLedgerVersion] = useState(0);
+  const [tab, setTab] = useState<Tab>('stages');
   if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!isAdmin) return <Navigate to="/" replace />;
   return (
     <section className="page">
       <h1>Admin</h1>
       <SeasonsPanel selected={seasonId} onSelect={setSeasonId} />
-      {seasonId ? (
-        <Fragment key={seasonId}>
-          <nav className="subnav" aria-label="Admin sections">
-            {SECTIONS.map(([id, label]) => (
-              <button key={id} type="button" onClick={() => document.querySelector(`[data-section="${id}"]`)?.scrollIntoView()}>
-                {label}
-              </button>
-            ))}
-          </nav>
-          <div data-section="stages"><StagesPanel seasonId={seasonId} onGranted={() => setLedgerVersion((v) => v + 1)} /></div>
-          <div data-section="leagues"><LeaguesPanel seasonId={seasonId} /></div>
-          <div data-section="wallets"><WalletsPanel seasonId={seasonId} ledgerVersion={ledgerVersion} /></div>
-          <div data-section="athletes"><AthletesPanel seasonId={seasonId} /></div>
-        </Fragment>
+      <nav className="subnav" aria-label="Admin sections">
+        {TABS.map(([id, label]) => (
+          <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>
+        ))}
+      </nav>
+      {tab === 'keepers' ? <StaffPanel /> : !seasonId ? (
+        <p className="notice">Create a season above to manage its stages, leagues, wallets and athletes.</p>
       ) : (
-        <p className="notice">Pick a season above to manage its stages, leagues, wallets and athletes.</p>
+        <Fragment key={seasonId}>
+          {tab === 'stages' && <StagesPanel seasonId={seasonId} />}
+          {tab === 'leagues' && <LeaguesPanel seasonId={seasonId} />}
+          {tab === 'wallets' && <WalletsPanel seasonId={seasonId} />}
+          {tab === 'athletes' && <AthletesPanel seasonId={seasonId} />}
+          {tab === 'settings' && <SettingsEditor seasonId={seasonId} />}
+        </Fragment>
       )}
-      <div data-section="keepers"><StaffPanel /></div>
-      {seasonId && <div data-section="settings"><SettingsEditor key={seasonId} seasonId={seasonId} /></div>}
     </section>
   );
 }

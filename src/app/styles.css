@@ -1,35 +1,11 @@
-/* Tribe colours: golden yellow = actions, baby blue = navigation/info/selection, black and white carry the rest.
-   Gold and baby blue never carry text on white: links use --link, a deep blue from the same hue. */
-:root {
-  --gold: #f5b700; --gold-hover: #ffc629; --gold-press: #dba300; --on-gold: #111111;
-  --blue: #8cc8f2; --blue-soft: #e3f1fc; --blue-ink: #0b4a75;
-  --bg: #f4f7fa; --surface: #ffffff; --surface-2: #eef3f8; --fg: #0f1419; --muted: #56606b;
-  --line: #dbe2ea; --line-strong: #8795a3; --link: #0b5d99; --focus: #0b5d99;
-  --bar: #0f1419; --bar-fg: #ffffff; --bar-muted: #b4bfca;
-  --ok: #1d6b35; --ok-soft: #dcf1e2; --warn: #8a4b00; --warn-soft: #fdebd0; --error: #b3261e; --error-soft: #fbe3e0;
-  --fs-sm: 14px; --fs-md: 16px; --fs-lg: 20px; --fs-xl: 26px; --fs-num: 32px;
-  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
-  --radius: 14px; --radius-sm: 10px;
-  color-scheme: light;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.5;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --blue-soft: #16304a; --blue-ink: #bfe1fa;
-    --bg: #0b0f14; --surface: #141a21; --surface-2: #1b232c; --fg: #e8edf2; --muted: #9aa6b2;
-    --line: #26303b; --line-strong: #66737f; --link: #8cc8f2; --focus: #8cc8f2;
-    --bar: #05070a; --bar-muted: #9aa6b2;
-    --ok: #7fd69a; --ok-soft: #16301f; --warn: #f4b566; --warn-soft: #3a2a13; --error: #ff8a80; --error-soft: #3b1a18;
-  }
-}
+/* Components and layout. Every colour, font and size comes from tokens.css; change the look there. */
+@import './tokens.css';
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-size: var(--fs-md); -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: var(--fs-md); line-height: 1.5; -webkit-text-size-adjust: 100%; }
 ::selection { background: var(--gold); color: var(--on-gold); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-h1, h2, h3 { line-height: 1.2; text-wrap: balance; margin: 0; }
+h1, h2, h3 { font-family: var(--font-heading); line-height: 1.2; text-wrap: balance; margin: 0; }
 h1 { font-size: var(--fs-xl); font-weight: 750; letter-spacing: -0.015em; }
 h2 { font-size: var(--fs-lg); font-weight: 700; }
 h3 { font-size: var(--fs-md); font-weight: 700; }
@@ -37,21 +13,50 @@ p { margin: 0; }
 a { color: var(--link); text-underline-offset: 3px; }
 a:hover { text-decoration-thickness: 2px; }
 p > a:only-child { display: inline-flex; align-items: center; min-height: 44px; }
-code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; }
+code, .code, textarea { font-family: var(--font-mono); }
 small { font-size: var(--fs-sm); font-weight: 400; color: var(--muted); }
 
-/* Page frame: a full-width black bar, then one 720px column. Pages and cards stack with gaps, not margins. */
+/* Top bar. Phone: brand + account menu, then a full-width row of tabs. Wider: one row. */
 .topbar { background: var(--bar); color: var(--bar-fg); border-bottom: 1px solid var(--line); }
-.topbar-inner { max-width: 720px; margin: 0 auto; padding: 0 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; column-gap: var(--s4); }
-.brand { display: inline-flex; align-items: center; gap: var(--s2); min-height: 56px; font-weight: 750; font-size: 17px; letter-spacing: -0.01em; color: var(--bar-fg); text-decoration: none; }
-.topbar nav { display: flex; align-items: center; gap: var(--s1); }
-.topbar nav a, .topbar nav .linklike { display: inline-flex; align-items: center; min-height: 44px; padding: 0 10px; color: var(--bar-muted); font-weight: 600; text-decoration: none; }
-.topbar nav a:hover, .topbar nav .linklike:is(:hover, :active):not(:disabled) { color: var(--bar-fg); padding: 0 10px; text-decoration: none; }
-.topbar nav a[aria-current='page'] { color: var(--bar-fg); box-shadow: inset 0 -3px 0 var(--gold); }
-@media (max-width: 520px) {
-  .topbar nav:has(> :nth-child(3)) { width: calc(100% + 20px); margin: 0 -10px; justify-content: space-between; border-top: 1px solid rgb(255 255 255 / 0.12); }
+.topbar-inner {
+  max-width: var(--shell); margin: 0 auto; padding: 0 16px; display: grid; align-items: center; column-gap: var(--s4);
+  grid-template-columns: 1fr auto; grid-template-areas: 'brand account' 'tabs tabs';
 }
-.shell { max-width: 720px; margin: 0 auto; padding: var(--s5) 16px 48px; display: grid; gap: var(--s4); }
+.brand { grid-area: brand; display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--bar-height); font-family: var(--font-heading); font-weight: 750; font-size: 17px; letter-spacing: -0.01em; color: var(--bar-fg); text-decoration: none; justify-self: start; }
+.tabs { grid-area: tabs; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; margin: 0 -16px; border-top: 1px solid var(--bar-line); }
+.tabs a { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 12px; color: var(--bar-muted); font-weight: 650; text-decoration: none; }
+.tabs a:hover { color: var(--bar-fg); }
+.tabs a[aria-current='page'] { color: var(--bar-fg); box-shadow: inset 0 -3px 0 var(--gold); }
+.signin { grid-area: account; display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; color: var(--bar-fg); font-weight: 650; text-decoration: none; }
+@media (min-width: 640px) {
+  .topbar-inner { grid-template-columns: auto 1fr auto; grid-template-areas: 'brand tabs account'; }
+  .tabs { margin: 0; border-top: 0; grid-auto-columns: auto; justify-content: start; gap: var(--s1); }
+  .tabs a { min-height: var(--bar-height); }
+}
+
+/* Account menu: avatar button, native popover (Esc and tap-outside close it). */
+.account { grid-area: account; }
+.account-button, .account-button:hover:not(:disabled), .account-button:active:not(:disabled) {
+  background: none; color: var(--bar-muted); border: 0; border-radius: 999px; padding: 4px 8px 4px 4px; gap: var(--s2);
+}
+.account-button:hover:not(:disabled) { background: var(--bar-hover); color: var(--bar-fg); }
+.account-button::after { content: ''; width: 7px; height: 7px; margin: -4px 2px 0; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+.avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: var(--on-gold); font-weight: 750; font-size: 15px; line-height: 1; }
+.account-button[aria-current='page'] .avatar { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px var(--blue); }
+.account-menu {
+  position: absolute; inset: auto; top: calc(var(--bar-height) - 2px); right: max(16px, calc((100% - var(--shell)) / 2 + 16px));
+  margin: 0; width: min(264px, calc(100% - 32px)); padding: var(--s2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-pop);
+}
+.account-who { display: grid; padding: 8px 12px 12px; margin-bottom: var(--s1); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.account-menu :is(a, button), .account-menu button:is(:hover, :active):not(:disabled) {
+  display: grid; justify-content: stretch; justify-items: start; align-content: center; width: 100%; min-height: 48px; padding: 6px 12px; border: 0; border-radius: 8px;
+  background: none; color: var(--fg); font-weight: 650; text-decoration: none; text-align: left;
+}
+.account-menu :is(a:hover, a[aria-current='page']), .account-menu button:hover:not(:disabled) { background: var(--surface-2); }
+
+/* Page frame: one column. Pages stack with gaps, not margins. */
+.shell { max-width: var(--shell); margin: 0 auto; padding: var(--s5) 16px 48px; display: grid; gap: var(--s4); }
 .page, .card, .stack, .section { display: grid; gap: var(--s3); align-content: start; }
 .page { gap: var(--s4); }
 .page > :first-child { margin-bottom: var(--s2); }
@@ -66,7 +71,7 @@ form { display: grid; gap: var(--s3); }
 label { display: grid; gap: var(--s1); font-size: var(--fs-sm); font-weight: 600; }
 input, textarea, select { font: inherit; font-weight: 400; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--fg); min-height: 44px; width: 100%; }
 input::placeholder { color: var(--muted); }
-textarea { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: var(--fs-sm); min-height: 280px; }
+textarea { font-size: var(--fs-sm); min-height: 280px; }
 button, .button {
   font: inherit; font-weight: 650; min-height: 44px; padding: 10px 18px; border: 1px solid transparent; border-radius: var(--radius-sm);
   background: var(--gold); color: var(--on-gold); cursor: pointer; text-decoration: none; touch-action: manipulation;
@@ -105,8 +110,14 @@ label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(
 .list a.title { color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
 .list a.title:hover { text-decoration: underline; }
 
+/* Phones: sections run edge to edge like a native settings screen, instead of floating rounded boxes. */
+@media (max-width: 600px) {
+  .card, .hero, .page > .list > li { margin-inline: -16px; border-radius: 0; border-inline: 0; }
+  .card, .page > .list > li { padding-inline: 16px; }
+}
+
 /* State in words and shape: pills always carry their own label. */
-.pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: 13px; font-weight: 650; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); color: var(--fg); white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--fs-xs); font-weight: 650; line-height: 1; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); color: var(--fg); white-space: nowrap; }
 .pill.ok { background: var(--ok-soft); color: var(--ok); }
 .pill.info { background: var(--blue-soft); color: var(--blue-ink); }
 .pill.warn { background: var(--warn-soft); color: var(--warn); }
@@ -119,9 +130,9 @@ ul.error { margin: 0; padding-left: 20px; }
 .muted { color: var(--muted); }
 .num { font-variant-numeric: tabular-nums; }
 .big { font-size: var(--fs-num); font-weight: 750; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.code { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; }
-details.card { display: block; }
-details.card[open] > summary { margin-bottom: var(--s3); }
+.code { font-size: 18px; font-weight: 600; letter-spacing: 0.08em; }
+details:is(.card, .section) { display: block; }
+details:is(.card, .section)[open] > summary { margin-bottom: var(--s3); }
 details > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: var(--s2); font-weight: 600; list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::before { content: ''; flex: none; width: 8px; height: 8px; margin: 0 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
@@ -130,12 +141,12 @@ details[open] > summary::before { transform: rotate(45deg); }
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 th, td { padding: 8px; border-bottom: 1px solid var(--line); text-align: right; }
-th { font-size: 13px; font-weight: 650; color: var(--muted); }
+th { font-size: var(--fs-xs); font-weight: 650; color: var(--muted); }
 th:first-child, td:first-child { text-align: left; padding-left: 0; }
 tbody tr:last-child td { border-bottom: 0; }
 
 /* Tally board: big neutral buttons with big counts, readable in sunlight. Attendance and injury sit apart. */
-.tally-bar { position: sticky; top: 0; z-index: 1; display: grid; gap: var(--s1); background: var(--bg); padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+.tally-bar { position: sticky; top: 0; z-index: 1; display: grid; gap: var(--s1); margin: 0 -16px; padding: var(--s2) 16px; background: var(--bg); border-bottom: 1px solid var(--line); }
 .tally-bar .head { gap: var(--s2); }
 .list li.tally-card { display: grid; justify-content: stretch; align-items: stretch; gap: var(--s3); padding: 12px; }
 .tally-head { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
@@ -154,15 +165,18 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* Signed-out landing: the one page that has to sell, so it gets the team colours at full strength. */
 .hero { border: 1px solid var(--line); position: relative; overflow: hidden; isolation: isolate; background: var(--bar); color: var(--bar-fg); border-radius: var(--radius); padding: var(--s6) var(--s5); display: grid; gap: var(--s4); justify-items: start; }
-.hero h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.03em; }
+.hero h1 { font-size: var(--fs-hero); line-height: 1.05; letter-spacing: -0.03em; }
 .hero p { color: var(--bar-muted); font-size: 18px; max-width: 22ch; }
 .hero-disc { position: absolute; z-index: -1; right: -60px; bottom: -60px; width: 168px; height: 168px; }
+.disc-body { fill: var(--gold); }
+.disc-ring { fill: none; stroke: var(--gold-deep); }
+.disc-hub { fill: var(--blue); }
 
-/* Admin: a sticky strip of section buttons over one long page. */
+/* Admin: one section at a time, picked from a sticky row of tabs. */
 .subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 -16px; padding: var(--s2) 16px; background: var(--bg); border-bottom: 1px solid var(--line); scrollbar-width: none; }
 .subnav button, .subnav button:hover:not(:disabled) { flex: none; background: var(--surface); color: var(--fg); border-color: var(--line-strong); border-radius: 999px; padding: 8px 14px; font-size: var(--fs-sm); }
-.subnav button:hover:not(:disabled) { background: var(--blue-soft); color: var(--blue-ink); border-color: var(--blue); }
-[data-section] { scroll-margin-top: 72px; }
+.subnav button:hover:not(:disabled) { background: var(--surface-2); }
+.subnav button[aria-pressed='true'], .subnav button[aria-pressed='true']:hover:not(:disabled) { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 
 @media (prefers-reduced-motion: no-preference) {
   button, .button, a, .pill { transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }

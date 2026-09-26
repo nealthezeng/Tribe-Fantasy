@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { DEFAULT_SETTINGS } from '../../../core/settings';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
@@ -15,6 +15,10 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
     if (error) throw error;
     return (data ?? []) as SeasonRow[];
   }, []);
+
+  // Open on the newest season: nearly every visit manages the current one.
+  const newest = seasons.data?.[0]?.id;
+  useEffect(() => { if (!selected && newest) onSelect(newest); }, [selected, newest, onSelect]);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -38,16 +42,19 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
         {seasons.data?.map((s) => (
           <li key={s.id}>
             <span className="meta"><span className="title">{s.name}</span><span className="pill">{s.status}</span></span>
-            <button className={selected === s.id ? '' : 'secondary'} aria-pressed={selected === s.id} onClick={() => onSelect(s.id)}>
-              {selected === s.id ? 'Managing' : 'Manage'}
-            </button>
+            {selected === s.id
+              ? <span className="pill info">Managing</span>
+              : <button className="secondary" onClick={() => onSelect(s.id)}>Manage</button>}
           </li>
         ))}
       </ul>
-      <form onSubmit={create} className="row section">
-        <label>New season<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Spring 2027" /></label>
-        <button>Create</button>
-      </form>
+      <details className="section" open={seasons.data?.length === 0}>
+        <summary>New season</summary>
+        <form onSubmit={create} className="row">
+          <label>Name<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spring 2027" /></label>
+          <button>Create season</button>
+        </form>
+      </details>
       {(error || seasons.error) && <p className="error" role="alert">{error ?? seasons.error}</p>}
     </div>
   );
