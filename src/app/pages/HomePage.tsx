@@ -24,7 +24,7 @@ export function HomePage() {
     return (data ?? []) as unknown as MembershipRow[];
   }, [uid]);
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!session) {
     return (
       <section className="card">
@@ -35,19 +35,27 @@ export function HomePage() {
     );
   }
   return (
-    <section>
+    <section className="page">
       <h1>Your teams</h1>
-      {error && <p className="error">{error}</p>}
-      {data && data.length === 0 && <p>You're not in a league yet. <Link to="/join">Join with an invite code</Link>.</p>}
-      <ul className="list">
-        {data?.map((m) => (
-          <li key={m.id}>
-            <span><strong>{m.team_name}</strong> · {m.leagues?.name} ({m.leagues?.seasons?.name})</span>
-            <Wallet entries={m.credit_ledger} />
-          </li>
-        ))}
-      </ul>
-      {data && data.length > 0 && <Link to="/join">Join another league</Link>}
+      {error && <p className="error" role="alert">{error}</p>}
+      {!data && !error && <p className="muted" role="status">Loading…</p>}
+      {data && data.length === 0 && (
+        <div className="card">
+          <p>You're not in a league yet. Ask your league admin for an invite code.</p>
+          <Link to="/join" className="button">Join with an invite code</Link>
+        </div>
+      )}
+      {data?.map((m) => (
+        <article key={m.id} className="card">
+          <div>
+            <h2>{m.team_name}</h2>
+            <p className="muted">{m.leagues?.name} · {m.leagues?.seasons?.name}</p>
+          </div>
+          <p><span className="big">{balance(m.credit_ledger)}</span> credits</p>
+          <Wallet entries={m.credit_ledger} />
+        </article>
+      ))}
+      {data && data.length > 0 && <p><Link to="/join">Join another league</Link></p>}
     </section>
   );
 }
@@ -56,11 +64,13 @@ function Wallet({ entries }: { entries: LedgerEntry[] }) {
   const newestFirst = [...entries].sort((a, b) => b.id - a.id);
   return (
     <details>
-      <summary>{balance(entries)} credits</summary>
-      <ul>
+      <summary>Credit history</summary>
+      <ul className="list">
+        {newestFirst.length === 0 && <li className="muted">No credits yet.</li>}
         {newestFirst.map((e) => (
           <li key={e.id}>
-            {new Date(e.created_at).toLocaleDateString()} · {entryLabel(e)} · {e.amount > 0 ? '+' : ''}{e.amount}
+            <span>{entryLabel(e)} <small>{new Date(e.created_at).toLocaleDateString()}</small></span>
+            <strong className="num">{e.amount > 0 ? '+' : ''}{e.amount}</strong>
           </li>
         ))}
       </ul>

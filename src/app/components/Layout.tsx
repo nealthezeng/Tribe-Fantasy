@@ -1,28 +1,41 @@
-import { Link, Outlet } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
+
+/** A disc seen from above, in team gold. Same drawing as the favicon in index.html. */
+function DiscMark() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="11" fill="#f5b700" />
+      <circle cx="12" cy="12" r="7.5" fill="none" stroke="#c99400" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="3" fill="#8cc8f2" />
+    </svg>
+  );
+}
 
 export function Layout() {
   const { session, isAdmin, isKeeper, displayName, loading, authError, clearAuthError } = useAuth();
   return (
-    <div className="shell">
+    <>
       <header className="topbar">
-        <Link to="/" className="brand">Tribe Fantasy</Link>
-        <nav>
-          {isKeeper && <Link to="/tally">Tally</Link>}
-          {session && <Link to="/stats">Stats</Link>}
-          {session && <Link to="/me">Me</Link>}
-          {isAdmin && <Link to="/admin">Admin</Link>}
-          {session ? (
-            <button className="linklike" onClick={() => supabase?.auth.signOut()}>Sign out</button>
-          ) : (
-            <Link to="/login">Sign in</Link>
-          )}
-        </nav>
+        <div className="topbar-inner">
+          <Link to="/" className="brand"><DiscMark />Tribe Fantasy</Link>
+          <nav aria-label="Main">
+            {isKeeper && <NavLink to="/tally">Tally</NavLink>}
+            {session && <NavLink to="/stats">Stats</NavLink>}
+            {session && <NavLink to="/me">Me</NavLink>}
+            {isAdmin && <NavLink to="/admin">Admin</NavLink>}
+            {session ? (
+              <button className="linklike" onClick={() => supabase?.auth.signOut()}>Sign out</button>
+            ) : (
+              <NavLink to="/login">Sign in</NavLink>
+            )}
+          </nav>
+        </div>
       </header>
-      <main>
+      <main className="shell">
         {authError && (
-          <p className="error">
+          <p className="error" role="alert">
             Sign-in link didn't work: {authError}. Request a new link, or use the 6-digit code from the email.{' '}
             <button type="button" className="linklike" onClick={clearAuthError}>Dismiss</button>
           </p>
@@ -32,6 +45,6 @@ export function Layout() {
         )}
         <Outlet />
       </main>
-    </div>
+    </>
   );
 }

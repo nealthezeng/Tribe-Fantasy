@@ -13,22 +13,24 @@ export function AdminPage() {
   const { isAdmin, loading } = useAuth();
   const [seasonId, setSeasonId] = useState<string | null>(null);
   const [ledgerVersion, setLedgerVersion] = useState(0);
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!isAdmin) return <Navigate to="/" replace />;
   return (
-    <section>
+    <section className="page">
       <h1>Admin</h1>
       <SeasonsPanel selected={seasonId} onSelect={setSeasonId} />
-      <StaffPanel />
-      {seasonId && (
+      {seasonId ? (
         <Fragment key={seasonId}>
-          <SettingsEditor seasonId={seasonId} />
           <StagesPanel seasonId={seasonId} onGranted={() => setLedgerVersion((v) => v + 1)} />
           <LeaguesPanel seasonId={seasonId} />
           <WalletsPanel seasonId={seasonId} ledgerVersion={ledgerVersion} />
           <AthletesPanel seasonId={seasonId} />
         </Fragment>
+      ) : (
+        <p className="notice">Pick a season above to manage its stages, leagues, wallets and athletes.</p>
       )}
+      <StaffPanel />
+      {seasonId && <SettingsEditor key={seasonId} seasonId={seasonId} />}
     </section>
   );
 }

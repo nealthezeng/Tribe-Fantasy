@@ -13,7 +13,7 @@ export function JoinPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!session) return <Navigate to="/login" replace />;
 
   async function submit(e: FormEvent) {
@@ -41,11 +41,11 @@ export function JoinPage() {
         {!displayName && (
           <label>Your name<input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>
         )}
-        <label>Invite code<input required value={code} onChange={(e) => setCode(e.target.value)} autoCapitalize="characters" /></label>
+        <label>Invite code<input className="code" required value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="off" spellCheck={false} /></label>
         <label>Team name<input required maxLength={40} value={team} onChange={(e) => setTeam(e.target.value)} /></label>
-        <button disabled={busy}>Join</button>
+        <button disabled={busy}>{busy ? 'Joining…' : 'Join league'}</button>
       </form>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
     </section>
   );
 }

@@ -32,21 +32,23 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
   return (
     <div className="card">
       <h2>Seasons</h2>
+      {!seasons.data && !seasons.error && <p className="muted" role="status">Loading…</p>}
+      {seasons.data?.length === 0 && <p className="muted">No seasons yet. Create the first one below.</p>}
       <ul className="list">
         {seasons.data?.map((s) => (
           <li key={s.id}>
-            <span>{s.name} <small>({s.status})</small></span>
-            <button className={selected === s.id ? '' : 'linklike'} onClick={() => onSelect(s.id)}>
-              {selected === s.id ? 'Selected' : 'Manage'}
+            <span className="meta"><span className="title">{s.name}</span><span className="pill">{s.status}</span></span>
+            <button className={selected === s.id ? '' : 'secondary'} aria-pressed={selected === s.id} onClick={() => onSelect(s.id)}>
+              {selected === s.id ? 'Managing' : 'Manage'}
             </button>
           </li>
         ))}
       </ul>
-      <form onSubmit={create} className="row">
+      <form onSubmit={create} className="row section">
         <label>New season<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Spring 2027" /></label>
         <button>Create</button>
       </form>
-      {(error || seasons.error) && <p className="error">{error ?? seasons.error}</p>}
+      {(error || seasons.error) && <p className="error" role="alert">{error ?? seasons.error}</p>}
     </div>
   );
 }

@@ -21,8 +21,9 @@ Keep the look clean and simple. Reuse the tokens and classes in `src/app/styles.
 
 Node isn't on the Bash PATH on this machine, so prefix with `export PATH="/c/Program Files/nodejs:$PATH";`.
 
-- `npm run dev`: local app. It needs `.env.local` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, the
-  same public values as the GitHub repo variables. Without them the app shows the "not configured" page.
+- `npm run dev`: local app. It needs `.env.development.local` with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`,
+  the same public values as the GitHub repo variables (`gh variable list`). Not `.env.local`: vitest reads that one
+  and the "not configured" test fails. Without them the app shows the "not configured" page.
 - `npm test` (about 45 s; the DB tests run on PGlite), `npm run typecheck`, `npm run lint`, `npm run build`.
   CI runs all four.
 

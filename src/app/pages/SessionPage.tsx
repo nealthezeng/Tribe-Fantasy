@@ -6,10 +6,11 @@ import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { lockTime, SESSION_COLUMNS, sessionState, statLabel, type SessionRow } from '../lib/stats';
+import { lockTime, SESSION_COLUMNS, sessionState, sessionTitle, statLabel, type SessionRow } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { rowToTap, type StatTapRow } from '../tally/queue';
+import { STATE_PILL } from './StatsPage';
 
 interface LineRow { athlete_id: string; stats: Record<string, number> }
 interface AttendanceRow { athlete_id: string; status: 'present' | 'absent' }
@@ -51,8 +52,8 @@ export function SessionPage() {
     [data.data],
   );
 
-  if (data.error) return <p className="error">{data.error}</p>;
-  if (data.data === undefined) return <p>Loading…</p>;
+  if (data.error) return <p className="error" role="alert">{data.error}</p>;
+  if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) return <p>That session doesn't exist. <Link to="/stats">All sessions</Link></p>;
   const { session, settings, names, lines, attendance, taps, people } = data.data;
   const state = sessionState(session, settings.stat_lock_hours);
@@ -78,22 +79,28 @@ export function SessionPage() {
     run(() => api.verifySession(id, Object.entries(merge!.counts).map(([athlete_id, s]) => ({ athlete_id, stats: s }))));
 
   return (
-    <section>
+    <section className="page">
       <p><Link to="/stats">← All sessions</Link></p>
-      <h1>{session.held_on} · {session.kind}{session.counts ? '' : ' (not counted)'}</h1>
-      <p className="muted">
-        {state === 'open' && 'Not verified yet.'}
-        {state === 'verified' && `Verified — locks ${lockTime(session, settings.stat_lock_hours)}. A keeper can still reopen it until then.`}
-        {state === 'locked' && 'Locked.'}
-      </p>
-      {error && <p className="error">{error}</p>}
+      <div className="stack">
+        <h1>{sessionTitle(session)}</h1>
+        <p className="meta">
+          {STATE_PILL[state]}
+          {!session.counts && <span className="pill">Not counted</span>}
+          <span className="muted">
+            {state === 'open' && 'Stats count once another keeper verifies them.'}
+            {state === 'verified' && `Locks ${lockTime(session, settings.stat_lock_hours)}. A keeper can still reopen it until then.`}
+            {state === 'locked' && 'Final.'}
+          </span>
+        </p>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
 
       {state !== 'open' && (
         <div className="card">
           <h2>Stats</h2>
           <StatTable stats={stats} rows={lines.map((l) => ({ athlete: name(l.athlete_id), counts: l.stats, score: rawScore(l.stats, settings.stat_weights) }))} />
           {isKeeper && state === 'verified' && (
-            <button disabled={busy} onClick={() => void run(() => api.reopenSession(id))}>Reopen for more tallying</button>
+            <button className="secondary" disabled={busy} onClick={() => void run(() => api.reopenSession(id))}>Reopen for more tallying</button>
           )}
           {isAdmin && state === 'locked' && (
             <CorrectForm stats={stats} lines={lines} names={names} onSave={(athlete, s) => run(() => api.correctStatLine(id, athlete, s))} />
@@ -103,12 +110,13 @@ export function SessionPage() {
 
       {isKeeper && state === 'open' && merge && (
         <div className="card">
-          <h2>Merged totals (preview)</h2>
+          <h2>Totals to verify</h2>
+          <p className="muted">Preview: two keepers' taps for the same stat within {settings.tap_merge_seconds} seconds count once.</p>
           <StatTable stats={stats} rows={Object.entries(merge.counts).map(([a, c]) => ({ athlete: name(a), counts: c, score: rawScore(c, settings.stat_weights) }))} />
           {merge.merged.length > 0 && (
             <>
               <h3>Counted once ({merge.merged.length})</h3>
-              <ul>
+              <ul className="muted">
                 {merge.merged.map((g) => (
                   <li key={g.tapIds.join()}>{name(g.athleteId)} · {statLabel(g.stat)} · tapped by {g.tapIds.length} keepers</li>
                 ))}
@@ -123,9 +131,9 @@ export function SessionPage() {
             </details>
           ))}
           {iTapped ? (
-            <p className="muted">You tallied this session, so another keeper has to verify it.</p>
+            <p className="notice">You tallied this session, so another keeper has to verify it.</p>
           ) : (
-            <button disabled={busy} onClick={() => void verify()}>Verify these totals</button>
+            <button disabled={busy} onClick={() => void verify()}>{busy ? 'Verifying…' : 'Verify these totals'}</button>
           )}
           <p><Link to="/tally">Back to tallying</Link></p>
         </div>
@@ -133,12 +141,15 @@ export function SessionPage() {
 
       <div className="card">
         <h2>Attendance</h2>
-        <p>
-          <strong>Present:</strong> {attendance.filter((a) => a.status === 'present').map((a) => name(a.athlete_id)).join(', ') || '—'}
-        </p>
-        <p>
-          <strong>Absent:</strong> {attendance.filter((a) => a.status === 'absent').map((a) => name(a.athlete_id)).join(', ') || '—'}
-        </p>
+        {(['present', 'absent'] as const).map((st) => {
+          const who = attendance.filter((a) => a.status === st).map((a) => name(a.athlete_id)).sort();
+          return (
+            <p key={st}>
+              <strong>{st === 'present' ? 'Present' : 'Absent'} <span className="muted num">({who.length})</span></strong><br />
+              {who.join(', ') || <span className="muted">Nobody marked</span>}
+            </p>
+          );
+        })}
       </div>
     </section>
   );
@@ -147,7 +158,7 @@ export function SessionPage() {
 function StatTable({ stats, rows }: {
   stats: string[]; rows: { athlete: string; counts: Record<string, number>; score: number }[];
 }) {
-  if (rows.length === 0) return <p>No stats.</p>;
+  if (rows.length === 0) return <p className="muted">No stats recorded.</p>;
   return (
     <div className="table-wrap">
       <table>
@@ -187,7 +198,7 @@ function CorrectForm({ stats, lines, names, onSave }: {
   }
   return (
     <form onSubmit={submit}>
-      <h3>Admin correction</h3>
+      <h3>Correct a stat line</h3>
       <label>Player
         <select required value={athlete} onChange={(e) => pick(e.target.value)}>
           <option value="">Choose…</option>

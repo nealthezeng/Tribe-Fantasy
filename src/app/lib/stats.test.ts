@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { sessionState, statLabel, toCsv, todayLocal } from './stats';
+import { formatDay, sessionState, sessionTitle, statLabel, toCsv, todayLocal } from './stats';
 
 describe('stats helpers', () => {
+  it('formats a session day without shifting it across time zones', () => {
+    expect(formatDay('2026-09-25')).toBe('Fri, Sep 25');
+    expect(sessionTitle({ held_on: '2027-01-01', kind: 'tournament' })).toBe('Fri, Jan 1 · Tournament');
+  });
+
   it('labels the five stats and falls back to the key', () => {
     expect(statLabel('block')).toBe('D');
     expect(statLabel('layout')).toBe('layout');

@@ -44,14 +44,17 @@ export function SettingsEditor({ seasonId }: { seasonId: string }) {
   }
 
   return (
-    <div className="card">
-      <h2>Season settings</h2>
-      <p>Every rule knob from the spec. Changes are validated here and recorded in the audit log.</p>
-      <textarea value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
-      <button onClick={save}>Validate and save</button>
-      {status && <p>{status}</p>}
-      {issues.length > 0 && <ul className="error">{issues.map((i) => <li key={i}>{i}</li>)}</ul>}
-      {season.error && <p className="error">{season.error}</p>}
-    </div>
+    <details className="card">
+      <summary><h2>Season settings</h2><small>advanced</small></summary>
+      <div className="stack">
+        <p className="muted">Every rule knob from the spec, as JSON. Changes are validated here and recorded in the audit log.</p>
+        {season.data === undefined && !season.error && <p className="muted" role="status">Loading…</p>}
+        <textarea aria-label="Season settings JSON" value={text} onChange={(e) => { setText(e.target.value); setStatus(null); }} spellCheck={false} />
+        <button onClick={save}>Validate and save</button>
+        {status && <p className="success" role="status">{status}</p>}
+      {issues.length > 0 && <ul className="error" role="alert">{issues.map((i) => <li key={i}>{i}</li>)}</ul>}
+        {season.error && <p className="error" role="alert">{season.error}</p>}
+      </div>
+    </details>
   );
 }

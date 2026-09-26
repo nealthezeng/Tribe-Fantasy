@@ -41,11 +41,16 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
   const count = athletes.data?.list.filter((a) => a.opted_in).length ?? 0;
   return (
     <div className="card">
-      <h2>Athletes <small>({count} opted in)</small></h2>
+      <h2>Athletes <small>{count} opted in</small></h2>
+      {!athletes.data && !athletes.error && <p className="muted" role="status">Loading…</p>}
+      {athletes.data?.list.length === 0 && <p className="muted">No athletes yet. Add them below.</p>}
       <ul className="list">
         {athletes.data?.list.map((a) => (
           <li key={a.id}>
-            <span style={{ opacity: a.opted_in ? 1 : 0.5 }}>{a.name}</span>
+            <span className="meta">
+              <span className={a.opted_in ? 'title' : 'title muted'}>{a.name}</span>
+              {!a.opted_in && <span className="pill">Opted out</span>}
+            </span>
             <select aria-label={`Account for ${a.name}`} value={a.user_id ?? ''}
               onChange={(e) => void run(() => api.linkAthleteUser(a.id, e.target.value || null))}>
               <option value="">No linked account</option>
@@ -57,11 +62,11 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
           </li>
         ))}
       </ul>
-      <form onSubmit={add} className="row">
+      <form onSubmit={add} className="row section">
         <label>Add athlete<input required value={name} onChange={(e) => setName(e.target.value)} /></label>
         <button>Add</button>
       </form>
-      {(error || athletes.error) && <p className="error">{error ?? athletes.error}</p>}
+      {(error || athletes.error) && <p className="error" role="alert">{error ?? athletes.error}</p>}
     </div>
   );
 }

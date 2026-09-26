@@ -52,12 +52,14 @@ export function WalletsPanel({ seasonId, ledgerVersion }: { seasonId: string; le
   return (
     <div className="card">
       <h2>Wallets</h2>
+      {!data.data && !data.error && <p className="muted" role="status">Loading…</p>}
       {data.data?.leagues.map((l) => (
-        <div key={l.id}>
+        <div key={l.id} className="stack">
           <h3>{l.name}</h3>
+          {l.memberships.length === 0 && <p className="muted">No teams yet.</p>}
           <ul className="list">
             {l.memberships.map((m) => (
-              <li key={m.id}><span>{m.team_name}</span><strong>{balance(m.credit_ledger)} credits</strong></li>
+              <li key={m.id}><span>{m.team_name}</span><strong className="num">{balance(m.credit_ledger)} credits</strong></li>
             ))}
           </ul>
         </div>
@@ -87,8 +89,8 @@ export function WalletsPanel({ seasonId, ledgerVersion }: { seasonId: string; le
           })}
         />
       )}
-      {status && <p>{status}</p>}
-      {(error || data.error) && <p className="error">{error ?? data.error}</p>}
+      {status && <p className="success" role="status">{status}</p>}
+      {(error || data.error) && <p className="error" role="alert">{error ?? data.error}</p>}
     </div>
   );
 }
@@ -113,7 +115,7 @@ function CreditForm({ title, help, teams, amountLabel, step, onSubmit }: {
   }
 
   return (
-    <form className="card" onSubmit={submit}>
+    <form className="section" onSubmit={submit}>
       <h3>{title}</h3>
       <p className="muted">{help}</p>
       <div className="row">

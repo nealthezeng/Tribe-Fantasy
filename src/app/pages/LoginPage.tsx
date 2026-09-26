@@ -11,7 +11,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p className="muted" role="status">Loading…</p>;
   if (session) return <Navigate to="/" replace />;
 
   async function sendEmail(e: FormEvent) {
@@ -43,18 +43,18 @@ export function LoginPage() {
       <h1>Sign in</h1>
       {!sent ? (
         <form onSubmit={sendEmail}>
-          <label>Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <button disabled={busy}>Email me a sign-in link</button>
+          <label>Email<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <button disabled={busy}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
         </form>
       ) : (
         <form onSubmit={verifyCode}>
-          <p>Check your email. Open the link <strong>in this browser</strong>, or type the 6-digit code here:</p>
-          <label>Code<input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></label>
-          <button disabled={busy}>Sign in</button>
+          <p className="notice">We emailed <strong>{email.trim()}</strong>. Open the link <strong>in this browser</strong>, or type the 6-digit code here.</p>
+          <label>Code<input className="code" inputMode="numeric" maxLength={6} autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></label>
+          <button disabled={busy}>{busy ? 'Checking…' : 'Sign in'}</button>
           <button type="button" className="linklike" onClick={() => setSent(false)}>Use a different email</button>
         </form>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
     </section>
   );
 }

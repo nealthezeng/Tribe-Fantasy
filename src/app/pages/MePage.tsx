@@ -3,7 +3,7 @@ import { Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { SESSION_COLUMNS, sessionState, todayLocal, type SessionRow } from '../lib/stats';
+import { SESSION_COLUMNS, sessionState, sessionTitle, todayLocal, type SessionRow } from '../lib/stats';
 import { parseSettings } from '../../core/settings';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
@@ -56,35 +56,41 @@ export function MePage() {
     }
   }
 
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!session) return <Navigate to="/login" replace />;
-  if (data.error) return <p className="error">{data.error}</p>;
-  if (data.data === undefined) return <p>Loading…</p>;
+  if (data.error) return <p className="error" role="alert">{data.error}</p>;
+  if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) {
-    return <p>Your account isn't linked to a player yet. Ask an admin to link it.</p>;
+    return (
+      <section className="card">
+        <h1>Me</h1>
+        <p>Your account isn't linked to a player yet. Ask an admin to link it.</p>
+      </section>
+    );
   }
   const { athlete, lockHours, sessions, attendance, injury } = data.data;
   return (
-    <section>
+    <section className="page">
       <h1>{athlete.name}</h1>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
       <div className="card">
-        <h2>Injury</h2>
+        <div className="head">
+          <h2>Injury</h2>
+          {!injury && <span className="pill ok">Healthy</span>}
+          {injury && (injury.confirmed_at
+            ? <span className="pill bad">Injured · confirmed</span>
+            : <span className="pill warn">Reported · waiting for a coach</span>)}
+        </div>
         {!injury && (
-          <>
-            <p>Not injured.</p>
-            <button onClick={() => void run(() => api.reportInjury(athlete.id))}>Report an injury</button>
-          </>
+          <button className="secondary" onClick={() => void run(() => api.reportInjury(athlete.id))}>Report an injury</button>
         )}
         {injury && (
-          <>
-            <p>{injury.confirmed_at ? 'Injured (confirmed by a coach).' : 'Injury reported — waiting for a coach to confirm.'}</p>
-            <button onClick={() => void run(() => api.clearInjury(athlete.id))}>I'm back</button>
-          </>
+          <button onClick={() => void run(() => api.clearInjury(athlete.id))}>I'm back</button>
         )}
       </div>
       <div className="card">
         <h2>Attendance</h2>
+        <p className="muted">Sessions from the last week. Each one closes {lockHours} hours after it's verified.</p>
         {sessions.length === 0 && <p>No sessions in the last week.</p>}
         <ul className="list">
           {sessions.map((s) => {
@@ -92,12 +98,12 @@ export function MePage() {
             const locked = sessionState(s, lockHours) === 'locked';
             return (
               <li key={s.id}>
-                <span>{s.held_on} · {s.kind}</span>
-                <span className="row">
+                <span className="title">{sessionTitle(s)}</span>
+                <span className="segmented" role="group" aria-label={`Attendance for ${sessionTitle(s)}`}>
                   {(['present', 'absent'] as const).map((st) => (
-                    <button key={st} className={status === st ? '' : 'secondary'} disabled={locked}
+                    <button key={st} aria-pressed={status === st} disabled={locked}
                       onClick={() => void run(() => api.setAttendance(s.id, athlete.id, st))}>
-                      {st === 'present' ? 'Present' : 'Absent'}
+                      {st === 'present' ? 'Present' : 'Absent'}{status === st ? ' ✓' : ''}
                     </button>
                   ))}
                 </span>

@@ -33,16 +33,17 @@ export function StaffPanel() {
   return (
     <div className="card">
       <h2>Stat keepers</h2>
+      {!people.data && !people.error && <p className="muted" role="status">Loading…</p>}
       <p className="muted">People appear here after they sign in and set a name.</p>
       <ul className="list">
         {people.data?.map((p) => (
           <li key={p.id}>
-            <span>{p.display_name}{p.keeper ? ' · keeper' : ''}</span>
-            <button className="linklike" onClick={() => void toggle(p)}>{p.keeper ? 'Remove keeper' : 'Make keeper'}</button>
+            <span className="meta"><span className="title">{p.display_name}</span>{p.keeper && <span className="pill info">Keeper</span>}</span>
+            <button className="secondary" onClick={() => void toggle(p)}>{p.keeper ? 'Remove keeper' : 'Make keeper'}</button>
           </li>
         ))}
       </ul>
-      {(error || people.error) && <p className="error">{error ?? people.error}</p>}
+      {(error || people.error) && <p className="error" role="alert">{error ?? people.error}</p>}
     </div>
   );
 }
