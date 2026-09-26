@@ -37,3 +37,12 @@
    sessions impossible to verify.
 3. Coaches: have each sign in and set a name, then **Admin → Stat keepers → Make keeper**. Don't make coaches admins.
 4. Players: **Admin → Athletes → linked account** for each player who wants to mark attendance/injuries.
+
+## M4 stages and wallet (after 0001–0005)
+
+1. SQL Editor: paste and run `supabase/migrations/0006_stages_wallet.sql`. It also removes the retired
+   `min_credits_to_play`, `free_entry` and `extra_credit_cap` keys from saved season settings.
+2. In **Admin → season → Settings**, check `roster_size` (4 for 6 × 4 leagues, 3 for 8 × 3) and `max_members` (6 or 8).
+   Leave `donations_enabled` false until the legal sign-off.
+3. **Admin → season → Stages**: add the fall beta stage (Oct 18 – Nov 8, ends at the Nov 7–8 tournament). After
+   everyone has joined, press **Grant allowance**. Press it again for anyone who joins later.

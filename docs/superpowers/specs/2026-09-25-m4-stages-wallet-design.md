@@ -34,7 +34,7 @@ All are security definer, raise stable error codes and write the audit log, like
 | `grant_stage_allowance(stage) → int` | admin | credits every membership in every league of the stage's season that has no allowance for this stage yet; returns how many it credited |
 | `record_donation(membership, dollars, note) → bigint` | treasurer or admin | `DONATIONS_DISABLED` unless `donations_enabled`; `INVALID_AMOUNT` unless 0 < dollars ≤ 10 000; credits `round(dollars × credits_per_dollar)` |
 | `adjust_credits(membership, amount, note) → bigint` | admin | `INVALID_AMOUNT` if 0; `NOTE_REQUIRED` if the note is blank |
-| `join_league` (changed) | member | `LEAGUE_FULL` when the league already has `max_members` memberships (count taken under the invite row lock) |
+| `join_league` (changed) | member | `LEAGUE_FULL` when the league already has `max_members` memberships (count taken under a lock on the league row, so two invite codes can't both take the last spot) |
 
 **Allowance amount.** In each league, `n` is the member count and `r` is the member's rank by
 `private.standings_points(membership)`, with 1 as the best. Tied members share the average of their ranks. The
