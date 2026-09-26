@@ -82,8 +82,10 @@ Donation recording stays off in the beta (`donations_enabled` false) until the l
    already saved, so a reopened board can't forget or double-count a tap.
 2. AuthProvider resets its state when the session's user id changes, before a failed fetch can leave the
    previous user's roles showing.
-3. The session picker no longer lists a queued session from an old season. Before, it showed that session with
-   the current season's athletes. This was a display bug only.
+3. The session picker still lists a queued session from an old season, so its taps are never stranded. Opening
+   it loads that session's own season's athletes (before, it showed the current season's). The board is
+   read-only for an old-season session: taps already queued on the phone still upload, but new taps and undo
+   are disabled, because the current season's stat buttons may not match that season's stats.
 4. Taps rejected with `SESSION_VERIFIED` are dropped as now. The board already shows "N taps not saved: This
    session is already verified…" (M3), so no change is needed.
 

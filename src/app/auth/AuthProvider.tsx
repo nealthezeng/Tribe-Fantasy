@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]);
     // A failed fetch (e.g. on an hourly token refresh) keeps what we knew: it mustn't drop a keeper out of tallying.
     if (profile.error || roles.error) return;
+    if (loadedFor.current !== uid) return; // a newer sign-in or sign-out happened meanwhile
     setDisplayName(profile.data?.display_name ?? null);
     const roleNames = (roles.data ?? []).map((r: { role: string }) => r.role);
     setIsAdmin(roleNames.includes('admin'));

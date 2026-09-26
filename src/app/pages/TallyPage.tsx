@@ -205,7 +205,11 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   if (data.error && !data.data) return <p className="error">{data.error}</p>;
   if (!data.data) return <p>Loading…</p>;
   const { session, athletes, attendance, injuries } = data.data;
-  const closed = sessionState(session, season.settings.stat_lock_hours) !== 'open';
+  // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:
+  // taps already queued on the phone still upload, but new taps and undo are disabled.
+  const oldSeason = session.season_id !== season.id;
+  const verified = sessionState(session, season.settings.stat_lock_hours) !== 'open';
+  const closed = oldSeason || verified;
   const stats = Object.keys(season.settings.stat_weights);
   const statusOf = new Map(attendance.map((a) => [a.athlete_id, a.status]));
   const injuryOf = new Map(injuries.map((i) => [i.athlete_id, i]));
@@ -246,7 +250,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
         <span className={queue.length ? 'muted' : ''}>{syncText}</span>
         <button onClick={undo} disabled={closed}>Undo last tap</button>
       </div>
-      {closed && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
+      {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
+      {closed && !verified && <p className="notice">This session is from an earlier season, so tallying is closed here. Taps already saved on this phone still upload.</p>}
       {!stored && <p className="error">This phone won't store taps. Keep this page open until it says Saved.</p>}
       {rejected && <p className="error">{rejected.count} taps not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
       {error && <p className="error">{error}</p>}
