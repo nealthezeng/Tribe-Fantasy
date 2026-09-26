@@ -1,0 +1,93 @@
+/* Design tokens: every colour, font, size and spacing value the app uses. Change the look here.
+   styles.css only reads these; components never hard-code a colour or font.
+   Two places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html. */
+
+:root {
+  /* Team colours. Gold = actions and the current tab. Baby blue = info and selection.
+     Neither is readable as text on white, so light mode uses --link for links. */
+  --gold: #f5b700;
+  --gold-hover: #ffc629;
+  --gold-press: #dba300;
+  --gold-deep: #c99400;     /* the ring in the disc mark */
+  --on-gold: #111111;       /* text on gold; never white */
+  --blue: #8cc8f2;
+  --blue-soft: #e3f1fc;
+  --blue-ink: #0b4a75;
+
+  /* Neutrals */
+  --bg: #f4f7fa;
+  --surface: #ffffff;
+  --surface-2: #eef3f8;
+  --fg: #0f1419;
+  --muted: #56606b;
+  --line: #dbe2ea;
+  --line-strong: #8795a3;   /* input and button borders: 3:1 against white */
+  --link: #0b5d99;
+  --focus: #0b5d99;
+
+  /* Top bar and the signed-out hero */
+  --bar: #0f1419;
+  --bar-fg: #ffffff;
+  --bar-muted: #b4bfca;
+  --bar-line: rgb(255 255 255 / 0.12);
+  --bar-hover: rgb(255 255 255 / 0.08);
+
+  /* Status */
+  --ok: #1d6b35;    --ok-soft: #dcf1e2;
+  --warn: #8a4b00;  --warn-soft: #fdebd0;
+  --error: #b3261e; --error-soft: #fbe3e0;
+
+  /* Fonts. Archivo: a grotesque built for sports and news graphics, with even figures for stats.
+     Loaded in index.html (weights 400-700, widths 87.5-100%); to swap it, change that link and these lines.
+     Headings use a slightly condensed cut of the same family. */
+  --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: var(--font-sans);
+  --heading-stretch: 92%;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semi: 600;   /* buttons, labels, pills, row titles */
+  --fw-bold: 700;   /* headings, big numbers, the brand */
+
+  /* Type scale */
+  --fs-xs: 13px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 26px;
+  --fs-num: 32px;
+  --fs-hero: 40px;
+
+  /* Spacing, shape, elevation */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-pop: 0 12px 32px rgb(15 20 25 / 0.18), 0 2px 6px rgb(15 20 25 / 0.08); /* menus only */
+  --shell: 720px;
+  --bar-height: 56px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --blue-soft: #16304a;
+    --blue-ink: #bfe1fa;
+    --bg: #0b0f14;
+    --surface: #141a21;
+    --surface-2: #1b232c;
+    --fg: #e8edf2;
+    --muted: #9aa6b2;
+    --line: #26303b;
+    --line-strong: #66737f;
+    --link: #8cc8f2;
+    --focus: #8cc8f2;
+    --bar: #05070a;
+    --bar-muted: #9aa6b2;
+    --ok: #7fd69a;    --ok-soft: #16301f;
+    --warn: #f4b566;  --warn-soft: #3a2a13;
+    --error: #ff8a80; --error-soft: #3b1a18;
+    --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
+  }
+}

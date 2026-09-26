@@ -10,7 +10,8 @@ A clean, simple look, not a professional product. Most use is on phones, often a
 - **Always show state.** Something is loading, saved, unsaved, offline, or failed, and the page says which.
   Errors say what to do next.
 - **Consistent.** The same spacing, colours, buttons and cards everywhere. Reuse the tokens and classes in
-  `src/app/styles.css` (`--accent`, `.card`, `.list`, `.notice`, `.muted`) before adding new ones.
+  `src/app/styles.css` (`.card`, `.list`, `.pill`, `.notice`, `.muted`) before adding new ones. Colours, fonts and
+  sizes live only in `src/app/tokens.css`. `DESIGN.md` at the repo root records the whole system.
 - **Easy to read.** One font, a few sizes, generous whitespace, and a line length that stays readable
   (`.shell` is 720px wide).
 - **Works on a phone first.** One column at 375px wide, no sideways scrolling, and tap targets at least 44px.
@@ -21,8 +22,8 @@ A clean, simple look, not a professional product. Most use is on phones, often a
 
 ## By audience
 
-Pages live in `src/app/pages/` with hash routes. Shared layout is `src/app/components/Layout.tsx`, and all
-styles are in `src/app/styles.css`.
+Pages live in `src/app/pages/` with hash routes. Shared layout is `src/app/components/Layout.tsx`, tokens are in
+`src/app/tokens.css` and component styles in `src/app/styles.css`.
 
 **Players:** `#/` HomePage, `#/join` JoinPage, `#/login` LoginPage, `#/stats` StatsPage, `#/stats/:id`
 SessionPage, `#/me` MePage
@@ -47,3 +48,5 @@ SessionPage, `#/me` MePage
 - [ ] Looks right at 375px and 1280px, in light and dark mode
 - [ ] Labels on inputs, and keyboard reachable
 - [ ] Uses the existing tokens and classes; no new dependency
+- [ ] Team colours only in their roles: gold for actions, baby blue for info and selection, never either as text on white
+- [ ] Tap targets at least 44px, including text links and small chips

@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import {
-  loadCurrentSeason, SESSION_COLUMNS, sessionState, statLabel, todayLocal,
+  loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel, todayLocal,
   type CurrentSeason, type SessionRow,
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
@@ -20,10 +20,11 @@ export function TallyPage() {
   const { session, isKeeper, loading } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const season = useLoad(loadCurrentSeason, []);
-  if (loading) return <p>Loading…</p>;
+  if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!session || !isKeeper) return <Navigate to="/" replace />;
-  if (season.error) return <p className="error">{season.error}</p>;
-  if (!season.data) return <p>{season.data === null ? 'No season yet.' : 'Loading…'}</p>;
+  if (season.error) return <p className="error" role="alert">{season.error}</p>;
+  if (season.data === null) return <p>No season yet.</p>;
+  if (!season.data) return <p className="muted" role="status">Loading…</p>;
   return sessionId ? (
     <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setSessionId(null)} />
   ) : (
@@ -60,19 +61,21 @@ function SessionPicker({ season, keeperId, onPick }: {
   }
 
   return (
-    <section>
+    <section className="page">
       <h1>Tally</h1>
       <div className="card">
         <h2>Open sessions</h2>
-        {sessions.data?.length === 0 && <p>None yet. Start one below.</p>}
+        {!sessions.data && !sessions.error && <p className="muted" role="status">Loading…</p>}
+        {sessions.data?.length === 0 && <p className="muted">None open. Start one below.</p>}
         <ul className="list">
           {sessions.data?.map((s) => (
             <li key={s.id}>
-              <span>
-                {s.held_on} · {s.kind}{s.counts ? '' : ' (not counted)'}
-                {unsaved.has(s.id) && <strong> · {unsaved.get(s.id)} unsaved taps</strong>}
+              <span className="meta">
+                <span className="title">{sessionTitle(s)}</span>
+                {!s.counts && <span className="pill">Not counted</span>}
+                {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
               </span>
-              <button onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
+              <button className={s.verified_at ? 'secondary' : ''} onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
             </li>
           ))}
         </ul>
@@ -91,7 +94,7 @@ function SessionPicker({ season, keeperId, onPick }: {
           Counts for fantasy (untick for drills)
         </label>
         <button>Start tallying</button>
-        {(error || sessions.error) && <p className="error">{error ?? sessions.error}</p>}
+        {(error || sessions.error) && <p className="error" role="alert">{error ?? sessions.error}</p>}
       </form>
     </section>
   );
@@ -202,8 +205,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     [saved, queued, season.settings.tap_merge_seconds],
   );
 
-  if (data.error && !data.data) return <p className="error">{data.error}</p>;
-  if (!data.data) return <p>Loading…</p>;
+  if (data.error && !data.data) return <p className="error" role="alert">{data.error}</p>;
+  if (!data.data) return <p className="muted" role="status">Loading…</p>;
   const { session, athletes, attendance, injuries } = data.data;
   // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:
   // taps already queued on the phone still upload, but new taps and undo are disabled.
@@ -241,22 +244,30 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     }
   }
 
-  const syncText = queue.length === 0 ? 'Saved ✓' : `${online ? '' : 'Offline · '}${queue.length} unsaved`;
+  const weight = (stat: string) => season.settings.stat_weights[stat] ?? 0;
   return (
-    <section>
+    <section className="page">
       <div className="tally-bar">
-        <button className="linklike" onClick={onBack}>← Sessions</button>
-        <span>{session.held_on} · {session.kind}</span>
-        <span className={queue.length ? 'muted' : ''}>{syncText}</span>
-        <button onClick={undo} disabled={closed}>Undo last tap</button>
+        <div className="head">
+          <button className="linklike" onClick={onBack}>← Sessions</button>
+          <strong>{sessionTitle(session)}</strong>
+        </div>
+        <div className="head">
+          <span role="status">
+            {queue.length === 0 && <span className="pill ok">Saved ✓</span>}
+            {queue.length > 0 && online && <span className="pill info">Saving · {queue.length} unsaved</span>}
+            {queue.length > 0 && !online && <span className="pill warn">Offline · {queue.length} unsaved</span>}
+          </span>
+          <button className="secondary" onClick={undo} disabled={closed}>Undo last tap</button>
+        </div>
       </div>
       {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {closed && !verified && <p className="notice">This session is from an earlier season, so tallying is closed here. Taps already saved on this phone still upload.</p>}
-      {!stored && <p className="error">This phone won't store taps. Keep this page open until it says Saved.</p>}
-      {rejected && <p className="error">{rejected.count} taps not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
-      {error && <p className="error">{error}</p>}
-      {data.error && <p className="error">Couldn't refresh: {data.error}</p>}
-      <input type="search" placeholder="Find a player" value={search} onChange={(e) => setSearch(e.target.value)} />
+      {!stored && <p className="error" role="alert">This phone won't store taps. Keep this page open until it says Saved.</p>}
+      {rejected && <p className="error" role="alert">{rejected.count} taps not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
+      {error && <p className="error" role="alert">{error}</p>}
+      {data.error && <p className="error" role="alert">Couldn't refresh: {data.error}</p>}
+      <input type="search" aria-label="Find a player" placeholder="Find a player" value={search} onChange={(e) => setSearch(e.target.value)} />
       <p className="muted">A Callahan is one tap: it already includes the goal and the D.</p>
       <ul className="list">
         {shown.map((a) => {
@@ -266,19 +277,21 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
             <li key={a.id} className="tally-card">
               <div className="tally-head">
                 <strong>{a.name}</strong>
-                {injury && <span className="badge">{injury.confirmed_at ? 'Injured' : 'Injury reported'}</span>}
+                {injury && <span className={injury.confirmed_at ? 'pill bad' : 'pill warn'}>{injury.confirmed_at ? 'Injured' : 'Injury reported'}</span>}
                 {injury && !injury.confirmed_at && (
-                  <button className="linklike" onClick={() => void run(() => api.confirmInjury(injury.id))}>Confirm injury</button>
+                  <button className="secondary" onClick={() => void run(() => api.confirmInjury(injury.id))}>Confirm injury</button>
                 )}
-                <button className="linklike" onClick={() =>
-                  void run(() => api.setAttendance(sessionId, a.id, status === 'present' ? 'absent' : 'present'))}>
-                  {status === 'present' ? 'Present' : status === 'absent' ? 'Absent' : 'Mark present'}
+                <button className="secondary" aria-label={`${a.name}: ${status ?? 'not marked'}. Tap to mark ${status === 'present' ? 'absent' : 'present'}.`}
+                  onClick={() => void run(() => api.setAttendance(sessionId, a.id, status === 'present' ? 'absent' : 'present'))}>
+                  {status === 'present' ? 'Present ✓' : status === 'absent' ? 'Absent' : 'Mark present'}
                 </button>
               </div>
               <div className="tally-buttons">
                 {stats.map((stat) => (
-                  <button key={stat} disabled={closed} onClick={() => add(a.id, stat)}>
-                    {statLabel(stat)}<span className="tally-count">{counts[a.id]?.[stat] ?? 0}</span>
+                  <button key={stat} className={weight(stat) < 0 ? 'neg' : undefined} disabled={closed} onClick={() => add(a.id, stat)}>
+                    {statLabel(stat)}
+                    <span className="tally-count">{counts[a.id]?.[stat] ?? 0}</span>
+                    <span className="tally-w">{weight(stat) > 0 ? '+' : weight(stat) < 0 ? '−' : ''}{Math.abs(weight(stat))} pts</span>
                   </button>
                 ))}
               </div>

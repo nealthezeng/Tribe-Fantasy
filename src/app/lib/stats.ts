@@ -44,6 +44,17 @@ export function lockTime(s: Pick<SessionRow, 'verified_at'>, lockHours: number):
   return new Date(Date.parse(s.verified_at!) + lockHours * 3_600_000).toLocaleString();
 }
 
+/** '2026-09-25' → 'Fri, Sep 25'. Parsed as a local date so it never shifts a day across time zones. */
+export function formatDay(isoDay: string): string {
+  const [y, m, d] = isoDay.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+export const kindLabel = (kind: SessionRow['kind']) => (kind === 'tournament' ? 'Tournament' : 'Practice');
+
+/** A session's title everywhere it's listed: 'Fri, Sep 25 · Practice'. */
+export const sessionTitle = (s: Pick<SessionRow, 'held_on' | 'kind'>) => `${formatDay(s.held_on)} · ${kindLabel(s.kind)}`;
+
 /** Today in the phone's time zone, as YYYY-MM-DD for <input type="date">. */
 export function todayLocal(now = new Date()): string {
   const off = now.getTimezoneOffset() * 60_000;

@@ -2,12 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
+import { formatDay } from '../../lib/stats';
 import { useLoad } from '../../lib/useLoad';
 
 interface StageRow { id: string; name: string; starts_on: string; ends_on: string; tournament: string | null }
 const EMPTY = { id: null as string | null, name: '', starts_on: '', ends_on: '', tournament: '' };
 
-export function StagesPanel({ seasonId, onGranted }: { seasonId: string; onGranted: () => void }) {
+export function StagesPanel({ seasonId }: { seasonId: string }) {
   const [form, setForm] = useState(EMPTY);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,19 +46,22 @@ export function StagesPanel({ seasonId, onGranted }: { seasonId: string; onGrant
   return (
     <div className="card">
       <h2>Stages</h2>
-      <p>
+      {!stages.data && !stages.error && <p className="muted" role="status">Loading…</p>}
+      <p className="muted">
         Players see stages as "seasons". Grant a stage's allowance before its auction. Running it again only
         credits teams that joined since.
       </p>
       <ul className="list">
         {stages.data?.map((s) => (
           <li key={s.id}>
-            <span>{s.name} · {s.starts_on} → {s.ends_on}{s.tournament ? ` · ends at ${s.tournament}` : ''}</span>
-            <span className="row">
-              <button className="linklike" onClick={() => setForm({ ...s, tournament: s.tournament ?? '' })}>Edit</button>
+            <span>
+              <span className="title">{s.name}</span><br />
+              <small>{formatDay(s.starts_on)} – {formatDay(s.ends_on)}{s.tournament ? ` · ends at ${s.tournament}` : ''}</small>
+            </span>
+            <span className="meta">
+              <button className="secondary" onClick={() => setForm({ ...s, tournament: s.tournament ?? '' })}>Edit</button>
               <button onClick={() => void run(async () => {
                 const n = await api.grantStageAllowance(s.id);
-                onGranted();
                 return `${s.name}: credited ${n} teams.`;
               })}>
                 Grant allowance
@@ -66,7 +70,8 @@ export function StagesPanel({ seasonId, onGranted }: { seasonId: string; onGrant
           </li>
         ))}
       </ul>
-      <form onSubmit={save} className="row">
+      {stages.data?.length === 0 && <p className="muted">No stages yet. Add the first one below.</p>}
+      <form onSubmit={save} className="row section">
         <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
         <label>Starts<input type="date" required value={form.starts_on} onChange={set('starts_on')} /></label>
         <label>Ends<input type="date" required value={form.ends_on} onChange={set('ends_on')} /></label>
@@ -74,8 +79,8 @@ export function StagesPanel({ seasonId, onGranted }: { seasonId: string; onGrant
         <button>{form.id ? 'Save stage' : 'Add stage'}</button>
         {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
       </form>
-      {status && <p>{status}</p>}
-      {(error || stages.error) && <p className="error">{error ?? stages.error}</p>}
+      {status && <p className="success" role="status">{status}</p>}
+      {(error || stages.error) && <p className="error" role="alert">{error ?? stages.error}</p>}
     </div>
   );
 }

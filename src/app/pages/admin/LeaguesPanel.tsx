@@ -46,23 +46,28 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
   return (
     <div className="card">
       <h2>Leagues and invites</h2>
+      {!leagues.data && !leagues.error && <p className="muted" role="status">Loading…</p>}
+      {leagues.data?.length === 0 && <p className="muted">No leagues in this season yet.</p>}
       {leagues.data?.map((l) => (
-        <div key={l.id} className="card">
-          <h3>{l.name} <small>({l.memberships.length} teams)</small></h3>
+        <div key={l.id} className="section">
+          <h3>{l.name} <small>{l.memberships.length} teams</small></h3>
           <ul className="list">
             {l.invites.map((i) => (
-              <li key={i.code}><code>{i.code}</code><span>{i.uses}/{i.max_uses} used{i.expires_at ? ` · expires ${new Date(i.expires_at).toLocaleDateString()}` : ''}</span></li>
+              <li key={i.code}>
+                <code className="code">{i.code}</code>
+                <span className="muted num">{i.uses}/{i.max_uses} used{i.expires_at ? ` · expires ${new Date(i.expires_at).toLocaleDateString()}` : ''}</span>
+              </li>
             ))}
-            {l.memberships.map((m) => <li key={m.id}>{m.team_name}</li>)}
           </ul>
-          <button onClick={() => void run(() => api.createInvite(l.id, randomCode(), 50, null))}>New invite code</button>
+          {l.memberships.length > 0 && <p><span className="muted">Teams:</span> {l.memberships.map((m) => m.team_name).join(', ')}</p>}
+          <button className="secondary" onClick={() => void run(() => api.createInvite(l.id, randomCode(), 50, null))}>New invite code</button>
         </div>
       ))}
-      <form onSubmit={create} className="row">
+      <form onSubmit={create} className="row section">
         <label>New league<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="League A" /></label>
         <button>Create</button>
       </form>
-      {(error || leagues.error) && <p className="error">{error ?? leagues.error}</p>}
+      {(error || leagues.error) && <p className="error" role="alert">{error ?? leagues.error}</p>}
     </div>
   );
 }

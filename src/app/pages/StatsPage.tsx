@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
-import { downloadText, loadCurrentSeason, SESSION_COLUMNS, sessionState, statLabel, toCsv, type SessionRow } from '../lib/stats';
+import { downloadText, loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel, toCsv, type SessionRow } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 
-const STATE_LABEL = { open: 'Not verified', verified: 'Verified', locked: 'Locked' } as const;
+export const STATE_PILL = {
+  open: <span className="pill warn">Not verified</span>,
+  verified: <span className="pill info">Verified</span>,
+  locked: <span className="pill ok">Locked</span>,
+} as const;
 
 export function StatsPage() {
   const { isAdmin } = useAuth();
@@ -60,21 +64,26 @@ export function StatsPage() {
     }
   }
 
-  if (data.error) return <p className="error">{data.error}</p>;
-  if (data.data === undefined) return <p>Loading…</p>;
+  if (data.error) return <p className="error" role="alert">{data.error}</p>;
+  if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) return <p>No season yet.</p>;
   const { season, sessions } = data.data;
   return (
-    <section>
-      <h1>Stats · {season.name}</h1>
-      {isAdmin && <button onClick={() => void exportCsv()}>Download CSV</button>}
-      {error && <p className="error">{error}</p>}
-      {sessions.length === 0 && <p>No sessions yet.</p>}
+    <section className="page">
+      <div className="head">
+        <h1>Stats <small>{season.name}</small></h1>
+        {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      {sessions.length === 0 && <p className="muted">No sessions yet. Stat keepers start one from Tally.</p>}
       <ul className="list">
         {sessions.map((s) => (
           <li key={s.id}>
-            <Link to={`/stats/${s.id}`}>{s.held_on} · {s.kind}{s.counts ? '' : ' (not counted)'}</Link>
-            <span className="muted">{STATE_LABEL[sessionState(s, season.settings.stat_lock_hours)]}</span>
+            <Link className="title" to={`/stats/${s.id}`}>{sessionTitle(s)}</Link>
+            <span className="meta">
+              {!s.counts && <span className="pill">Not counted</span>}
+              {STATE_PILL[sessionState(s, season.settings.stat_lock_hours)]}
+            </span>
           </li>
         ))}
       </ul>
