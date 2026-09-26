@@ -56,9 +56,16 @@ in the black top bar, and at 168px, cropped off the corner, behind the signed-ou
 
 ## Type
 
-Font tokens: `--font-sans` (system-ui stack) for everything, `--font-heading` (headings and the brand; points at
-`--font-sans` today, so a display face can be swapped in later) and `--font-mono` only for `code`, the settings
-textarea and `.code` (invite codes, 18px, spaced out).
+**Archivo** for everything: a grotesque made for sports and news graphics, with even figures for stats. It
+replaced the system font, which read soft and cartoonish at heavy weights. Loaded from Google Fonts in
+`index.html` (variable, weights 400–700, widths 87.5–100%, `display=swap`, system-ui fallback).
+
+Font tokens: `--font-sans` (Archivo stack), `--font-heading` (points at `--font-sans`) with `--heading-stretch`
+92% so headings and the brand use a slightly condensed cut, and `--font-mono` only for `code`, the settings
+textarea and `.code` (invite codes). Weights come from four tokens: `--fw-regular` 400 (body), `--fw-medium` 500,
+`--fw-semi` 600 (buttons, labels, pills, row titles) and `--fw-bold` 700 (headings, big numbers, the brand).
+Condensed headings take no negative letter-spacing; it closes the word gaps. To swap the font, change the link in
+`index.html` and the font lines in `tokens.css`.
 
 | Token | Size | Use |
 |---|---|---|
@@ -66,7 +73,7 @@ textarea and `.code` (invite codes, 18px, spaced out).
 | `--fs-sm` | 14px | Labels, `small`, tables, subnav |
 | `--fs-md` | 16px | Body, `h3` |
 | `--fs-lg` | 20px | `h2` |
-| `--fs-xl` | 26px | `h1` (weight 750, slightly tight tracking) |
+| `--fs-xl` | 26px | `h1` |
 | `--fs-num` | 32px | `.big` headline numbers (tabular) |
 | `--fs-hero` | 40px | The signed-out hero headline |
 
