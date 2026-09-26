@@ -4,7 +4,7 @@ import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
-import { balance } from '../../lib/wallet';
+import { balance, credits } from '../../lib/wallet';
 
 interface LeagueRow {
   id: string;
@@ -59,7 +59,7 @@ export function WalletsPanel({ seasonId, ledgerVersion }: { seasonId: string; le
           {l.memberships.length === 0 && <p className="muted">No teams yet.</p>}
           <ul className="list">
             {l.memberships.map((m) => (
-              <li key={m.id}><span>{m.team_name}</span><strong className="num">{balance(m.credit_ledger)} credits</strong></li>
+              <li key={m.id}><span>{m.team_name}</span><strong className="num">{credits(balance(m.credit_ledger))}</strong></li>
             ))}
           </ul>
         </div>

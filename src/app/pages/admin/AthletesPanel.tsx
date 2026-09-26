@@ -56,7 +56,7 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
               <option value="">No linked account</option>
               {athletes.data?.profiles.map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
             </select>
-            <button className="linklike" onClick={() => void run(() => api.setAthleteOptIn(a.id, !a.opted_in))}>
+            <button className="secondary" onClick={() => void run(() => api.setAthleteOptIn(a.id, !a.opted_in))}>
               {a.opted_in ? 'Opt out' : 'Opt back in'}
             </button>
           </li>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { DiscMark } from '../components/Layout';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
@@ -27,7 +28,8 @@ export function HomePage() {
   if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!session) {
     return (
-      <section className="card">
+      <section className="hero">
+        <DiscMark size={168} className="hero-disc" />
         <h1>Tribe Fantasy</h1>
         <p>A fantasy league for our team. Every dollar goes to the team fund.</p>
         <Link to="/login" className="button">Sign in</Link>
@@ -51,7 +53,7 @@ export function HomePage() {
             <h2>{m.team_name}</h2>
             <p className="muted">{m.leagues?.name} · {m.leagues?.seasons?.name}</p>
           </div>
-          <p><span className="big">{balance(m.credit_ledger)}</span> credits</p>
+          <p><span className="big">{balance(m.credit_ledger)}</span> {Math.abs(balance(m.credit_ledger)) === 1 ? 'credit' : 'credits'}</p>
           <Wallet entries={m.credit_ledger} />
         </article>
       ))}

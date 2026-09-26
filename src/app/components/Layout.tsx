@@ -3,9 +3,9 @@ import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
 
 /** A disc seen from above, in team gold. Same drawing as the favicon in index.html. */
-function DiscMark() {
+export function DiscMark({ size = 24, className }: { size?: number; className?: string }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="11" fill="#f5b700" />
       <circle cx="12" cy="12" r="7.5" fill="none" stroke="#c99400" strokeWidth="1.5" />
       <circle cx="12" cy="12" r="3" fill="#8cc8f2" />

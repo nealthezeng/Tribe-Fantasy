@@ -13,6 +13,9 @@ export const LEDGER_COLUMNS = 'id, kind, amount, dollars, note, created_at, stag
 
 export const balance = (entries: Pick<LedgerEntry, 'amount'>[]) => entries.reduce((sum, e) => sum + e.amount, 0);
 
+/** 1 → '1 credit', 115 → '115 credits'. */
+export const credits = (n: number) => `${n} ${Math.abs(n) === 1 ? 'credit' : 'credits'}`;
+
 export function entryLabel(e: LedgerEntry): string {
   switch (e.kind) {
     case 'allowance': return `Allowance — ${e.stages?.name ?? 'season'}`;

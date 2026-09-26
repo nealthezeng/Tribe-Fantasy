@@ -54,6 +54,7 @@ small { font-size: var(--fs-sm); font-weight: 400; color: var(--muted); }
 .shell { max-width: 720px; margin: 0 auto; padding: var(--s5) 16px 48px; display: grid; gap: var(--s4); }
 .page, .card, .stack, .section { display: grid; gap: var(--s3); align-content: start; }
 .page { gap: var(--s4); }
+.page > :first-child { margin-bottom: var(--s2); }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s4); }
 .section { border-top: 1px solid var(--line); padding-top: var(--s4); margin-top: var(--s1); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
@@ -137,17 +138,34 @@ tbody tr:last-child td { border-bottom: 0; }
 /* Tally board: big neutral buttons with big counts, readable in sunlight. Attendance and injury sit apart. */
 .tally-bar { position: sticky; top: 0; z-index: 1; display: grid; gap: var(--s1); background: var(--bg); padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
 .tally-bar .head { gap: var(--s2); }
-.list li.tally-card { display: grid; gap: var(--s3); padding: 12px 14px 14px; }
+.list li.tally-card { display: grid; justify-content: stretch; align-items: stretch; gap: var(--s3); padding: 12px; }
 .tally-head { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
 .tally-head strong { flex: 1 1 auto; font-size: 17px; }
 .tally-head button { padding: 6px 12px; font-size: var(--fs-sm); }
-.tally-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(64px, 1fr)); gap: var(--s2); }
+.tally-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); gap: 6px; }
 .tally-buttons button, .tally-buttons button:hover:not(:disabled) {
-  min-height: 72px; padding: 6px 4px; font-size: 13px; font-weight: 650; display: grid; justify-items: center; gap: 2px;
+  min-height: 76px; padding: 6px 2px; font-size: 12px; font-weight: 650; letter-spacing: -0.01em; display: grid; justify-items: center; gap: 2px;
   background: var(--surface-2); color: var(--fg); border: 1px solid var(--line-strong);
 }
 .tally-buttons button:active:not(:disabled) { background: var(--gold); color: var(--on-gold); border-color: var(--gold-press); }
 .tally-buttons button.neg, .tally-buttons button.neg:hover:not(:disabled) { border-style: dashed; }
 .tally-count { font-size: 24px; font-weight: 750; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.tally-w { font-size: 12px; font-weight: 500; color: var(--muted); }
+.tally-w { font-size: 11px; font-weight: 500; color: var(--muted); }
 .tally-buttons button:active:not(:disabled) .tally-w { color: inherit; }
+
+/* Signed-out landing: the one page that has to sell, so it gets the team colours at full strength. */
+.hero { border: 1px solid var(--line); position: relative; overflow: hidden; isolation: isolate; background: var(--bar); color: var(--bar-fg); border-radius: var(--radius); padding: var(--s6) var(--s5); display: grid; gap: var(--s4); justify-items: start; }
+.hero h1 { font-size: 40px; line-height: 1.05; letter-spacing: -0.03em; }
+.hero p { color: var(--bar-muted); font-size: 18px; max-width: 22ch; }
+.hero-disc { position: absolute; z-index: -1; right: -60px; bottom: -60px; width: 168px; height: 168px; }
+
+/* Admin: a sticky strip of section buttons over one long page. */
+.subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 -16px; padding: var(--s2) 16px; background: var(--bg); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.subnav button, .subnav button:hover:not(:disabled) { flex: none; background: var(--surface); color: var(--fg); border-color: var(--line-strong); border-radius: 999px; padding: 8px 14px; font-size: var(--fs-sm); }
+.subnav button:hover:not(:disabled) { background: var(--blue-soft); color: var(--blue-ink); border-color: var(--blue); }
+[data-section] { scroll-margin-top: 72px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  button, .button, a, .pill { transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
+  .tally-buttons button { transition: none; } /* a tap must show instantly */
+}
