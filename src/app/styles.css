@@ -111,7 +111,6 @@ label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(
 .pill.info { background: var(--blue-soft); color: var(--blue-ink); }
 .pill.warn { background: var(--warn-soft); color: var(--warn); }
 .pill.bad { background: var(--error-soft); color: var(--error); }
-.pill.gold { background: var(--gold); color: var(--on-gold); }
 .notice { background: var(--blue-soft); color: var(--blue-ink); border-radius: var(--radius-sm); padding: 12px 14px; }
 .notice a, .notice .linklike { color: inherit; }
 .error { color: var(--error); font-weight: 550; }
