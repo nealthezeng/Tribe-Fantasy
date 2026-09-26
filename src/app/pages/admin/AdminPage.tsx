@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Navigate } from 'react-router';
 import { useAuth } from '../../auth/AuthProvider';
 import { AthletesPanel } from './AthletesPanel';
@@ -12,6 +12,7 @@ import { WalletsPanel } from './WalletsPanel';
 export function AdminPage() {
   const { isAdmin, loading } = useAuth();
   const [seasonId, setSeasonId] = useState<string | null>(null);
+  const [ledgerVersion, setLedgerVersion] = useState(0);
   if (loading) return <p>Loading…</p>;
   if (!isAdmin) return <Navigate to="/" replace />;
   return (
@@ -20,13 +21,13 @@ export function AdminPage() {
       <SeasonsPanel selected={seasonId} onSelect={setSeasonId} />
       <StaffPanel />
       {seasonId && (
-        <>
-          <SettingsEditor key={seasonId} seasonId={seasonId} />
-          <StagesPanel key={seasonId} seasonId={seasonId} />
-          <LeaguesPanel key={seasonId} seasonId={seasonId} />
-          <WalletsPanel key={seasonId} seasonId={seasonId} />
-          <AthletesPanel key={seasonId} seasonId={seasonId} />
-        </>
+        <Fragment key={seasonId}>
+          <SettingsEditor seasonId={seasonId} />
+          <StagesPanel seasonId={seasonId} onGranted={() => setLedgerVersion((v) => v + 1)} />
+          <LeaguesPanel seasonId={seasonId} />
+          <WalletsPanel seasonId={seasonId} ledgerVersion={ledgerVersion} />
+          <AthletesPanel seasonId={seasonId} />
+        </Fragment>
       )}
     </section>
   );

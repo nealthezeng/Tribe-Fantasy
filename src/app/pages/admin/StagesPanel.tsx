@@ -7,7 +7,7 @@ import { useLoad } from '../../lib/useLoad';
 interface StageRow { id: string; name: string; starts_on: string; ends_on: string; tournament: string | null }
 const EMPTY = { id: null as string | null, name: '', starts_on: '', ends_on: '', tournament: '' };
 
-export function StagesPanel({ seasonId }: { seasonId: string }) {
+export function StagesPanel({ seasonId, onGranted }: { seasonId: string; onGranted: () => void }) {
   const [form, setForm] = useState(EMPTY);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +55,11 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
             <span>{s.name} · {s.starts_on} → {s.ends_on}{s.tournament ? ` · ends at ${s.tournament}` : ''}</span>
             <span className="row">
               <button className="linklike" onClick={() => setForm({ ...s, tournament: s.tournament ?? '' })}>Edit</button>
-              <button onClick={() => void run(async () => `${s.name}: credited ${await api.grantStageAllowance(s.id)} teams.`)}>
+              <button onClick={() => void run(async () => {
+                const n = await api.grantStageAllowance(s.id);
+                onGranted();
+                return `${s.name}: credited ${n} teams.`;
+              })}>
                 Grant allowance
               </button>
             </span>
@@ -63,10 +67,10 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
         ))}
       </ul>
       <form onSubmit={save} className="row">
-        <label>Name<input required value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
+        <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
         <label>Starts<input type="date" required value={form.starts_on} onChange={set('starts_on')} /></label>
         <label>Ends<input type="date" required value={form.ends_on} onChange={set('ends_on')} /></label>
-        <label>Ends at tournament<input value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
+        <label>Ends at tournament<input maxLength={60} value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
         <button>{form.id ? 'Save stage' : 'Add stage'}</button>
         {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
       </form>
