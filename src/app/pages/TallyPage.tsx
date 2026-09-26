@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import {
   BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, queuedToTap, removeSent, rowToTap,
-  storeQueue,
+  storeQueue, unsavedTaps,
   type QueuedTap, type StatTapRow,
 } from '../tally/queue';
 
@@ -117,14 +117,17 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   const inFlight = useRef<Set<string>>(new Set());
 
   const data = useLoad(async () => {
-    const [sess, athletes, taps, attendance, injuries] = await Promise.all([
-      supabase!.from('sessions').select(SESSION_COLUMNS).eq('id', sessionId).single(),
-      supabase!.from('athletes').select('id, name').eq('season_id', season.id).eq('opted_in', true).order('name'),
+    const sess = await supabase!.from('sessions').select(SESSION_COLUMNS).eq('id', sessionId).single();
+    if (sess.error) throw sess.error;
+    // The session's own season: a queued session from an earlier season must show that season's athletes.
+    const seasonId = (sess.data as SessionRow).season_id;
+    const [athletes, taps, attendance, injuries] = await Promise.all([
+      supabase!.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name'),
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
       supabase!.from('attendance').select('athlete_id, status').eq('session_id', sessionId),
       supabase!.from('injuries').select('id, athlete_id, confirmed_at').is('cleared_at', null),
     ]);
-    for (const r of [sess, athletes, taps, attendance, injuries]) if (r.error) throw r.error;
+    for (const r of [athletes, taps, attendance, injuries]) if (r.error) throw r.error;
     return {
       session: sess.data as SessionRow,
       athletes: (athletes.data ?? []) as AthleteRow[],
@@ -132,7 +135,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       attendance: (attendance.data ?? []) as AttendanceRow[],
       injuries: (injuries.data ?? []) as InjuryRow[],
     };
-  }, [sessionId, season.id]);
+  }, [sessionId]);
   const reload = data.reload;
 
   useEffect(() => {
@@ -188,11 +191,11 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   }, [flush]);
 
   const saved = useMemo(() => (data.data?.taps ?? []).map(rowToTap), [data.data]);
-  const queued = useMemo(() => {
-    const savedIds = new Set(saved.map((t) => t.id));
-    // Sent taps are older than queued ones, so this stays in tap order.
-    return [...sent.filter((t) => !savedIds.has(t.id)), ...queue].map((q) => queuedToTap(q, keeperId));
-  }, [saved, sent, queue, keeperId]);
+  const savedIds = useMemo(() => new Set(saved.map((t) => t.id)), [saved]);
+  const queued = useMemo(
+    () => unsavedTaps(sent, queue, savedIds).map((q) => queuedToTap(q, keeperId)),
+    [savedIds, sent, queue, keeperId],
+  );
   // Display only: queued times aren't skew-corrected yet. Verify recomputes from the server's taps.
   const counts = useMemo(
     () => mergeTaps([...saved, ...queued], season.settings.tap_merge_seconds).counts,
@@ -202,7 +205,11 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   if (data.error && !data.data) return <p className="error">{data.error}</p>;
   if (!data.data) return <p>Loading…</p>;
   const { session, athletes, attendance, injuries } = data.data;
-  const closed = sessionState(session, season.settings.stat_lock_hours) !== 'open';
+  // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:
+  // taps already queued on the phone still upload, but new taps and undo are disabled.
+  const oldSeason = session.season_id !== season.id;
+  const verified = sessionState(session, season.settings.stat_lock_hours) !== 'open';
+  const closed = oldSeason || verified;
   const stats = Object.keys(season.settings.stat_weights);
   const statusOf = new Map(attendance.map((a) => [a.athlete_id, a.status]));
   const injuryOf = new Map(injuries.map((i) => [i.athlete_id, i]));
@@ -214,7 +221,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   function undo() {
     const target = lastUndoable(saved, queued, keeperId);
     if (!target) return;
-    if (canForgetLocally(target.id, queue, inFlight.current)) {
+    if (canForgetLocally(target.id, queue, inFlight.current, savedIds)) {
       setQueue((q) => q.filter((t) => t.id !== target.id)); // never sent: just forget it
     } else {
       setQueue((q) => [...q, {
@@ -243,7 +250,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
         <span className={queue.length ? 'muted' : ''}>{syncText}</span>
         <button onClick={undo} disabled={closed}>Undo last tap</button>
       </div>
-      {closed && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
+      {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
+      {closed && !verified && <p className="notice">This session is from an earlier season, so tallying is closed here. Taps already saved on this phone still upload.</p>}
       {!stored && <p className="error">This phone won't store taps. Keep this page open until it says Saved.</p>}
       {rejected && <p className="error">{rejected.count} taps not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
       {error && <p className="error">{error}</p>}

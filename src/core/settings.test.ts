@@ -9,8 +9,11 @@ describe('parseSettings', () => {
 
   it('has the agreed money and scoring defaults', () => {
     expect(DEFAULT_SETTINGS.credits_per_dollar).toBe(20);
-    expect(DEFAULT_SETTINGS.min_credits_to_play).toBe(100);
-    expect(DEFAULT_SETTINGS.extra_credit_cap).toBeNull();
+    expect(DEFAULT_SETTINGS.donations_enabled).toBe(false);
+    expect(DEFAULT_SETTINGS.allowance_base).toBe(100);
+    expect(DEFAULT_SETTINGS.allowance_gap).toBe(30);
+    expect(DEFAULT_SETTINGS.max_members).toBe(6);
+    expect(DEFAULT_SETTINGS.roster_size).toBe(4);
     expect(DEFAULT_SETTINGS.normalize_mode).toBe('none');
     expect(DEFAULT_SETTINGS.stat_weights).toEqual({ goal: 3, assist: 3, block: 3, callahan: 8, turnover: -2 });
     expect(DEFAULT_SETTINGS.tap_merge_seconds).toBe(10);
@@ -57,6 +60,20 @@ describe('parseSettings', () => {
     expect(() => parseSettings({ upset_k: Number.NaN })).toThrow(/upset_k/);
     expect(() => parseSettings({ tap_merge_seconds: 61 })).toThrow(/tap_merge_seconds/);
     expect(() => parseSettings({ stat_weights: { goal: 'x' } })).toThrow(/stat_weights/);
+  });
+
+  it('bounds the M4 wallet and league-size settings', () => {
+    for (const bad of [{ max_members: 1 }, { max_members: 51 }, { allowance_base: -1 }, { allowance_gap: 2.5 },
+      { donations_enabled: 'yes' }]) {
+      expect(() => parseSettings(bad), JSON.stringify(bad)).toThrow(SettingsError);
+    }
+    expect(parseSettings({ max_members: 8, roster_size: 3 }).max_members).toBe(8);
+  });
+
+  it('rejects the settings retired by the stages revision', () => {
+    for (const key of ['min_credits_to_play', 'free_entry', 'extra_credit_cap']) {
+      expect(() => parseSettings({ [key]: null })).toThrow(`unknown setting "${key}"`);
+    }
   });
 
   it('only takes stat names the database can store (lowercase letters and _, up to 30)', () => {

@@ -36,7 +36,7 @@ export function simulateSeason(cfg: SimConfig): SimResult {
 
   const budgets: ManagerBudget[] = managerIds.map((managerId) => ({
     managerId,
-    budget: s.min_credits_to_play + Math.floor(rand() * 200),
+    budget: s.allowance_base + Math.floor(rand() * 200),
     openSlots: s.roster_size,
   }));
   const bids: Bid[] = [];

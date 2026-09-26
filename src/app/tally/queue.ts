@@ -97,9 +97,19 @@ export const queuedToTap = (q: QueuedTap, keeperId: string): Tap => ({
   undoes: q.undoes,
 });
 
-/** Tap can be forgotten locally only if it's queued and not currently being sent to the server. */
-export function canForgetLocally(targetId: string, queue: QueuedTap[], inFlight: ReadonlySet<string>): boolean {
-  return queue.some((q) => q.id === targetId) && !inFlight.has(targetId);
+/**
+ * Tap can be forgotten locally only if it's queued, not being sent, and not already on the server
+ * (a reopened board can still hold a queued copy of a tap an earlier board saved).
+ */
+export function canForgetLocally(
+  targetId: string, queue: QueuedTap[], inFlight: ReadonlySet<string>, savedIds: ReadonlySet<string>,
+): boolean {
+  return queue.some((q) => q.id === targetId) && !inFlight.has(targetId) && !savedIds.has(targetId);
+}
+
+/** Taps the server doesn't have yet, in tap order: sent batches (older) then the queue. */
+export function unsavedTaps(sent: QueuedTap[], queue: QueuedTap[], savedIds: ReadonlySet<string>): QueuedTap[] {
+  return [...sent, ...queue].filter((t) => !savedIds.has(t.id));
 }
 
 /** The keeper's newest tap that is neither an undo nor already undone, for "Undo last tap". */

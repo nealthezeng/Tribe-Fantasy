@@ -38,4 +38,17 @@ export const api = {
   reportInjury: (athleteId: string) => call<string>('report_injury', { p_athlete: athleteId }),
   confirmInjury: (injuryId: string) => call<void>('confirm_injury', { p_injury: injuryId }),
   clearInjury: (athleteId: string) => call<void>('clear_injury', { p_athlete: athleteId }),
+  createStage: (seasonId: string, name: string, startsOn: string, endsOn: string, tournament: string | null) =>
+    call<string>('create_stage', {
+      p_season: seasonId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: tournament,
+    }),
+  updateStage: (stageId: string, name: string, startsOn: string, endsOn: string, tournament: string | null) =>
+    call<void>('update_stage', {
+      p_stage: stageId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: tournament,
+    }),
+  grantStageAllowance: (stageId: string) => call<number>('grant_stage_allowance', { p_stage: stageId }),
+  recordDonation: (membershipId: string, dollars: number, note: string) =>
+    call<number>('record_donation', { p_membership: membershipId, p_dollars: dollars, p_note: note }),
+  adjustCredits: (membershipId: string, amount: number, note: string) =>
+    call<number>('adjust_credits', { p_membership: membershipId, p_amount: amount, p_note: note }),
 };

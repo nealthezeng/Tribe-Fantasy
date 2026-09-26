@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Tap } from '../../core/taps';
 import {
-  canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, removeSent, storeQueue, type QueuedTap,
+  canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, removeSent, storeQueue, unsavedTaps,
+  type QueuedTap,
 } from './queue';
 
 const q = (id: string, undoes: string | null = null): QueuedTap => ({
@@ -85,18 +86,29 @@ describe('canForgetLocally', () => {
   it('returns true when queued and not in flight', () => {
     const queue = [q('a'), q('b')];
     const inFlight = new Set<string>();
-    expect(canForgetLocally('a', queue, inFlight)).toBe(true);
+    expect(canForgetLocally('a', queue, inFlight, new Set())).toBe(true);
   });
 
   it('returns false when queued but in flight', () => {
     const queue = [q('a'), q('b')];
     const inFlight = new Set(['a']);
-    expect(canForgetLocally('a', queue, inFlight)).toBe(false);
+    expect(canForgetLocally('a', queue, inFlight, new Set())).toBe(false);
   });
 
   it('returns false when not queued (already saved)', () => {
     const queue = [q('a'), q('b')];
     const inFlight = new Set<string>();
-    expect(canForgetLocally('c', queue, inFlight)).toBe(false);
+    expect(canForgetLocally('c', queue, inFlight, new Set())).toBe(false);
+  });
+});
+
+describe('saved taps still in a reopened queue', () => {
+  it('are not forgotten locally: undo must send a real undo', () => {
+    expect(canForgetLocally('a', [q('a')], new Set(), new Set(['a']))).toBe(false);
+  });
+
+  it('are not counted twice', () => {
+    expect(unsavedTaps([q('s')], [q('a'), q('b')], new Set(['a', 's'])).map((t) => t.id)).toEqual(['b']);
+    expect(unsavedTaps([q('s')], [q('a')], new Set()).map((t) => t.id)).toEqual(['s', 'a']);
   });
 });

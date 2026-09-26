@@ -3550,4 +3550,8 @@ Taskboard: t14 → `done`, t15 → `done` (note: "Magic link + 6-digit code; inv
   - compare `placed_at` as normalized integer µs (Date.parse drops µs and returns NaN on bad input);
   - enforce `allow_self_ownership` in `fillLeftovers`.
 - **M6:** a missing `acquiredWeek` must throw instead of defaulting to multiplier 1; the caller pushes `absent_score` into default-pick history for weeks without stat lines.
+- **M5 (wallet, from M4):** add `bid` to the `credit_ledger.kind` check and a SQL `balance(membership)` helper;
+  adjustments can leave a balance negative, so bidding must refuse (`INSUFFICIENT_CREDITS`) rather than assume ≥ 0.
+- **M6 (allowance, from M4):** replace the `private.standings_points()` stub (always 0 in 0006) with real standings
+  points, and add a `grant_stage_allowance` test on real standings. It must never return NULL: NULL sorts first under `order by p desc` in grant_stage_allowance, so a member with no points would rank best.
 - **Every new migration:** add an explicit `grant select ... to authenticated` next to its policies (default privileges are revoked), re-run the function grant loop, and keep extensions out of `public`.

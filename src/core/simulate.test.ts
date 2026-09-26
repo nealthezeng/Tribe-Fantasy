@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { simulateSeason } from './simulate';
 
 describe('simulateSeason', () => {
-  const r = simulateSeason({ managers: 6, athletes: 30, weeks: 10, seed: 'test', tournamentWeeks: [4, 8] });
+  const r = simulateSeason({ managers: 6, athletes: 30, weeks: 10, seed: 'test', tournamentWeeks: [4, 8], settings: { roster_size: 5 } });
 
   it('drafts full, exclusive rosters', () => {
     const all = Object.values(r.rosters).flat();
@@ -44,11 +44,11 @@ describe('simulateSeason', () => {
   });
 
   it('is deterministic per seed', () => {
-    expect(simulateSeason({ managers: 6, athletes: 30, weeks: 10, seed: 'test', tournamentWeeks: [4, 8] })).toEqual(r);
+    expect(simulateSeason({ managers: 6, athletes: 30, weeks: 10, seed: 'test', tournamentWeeks: [4, 8], settings: { roster_size: 5 } })).toEqual(r);
   });
 
   it('copes with more roster capacity than athletes and an odd manager count', () => {
-    const odd = simulateSeason({ managers: 7, athletes: 30, weeks: 6, seed: 'odd' });
+    const odd = simulateSeason({ managers: 7, athletes: 30, weeks: 6, seed: 'odd', settings: { roster_size: 5 } });
     expect(Object.values(odd.rosters).flat()).toHaveLength(30);
     expect(odd.weeks).toHaveLength(6);
   });

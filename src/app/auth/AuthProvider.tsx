@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { readAuthRedirectError } from './authRedirectError';
@@ -23,26 +23,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isKeeper, setIsKeeper] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const loadedFor = useRef<string | null>(null);
+
+  // A different user (or none): drop the last user's name and roles before a fetch that might fail.
+  const resetForUser = useCallback((uid: string | null) => {
+    if (loadedFor.current === uid) return;
+    loadedFor.current = uid;
+    setDisplayName(null);
+    setIsAdmin(false);
+    setIsKeeper(false);
+  }, []);
 
   const loadProfile = useCallback(async (s: Session | null) => {
-    if (!supabase || !s) {
-      setDisplayName(null);
-      setIsAdmin(false);
-      setIsKeeper(false);
-      return;
-    }
-    const uid = s.user.id;
+    const uid = s?.user.id ?? null;
+    resetForUser(uid);
+    if (!supabase || !s || !uid) return;
     const [profile, roles] = await Promise.all([
       supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
     ]);
     // A failed fetch (e.g. on an hourly token refresh) keeps what we knew: it mustn't drop a keeper out of tallying.
     if (profile.error || roles.error) return;
+    if (loadedFor.current !== uid) return; // a newer sign-in or sign-out happened meanwhile
     setDisplayName(profile.data?.display_name ?? null);
     const roleNames = (roles.data ?? []).map((r: { role: string }) => r.role);
     setIsAdmin(roleNames.includes('admin'));
     setIsKeeper(roleNames.includes('admin') || roleNames.includes('stat_keeper'));
-  }, []);
+  }, [resetForUser]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -67,11 +74,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      // Clear a stale user's name/roles synchronously so no render shows them alongside the new session.
+      resetForUser(s?.user.id ?? null);
       // Supabase advises against awaiting other client calls inside this callback.
       setTimeout(() => void loadProfile(s), 0);
     });
     return () => sub.subscription.unsubscribe();
-  }, [loadProfile]);
+  }, [loadProfile, resetForUser]);
 
   const refresh = useCallback(() => loadProfile(session), [loadProfile, session]);
   const clearAuthError = useCallback(() => setAuthError(null), []);

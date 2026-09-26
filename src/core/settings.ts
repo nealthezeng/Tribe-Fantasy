@@ -2,9 +2,10 @@ export type SessionType = 'practice' | 'tournament';
 
 export interface SeasonSettings {
   credits_per_dollar: number;
-  min_credits_to_play: number;
-  extra_credit_cap: number | null;
-  free_entry: boolean;
+  donations_enabled: boolean;
+  allowance_base: number;
+  allowance_gap: number;
+  max_members: number;
   roster_size: number;
   min_bid: number;
   exclusive_ownership: boolean;
@@ -36,10 +37,11 @@ export interface SeasonSettings {
 
 export const DEFAULT_SETTINGS: SeasonSettings = {
   credits_per_dollar: 20,
-  min_credits_to_play: 100,
-  extra_credit_cap: null,
-  free_entry: false,
-  roster_size: 5,
+  donations_enabled: false,
+  allowance_base: 100,
+  allowance_gap: 30,
+  max_members: 6,
+  roster_size: 4,
   min_bid: 1,
   exclusive_ownership: true,
   allow_self_ownership: false,
@@ -114,9 +116,10 @@ const statWeights: Check = (v) => {
 
 const CHECKS: Record<keyof SeasonSettings, Check> = {
   credits_per_dollar: num(1, 10_000, true),
-  min_credits_to_play: num(0, 10_000_000, true),
-  extra_credit_cap: nullable(num(0, 1_000_000_000, true)),
-  free_entry: bool,
+  donations_enabled: bool,
+  allowance_base: num(0, 100_000, true),
+  allowance_gap: num(0, 100_000, true),
+  max_members: num(2, 50, true),
   roster_size: num(1, 30, true),
   min_bid: num(0, 10_000_000, true),
   exclusive_ownership: bool,
