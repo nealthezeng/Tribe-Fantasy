@@ -16,10 +16,13 @@ Agreed with the user on 2026-09-27. Builds on `2026-09-25-year-stages-revision.m
 
 ## 2. Rules as code runs them
 
-**Weeks.** `create_stage_weeks` splits the stage's `starts_on..ends_on` into 7-day chunks from `starts_on` (the last
-may be shorter). `pick_lock_at` = the first day in the chunk whose ISO weekday is `pick_lock_day`, at `pick_lock_time`
-in `America/New_York`; if no day matches, the chunk's first day at 00:00 ET. The **year week index** is the order of
-all the season's weeks by `starts_on`.
+**Weeks.** `create_stage_weeks` splits the stage's `starts_on..ends_on` into **Monday–Sunday** weeks (the first and
+last may be shorter, e.g. a stage starting on the Sunday of its auction gets a one-day first week, which is simply
+skipped if nothing is played). This keeps a Sat–Sun tournament inside one week whatever day the stage starts.
+`pick_lock_at` = the first day in the week whose ISO weekday is `pick_lock_day`, at `pick_lock_time` in
+`America/New_York`; if no day matches, the week's first day at 00:00 ET. `starts_at` / `ends_at` store the week's
+first day and the day after its last at 00:00 ET, so the browser never does time-zone maths. The **year week index**
+is the order of all the season's weeks by `starts_on`.
 
 **Schedule.** Per league, `roundRobin(ids, k + 1)[k]` for year week index `k`, where `ids` are the league's
 memberships with `created_at ≤ pick_lock_at`. Odd counts get a bye. Late joiners never reshuffle past weeks; they
@@ -29,10 +32,11 @@ start at 0 points.
 **locked** when `verified_at + stat_lock_hours ≤ now`.
 
 **Week status.**
-- `final`: now ≥ the day after `ends_on` at 00:00 ET, the week has ≥ 1 counted session, and all of them are locked.
+- `open`: before the lock. `locked`: lock passed, week not over.
+- `final`: now ≥ `ends_at`, the week has ≥ 1 counted session, and all of them are locked.
 - `skipped`: the week has ended with no counted session. No matchups, no usage, no degradation.
-- `pending`: anything else. The first pending week holds back every later week (status `pending` too), so rank
-  snapshots always build in order.
+- `pending`: over but not final. Any week not yet final or skipped holds back every later week (a later week that
+  would be final shows `pending`), so rank snapshots always build in order.
 
 **Effective pick** (per manager, decided as of the lock):
 1. The manager's pick stands if it is on their stage roster, unused this cycle, and not injured at the lock.
@@ -44,12 +48,15 @@ start at 0 points.
 - **Injured at the lock**: a confirmed injury with `confirmed_at ≤ pick_lock_at` and (`cleared_at` null or
   `> pick_lock_at`).
 
-**Usage** (per stage, `usage_reset` cycle): athletes the manager started in earlier final weeks of the same stage;
-the cycle resets once every roster athlete is used. A start does **not** use the athlete when they were injured at
-any time during the week (confirmed interval overlaps the week's days) and have no stat line in a counted session.
+**Usage** (per stage, `usage_reset` cycle): the manager's effective picks in earlier weeks of the same stage whose
+lock has passed and that weren't skipped (so next week's pick screen already counts this week's pick); the cycle
+resets once every roster athlete is used. Once a week is over, a start does **not** use the athlete when they were
+injured at any time during it (confirmed interval overlaps `[starts_at, ends_at)`) and have no stat line in a
+counted session. Because everything is recomputed on load, a later verification can flip that and change a later
+week's effective pick; that's accepted.
 
 **Degradation** (revision §4): `s` = number of earlier **stages** in which this manager started this athlete (a start
-that used them, in a final week). `m = max(decay_floor, decay_rate ^ max(0, s − decay_grace_stages))` for
+that used them, per the usage rule). `m = max(decay_floor, decay_rate ^ max(0, s − decay_grace_stages))` for
 `exponential`; `linear` = `max(decay_floor, 1 − (1 − decay_rate)·d)`; `none` = 1. A missing count throws (gate).
 
 **Scoring a final week**: `scoreWeek` on the locked counted stat lines, ranks from the standings after the previous
@@ -65,7 +72,7 @@ final week (week 1: all tied), `upset_k` default 2. Standings rows carry points,
 ## 3. Data (migration `0008_weekly.sql`, additive)
 
 ```
-weeks  id, stage_id → stages (cascade), starts_on, ends_on, pick_lock_at, unique (stage_id, starts_on)
+weeks  id, stage_id → stages (cascade), starts_on, ends_on, starts_at, ends_at, pick_lock_at, unique (stage_id, starts_on)
 picks  week_id → weeks (cascade), membership_id → memberships (cascade), league_id, athlete_id → athletes,
        updated_at; primary key (week_id, membership_id)
 ```
@@ -81,8 +88,8 @@ RPCs:
 | RPC | Who | Behaviour |
 |---|---|---|
 | `create_stage_weeks(stage)` | admin | (re)builds the stage's weeks; `WEEKS_HAVE_PICKS` if any existing week has picks; audited |
-| `set_week_lock(week, at)` | admin | overrides one week's lock; audited |
-| `set_pick(membership, week, athlete \| null)` | the membership's user | `FORBIDDEN` not yours; `NOT_FOUND`; `PICK_LOCKED` once `now() ≥ pick_lock_at`; `NOT_ON_ROSTER` unless the athlete has a `roster_slots` row for (week's stage, membership); null deletes. Audit row names only the membership (picks stay sealed). No-repeat and injury are **not** checked in SQL — the scorer replaces an invalid pick (§2). |
+| `set_week_lock(week, at)` | admin | overrides one week's lock; `INVALID_LOCK_TIME` on null; audited |
+| `set_pick(membership, week, athlete \| null)` | the membership's user | `NOT_MEMBER` not yours (as `place_bid`); `NOT_FOUND`; `PICK_LOCKED` once `now() ≥ pick_lock_at`; `NOT_ON_ROSTER` unless the athlete has a `roster_slots` row for (week's stage, membership); null deletes. Audit row names only the membership (picks stay sealed). No-repeat and injury are **not** checked in SQL — the scorer replaces an invalid pick (§2). |
 | `grant_stage_allowance(stage, ranks jsonb)` | admin | `{membership_id: rank}` computed by the admin's browser with `rankSnapshot`. `STANDINGS_MISSING` unless every membership of the season has a finite rank in `[1, n]` (n = its league size) — the never-NULL gate. Amount = `round(base + gap·(r − 1)/(n − 1))` (n < 2 → base). Ranks copied into the audit row. Drops `private.standings_points`. |
 
 Go-live: paste 0008 **before** deploying (the old build rejects the new setting keys); hard-reload open admin tabs.
@@ -95,9 +102,11 @@ Go-live: paste 0008 **before** deploying (the old build rejects the new setting 
   missing key for a started athlete throws.
 - `year.ts` (new): `scoreYear(input) → { weeks: WeekOutcome[], standings }` per league. Input: settings, `now`,
   stages, weeks, memberships (id, league, created_at), roster slots, picks, sessions, stat lines, injuries. Each
-  `WeekOutcome` has status, matchups (per side: pick as made, effective pick, notice, athlete score, multiplier,
-  score, delta) and the standings after it. Pure and deterministic.
-- `simulate.ts` moves to stage decay (fake stages of 3 weeks).
+  `WeekOutcome` has status and matchups (per side: pick as made, effective pick, notice, roster, athletes still
+  unused, athlete score, multiplier, score, delta, W/L/T). Final standings carry points, W-L-T, total score, the
+  average `rank` (for the allowance) and a display `place` + `tied`. Pure and deterministic.
+- `simulate.ts` stays one stage (multipliers from `stageMultiplier(0)` = 1); multi-stage simulated years belong to
+  M8 tuning (board t64).
 
 ## 5. UI (DESIGN.md + tokens.css only)
 
@@ -112,8 +121,10 @@ Go-live: paste 0008 **before** deploying (the old build rejects the new setting 
 - **Admin → Stages**: Create / Regenerate weeks; weeks list with an editable lock; **Grant allowance** computes ranks
   first and asks to confirm if any week of an earlier stage is still pending.
 - **Tally (t75)**: remove Undo. Holding a stat button ~500 ms = −1: an undo tap of this keeper's latest live tap of
-  that athlete + stat (existing `undoes`, no DB change). Vibrate/flash; the hold never also adds +1; nothing of
-  yours to undo → "Only your own taps can be removed". Each button's menu has −1 for keyboard / screen readers.
+  that athlete + stat (existing `undoes`, no DB change). Vibrate + an inverted flash; the hold never also adds +1;
+  nothing of yours to undo → "Only your own taps can be removed" (or "Already at 0"). Keyboard: minus, Delete or
+  Backspace on a focused button subtracts (`aria-keyshortcuts`, spelled out in the label); screen-reader users can
+  also double-tap-and-hold. No per-button menu.
 
 ## 6. Tests
 
