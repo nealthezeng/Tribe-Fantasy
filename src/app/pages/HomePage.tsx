@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscMark } from '../components/Layout';
 import { AuctionCard } from './AuctionCard';
+import { WeeklyCard } from './WeeklyCard';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
@@ -65,6 +66,7 @@ export function HomePage() {
             <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
               balance={balance(m.credit_ledger)} joinedAt={m.created_at} />
           )}
+          {m.leagues && <WeeklyCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}
         </Fragment>
       ))}
       {data && data.length > 0 && <p><Link to="/join">Join another league</Link></p>}

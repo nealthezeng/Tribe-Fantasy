@@ -5,6 +5,7 @@ import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
 import { formatDay } from '../../lib/stats';
 import { useLoad } from '../../lib/useLoad';
+import { seasonRanks, WEEK_COLUMNS, type WeekRow } from '../../lib/weekly';
 
 interface StageRow {
   id: string; name: string; starts_on: string; ends_on: string; tournament: string | null;
@@ -52,8 +53,10 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
       <h2>Stages</h2>
       {!stages.data && !stages.error && <p className="muted" role="status">Loading…</p>}
       <p className="muted">
-        Players see stages as "seasons". Grant a stage's allowance before its auction. Running it again only
-        credits teams that joined since. Then open the auction with a closing time, and run it once bids close.
+        Players see stages as "seasons". Grant a stage's allowance before its auction: it pays by the current
+        standings, and running it again only credits teams that joined since. Then open the auction with a closing
+        time, run it once bids close, and create the stage's weeks. Weeks run Monday to Sunday; picks lock at the
+        season's pick_lock_day and pick_lock_time (Eastern). After changing a stage's dates, rebuild its weeks.
       </p>
       <ul className="list">
         {stages.data?.map((s) => (
@@ -68,13 +71,17 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
                 id: s.id, name: s.name, starts_on: s.starts_on, ends_on: s.ends_on, tournament: s.tournament ?? '',
               })}>Edit</button>
               <button onClick={() => void run(async () => {
-                const n = await api.grantStageAllowance(s.id);
+                const { ranks, unsettled } = await seasonRanks(seasonId, s.starts_on);
+                if (unsettled > 0 && !window.confirm(
+                  `${unsettled} earlier ${unsettled === 1 ? 'week is' : 'weeks are'} not final yet, so the standings may still change. Grant anyway?`)) return;
+                const n = await api.grantStageAllowance(s.id, ranks);
                 return `${s.name}: credited ${n} teams.`;
               })}>
                 Grant allowance
               </button>
             </span>
             <AuctionControls stage={s} run={run} />
+            <WeeksControls stage={s} run={run} />
           </li>
         ))}
       </ul>
@@ -136,5 +143,63 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
       <label>Bids close<input type="datetime-local" required value={closeAt} onChange={(e) => setCloseAt(e.target.value)} /></label>
       <button>{phase === 'open' ? 'Move close time' : 'Open auction'}</button>
     </form>
+  );
+}
+
+function WeeksControls({ stage, run }: { stage: StageRow; run: (action: () => Promise<string | void>) => Promise<void> }) {
+  const weeks = useLoad(async () => {
+    const { data, error } = await supabase!.from('weeks').select(WEEK_COLUMNS).eq('stage_id', stage.id).order('starts_on');
+    if (error) throw error;
+    return (data ?? []) as WeekRow[];
+  }, [stage.id]);
+  const act = (action: () => Promise<string | void>) => run(async () => {
+    const done = await action();
+    weeks.reload();
+    return done;
+  });
+  const n = weeks.data?.length ?? 0;
+  return (
+    <details className="section">
+      <summary>Weeks {weeks.data && <span className="muted">· {n === 0 ? 'none yet' : n}</span>}</summary>
+      <div className="stack">
+        <button className={n === 0 ? '' : 'secondary'} onClick={() => {
+          if (n > 0 && !window.confirm(`Rebuild the ${stage.name} weeks from its dates? Custom lock times are lost.`)) return;
+          void act(async () => `${stage.name}: ${await api.createStageWeeks(stage.id)} weeks.`);
+        }}>{n === 0 ? 'Create weeks' : 'Rebuild weeks'}</button>
+        <ul className="list">
+          {weeks.data?.map((w) => <WeekLock key={`${w.id}:${w.pick_lock_at}`} week={w} act={act} />)}
+        </ul>
+        {weeks.error && <p className="error" role="alert">{weeks.error}</p>}
+      </div>
+    </details>
+  );
+}
+
+/** datetime-local works in the admin's own time zone. */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+};
+
+function WeekLock({ week, act }: { week: WeekRow; act: (action: () => Promise<string | void>) => Promise<void> }) {
+  const [value, setValue] = useState(toLocalInput(week.pick_lock_at));
+  return (
+    <li>
+      <span>
+        <span className="title">{formatDay(week.starts_on)} – {formatDay(week.ends_on)}</span><br />
+        <small>Picks lock {formatWhen(week.pick_lock_at)}</small>
+      </span>
+      <form className="row" onSubmit={(e) => {
+        e.preventDefault();
+        const at = new Date(value).toISOString();
+        void act(async () => {
+          await api.setWeekLock(week.id, at);
+          return `Week of ${formatDay(week.starts_on)}: picks lock ${formatWhen(at)}.`;
+        });
+      }}>
+        <label>Lock<input type="datetime-local" required value={value} onChange={(e) => setValue(e.target.value)} /></label>
+        <button className="secondary" disabled={value === toLocalInput(week.pick_lock_at)}>Save lock</button>
+      </form>
+    </li>
   );
 }
