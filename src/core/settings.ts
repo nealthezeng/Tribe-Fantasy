@@ -1,4 +1,6 @@
 export type SessionType = 'practice' | 'tournament';
+export const PICK_LOCK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+export type PickLockDay = (typeof PICK_LOCK_DAYS)[number];
 
 export interface SeasonSettings {
   credits_per_dollar: number;
@@ -23,14 +25,13 @@ export interface SeasonSettings {
   upset_k: number;
   standings_floor: number | null;
   decay_mode: 'exponential' | 'linear' | 'none';
-  decay_grace_weeks: number;
+  decay_grace_stages: number;
   decay_rate: number;
   decay_floor: number;
-  decay_return_window: number;
   usage_reset: 'cycle';
   default_pick: 'best_unused' | 'forfeit';
-  trade_review_hours: number;
-  trade_keeps_usage: boolean;
+  pick_lock_day: PickLockDay;
+  pick_lock_time: string;
   stat_lock_hours: number;
   tap_merge_seconds: number;
 }
@@ -55,17 +56,16 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   win_points: 3,
   loss_points: 1,
   tie_points: 1,
-  upset_k: 1,
+  upset_k: 2,
   standings_floor: null,
   decay_mode: 'exponential',
-  decay_grace_weeks: 2,
-  decay_rate: 0.95,
-  decay_floor: 0.5,
-  decay_return_window: 4,
+  decay_grace_stages: 1,
+  decay_rate: 0.9,
+  decay_floor: 0.6,
   usage_reset: 'cycle',
   default_pick: 'best_unused',
-  trade_review_hours: 24,
-  trade_keeps_usage: true,
+  pick_lock_day: 'mon',
+  pick_lock_time: '21:00',
   stat_lock_hours: 48,
   tap_merge_seconds: 10,
 };
@@ -137,14 +137,14 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   upset_k: num(0, 10),
   standings_floor: nullable(num(-1_000_000, 1_000_000)),
   decay_mode: oneOf('exponential', 'linear', 'none'),
-  decay_grace_weeks: num(0, 52, true),
+  decay_grace_stages: num(0, 20, true),
   decay_rate: num(0, 1),
   decay_floor: num(0, 1),
-  decay_return_window: num(0, 52, true),
   usage_reset: oneOf('cycle'),
   default_pick: oneOf('best_unused', 'forfeit'),
-  trade_review_hours: num(0, 720),
-  trade_keeps_usage: bool,
+  pick_lock_day: oneOf(...PICK_LOCK_DAYS),
+  // 24-hour HH:MM in America/New_York; 0008's create_stage_weeks reads it.
+  pick_lock_time: (v) => (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? null : 'must be HH:MM (24-hour)'),
   stat_lock_hours: num(0, 720),
   tap_merge_seconds: num(0, 60),
 };
