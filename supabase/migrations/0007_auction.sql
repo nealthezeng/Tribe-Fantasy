@@ -1,7 +1,7 @@
 -- M5 stage auction. Spec: docs/superpowers/specs/2026-09-26-m5-auction-design.md
 alter table public.stages
   add column bid_close_at timestamptz,
-  add column auction_seed text,
+  add column auction_seed text, -- set by run_auction (not at open) so fill order can't be worked out while bids are sealed
   add column auction_run_at timestamptz;
 
 alter table public.credit_ledger drop constraint credit_ledger_kind_check;
@@ -106,8 +106,7 @@ begin
     and (select count(*) from public.memberships m where m.league_id = l.id) * roster > healthy
   order by l.name limit 1;
   if short is not null then raise exception 'NOT_ENOUGH_ATHLETES' using detail = short; end if;
-  update public.stages set bid_close_at = p_close_at, auction_seed = coalesce(auction_seed, gen_random_uuid()::text)
-  where id = p_stage;
+  update public.stages set bid_close_at = p_close_at where id = p_stage;
   perform private.audit('open_auction', 'stage', p_stage::text,
     jsonb_build_object('old_close_at', st.bid_close_at, 'close_at', p_close_at));
 end $$;
@@ -135,9 +134,9 @@ begin
   insert into public.bids (stage_id, membership_id, league_id, athlete_id, amount)
   values (p_stage, p_membership, lid, p_athlete, p_amount)
   on conflict (stage_id, membership_id, athlete_id) do update set amount = excluded.amount, placed_at = now();
-  -- No amount here: admins read the audit log, and bids stay sealed until close.
+  -- No amounts AND athletes here: admins read the audit log, and bids stay sealed until close.
   perform private.audit('place_bid', 'stage', p_stage::text,
-    jsonb_build_object('membership_id', p_membership, 'athlete_id', p_athlete));
+    jsonb_build_object('membership_id', p_membership));
 end $$;
 
 create function public.delete_bid(p_stage uuid, p_membership uuid, p_athlete uuid) returns void
@@ -152,7 +151,7 @@ begin
   perform private.check_bidding(st);
   delete from public.bids where stage_id = p_stage and membership_id = p_membership and athlete_id = p_athlete;
   perform private.audit('delete_bid', 'stage', p_stage::text,
-    jsonb_build_object('membership_id', p_membership, 'athlete_id', p_athlete));
+    jsonb_build_object('membership_id', p_membership));
 end $$;
 
 -- Once per stage, after close, every league of the season in one transaction. Returns {by_bid, by_fill, empty}.
@@ -175,6 +174,8 @@ begin
   if st.bid_close_at is null then raise exception 'AUCTION_NOT_OPEN'; end if;
   if st.auction_run_at is not null then raise exception 'AUCTION_ALREADY_RUN'; end if;
   if now() < st.bid_close_at then raise exception 'AUCTION_NOT_CLOSED'; end if;
+  -- Create seed at run time so fill order can't be predicted while bids are sealed.
+  st.auction_seed := coalesce(st.auction_seed, gen_random_uuid()::text);
   roster := private.setting_num(st.season_id, 'roster_size', 4);
   allow_self := private.setting_bool(st.season_id, 'allow_self_ownership', false);
 
@@ -233,7 +234,7 @@ begin
   from public.memberships mb join public.leagues l on l.id = mb.league_id
   where l.season_id = st.season_id;
 
-  update public.stages set auction_run_at = now() where id = p_stage;
+  update public.stages set auction_run_at = now(), auction_seed = st.auction_seed where id = p_stage;
   perform private.audit('run_auction', 'stage', p_stage::text, jsonb_build_object(
     'seed', st.auction_seed, 'by_bid', by_bid, 'by_fill', by_fill, 'empty', empty));
   return jsonb_build_object('by_bid', by_bid, 'by_fill', by_fill, 'empty', empty);

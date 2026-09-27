@@ -15,16 +15,16 @@ const ledger = async (f: AuctionFixture, mid: string) =>
     `select kind, amount from public.credit_ledger where membership_id = $1 and kind = 'bid' order by id`, [mid])).rows;
 
 describe('open_auction', () => {
-  it('sets the close time and a seed that survives moving the close time', async () => {
+  it('sets and moves the close time without revealing a seed', async () => {
     const f = await auctionFixture();
     await member(f.db, 'alice');
     await openAuction(f);
     const first = await stageRow(f);
     expect(first.bid_close_at).not.toBeNull();
-    expect(first.auction_seed).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first.auction_seed).toBeNull();
     await openAuction(f, new Date(Date.now() + 7_200_000).toISOString());
     const moved = await stageRow(f);
-    expect(moved.auction_seed).toBe(first.auction_seed);
+    expect(moved.auction_seed).toBeNull();
     expect(new Date(moved.bid_close_at!).getTime()).toBeGreaterThan(new Date(first.bid_close_at!).getTime());
     const log = await f.db.query(`select 1 from public.audit_log where action = 'open_auction'`);
     expect(log.rows).toHaveLength(2);
@@ -130,6 +130,7 @@ describe('place_bid and delete_bid', () => {
     expect((await f.db.query(`select 1 from public.bids`)).rows).toHaveLength(0);
     const log = await f.db.query<{ details: object }>(`select details from public.audit_log where action = 'place_bid'`);
     expect(JSON.stringify(log.rows)).not.toContain('"amount"'); // sealed: no amounts in the admin-readable log
+    expect(JSON.stringify(log.rows)).not.toContain(f.athletes[0]); // sealed: no athlete ids in the log
   });
 });
 
@@ -167,7 +168,9 @@ describe('run_auction', () => {
     await closeBids(f);
     await runAuction(f);
     await expect(runAuction(f)).rejects.toThrow('AUCTION_ALREADY_RUN');
-    expect((await stageRow(f)).auction_run_at).not.toBeNull();
+    const st = await stageRow(f);
+    expect(st.auction_run_at).not.toBeNull();
+    expect(st.auction_seed).toMatch(/^[0-9a-f-]{36}$/);
   });
 
   it('awards the highest bid, ties to the earlier bid, and deducts winning bids', async () => {
