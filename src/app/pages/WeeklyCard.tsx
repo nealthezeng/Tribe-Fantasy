@@ -37,10 +37,10 @@ export function WeeklyCard({ membershipId, leagueId, seasonId }: { membershipId:
       <Standings y={data} membershipId={membershipId} />
       <div className="section">
         <h3>Weeks</h3>
-        {[...weeks].reverse().filter((w) => w.status !== 'open').map((w) => (
+        {[...weeks].reverse().filter((w) => w.status !== 'open' && w.status !== 'locked').map((w) => (
           <WeekRow key={w.week.id} y={data} w={w} membershipId={membershipId} />
         ))}
-        {weeks.every((w) => w.status === 'open') && <p className="muted">No weeks played yet.</p>}
+        {weeks.every((w) => w.status === 'open' || w.status === 'locked') && <p className="muted">No weeks played yet.</p>}
       </div>
     </article>
   );
@@ -193,7 +193,7 @@ function WeekRow({ y, w, membershipId }: { y: LeagueYear; w: WeekOutcome; member
       </summary>
       {w.status === 'skipped' && <p className="muted">No counted sessions this week, so nobody played and nobody was used up.</p>}
       {w.status === 'pending' && <p className="muted">Scores appear once every counted session this week (and earlier weeks) has locked.</p>}
-      {w.matchups.map((m) => (
+      {w.status !== 'skipped' && w.matchups.map((m) => (
         <div key={m.home.membershipId} className="stack">
           <SideDetail y={y} w={w} side={m.home} />
           {m.away ? <SideDetail y={y} w={w} side={m.away} /> : <p className="muted">Bye</p>}
