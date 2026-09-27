@@ -8,7 +8,9 @@ import { makeKeeper, tap } from './stats-fixture';
 /** Read-only helpers used by RLS policies; they write nothing, so no audit row. */
 const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete'];
 /** Any signed-in user may call these; they check ownership instead of a role. */
-const MEMBER_CALLABLE = ['clear_injury', 'join_league', 'report_injury', 'set_attendance', 'set_display_name'];
+const MEMBER_CALLABLE = [
+  'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
+];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = ['confirm_injury', 'create_session', 'reopen_session', 'save_taps', 'verify_session'];
 
@@ -52,7 +54,7 @@ describe('RPC gate', () => {
     const steps: [string, string, () => Record<string, unknown>, ((r: unknown) => void)?][] = [
       ['set_display_name', player, () => ({ p_name: 'Pat' })],
       ['create_season', admin, () => ({ p_name: 'Gate', p_settings: {} }), (r) => (c.season = r as string)],
-      ['update_season_settings', admin, () => ({ p_season: c.season, p_settings: { donations_enabled: true } })],
+      ['update_season_settings', admin, () => ({ p_season: c.season, p_settings: { donations_enabled: true, roster_size: 1, allow_self_ownership: true } })],
       ['create_league', admin, () => ({ p_season: c.season, p_name: 'L' }), (r) => (c.league = r as string)],
       ['create_invite', admin, () => ({ p_league: c.league, p_code: 'GATE01', p_max_uses: 5, p_expires_at: null })],
       ['join_league', player, () => ({ p_code: 'GATE01', p_team_name: 'Pats' }), (r) => (c.membership = r as string)],
@@ -81,6 +83,10 @@ describe('RPC gate', () => {
       ['verify_session', verifier, () => ({ p_session: c.session, p_lines: [{ athlete_id: c.athlete, stats: { goal: 1 } }] })],
       ['reopen_session', verifier, () => ({ p_session: c.session })],
       ['correct_stat_line', admin, () => ({ p_session: c.session, p_athlete: c.athlete, p_stats: { goal: 2 } })],
+      ['open_auction', admin, () => ({ p_stage: c.stage, p_close_at: new Date(Date.now() + 3_600_000).toISOString() })],
+      ['place_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete, p_amount: 1 })],
+      ['delete_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete })],
+      ['run_auction', admin, () => ({ p_stage: c.stage })],
     ];
 
     const covered = new Set(steps.map(([name]) => name));
@@ -94,6 +100,9 @@ describe('RPC gate', () => {
           rpc(tx, 'verify_session', { p_session: c.session, p_lines: [{ athlete_id: c.athlete, stats: { goal: 1 } }] }),
         );
         await db.query(`update public.sessions set verified_at = now() - interval '49 hours' where id = $1`, [c.session]);
+      }
+      if (name === 'run_auction') {
+        await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);
       }
       const result = await as(db, who, (tx) => rpc(tx, name, args()));
       keep?.(result);

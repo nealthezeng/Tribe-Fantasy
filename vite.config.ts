@@ -7,5 +7,7 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.ts'],
     testTimeout: 30_000,
+    // freshDb() runs in hooks and boots PGlite; with every DB file starting at once it can take >10 s.
+    hookTimeout: 60_000,
   },
 });
