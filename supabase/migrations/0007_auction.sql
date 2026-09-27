@@ -240,6 +240,72 @@ begin
   return jsonb_build_object('by_bid', by_bid, 'by_fill', by_fill, 'empty', empty);
 end $$;
 
+-- M5 gates: owners can't reopen, correct or mark attendance for their own athletes.
+
+-- 0005's reopen_session plus the owner check: an owner could otherwise keep a session from ever locking.
+create or replace function public.reopen_session(p_session uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare uid uuid := private.require_keeper(); old jsonb;
+begin
+  perform 1 from public.sessions where id = p_session and verified_at is not null for update;
+  if not found then
+    if exists (select 1 from public.sessions where id = p_session) then raise exception 'SESSION_NOT_VERIFIED'; end if;
+    raise exception 'NOT_FOUND';
+  end if;
+  if private.is_locked(p_session) then raise exception 'SESSION_LOCKED'; end if;
+  if exists (select 1 from public.stat_lines where session_id = p_session and private.owns_athlete(uid, athlete_id))
+     or exists (select 1 from public.stat_taps where session_id = p_session and private.owns_athlete(uid, athlete_id)) then
+    raise exception 'OWNS_ATHLETE';
+  end if;
+  select coalesce(jsonb_agg(jsonb_build_object('athlete_id', athlete_id, 'stats', stats)), '[]'::jsonb) into old
+  from public.stat_lines where session_id = p_session;
+  delete from public.stat_lines where session_id = p_session;
+  update public.sessions set verified_by = null, verified_at = null where id = p_session;
+  perform private.audit('reopen_session', 'session', p_session::text, jsonb_build_object('deleted_lines', old));
+end $$;
+
+-- 0005's correct_stat_line plus the owner check.
+create or replace function public.correct_stat_line(p_session uuid, p_athlete uuid, p_stats jsonb) returns void
+language plpgsql security definer set search_path = '' as $$
+declare uid uuid := private.require_admin(); s public.sessions; old jsonb;
+begin
+  select * into s from public.sessions where id = p_session for update;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  if not private.is_locked(p_session) then raise exception 'SESSION_NOT_LOCKED'; end if;
+  if not exists (select 1 from public.athletes where id = p_athlete and season_id = s.season_id) then
+    raise exception 'NOT_FOUND';
+  end if;
+  if private.owns_athlete(uid, p_athlete) then raise exception 'OWNS_ATHLETE'; end if;
+  perform private.check_stats(s.season_id, p_stats);
+  select stats into old from public.stat_lines where session_id = p_session and athlete_id = p_athlete;
+  insert into public.stat_lines (session_id, athlete_id, stats) values (p_session, p_athlete, p_stats)
+  on conflict (session_id, athlete_id) do update set stats = excluded.stats;
+  perform private.audit('correct_stat_line', 'session', p_session::text,
+    jsonb_build_object('athlete_id', p_athlete, 'old', old, 'new', p_stats, 'rescore_needed', true));
+end $$;
+
+-- 0005's set_attendance plus the owner check for keepers. A player setting their own attendance is unaffected.
+create or replace function public.set_attendance(p_session uuid, p_athlete uuid, p_status text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare uid uuid := private.require_user(); s public.sessions;
+begin
+  if p_status is null or p_status not in ('present', 'absent') then raise exception 'INVALID_STATUS'; end if;
+  select * into s from public.sessions where id = p_session;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  if not exists (select 1 from public.athletes where id = p_athlete and season_id = s.season_id) then
+    raise exception 'NOT_FOUND';
+  end if;
+  if not public.is_keeper() and not public.is_my_athlete(p_athlete) then raise exception 'NOT_YOUR_ATHLETE'; end if;
+  if not public.is_my_athlete(p_athlete) and private.owns_athlete(uid, p_athlete) then
+    raise exception 'OWNS_ATHLETE';
+  end if;
+  if private.is_locked(p_session) then raise exception 'SESSION_LOCKED'; end if;
+  insert into public.attendance (session_id, athlete_id, status, set_by) values (p_session, p_athlete, p_status, uid)
+  on conflict (session_id, athlete_id) do update set status = excluded.status, set_by = excluded.set_by, set_at = now();
+  perform private.audit('set_attendance', 'session', p_session::text,
+    jsonb_build_object('athlete_id', p_athlete, 'status', p_status));
+end $$;
+
 do $$
 declare f record;
 begin
