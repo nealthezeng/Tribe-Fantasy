@@ -15,5 +15,6 @@ describe('wallet', () => {
     expect(entryLabel(entry({ kind: 'donation', amount: 250, dollars: '12.50' }))).toBe('Donation to the team — $12.50');
     expect(entryLabel(entry({ kind: 'allowance', stages: { name: 'Fall beta' } }))).toBe('Allowance — Fall beta');
     expect(entryLabel(entry({ kind: 'adjustment', amount: -10, note: 'double allowance' }))).toBe('Adjustment — double allowance');
+    expect(entryLabel(entry({ kind: 'bid', amount: -40, stages: { name: 'Fall beta' } }))).toBe('Auction — Fall beta');
   });
 });

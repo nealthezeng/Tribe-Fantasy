@@ -39,12 +39,22 @@ const MESSAGES: Record<string, string> = {
   INVALID_AMOUNT: "That amount isn't valid.",
   NOTE_REQUIRED: 'Add a note saying why.',
   INVALID_NOTE: 'Notes must be 200 characters or fewer.',
+  AUCTION_NOT_OPEN: "Bidding for this stage hasn't opened yet.",
+  BID_CLOSED: 'Bidding for this stage has closed.',
+  AUCTION_ALREADY_RUN: "This stage's auction has already run.",
+  AUCTION_NOT_CLOSED: 'Bidding is still open. Run the auction after it closes.',
+  INVALID_CLOSE_TIME: 'Pick a closing time in the future.',
+  INSUFFICIENT_CREDITS: "You can't bid more than your balance.",
+  SELF_OWNERSHIP: "You can't bid on yourself.",
+  NOT_OPTED_IN: "That player isn't in this season's auction.",
+  NOT_MEMBER: "That isn't your team.",
+  NOT_ENOUGH_ATHLETES: '{detail} has more roster spots than healthy opted-in players. Opt in more players or lower the roster size.',
 };
 
+/** `{detail}` in a message is replaced by the error's detail (Postgres DETAIL), e.g. a league name. */
 export function errorMessage(err: unknown): string {
-  const raw =
-    typeof err === 'object' && err !== null && 'message' in err
-      ? String((err as { message: unknown }).message)
-      : String(err);
-  return MESSAGES[raw.trim()] ?? `Something went wrong: ${raw}`;
+  const e = typeof err === 'object' && err !== null ? (err as { message?: unknown; details?: unknown; detail?: unknown }) : {};
+  const raw = 'message' in e ? String(e.message) : String(err);
+  const detail = String(e.details ?? e.detail ?? 'A league');
+  return MESSAGES[raw.trim()]?.replace('{detail}', detail) ?? `Something went wrong: ${raw}`;
 }

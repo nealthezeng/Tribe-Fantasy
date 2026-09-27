@@ -17,6 +17,12 @@ describe('errorMessage', () => {
     expect(errorMessage({ message: 'LEAGUE_FULL' })).toMatch(/full/);
     expect(errorMessage({ message: 'DONATIONS_DISABLED' })).toMatch(/donations to the team/);
   });
+  it('maps the M5 auction codes, naming the league that is short', () => {
+    expect(errorMessage({ message: 'BID_CLOSED' })).toMatch(/has closed/);
+    expect(errorMessage({ message: 'INSUFFICIENT_CREDITS' })).toMatch(/more than your balance/);
+    expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES', details: 'League A' })).toMatch(/^League A has more roster spots/);
+    expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES' })).toMatch(/^A league has more roster spots/);
+  });
   it('falls back to the raw message', () => {
     expect(errorMessage({ message: 'socket hang up' })).toBe('Something went wrong: socket hang up');
     expect(errorMessage('boom')).toBe('Something went wrong: boom');
