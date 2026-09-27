@@ -66,8 +66,10 @@ final week (week 1: all tied), `upset_k` default 2. Standings rows carry points,
 - rename `decay_grace_weeks` → `decay_grace_stages` (default 1); `decay_rate` 0.9; `decay_floor` 0.6; `upset_k` 2;
 - remove `decay_return_window`, `trade_review_hours`, `trade_keeps_usage` (and `resolveAcquiredWeek`);
 - add `pick_lock_day` (`mon`…`sun`, default `mon`) and `pick_lock_time` (`HH:MM`, default `21:00`).
-- The migration renames the stored key and drops the removed ones. Stored values for `decay_rate`/`decay_floor`/
-  `upset_k` are kept (the admin set them deliberately; the new defaults only apply where unset).
+- The migration drops the stored `decay_grace_weeks` (a week count means nothing as a stage count, so the default
+  of 1 applies) and the removed keys. The settings editor saves every key, so stored `decay_rate`/`decay_floor`/
+  `upset_k` equal to the OLD defaults (0.95 / 0.5 / 1) were never chosen: they're dropped too, and the new defaults
+  apply. Any other stored value is kept.
 
 ## 3. Data (migration `0008_weekly.sql`, additive)
 
