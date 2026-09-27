@@ -60,3 +60,17 @@
    spots stayed empty.
 5. Once rosters exist, keepers and admins can't tally, verify, reopen, correct or mark attendance for players on their
    own fantasy roster. Another keeper has to, and a correction to an admin's own player needs a second admin.
+
+## M6 weekly play (after 0001–0007)
+
+1. SQL Editor: paste and run `supabase/migrations/0008_weekly.sql` **before** the new site deploys. It adds weeks and
+   picks, lets the league see cleared injuries, and cleans retired settings. The old site's **Grant allowance**
+   button stops working until the new site is live (it now sends the standings).
+2. After the deploy, hard-reload any open admin or keeper tabs.
+3. **Admin → Settings**: picks lock at `pick_lock_day` + `pick_lock_time` (Eastern). Fall: `mon` / `21:00`. Change it
+   before creating a stage's weeks; a week keeps the lock it was created with.
+4. **Admin → Stages → Weeks**: after a stage's auction runs, press **Create weeks** (Monday–Sunday weeks). Edit a
+   single week's lock there if a practice moves. Changed the stage's dates? Press **Rebuild weeks** (only possible
+   before anyone has picked).
+5. Standings and scores are computed in each browser from locked stats, so a correction or reopen shows up on the
+   next page load. **Grant allowance** now pays by the current standings and warns if an earlier week isn't final.
