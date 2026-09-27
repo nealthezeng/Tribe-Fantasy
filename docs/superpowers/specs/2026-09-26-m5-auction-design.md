@@ -24,8 +24,7 @@ Agreed with the user on 2026-09-26. It builds the M5 row of §9 in `2026-09-25-y
 
 **`stages`** gains:
 - `bid_close_at timestamptz` — null until the auction opens.
-- `auction_seed text` — random (`gen_random_uuid()::text`), set when the auction first opens and never changed.
-  Readable by everyone who can read stages.
+- `auction_seed text` — random (`gen_random_uuid()::text`), set once by run_auction (not at open, so the fill order can't be worked out while bids are sealed), never changed. Readable by everyone who can read stages.
 - `auction_run_at timestamptz` — set once by the run.
 
 The old `seasons.bid_close_at` and `seasons.leftover_bid_close_at` columns stay but are unused.
@@ -61,10 +60,10 @@ All are security definer, raise stable error codes and write the audit log, like
 
 | RPC | Who | Behaviour |
 |---|---|---|
-| `open_auction(stage, close_at)` | admin | Sets `bid_close_at` (and `auction_seed` if null). `NOT_FOUND`; `AUCTION_ALREADY_RUN`; `BID_CLOSED` if the current close time has passed; `INVALID_CLOSE_TIME` unless `close_at > now()`. Runs the supply check (below). Calling it again before close moves the close time. |
+| `open_auction(stage, close_at)` | admin | Sets `bid_close_at`. `NOT_FOUND`; `AUCTION_ALREADY_RUN`; `BID_CLOSED` if the current close time has passed; `INVALID_CLOSE_TIME` unless `close_at > now()`. Runs the supply check (below). Calling it again before close moves the close time. |
 | `place_bid(stage, membership, athlete, amount)` | member who owns the membership | Upsert. `NOT_MEMBER` if the caller doesn't own the membership or it isn't in the stage's season; `AUCTION_NOT_OPEN` if `bid_close_at` is null; `BID_CLOSED` if `now() >= bid_close_at`; `NOT_OPTED_IN` unless the athlete is in the season and opted in; `SELF_OWNERSHIP` if `allow_self_ownership` is false and the athlete's `user_id` is the caller; `INVALID_AMOUNT` unless `min_bid ≤ amount`; `INSUFFICIENT_CREDITS` if `amount > balance`. |
 | `delete_bid(stage, membership, athlete)` | same member | Same open/closed and membership checks; deleting a missing bid is a no-op. |
-| `run_auction(stage) → jsonb` | admin | Locks the stage row. `NOT_FOUND`; `AUCTION_NOT_OPEN`; `AUCTION_NOT_CLOSED` if `now() < bid_close_at`; `AUCTION_ALREADY_RUN`. Allocates every league of the season (below), sets `auction_run_at`, audits, and returns `{by_bid, by_fill, empty}`. |
+| `run_auction(stage) → jsonb` | admin | Locks the stage row. `NOT_FOUND`; `AUCTION_NOT_OPEN`; `AUCTION_NOT_CLOSED` if `now() < bid_close_at`; `AUCTION_ALREADY_RUN`. Sets the `auction_seed` if not yet set. Allocates every league of the season (below), sets `auction_run_at`, audits, and returns `{by_bid, by_fill, empty}`. |
 
 **Supply check** (in `open_auction`): for every league of the season, `memberships × roster_size` must be
 ≤ the season's opted-in athletes that are not injured. Otherwise it raises `NOT_ENOUGH_ATHLETES` with the league
