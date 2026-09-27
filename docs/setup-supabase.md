@@ -65,8 +65,10 @@
 
 1. SQL Editor: paste and run `supabase/migrations/0008_weekly.sql` **before** the new site deploys. It adds weeks and
    picks, lets the league see cleared injuries, and cleans retired settings. The old site's **Grant allowance**
-   button stops working until the new site is live (it now sends the standings).
-2. After the deploy, hard-reload any open admin or keeper tabs.
+   button stops working until the new site is live (it now sends the standings). Between pasting 0008 and the
+   deploy, don't save **Settings** or create a season on the old site — an old admin tab writes the retired keys
+   back and the new site then rejects them.
+2. After the deploy, hard-reload any open admin or keeper tabs — do this before touching **Settings**.
 3. **Admin → Settings**: picks lock at `pick_lock_day` + `pick_lock_time` (Eastern). Fall: `mon` / `21:00`. Change it
    before creating a stage's weeks; a week keeps the lock it was created with.
 4. **Admin → Stages → Weeks**: after a stage's auction runs, press **Create weeks** (Monday–Sunday weeks). Edit a
