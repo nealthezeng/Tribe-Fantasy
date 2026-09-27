@@ -131,6 +131,8 @@ describe('place_bid and delete_bid', () => {
     const log = await f.db.query<{ details: object }>(`select details from public.audit_log where action = 'place_bid'`);
     expect(JSON.stringify(log.rows)).not.toContain('"amount"'); // sealed: no amounts in the admin-readable log
     expect(JSON.stringify(log.rows)).not.toContain(f.athletes[0]); // sealed: no athlete ids in the log
+    const deleteLog = await f.db.query<{ details: object }>(`select details from public.audit_log where action = 'delete_bid'`);
+    expect(JSON.stringify(deleteLog.rows)).not.toContain(f.athletes[0]); // sealed: no athlete ids in the log
   });
 });
 

@@ -130,7 +130,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
       supabase!.from('attendance').select('athlete_id, status').eq('session_id', sessionId),
       supabase!.from('injuries').select('id, athlete_id, confirmed_at').is('cleared_at', null),
-      loadOwnedAthletes(keeperId, seasonId), // the server refuses taps on these (OWNS_ATHLETE)
+      loadOwnedAthletes(keeperId, seasonId).catch(() => new Set<string>()), // the server still refuses taps on these (OWNS_ATHLETE)
     ]);
     for (const r of [athletes, taps, attendance, injuries]) if (r.error) throw r.error;
     return {

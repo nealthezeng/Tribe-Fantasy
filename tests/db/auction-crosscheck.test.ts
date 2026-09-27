@@ -29,6 +29,8 @@ describe('run_auction matches allocate()', () => {
         }
       }
       // Distinct millisecond timestamps in random order, so ties by amount resolve on placed_at as in the core.
+      // Seeded so a failing draft can be replayed.
+      await f.db.query('select setseed($1)', [seed / 10]);
       await f.db.query(`update public.bids set placed_at = now() - (random() * 100000)::int * interval '1 millisecond'`);
       await closeBids(f);
 

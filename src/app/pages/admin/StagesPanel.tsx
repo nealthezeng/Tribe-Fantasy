@@ -122,10 +122,15 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
   return (
     <form className="row" onSubmit={(e) => {
       e.preventDefault();
+      const closeIso = new Date(closeAt).toISOString();
+      const prompt = phase === 'open'
+        ? `Move the ${stage.name} close time to ${formatWhen(closeIso)}?`
+        : `Open the ${stage.name} auction? Bids close ${formatWhen(closeIso)}. It can't be cancelled.`;
+      if (!window.confirm(prompt)) return;
       void run(async () => {
-        await api.openAuction(stage.id, new Date(closeAt).toISOString());
+        await api.openAuction(stage.id, closeIso);
         setCloseAt('');
-        return `${stage.name}: bidding closes ${formatWhen(new Date(closeAt).toISOString())}.`;
+        return `${stage.name}: bidding closes ${formatWhen(closeIso)}.`;
       });
     }}>
       <label>Bids close<input type="datetime-local" required value={closeAt} onChange={(e) => setCloseAt(e.target.value)} /></label>

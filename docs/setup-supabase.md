@@ -49,8 +49,9 @@
 
 ## M5 stage auction (after 0001–0006)
 
-1. SQL Editor: paste and run `supabase/migrations/0007_auction.sql`. It only adds tables and columns and tightens three
-   stats RPCs, so it's safe to run before the new site deploys.
+1. Before merging this branch to `main` (pushing to `main` auto-deploys, and the new Tally and Home screens read the
+   new tables): SQL Editor: paste and run `supabase/migrations/0007_auction.sql`. It only adds tables and columns and
+   tightens three stats RPCs, so it's safe to run while the old site is still deployed.
 2. Before opening: **Grant allowance** for the stage, and check **Athletes**: every league needs members × `roster_size`
    healthy opted-in players (a confirmed, uncleared injury doesn't count).
 3. **Admin → Stages**: pick **Bids close** (your local time) and press **Open auction**. You can move the close time
