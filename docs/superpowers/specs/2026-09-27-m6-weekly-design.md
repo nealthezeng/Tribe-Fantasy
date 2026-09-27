@@ -43,8 +43,9 @@ start at 0 points.
 2. Otherwise `defaultPick` over the unused athletes that are healthy at the lock (if none are healthy, over all
    unused ones), with a notice: `missed` (no pick), `injured`, or `used` (already used, or not on the roster — only
    possible by calling the API directly). `default_pick = forfeit` or no candidate → forfeit (score 0).
-- History for `defaultPick`: the athlete's week score in each earlier final week of the year, `absent_score` when
-  they have no counted stat line that week (gate).
+- History for `defaultPick`: the athlete's week score in each earlier week of the year whose own counted sessions
+  are all locked (even if an earlier pending week holds its standings back — the hold-back only orders rank
+  snapshots), `absent_score` when they have no counted stat line that week (gate).
 - **Injured at the lock**: a confirmed injury with `confirmed_at ≤ pick_lock_at` and (`cleared_at` null or
   `> pick_lock_at`).
 
