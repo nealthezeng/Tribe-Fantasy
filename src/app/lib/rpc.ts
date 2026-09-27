@@ -51,4 +51,11 @@ export const api = {
     call<number>('record_donation', { p_membership: membershipId, p_dollars: dollars, p_note: note }),
   adjustCredits: (membershipId: string, amount: number, note: string) =>
     call<number>('adjust_credits', { p_membership: membershipId, p_amount: amount, p_note: note }),
+  openAuction: (stageId: string, closeAt: string) => call<void>('open_auction', { p_stage: stageId, p_close_at: closeAt }),
+  placeBid: (stageId: string, membershipId: string, athleteId: string, amount: number) =>
+    call<void>('place_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId, p_amount: amount }),
+  deleteBid: (stageId: string, membershipId: string, athleteId: string) =>
+    call<void>('delete_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId }),
+  runAuction: (stageId: string) =>
+    call<{ by_bid: number; by_fill: number; empty: number }>('run_auction', { p_stage: stageId }),
 };

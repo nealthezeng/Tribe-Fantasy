@@ -46,3 +46,17 @@
    Leave `donations_enabled` false until the legal sign-off.
 3. **Admin → season → Stages**: add the fall beta stage (Oct 18 – Nov 8, ends at the Nov 7–8 tournament). After
    everyone has joined, press **Grant allowance**. Press it again for anyone who joins later.
+
+## M5 stage auction (after 0001–0006)
+
+1. Before merging this branch to `main` (pushing to `main` auto-deploys, and the new Tally and Home screens read the
+   new tables): SQL Editor: paste and run `supabase/migrations/0007_auction.sql`. It only adds tables and columns and
+   tightens three stats RPCs, so it's safe to run while the old site is still deployed.
+2. Before opening: **Grant allowance** for the stage, and check **Athletes**: every league needs members × `roster_size`
+   healthy opted-in players (a confirmed, uncleared injury doesn't count).
+3. **Admin → Stages**: pick **Bids close** (your local time) and press **Open auction**. You can move the close time
+   until bids close. Nobody, admins included, sees anyone else's bids until then.
+4. After close, press **Run auction** once. It reports how many players went by bid, by random fill, and how many
+   spots stayed empty.
+5. Once rosters exist, keepers and admins can't tally, verify, reopen, correct or mark attendance for players on their
+   own fantasy roster. Another keeper has to, and a correction to an admin's own player needs a second admin.

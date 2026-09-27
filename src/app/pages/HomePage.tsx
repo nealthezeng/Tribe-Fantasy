@@ -1,6 +1,8 @@
+import { Fragment } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscMark } from '../components/Layout';
+import { AuctionCard } from './AuctionCard';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
@@ -8,7 +10,9 @@ import { balance, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../lib/wa
 interface MembershipRow {
   id: string;
   team_name: string;
-  leagues: { name: string; seasons: { name: string } | null } | null;
+  league_id: string;
+  created_at: string;
+  leagues: { name: string; season_id: string; seasons: { name: string } | null } | null;
   credit_ledger: LedgerEntry[];
 }
 
@@ -19,7 +23,7 @@ export function HomePage() {
     if (!supabase || !uid) return [] as MembershipRow[];
     const { data, error } = await supabase
       .from('memberships')
-      .select(`id, team_name, leagues(name, seasons(name)), credit_ledger(${LEDGER_COLUMNS})`)
+      .select(`id, team_name, league_id, created_at, leagues(name, season_id, seasons(name)), credit_ledger(${LEDGER_COLUMNS})`)
       .eq('user_id', uid);
     if (error) throw error;
     return (data ?? []) as unknown as MembershipRow[];
@@ -48,14 +52,20 @@ export function HomePage() {
         </div>
       )}
       {data?.map((m) => (
-        <article key={m.id} className="card">
-          <div>
-            <h2>{m.team_name}</h2>
-            <p className="muted">{m.leagues?.name} · {m.leagues?.seasons?.name}</p>
-          </div>
-          <p><span className="big">{balance(m.credit_ledger)}</span> {Math.abs(balance(m.credit_ledger)) === 1 ? 'credit' : 'credits'}</p>
-          <Wallet entries={m.credit_ledger} />
-        </article>
+        <Fragment key={m.id}>
+          <article className="card">
+            <div>
+              <h2>{m.team_name}</h2>
+              <p className="muted">{m.leagues?.name} · {m.leagues?.seasons?.name}</p>
+            </div>
+            <p><span className="big">{balance(m.credit_ledger)}</span> {Math.abs(balance(m.credit_ledger)) === 1 ? 'credit' : 'credits'}</p>
+            <Wallet entries={m.credit_ledger} />
+          </article>
+          {m.leagues && uid && (
+            <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
+              balance={balance(m.credit_ledger)} joinedAt={m.created_at} />
+          )}
+        </Fragment>
       ))}
       {data && data.length > 0 && <p><Link to="/join">Join another league</Link></p>}
     </section>

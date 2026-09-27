@@ -167,6 +167,11 @@ tbody tr:last-child td { border-bottom: 0; }
 .disc-ring { fill: none; stroke: var(--gold-deep); }
 .disc-hub { fill: var(--blue); }
 
+/* Auction: a short amount box beside each player; admin auction controls take their own line in a stage row. */
+.bid { display: flex; gap: var(--s2); align-items: center; }
+.bid input { width: 96px; }
+.list li > .row { flex: 1 1 100%; }
+
 /* Admin: one section at a time, picked from a sticky row of tabs. */
 .subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 -16px; padding: var(--s2) 16px; background: var(--bg); border-bottom: 1px solid var(--line); scrollbar-width: none; }
 .subnav button, .subnav button:hover:not(:disabled) { flex: none; background: var(--surface); color: var(--fg); border-color: var(--line-strong); border-radius: 999px; padding: 8px 14px; font-size: var(--fs-sm); }

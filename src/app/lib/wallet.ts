@@ -1,7 +1,7 @@
 /** A credit_ledger row as the client reads it (with LEDGER_COLUMNS). */
 export interface LedgerEntry {
   id: number;
-  kind: 'allowance' | 'donation' | 'adjustment';
+  kind: 'allowance' | 'donation' | 'adjustment' | 'bid';
   amount: number;
   dollars: number | string | null; // numeric(10,2)
   note: string | null;
@@ -21,5 +21,6 @@ export function entryLabel(e: LedgerEntry): string {
     case 'allowance': return `Allowance — ${e.stages?.name ?? 'season'}`;
     case 'donation': return `Donation to the team — $${Number(e.dollars).toFixed(2)}`;
     case 'adjustment': return `Adjustment — ${e.note ?? ''}`;
+    case 'bid': return `Auction — ${e.stages?.name ?? 'stage'}`;
   }
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link, Navigate } from 'react-router';
 import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
+import { loadOwnedAthletes } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import {
@@ -124,11 +125,12 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     if (sess.error) throw sess.error;
     // The session's own season: a queued session from an earlier season must show that season's athletes.
     const seasonId = (sess.data as SessionRow).season_id;
-    const [athletes, taps, attendance, injuries] = await Promise.all([
+    const [athletes, taps, attendance, injuries, owned] = await Promise.all([
       supabase!.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name'),
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
       supabase!.from('attendance').select('athlete_id, status').eq('session_id', sessionId),
       supabase!.from('injuries').select('id, athlete_id, confirmed_at').is('cleared_at', null),
+      loadOwnedAthletes(keeperId, seasonId).catch(() => new Set<string>()), // the server still refuses taps on these (OWNS_ATHLETE)
     ]);
     for (const r of [athletes, taps, attendance, injuries]) if (r.error) throw r.error;
     return {
@@ -137,8 +139,9 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       taps: (taps.data ?? []) as StatTapRow[],
       attendance: (attendance.data ?? []) as AttendanceRow[],
       injuries: (injuries.data ?? []) as InjuryRow[],
+      owned,
     };
-  }, [sessionId]);
+  }, [sessionId, keeperId]);
   const reload = data.reload;
 
   useEffect(() => {
@@ -207,7 +210,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
 
   if (data.error && !data.data) return <p className="error" role="alert">{data.error}</p>;
   if (!data.data) return <p className="muted" role="status">Loading…</p>;
-  const { session, athletes, attendance, injuries } = data.data;
+  const { session, athletes, attendance, injuries, owned } = data.data;
   // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:
   // taps already queued on the phone still upload, but new taps and undo are disabled.
   const oldSeason = session.season_id !== season.id;
@@ -273,22 +276,24 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
         {shown.map((a) => {
           const injury = injuryOf.get(a.id);
           const status = statusOf.get(a.id);
+          const mine = owned.has(a.id); // another keeper tallies players on your own fantasy team
           return (
             <li key={a.id} className="tally-card">
               <div className="tally-head">
                 <strong>{a.name}</strong>
+                {mine && <span className="pill">On your team</span>}
                 {injury && <span className={injury.confirmed_at ? 'pill bad' : 'pill warn'}>{injury.confirmed_at ? 'Injured' : 'Injury reported'}</span>}
-                {injury && !injury.confirmed_at && (
+                {injury && !injury.confirmed_at && !mine && (
                   <button className="secondary" onClick={() => void run(() => api.confirmInjury(injury.id))}>Confirm injury</button>
                 )}
-                <button className="secondary" aria-label={`${a.name}: ${status ?? 'not marked'}. Tap to mark ${status === 'present' ? 'absent' : 'present'}.`}
+                <button className="secondary" disabled={mine} aria-label={`${a.name}: ${status ?? 'not marked'}. Tap to mark ${status === 'present' ? 'absent' : 'present'}.`}
                   onClick={() => void run(() => api.setAttendance(sessionId, a.id, status === 'present' ? 'absent' : 'present'))}>
                   {status === 'present' ? 'Present ✓' : status === 'absent' ? 'Absent' : 'Mark present'}
                 </button>
               </div>
               <div className="tally-buttons">
                 {stats.map((stat) => (
-                  <button key={stat} className={weight(stat) < 0 ? 'neg' : undefined} disabled={closed} onClick={() => add(a.id, stat)}>
+                  <button key={stat} className={weight(stat) < 0 ? 'neg' : undefined} disabled={closed || mine} onClick={() => add(a.id, stat)}>
                     {statLabel(stat)}
                     <span className="tally-count">{counts[a.id]?.[stat] ?? 0}</span>
                     <span className="tally-w">{weight(stat) > 0 ? '+' : weight(stat) < 0 ? '−' : ''}{Math.abs(weight(stat))} pts</span>
