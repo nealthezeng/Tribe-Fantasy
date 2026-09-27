@@ -86,25 +86,26 @@ export async function fetchAll<T>(page: (from: number, to: number) => PromiseLik
 /** Every row the league's year needs; RLS hides other teams' picks until each week locks. */
 export async function loadLeagueRows(seasonId: string, leagueId: string): Promise<LeagueRows> {
   const sb = supabase!;
-  const [season, stages, members, slots, picks, sessions, injuries, athletes] = await Promise.all([
+  const [season, stages, members, slots, sessions, injuries, athletes] = await Promise.all([
     sb.from('seasons').select('settings').eq('id', seasonId).single(),
     sb.from('stages').select('id, name').eq('season_id', seasonId),
     sb.from('memberships').select('id, team_name, created_at').eq('league_id', leagueId),
     sb.from('roster_slots').select('stage_id, membership_id, athlete_id').eq('league_id', leagueId),
-    sb.from('picks').select('week_id, membership_id, athlete_id').eq('league_id', leagueId),
     sb.from('sessions').select('id, kind, held_on, counts, verified_at').eq('season_id', seasonId).eq('counts', true),
     sb.from('injuries').select('athlete_id, confirmed_at, cleared_at').not('confirmed_at', 'is', null),
     sb.from('athletes').select('id, name').eq('season_id', seasonId),
   ]);
-  for (const r of [season, stages, members, slots, picks, sessions, injuries, athletes]) if (r.error) throw r.error;
+  for (const r of [season, stages, members, slots, sessions, injuries, athletes]) if (r.error) throw r.error;
   const stageIds = (stages.data ?? []).map((x) => x.id as string);
   const sessionIds = (sessions.data ?? []).map((x) => x.id as string);
-  const [weeks, lines] = await Promise.all([
+  const [weeks, lines, picks] = await Promise.all([
     stageIds.length ? sb.from('weeks').select(WEEK_COLUMNS).in('stage_id', stageIds) : { data: [], error: null },
     sessionIds.length
       ? fetchAll<LineRow>((from, to) => sb.from('stat_lines').select('session_id, athlete_id, stats, points_played')
         .in('session_id', sessionIds).order('session_id').order('athlete_id').range(from, to))
       : [],
+    fetchAll<LeagueRows['picks'][number]>((from, to) => sb.from('picks').select('week_id, membership_id, athlete_id')
+      .eq('league_id', leagueId).order('week_id').order('membership_id').range(from, to)),
   ]);
   if ('error' in weeks && weeks.error) throw weeks.error;
   return {
@@ -113,7 +114,7 @@ export async function loadLeagueRows(seasonId: string, leagueId: string): Promis
     weeks: ((weeks as { data: unknown }).data ?? []) as WeekRow[],
     members: (members.data ?? []) as LeagueRows['members'],
     slots: (slots.data ?? []) as LeagueRows['slots'],
-    picks: (picks.data ?? []) as LeagueRows['picks'],
+    picks,
     sessions: (sessions.data ?? []) as SessionRow[],
     lines: lines as LineRow[],
     injuries: (injuries.data ?? []) as InjuryRow[],

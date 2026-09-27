@@ -197,7 +197,7 @@ function WeekLock({ week, act }: { week: WeekRow; act: (action: () => Promise<st
           return `Week of ${formatDay(week.starts_on)}: picks lock ${formatWhen(at)}.`;
         });
       }}>
-        <label>Lock<input type="datetime-local" required value={value} onChange={(e) => setValue(e.target.value)} /></label>
+        <label>Lock (your time)<input type="datetime-local" required value={value} onChange={(e) => setValue(e.target.value)} /></label>
         <button className="secondary" disabled={value === toLocalInput(week.pick_lock_at)}>Save lock</button>
       </form>
     </li>

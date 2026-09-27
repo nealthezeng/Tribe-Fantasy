@@ -188,7 +188,7 @@ function WeekRow({ y, w, membershipId }: { y: LeagueYear; w: WeekOutcome; member
         <span className="meta">
           {weekTitle(y, w)}
           <span className={cls}>{label}</span>
-          {mine?.delta != null && <strong className="num">{mine.result} {signed(mine.delta)}</strong>}
+          {mine?.delta != null && <strong className="num">{mine.result === null ? 'Bye' : `${mine.result} ${signed(mine.delta)}`}</strong>}
         </span>
       </summary>
       {w.status === 'skipped' && <p className="muted">No counted sessions this week, so nobody played and nobody was used up.</p>}
