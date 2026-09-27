@@ -75,6 +75,7 @@ begin
   perform private.require_admin();
   select * into st from public.stages where id = p_stage for update;
   if not found then raise exception 'NOT_FOUND'; end if;
+  perform 1 from public.weeks where stage_id = p_stage for update;
   if exists (select 1 from public.picks p join public.weeks w on w.id = p.week_id where w.stage_id = p_stage) then
     raise exception 'WEEKS_HAVE_PICKS';
   end if;
