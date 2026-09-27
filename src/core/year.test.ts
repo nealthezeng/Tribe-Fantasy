@@ -218,4 +218,22 @@ describe('scoreYear', () => {
     // a4 wins on w2's history (6 vs 0); if held-back weeks were excluded, both would have no history and a3 (lowest id) would be picked.
     expect(side(r, 'w3', 'm1')).toMatchObject({ picked: null, athleteId: 'a4', notice: 'missed' });
   });
+
+  it('keeps an auto-pick stable after the lock when earlier stats lock later', () => {
+    // w1's session (a1's weekend practice) is verified late enough that it locks (48h later) AFTER w2's pick lock.
+    const sessions = base().sessions.map((x) => (x.id === 'p1' ? { ...x, verifiedAt: '2026-10-26T12:00:00Z' } : x));
+    // a3 played well in w1 too (unpicked); if w1's history leaked into w2 early, a3's higher average would win.
+    const statLines = [...base().statLines, line('p1', 'a3', 9)];
+    const picks = base().picks.filter((p) => !(p.weekId === 'w2' && p.membershipId === 'm1'));
+    const input = base({ sessions, statLines, picks });
+
+    const justAfterLock = scoreYear({ ...input, now: Date.parse(W2.pickLockAt) + 60_000 });
+    const daysLater = scoreYear({ ...input, now: Date.parse('2027-01-01T00:00:00Z') });
+
+    // a1 used in w1 either way, leaving a2/a3; w1 never settles by w2's lock (its session locks after), so w2's
+    // default pick has no history in either case and falls to the lowest id — even once w1's late score is
+    // globally visible (daysLater), it must not retroactively change w2's already-locked pick.
+    expect(side(justAfterLock, 'w2', 'm1')).toMatchObject({ picked: null, athleteId: 'a2', notice: 'missed' });
+    expect(side(daysLater, 'w2', 'm1')).toMatchObject({ picked: null, athleteId: 'a2', notice: 'missed' });
+  });
 });

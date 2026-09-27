@@ -45,7 +45,9 @@ start at 0 points.
    possible by calling the API directly). `default_pick = forfeit` or no candidate → forfeit (score 0).
 - History for `defaultPick`: the athlete's week score in each earlier week of the year whose own counted sessions
   are all locked (even if an earlier pending week holds its standings back — the hold-back only orders rank
-  snapshots), `absent_score` when they have no counted stat line that week (gate).
+  snapshots), `absent_score` when they have no counted stat line that week (gate), and already settled (week over
+  and all its counted sessions locked) at that week's lock, so an auto-pick never changes after the lock unless a
+  stat is reopened or corrected.
 - **Injured at the lock**: a confirmed injury with `confirmed_at ≤ pick_lock_at` and (`cleared_at` null or
   `> pick_lock_at`).
 

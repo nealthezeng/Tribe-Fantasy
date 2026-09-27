@@ -104,9 +104,18 @@ export function scoreYear(input: YearInput): YearResult {
   const injuredDuring = (a: string, w: YearWeek) => input.injuries.some(
     (i) => i.athleteId === a && ms(i.confirmedAt) < ms(w.endsAt) && (i.clearedAt === null || ms(i.clearedAt) > ms(w.startsAt)));
 
-  // Default-pick history: each athlete's score in every earlier week that is final on its own data.
-  const history: Record<string, number[]> = {};
+  // Default-pick history: entries for weeks final on their own data, gated by settledAt so a week that settles
+  // (locks) after a later week's pick lock never feeds that later week's default pick (spec §2).
+  const settled: { settledAt: number; scores: Record<string, number> }[] = [];
   const athletes = [...new Set(input.slots.map((x) => x.athleteId))];
+  const historyAsOf = (asOf: number): Record<string, number[]> => {
+    const h: Record<string, number[]> = {};
+    for (const entry of settled) {
+      if (entry.settledAt > asOf) continue;
+      for (const a of athletes) (h[a] ??= []).push(entry.scores[a]);
+    }
+    return h;
+  };
 
   const usedPicks = new Map<string, PickRecord[]>(); // `${stage}:${membership}` → starts that used the athlete
   const startedIn = new Map<string, Set<string>>(); // pairKey → stages in which the pair was a start
@@ -144,7 +153,7 @@ export function scoreYear(input: YearInput): YearResult {
       if (picked === null || !roster.includes(picked) || used.has(picked) || injuredAt(picked, asOf)) {
         notice = picked === null ? 'missed' : roster.includes(picked) && !used.has(picked) ? 'injured' : 'used';
         const healthy = avail.filter((a) => !injuredAt(a, asOf));
-        athleteId = defaultPick(healthy.length > 0 ? healthy : avail, history, s);
+        athleteId = defaultPick(healthy.length > 0 ? healthy : avail, historyAsOf(asOf), s);
       }
       sides.set(m, {
         membershipId: m, picked, athleteId, notice, roster, available: avail,
@@ -199,9 +208,10 @@ export function scoreYear(input: YearInput): YearResult {
       }
     }
     if (ownFinal) {
-      for (const a of athletes) {
-        (history[a] ??= []).push(athleteWeekScore(weekLines.filter((l) => l.athleteId === a), s));
-      }
+      const settledAt = Math.max(ms(w.endsAt), ...sessions.map((x) => ms(x.verifiedAt!) + lockMs));
+      const scores: Record<string, number> = {};
+      for (const a of athletes) scores[a] = athleteWeekScore(weekLines.filter((l) => l.athleteId === a), s);
+      settled.push({ settledAt, scores });
     }
 
     const matchups = pairings.map(([home, away]) => ({
