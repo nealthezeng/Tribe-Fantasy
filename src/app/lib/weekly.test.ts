@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLeagueYear, fetchAll, toYearInput, type LeagueRows } from './weekly';
+import { buildLeagueYear, fetchAll, mergeRanks, toYearInput, type LeagueRows } from './weekly';
 
 const rows: LeagueRows = {
   settings: {},
@@ -64,5 +64,53 @@ describe('fetchAll', () => {
     const got = await fetchAll((from) => { calls++; return Promise.resolve({ data: from === 0 ? Array(1000).fill(1) : [], error: null }); });
     expect([got.length, calls]).toEqual([1000, 2]);
     await expect(fetchAll(() => Promise.resolve({ data: null, error: new Error('boom') }))).rejects.toThrow('boom');
+  });
+});
+
+describe('mergeRanks', () => {
+  // Fixture: league B with different memberships (m3, m4) and two weeks
+  const rowsB: LeagueRows = {
+    settings: {},
+    stages: [{ id: 'S2', name: 'Fall main' }],
+    weeks: [
+      { id: 'w1', stage_id: 'S2', starts_on: '2026-10-19', ends_on: '2026-10-25', starts_at: '2026-10-19T04:00:00+00:00',
+        ends_at: '2026-10-26T04:00:00+00:00', pick_lock_at: '2026-10-20T01:00:00+00:00' },
+      { id: 'w2', stage_id: 'S2', starts_on: '2026-10-26', ends_on: '2026-11-01', starts_at: '2026-10-26T04:00:00+00:00',
+        ends_at: '2026-11-02T04:00:00+00:00', pick_lock_at: '2026-10-27T01:00:00+00:00' },
+    ],
+    members: [{ id: 'm3', team_name: 'Rise', created_at: '2026-10-01T00:00:00+00:00' },
+      { id: 'm4', team_name: 'Peak', created_at: '2026-10-01T00:00:00+00:00' }],
+    slots: [{ stage_id: 'S2', membership_id: 'm3', athlete_id: 'c1' }, { stage_id: 'S2', membership_id: 'm4', athlete_id: 'd1' }],
+    picks: [{ week_id: 'w1', membership_id: 'm3', athlete_id: 'c1' }, { week_id: 'w2', membership_id: 'm3', athlete_id: 'c1' }],
+    sessions: [{ id: 'p2', kind: 'tournament', held_on: '2026-10-24', counts: true, verified_at: '2026-10-24T20:00:00+00:00' }],
+    lines: [{ session_id: 'p2', athlete_id: 'c1', stats: { goal: 2 }, points_played: 10 }],
+    injuries: [],
+    athletes: [{ id: 'c1', name: 'Casey' }, { id: 'd1', name: 'Dana' }],
+  };
+
+  it('covers every membership of both leagues and deduplicates week ids', () => {
+    const now = Date.parse('2026-10-25T00:00:00Z');
+    const yearA = buildLeagueYear(rows, now);
+    const yearB = buildLeagueYear(rowsB, now);
+    const { ranks, unsettled } = mergeRanks([yearA.result, yearB.result], '2026-10-26');
+
+    // Both leagues' memberships appear in ranks
+    expect(Object.keys(ranks)).toContain('m1');
+    expect(Object.keys(ranks)).toContain('m2');
+    expect(Object.keys(ranks)).toContain('m3');
+    expect(Object.keys(ranks)).toContain('m4');
+
+    // w1 starts before '2026-10-26' and at now (2026-10-25) is not final yet; appears once despite two leagues
+    expect(unsettled).toBe(1);
+  });
+
+  it('counts weeks before `before` that are not final/skipped, and ignores weeks on or after', () => {
+    // Scenario: w1 starts 2026-10-19 (before 2026-10-26), w2 starts 2026-10-26 (not before)
+    const now = Date.parse('2026-10-25T00:00:00Z');
+    const yearB = buildLeagueYear(rowsB, now);
+    const { unsettled } = mergeRanks([yearB.result], '2026-10-26');
+
+    // Only w1 counts (starts before 2026-10-26 and isn't settled yet)
+    expect(unsettled).toBe(1);
   });
 });

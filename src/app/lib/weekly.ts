@@ -125,6 +125,23 @@ export const loadLeagueYear = async (seasonId: string, leagueId: string) =>
   buildLeagueYear(await loadLeagueRows(seasonId, leagueId));
 
 /**
+ * Merge standings and unsettled weeks from all leagues. Pure function for testability.
+ * Ranks: last league wins (all leagues should have same standings).
+ * Unsettled: deduplicated week ids that started before `before` and aren't settled.
+ */
+export function mergeRanks(results: YearResult[], before: string): { ranks: Record<string, number>; unsettled: number } {
+  const ranks: Record<string, number> = {};
+  const unsettled = new Set<string>();
+  for (const result of results) {
+    for (const row of result.standings) ranks[row.membershipId] = row.rank;
+    for (const w of result.weeks) {
+      if (w.week.startsOn < before && w.status !== 'final' && w.status !== 'skipped') unsettled.add(w.week.id);
+    }
+  }
+  return { ranks, unsettled: unsettled.size };
+}
+
+/**
  * The allowance input for every league of the season: {membership: rank}, plus how many weeks that start before
  * `before` (the stage being granted) aren't settled yet in any league.
  */
@@ -132,13 +149,5 @@ export async function seasonRanks(seasonId: string, before: string): Promise<{ r
   const leagues = await supabase!.from('leagues').select('id').eq('season_id', seasonId);
   if (leagues.error) throw leagues.error;
   const years = await Promise.all((leagues.data ?? []).map((l) => loadLeagueYear(seasonId, l.id as string)));
-  const ranks: Record<string, number> = {};
-  const unsettled = new Set<string>();
-  for (const y of years) {
-    for (const row of y.result.standings) ranks[row.membershipId] = row.rank;
-    for (const w of y.result.weeks) {
-      if (w.week.startsOn < before && w.status !== 'final' && w.status !== 'skipped') unsettled.add(w.week.id);
-    }
-  }
-  return { ranks, unsettled: unsettled.size };
+  return mergeRanks(years.map((y) => y.result), before);
 }
