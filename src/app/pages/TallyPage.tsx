@@ -109,13 +109,14 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   season: CurrentSeason; sessionId: string; keeperId: string; onBack: () => void;
 }) {
   const [queue, setQueue] = useState<QueuedTap[]>(() => loadQueue(keeperId, sessionId));
-  // Saved batches until the reload shows them, so counts and "Undo last tap" don't skip them meanwhile.
+  // Saved batches until the reload shows them, so counts and hold-to-subtract don't skip them meanwhile.
   const [sent, setSent] = useState<QueuedTap[]>([]);
   const [stored, setStored] = useState(true);
   const [rejected, setRejected] = useState<{ count: number; message: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [search, setSearch] = useState('');
+  const [hint, setHint] = useState<string | null>(null);
   const queueRef = useRef(queue);
   const sending = useRef(false);
   const inFlight = useRef<Set<string>>(new Set());
@@ -224,9 +225,14 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   const add = (athleteId: string, stat: string) =>
     setQueue((q) => [...q, { id: crypto.randomUUID(), athlete_id: athleteId, stat, tapped_at: new Date().toISOString(), undoes: null }]);
 
-  function undo() {
-    const target = lastUndoable(saved, queued, keeperId);
-    if (!target) return;
+  /** Hold a stat button (or press minus): send an undo of this keeper's latest live tap of that athlete + stat. */
+  function subtract(athleteId: string, stat: string) {
+    const target = lastUndoable(saved, queued, keeperId, athleteId, stat);
+    if (!target) {
+      setHint((counts[athleteId]?.[stat] ?? 0) > 0 ? 'Only your own taps can be removed.' : 'Already at 0.');
+      return;
+    }
+    setHint(null);
     if (canForgetLocally(target.id, queue, inFlight.current, savedIds)) {
       setQueue((q) => q.filter((t) => t.id !== target.id)); // never sent: just forget it
     } else {
@@ -261,7 +267,6 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
             {queue.length > 0 && online && <span className="pill info">Saving · {queue.length} unsaved</span>}
             {queue.length > 0 && !online && <span className="pill warn">Offline · {queue.length} unsaved</span>}
           </span>
-          <button className="secondary" onClick={undo} disabled={closed}>Undo last tap</button>
         </div>
       </div>
       {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
@@ -271,7 +276,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       {error && <p className="error" role="alert">{error}</p>}
       {data.error && <p className="error" role="alert">Couldn't refresh: {data.error}</p>}
       <input type="search" aria-label="Find a player" placeholder="Find a player" value={search} onChange={(e) => setSearch(e.target.value)} />
-      <p className="muted">A Callahan is one tap: it already includes the goal and the D.</p>
+      <p className="muted">A Callahan is one tap: it already includes the goal and the D. Tapped too many? Hold the button to take one off.</p>
+      {hint && <p className="notice" role="status">{hint} <button className="linklike" onClick={() => setHint(null)}>Dismiss</button></p>}
       <ul className="list">
         {shown.map((a) => {
           const injury = injuryOf.get(a.id);
@@ -293,11 +299,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
               </div>
               <div className="tally-buttons">
                 {stats.map((stat) => (
-                  <button key={stat} className={weight(stat) < 0 ? 'neg' : undefined} disabled={closed || mine} onClick={() => add(a.id, stat)}>
-                    {statLabel(stat)}
-                    <span className="tally-count">{counts[a.id]?.[stat] ?? 0}</span>
-                    <span className="tally-w">{weight(stat) > 0 ? '+' : weight(stat) < 0 ? '−' : ''}{Math.abs(weight(stat))} pts</span>
-                  </button>
+                  <StatButton key={stat} athlete={a.name} stat={stat} count={counts[a.id]?.[stat] ?? 0} weight={weight(stat)}
+                    disabled={closed || mine} onAdd={() => add(a.id, stat)} onSubtract={() => subtract(a.id, stat)} />
                 ))}
               </div>
             </li>
@@ -305,5 +308,47 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
         })}
       </ul>
     </section>
+  );
+}
+
+const HOLD_MS = 500;
+
+/** Tap = +1. Hold, or press minus / Delete / Backspace while focused = −1, with a buzz and a flash so it never reads as a tap. */
+export function StatButton({ athlete, stat, count, weight, disabled, onAdd, onSubtract }: {
+  athlete: string; stat: string; count: number; weight: number; disabled: boolean; onAdd: () => void; onSubtract: () => void;
+}) {
+  const timer = useRef<number | undefined>(undefined);
+  const held = useRef(false);
+  const [flash, setFlash] = useState(false);
+  const minus = () => {
+    navigator.vibrate?.(40);
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 300);
+    onSubtract();
+  };
+  const cancel = () => window.clearTimeout(timer.current);
+  useEffect(() => cancel, []);
+  const cls = [weight < 0 ? 'neg' : '', flash ? 'minus' : ''].filter(Boolean).join(' ') || undefined;
+  return (
+    <button className={cls} disabled={disabled} aria-keyshortcuts="-"
+      aria-label={`${athlete}, ${statLabel(stat)}: ${count}. Tap to add one; hold or press minus to take one off.`}
+      onPointerDown={() => {
+        held.current = false;
+        cancel();
+        timer.current = window.setTimeout(() => { held.current = true; minus(); }, HOLD_MS);
+      }}
+      onPointerUp={cancel} onPointerLeave={cancel} onPointerCancel={cancel}
+      onContextMenu={(e) => e.preventDefault()}
+      onClick={() => {
+        if (held.current) { held.current = false; return; } // the hold already took one off; never also add
+        onAdd();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === '-' || e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); minus(); }
+      }}>
+      {statLabel(stat)}
+      <span className="tally-count">{count}</span>
+      <span className="tally-w">{weight > 0 ? '+' : weight < 0 ? '−' : ''}{Math.abs(weight)} pts</span>
+    </button>
   );
 }

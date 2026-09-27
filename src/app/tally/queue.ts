@@ -112,10 +112,14 @@ export function unsavedTaps(sent: QueuedTap[], queue: QueuedTap[], savedIds: Rea
   return [...sent, ...queue].filter((t) => !savedIds.has(t.id));
 }
 
-/** The keeper's newest tap that is neither an undo nor already undone, for "Undo last tap". */
-export function lastUndoable(saved: Tap[], queued: Tap[], keeperId: string): Tap | null {
+/**
+ * The keeper's newest tap of `athleteId` + `stat` that is neither an undo nor already undone: what holding that
+ * stat button takes back. Keepers only ever undo their own taps.
+ */
+export function lastUndoable(saved: Tap[], queued: Tap[], keeperId: string, athleteId: string, stat: string): Tap | null {
   const undone = new Set([...saved, ...queued].map((t) => t.undoes));
-  const live = (list: Tap[]) => list.filter((t) => t.keeperId === keeperId && t.undoes === null && !undone.has(t.id));
+  const live = (list: Tap[]) => list.filter((t) => t.keeperId === keeperId && t.athleteId === athleteId && t.stat === stat
+    && t.undoes === null && !undone.has(t.id));
   // Queued taps are newer than anything saved, and saved times are skew-corrected while queued ones
   // are not, so never compare across the two lists. The queue is in tap order.
   const q = live(queued);

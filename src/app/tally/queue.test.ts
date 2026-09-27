@@ -9,8 +9,8 @@ import {
 const q = (id: string, undoes: string | null = null): QueuedTap => ({
   id, athlete_id: 'sam', stat: 'goal', tapped_at: '2026-11-16T18:00:00.000Z', undoes,
 });
-const tap = (id: string, keeperId: string, tappedAt: number, undoes: string | null = null): Tap => ({
-  id, athleteId: 'sam', stat: 'goal', keeperId, tappedAt, undoes,
+const tap = (id: string, keeperId: string, tappedAt: number, undoes: string | null = null, stat = 'goal'): Tap => ({
+  id, athleteId: 'sam', stat, keeperId, tappedAt, undoes,
 });
 
 beforeEach(() => localStorage.clear());
@@ -71,14 +71,29 @@ describe('lastUndoable', () => {
   it('prefers the newest queued tap even when saved times look later (slow phone clock)', () => {
     const saved = [tap('s1', 'me', 9_000_000)];
     const queued = [tap('q1', 'me', 1_000), tap('q2', 'me', 2_000)];
-    expect(lastUndoable(saved, queued, 'me')?.id).toBe('q2');
+    expect(lastUndoable(saved, queued, 'me', 'sam', 'goal')?.id).toBe('q2');
   });
 
   it('skips undone taps, undos and other keepers', () => {
     const saved = [tap('s1', 'me', 1), tap('s2', 'me', 2), tap('x', 'other', 3)];
     const queued = [tap('u', 'me', 4, 's2')];
-    expect(lastUndoable(saved, queued, 'me')?.id).toBe('s1');
-    expect(lastUndoable([], [], 'me')).toBeNull();
+    expect(lastUndoable(saved, queued, 'me', 'sam', 'goal')?.id).toBe('s1');
+    expect(lastUndoable([], [], 'me', 'sam', 'goal')).toBeNull();
+  });
+});
+
+describe('lastUndoable for one button (hold to subtract)', () => {
+  it("takes back only this athlete + stat, and only this keeper's taps", () => {
+    const saved = [tap('g1', 'me', 1), tap('a1', 'me', 2, null, 'assist'), tap('g2', 'other', 3)];
+    expect(lastUndoable(saved, [], 'me', 'sam', 'goal')?.id).toBe('g1');
+    expect(lastUndoable(saved, [], 'me', 'sam', 'assist')?.id).toBe('a1');
+    expect(lastUndoable(saved, [], 'me', 'kim', 'goal')).toBeNull();
+    // The merged count shows 1 here, but it's the other keeper's tap: nothing of mine to remove.
+    expect(lastUndoable([tap('g2', 'other', 3)], [], 'me', 'sam', 'goal')).toBeNull();
+  });
+
+  it('never goes below zero: an undone tap cannot be undone again', () => {
+    expect(lastUndoable([tap('g1', 'me', 1)], [tap('u1', 'me', 2, 'g1')], 'me', 'sam', 'goal')).toBeNull();
   });
 });
 
