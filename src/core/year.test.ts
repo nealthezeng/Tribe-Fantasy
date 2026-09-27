@@ -204,4 +204,18 @@ describe('scoreYear', () => {
     const shuffled = base({ weeks: [...b.weeks].reverse(), slots: [...b.slots].reverse(), picks: [...b.picks].reverse() });
     expect(scoreYear(shuffled).standings).toEqual(scoreYear(b).standings);
   });
+
+  it('builds auto-pick history from weeks whose own stats are locked, even when held back', () => {
+    const slots = [...base().slots, { stageId: 'S1', membershipId: 'm1', athleteId: 'a4' }];
+    const sessions = base().sessions.map((x) => (x.id === 'p1' ? { ...x, verifiedAt: null } : x));
+    const statLines = [...base().statLines, line('p2', 'a4', 2)];
+    const picks = base().picks.filter((p) => !(p.weekId === 'w3' && p.membershipId === 'm1'));
+
+    const r = scoreYear(base({ slots, sessions, statLines, picks }));
+
+    expect(r.weeks[0].status).toBe('pending');
+    expect(r.weeks[1].status).toBe('pending');
+    // a4 wins on w2's history (6 vs 0); if held-back weeks were excluded, both would have no history and a3 (lowest id) would be picked.
+    expect(side(r, 'w3', 'm1')).toMatchObject({ picked: null, athleteId: 'a4', notice: 'missed' });
+  });
 });
