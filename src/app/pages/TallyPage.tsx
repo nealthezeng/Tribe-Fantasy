@@ -330,8 +330,8 @@ export function StatButton({ athlete, stat, count, weight, disabled, onAdd, onSu
   useEffect(() => cancel, []);
   const cls = [weight < 0 ? 'neg' : '', flash ? 'minus' : ''].filter(Boolean).join(' ') || undefined;
   return (
-    <button className={cls} disabled={disabled} aria-keyshortcuts="-"
-      aria-label={`${athlete}, ${statLabel(stat)}: ${count}. Tap to add one; hold or press minus to take one off.`}
+    <button className={cls} disabled={disabled} aria-keyshortcuts="- Delete Backspace"
+      aria-label={`${athlete}, ${statLabel(stat)}: ${count}. Tap to add one; hold, or press minus, Delete or Backspace, to take one off.`}
       onPointerDown={() => {
         held.current = false;
         cancel();

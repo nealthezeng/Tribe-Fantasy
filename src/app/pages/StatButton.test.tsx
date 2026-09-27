@@ -50,6 +50,7 @@ describe('StatButton', () => {
     const { onAdd, onSubtract, button } = setup();
     fireEvent.keyDown(button, { key: '-' });
     expect([onAdd.mock.calls.length, onSubtract.mock.calls.length]).toEqual([0, 1]);
-    expect(button.getAttribute('aria-label')).toMatch(/hold or press minus to take one off/);
+    expect(button.getAttribute('aria-label')).toMatch(/hold, or press minus, Delete or Backspace, to take one off/);
+    expect(button.getAttribute('aria-keyshortcuts')).toBe('- Delete Backspace');
   });
 });
