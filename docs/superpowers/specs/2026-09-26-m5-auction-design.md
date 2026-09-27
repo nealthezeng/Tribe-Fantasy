@@ -36,13 +36,15 @@ Editing a bid updates `amount` and resets `placed_at`.
 
 **`roster_slots`**: `id uuid`, `stage_id` (cascade), `membership_id` (cascade), `athlete_id` (cascade),
 `league_id` (denormalised from the membership, for the unique index), `price int` (≥ 0), `via` (`bid` | `fill`),
-`created_at`. Unique `(stage_id, league_id, athlete_id)` and unique `(stage_id, membership_id, athlete_id)`.
+`created_at`. Unique `(stage_id, league_id, athlete_id)` (a membership belongs to one league, so this also means
+one slot per athlete per team).
 
 **`credit_ledger`**: the `kind` check gains `bid`. A won bid writes one entry of `-price` with the stage id.
 
 **RLS**
 - `bids`: the owning member reads their own at any time. Once `now() >= bid_close_at`, every member of that league
-  and staff read all of the league's bids. Anon reads nothing.
+  and staff read all of the league's bids. Before close, staff (admins included) can't read other people's bids,
+  and the `place_bid` audit row leaves out the amount, because admins read the audit log. Anon reads nothing.
 - `roster_slots`: readable by members of the league and staff.
 - Clients never write either table. The guard tests cover both.
 
@@ -59,7 +61,7 @@ All are security definer, raise stable error codes and write the audit log, like
 
 | RPC | Who | Behaviour |
 |---|---|---|
-| `open_auction(stage, close_at)` | admin | Sets `bid_close_at` (and `auction_seed` if null). `NOT_FOUND`; `AUCTION_ALREADY_RUN`; `BID_CLOSED` if the current close time has passed; `INVALID_DATES` unless `close_at > now()`. Runs the supply check (below). Calling it again before close moves the close time. |
+| `open_auction(stage, close_at)` | admin | Sets `bid_close_at` (and `auction_seed` if null). `NOT_FOUND`; `AUCTION_ALREADY_RUN`; `BID_CLOSED` if the current close time has passed; `INVALID_CLOSE_TIME` unless `close_at > now()`. Runs the supply check (below). Calling it again before close moves the close time. |
 | `place_bid(stage, membership, athlete, amount)` | member who owns the membership | Upsert. `NOT_MEMBER` if the caller doesn't own the membership or it isn't in the stage's season; `AUCTION_NOT_OPEN` if `bid_close_at` is null; `BID_CLOSED` if `now() >= bid_close_at`; `NOT_OPTED_IN` unless the athlete is in the season and opted in; `SELF_OWNERSHIP` if `allow_self_ownership` is false and the athlete's `user_id` is the caller; `INVALID_AMOUNT` unless `min_bid ≤ amount`; `INSUFFICIENT_CREDITS` if `amount > balance`. |
 | `delete_bid(stage, membership, athlete)` | same member | Same open/closed and membership checks; deleting a missing bid is a no-op. |
 | `run_auction(stage) → jsonb` | admin | Locks the stage row. `NOT_FOUND`; `AUCTION_NOT_OPEN`; `AUCTION_NOT_CLOSED` if `now() < bid_close_at`; `AUCTION_ALREADY_RUN`. Allocates every league of the season (below), sets `auction_run_at`, audits, and returns `{by_bid, by_fill, empty}`. |
@@ -89,18 +91,20 @@ A membership that joins after the run has no roster until the next stage.
 
 Follows `DESIGN.md` and `tokens.css`. No new tab.
 
-**League tab (Home) — a stage card per team**, for the latest stage (by `starts_on`) of the team's season:
+**League tab (Home) — a stage card per team**, for the stage of the team's season whose auction opened most recently
+(latest `bid_close_at`), or the latest stage by `starts_on` before any auction opens. Creating next stage early
+must not hide this stage's rosters.
 - No `bid_close_at`: "Auction not open yet".
 - Open: countdown to close, balance, list of opted-in athletes with an amount input and Save/Remove, an "injured"
   tag where it applies, and "Bidding on N athletes, total X credits". A note says the total may exceed the balance
   but you only win what you can afford. The member's own athlete is shown without an input.
-- Closed, not run: "Bids closed — waiting for the auction to run", plus all league bids.
+- Closed, not run: "Bids are closed. Rosters appear here once the auction runs.", plus all league bids per team.
 - Run: your roster (athlete, price, bid or fill); every team's roster and the full bid list, one expandable list per
   team; the seed. A late joiner sees "You joined after this stage's auction; your roster starts next stage."
 
 **Admin tab — Stages section**, per stage:
 - Open auction: a `datetime-local` input and button. Errors show inline (the supply error names the league).
-- Status: not open / open (N bids) / closed / run.
+- Status: not open / open (closes at …) / closed (ready to run) / ran at …. No bid count: staff can't read sealed bids.
 - Run auction: enabled after close; confirms, then reports "Awarded N by bid, M by fill, K spots left empty".
 
 **Tally screen**: a keeper's own rostered athletes are greyed out, not tappable, labelled "on your team". The
