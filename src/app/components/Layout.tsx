@@ -14,16 +14,17 @@ export function DiscMark({ size = 24, className }: { size?: number; className?: 
   );
 }
 
-/** Avatar button that opens Me and Sign out. A native popover handles Esc, tap-outside and focus. */
-function AccountMenu({ name, email }: { name: string | null; email: string | undefined }) {
+/** Avatar button that opens Me, Rules, Admin and Sign out. A native popover handles Esc, tap-outside and focus. */
+function AccountMenu({ name, email, isAdmin }: { name: string | null; email: string | undefined; isAdmin: boolean }) {
   const menu = useRef<HTMLDivElement>(null);
-  const onMe = useLocation().pathname === '/me';
+  const path = useLocation().pathname;
+  const onMenuPage = path === '/me' || path.startsWith('/admin');
   const close = () => menu.current?.hidePopover();
   const initial = (name || email || '?').trim().charAt(0).toUpperCase();
   return (
     <div className="account">
       <button className="account-button" popoverTarget="account-menu" aria-label="Account menu"
-        aria-current={onMe ? 'page' : undefined}>
+        aria-current={onMenuPage ? 'page' : undefined}>
         <span className="avatar" aria-hidden="true">{initial}</span>
       </button>
       <div id="account-menu" className="account-menu" popover="auto" ref={menu}>
@@ -33,6 +34,7 @@ function AccountMenu({ name, email }: { name: string | null; email: string | und
         </p>
         <NavLink to="/me" onClick={close}>Me<small>Attendance and injuries</small></NavLink>
         <NavLink to="/rules" onClick={close}>Rules<small>How scoring works</small></NavLink>
+        {isAdmin && <NavLink to="/admin" onClick={close}>Admin<small>Seasons, leagues, athletes</small></NavLink>}
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
       </div>
     </div>
@@ -52,11 +54,10 @@ export function Layout() {
               <NavLink to="/" end>League</NavLink>
               <NavLink to="/stats">Stats</NavLink>
               {isKeeper && <NavLink to="/tally">Tally</NavLink>}
-              {isAdmin && <NavLink to="/admin">Admin</NavLink>}
             </nav>
           )}
           {session
-            ? <AccountMenu name={displayName} email={session.user.email} />
+            ? <AccountMenu name={displayName} email={session.user.email} isAdmin={isAdmin} />
             : <NavLink to="/login" className="signin">Sign in</NavLink>}
         </div>
       </header>
