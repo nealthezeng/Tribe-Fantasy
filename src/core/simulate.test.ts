@@ -1,55 +1,40 @@
 import { describe, expect, it } from 'vitest';
-import { simulateSeason } from './simulate';
+import { simulateYear } from './simulate';
 
-describe('simulateSeason', () => {
-  const r = simulateSeason({ managers: 6, athletes: 30, weeks: 10, seed: 'test', tournamentWeeks: [4, 8], settings: { roster_size: 5 } });
+const cfg = { managers: 6, athletes: 24, stages: 3, weeksPerStage: 3, seed: 'test' };
 
-  it('drafts full, exclusive rosters', () => {
-    const all = Object.values(r.rosters).flat();
-    expect(Object.values(r.rosters).every((roster) => roster.length === 5)).toBe(true);
-    expect(new Set(all).size).toBe(all.length);
+describe('simulateYear', () => {
+  const r = simulateYear(cfg);
+
+  it('plays every week of every stage to a final result', () => {
+    expect(r.result.weeks).toHaveLength(9);
+    expect(r.result.weeks.every((w) => w.status === 'final')).toBe(true);
+    expect(r.placesByStage).toHaveLength(3);
   });
 
-  it('never repeats an athlete within a cycle', () => {
-    for (const managerId of Object.keys(r.rosters)) {
-      const mine = r.picks.filter((p) => p.managerId === managerId).sort((a, b) => a.week - b.week);
-      expect(mine).toHaveLength(10);
-      expect(new Set(mine.slice(0, 5).map((p) => p.athleteId)).size).toBe(5);
-      expect(new Set(mine.slice(5, 10).map((p) => p.athleteId)).size).toBe(5);
+  it('deals full, exclusive rosters each stage', () => {
+    for (const st of ['s00', 's01', 's02']) {
+      const slots = r.input.slots.filter((x) => x.stageId === st);
+      expect(slots).toHaveLength(24);
+      expect(new Set(slots.map((x) => x.athleteId)).size).toBe(24);
     }
   });
 
-  it('keeps standings equal to the sum of weekly deltas', () => {
-    for (const row of r.standings) {
-      const sum = r.weeks.flatMap((w) => w.matchups)
-        .flatMap((m) => [m.home, m.away])
-        .filter((side) => side?.managerId === row.managerId)
-        .reduce((acc, side) => acc + side!.delta, 0);
+  it('keeps standings points equal to the sum of weekly deltas', () => {
+    for (const row of r.result.standings) {
+      const sum = r.result.weeks.flatMap((w) => w.matchups.flatMap((m) => [m.home, m.away]))
+        .filter((x) => x?.membershipId === row.membershipId).reduce((acc, x) => acc + (x!.delta ?? 0), 0);
       expect(row.points).toBeCloseTo(sum);
     }
   });
 
-  it('default-picks the unused athlete with the best week-1 score in week 2', () => {
-    const w1 = r.weeks[0].athleteScores;
-    let notAlphabetical = 0;
-    for (const [managerId, roster] of Object.entries(r.rosters)) {
-      const first = r.picks.find((p) => p.week === 1 && p.managerId === managerId)!.athleteId;
-      const unused = roster.filter((a) => a !== first);
-      expect(unused.every((a) => a in w1)).toBe(true);
-      const best = [...unused].sort((a, b) => w1[b] - w1[a] || (a < b ? -1 : 1))[0];
-      expect(r.picks.find((p) => p.week === 2 && p.managerId === managerId)!.athleteId).toBe(best);
-      if (best !== unused[0]) notAlphabetical++;
-    }
-    expect(notAlphabetical).toBeGreaterThan(0);
-  });
-
-  it('is deterministic per seed', () => {
-    expect(simulateSeason({ managers: 6, athletes: 30, weeks: 10, seed: 'test', tournamentWeeks: [4, 8], settings: { roster_size: 5 } })).toEqual(r);
-  });
-
-  it('copes with more roster capacity than athletes and an odd manager count', () => {
-    const odd = simulateSeason({ managers: 7, athletes: 30, weeks: 6, seed: 'odd', settings: { roster_size: 5 } });
-    expect(Object.values(odd.rosters).flat()).toHaveLength(30);
-    expect(odd.weeks).toHaveLength(6);
+  it('is deterministic per seed, and a tanker changes only their own last-week picks', () => {
+    expect(simulateYear(cfg)).toEqual(r);
+    const t = simulateYear({ ...cfg, tanker: 0 });
+    expect(t.input.statLines).toEqual(r.input.statLines);
+    const changed = t.input.picks.filter((p, i) => p.athleteId !== r.input.picks[i]?.athleteId);
+    // Rosters may differ from stage 2 on (allowance moved), so only check stage 1 strictly.
+    const stage1 = changed.filter((p) => ['w00', 'w01', 'w02'].includes(p.weekId));
+    expect(stage1).toEqual([expect.objectContaining({ membershipId: 'm00', weekId: 'w02' })]);
   });
 });
