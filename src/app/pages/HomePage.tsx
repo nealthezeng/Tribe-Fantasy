@@ -37,7 +37,10 @@ export function HomePage() {
         <DiscMark size={168} className="hero-disc" />
         <h1>Tribe Fantasy</h1>
         <p>A fantasy league for our team. Every dollar goes to the team fund.</p>
-        <Link to="/login" className="button">Sign in</Link>
+        <div className="row">
+          <Link to="/login" className="button">Sign in</Link>
+          <Link to="/rules" className="button secondary">How it works</Link>
+        </div>
       </section>
     );
   }

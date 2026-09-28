@@ -1,3 +1,4 @@
+import { todayLocal } from './stats';
 import { supabase } from './supabase';
 
 export interface AuctionStage {
@@ -43,16 +44,29 @@ export function timeLeft(closeAt: string, now = Date.now()): string {
 export const formatWhen = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-/** Athletes on `userId`'s rosters in the latest stage of the season whose auction has run (mirrors owns_athlete). */
-export async function loadOwnedAthletes(userId: string, seasonId: string): Promise<Set<string>> {
-  const stage = await supabase!.from('stages').select('id').eq('season_id', seasonId)
-    .not('auction_run_at', 'is', null).order('starts_on', { ascending: false }).limit(1).maybeSingle();
-  if (stage.error) throw stage.error;
-  if (!stage.data) return new Set();
-  const mine = await supabase!.from('memberships').select('id').eq('user_id', userId);
-  if (mine.error) throw mine.error;
-  const slots = await supabase!.from('roster_slots').select('athlete_id').eq('stage_id', stage.data.id)
-    .in('membership_id', (mine.data ?? []).map((m) => m.id));
+/**
+ * Stages whose rosters count as "owning" (mirrors private.owns_athlete, 0009): the latest auctioned stage, plus any
+ * auctioned stage that ended in the last week. The window is a day wider than the database's, so the tally screen
+ * greys out at least every athlete the server would refuse (one refused tap drops its whole batch).
+ */
+export function ownershipStages(stages: { id: string; starts_on: string; ends_on: string }[], today: string): string[] {
+  if (stages.length === 0) return [];
+  const latest = [...stages].sort((a, b) => b.starts_on.localeCompare(a.starts_on))[0];
+  const d = new Date(`${today}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 8);
+  const cutoff = d.toISOString().slice(0, 10);
+  return stages.filter((s) => s.id === latest.id || s.ends_on >= cutoff).map((s) => s.id);
+}
+
+/** Athletes `userId` owns in the season (see ownershipStages). */
+export async function loadOwnedAthletes(userId: string, seasonId: string, today = todayLocal()): Promise<Set<string>> {
+  const stages = await supabase!.from('stages').select('id, starts_on, ends_on').eq('season_id', seasonId)
+    .not('auction_run_at', 'is', null);
+  if (stages.error) throw stages.error;
+  const ids = ownershipStages(stages.data ?? [], today);
+  if (ids.length === 0) return new Set();
+  const slots = await supabase!.from('roster_slots').select('athlete_id, memberships!inner(user_id)')
+    .in('stage_id', ids).eq('memberships.user_id', userId);
   if (slots.error) throw slots.error;
   return new Set((slots.data ?? []).map((s) => s.athlete_id as string));
 }

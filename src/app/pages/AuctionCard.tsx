@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { parseSettings } from '../../core/settings';
 import {
   AUCTION_STAGE_COLUMNS, auctionPhase, formatWhen, pickAuctionStage, timeLeft,
   type AuctionStage, type BidRow, type SlotRow,
@@ -22,7 +23,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
     if (st.error) throw st.error;
     const stage = pickAuctionStage((st.data ?? []) as AuctionStage[]);
     if (!stage) return null;
-    const [athletes, injuries, bids, slots, teams] = await Promise.all([
+    const [season, athletes, injuries, bids, slots, teams] = await Promise.all([
+      supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
       // All of them, not just opted in: a rostered player who opts out later still needs a name.
       supabase!.from('athletes').select('id, name, user_id, opted_in').eq('season_id', seasonId).order('name'),
       supabase!.from('injuries').select('athlete_id').is('cleared_at', null).not('confirmed_at', 'is', null),
@@ -31,9 +33,10 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
       supabase!.from('roster_slots').select('membership_id, athlete_id, price, via').eq('stage_id', stage.id).eq('league_id', leagueId),
       supabase!.from('memberships').select('id, team_name').eq('league_id', leagueId).order('team_name'),
     ]);
-    for (const r of [athletes, injuries, bids, slots, teams]) if (r.error) throw r.error;
+    for (const r of [season, athletes, injuries, bids, slots, teams]) if (r.error) throw r.error;
     return {
       stage,
+      minBid: parseSettings(season.data!.settings).min_bid,
       athletes: (athletes.data ?? []) as Athlete[],
       injured: new Set((injuries.data ?? []).map((i) => i.athlete_id as string)),
       bids: (bids.data ?? []) as BidRow[],
@@ -42,10 +45,19 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
     };
   }, [seasonId, leagueId]);
 
+  // Re-render while bidding is open so the countdown moves and the card flips to "closed" on time.
+  const [now, setNow] = useState(Date.now);
+  const closeAt = data && !data.stage.auction_run_at ? data.stage.bid_close_at : null;
+  useEffect(() => {
+    if (!closeAt) return;
+    const id = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, [closeAt]);
+
   if (loadError) return <p className="error" role="alert">{loadError}</p>;
   if (!data) return null; // loading, or no stage yet
-  const { stage, athletes, injured, bids, slots, teams } = data;
-  const phase = auctionPhase(stage);
+  const { stage, minBid, athletes, injured, bids, slots, teams } = data;
+  const phase = auctionPhase(stage, now);
   const name = new Map(athletes.map((a) => [a.id, a.name]));
   const mine = bids.filter((b) => b.membership_id === membershipId);
 
@@ -72,7 +84,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
 
       {phase === 'open' && (
         <>
-          <p>Bids close <strong>{timeLeft(stage.bid_close_at!)}</strong> · {formatWhen(stage.bid_close_at!)}</p>
+          <p>Bids close <strong>{timeLeft(stage.bid_close_at!, now)}</strong> · {formatWhen(stage.bid_close_at!)}</p>
           <p className="muted">
             Bids are sealed: nobody sees them until bidding closes. You're bidding on {mine.length} players,{' '}
             {credits(mine.reduce((s, b) => s + b.amount, 0))} in total, with {credits(balance)} to spend. Your total can go
@@ -87,7 +99,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
                 </span>
                 {a.user_id === userId ? <span className="muted">That's you</span> : (
                   <BidControl key={`${a.id}:${mine.find((b) => b.athlete_id === a.id)?.amount ?? ''}`}
-                    athlete={a} bid={mine.find((b) => b.athlete_id === a.id)?.amount ?? null}
+                    athlete={a} bid={mine.find((b) => b.athlete_id === a.id)?.amount ?? null} minBid={minBid}
                     onSave={(amount) => act(() => api.placeBid(stage.id, membershipId, a.id, amount))}
                     onRemove={() => act(() => api.deleteBid(stage.id, membershipId, a.id))} />
                 )}
@@ -145,13 +157,14 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
   );
 }
 
-function BidControl({ athlete, bid, onSave, onRemove }: {
-  athlete: Athlete; bid: number | null; onSave: (amount: number) => Promise<void>; onRemove: () => Promise<void>;
+function BidControl({ athlete, bid, minBid, onSave, onRemove }: {
+  athlete: Athlete; bid: number | null; minBid: number; onSave: (amount: number) => Promise<void>; onRemove: () => Promise<void>;
 }) {
   const [value, setValue] = useState(bid === null ? '' : String(bid));
   const [busy, setBusy] = useState(false);
   const amount = Number(value);
-  const valid = value.trim() !== '' && Number.isInteger(amount) && amount >= 0;
+  const entered = value.trim() !== '';
+  const valid = entered && Number.isInteger(amount) && amount >= minBid;
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -163,8 +176,8 @@ function BidControl({ athlete, bid, onSave, onRemove }: {
 
   return (
     <form className="bid" onSubmit={save}>
-      <input type="number" inputMode="numeric" min={0} step={1} value={value} onChange={(e) => setValue(e.target.value)}
-        aria-label={`Your bid on ${athlete.name}, in credits`} placeholder="Bid" />
+      <input type="number" inputMode="numeric" min={minBid} step={1} value={value} onChange={(e) => setValue(e.target.value)}
+        aria-label={`Your bid on ${athlete.name}, in credits`} placeholder="Bid" aria-invalid={entered && !valid} />
       <button disabled={busy || !valid || amount === bid}>{bid === null ? 'Bid' : 'Save'}</button>
       {bid !== null && (
         <button type="button" className="secondary" disabled={busy}
@@ -172,6 +185,7 @@ function BidControl({ athlete, bid, onSave, onRemove }: {
           Remove
         </button>
       )}
+      {entered && !valid && <small className="error">Bid at least {minBid}, in whole credits.</small>}
     </form>
   );
 }

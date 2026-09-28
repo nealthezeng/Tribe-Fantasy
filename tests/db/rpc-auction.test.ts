@@ -349,7 +349,12 @@ describe('owns_athlete', () => {
       p_season: f.season, p_name: 'Spring 1', p_starts_on: '2027-02-01', p_ends_on: '2027-02-21', p_tournament: null,
     }))) as string;
     expect(await owns(f.athletes[0])).toBe(true);
-    await f.db.query(`update public.stages set bid_close_at = now(), auction_run_at = now() where id = $1`, [spring]);
+    await f.db.query(`update public.stages set bid_close_at = now(), auction_run_at = now(),
+      starts_on = current_date - 1, ends_on = current_date + 20 where id = $1`, [spring]);
+    // Fall hasn't ended (or ended under a week ago): its owners still own, for its closing tournament (0009).
+    await f.db.query(`update public.stages set starts_on = current_date - 20, ends_on = current_date - 2 where id = $1`, [f.stage]);
+    expect(await owns(f.athletes[0])).toBe(true);
+    await f.db.query(`update public.stages set starts_on = current_date - 30, ends_on = current_date - 8 where id = $1`, [f.stage]);
     expect(await owns(f.athletes[0])).toBe(false);
   });
 });

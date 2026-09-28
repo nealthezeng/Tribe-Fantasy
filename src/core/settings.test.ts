@@ -72,7 +72,7 @@ describe('parseSettings', () => {
 
   it('has the stage decay and pick lock defaults (stages revision §4, M6)', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({
-      decay_grace_stages: 1, decay_rate: 0.9, decay_floor: 0.6, upset_k: 2, pick_lock_day: 'mon', pick_lock_time: '21:00',
+      decay_grace_stages: 1, decay_rate: 0.9, decay_floor: 0.6, upset_k: 0.5, pick_lock_day: 'mon', pick_lock_time: '21:00',
     });
   });
 

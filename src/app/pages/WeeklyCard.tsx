@@ -10,12 +10,15 @@ import { loadLeagueYear, type LeagueYear } from '../lib/weekly';
 
 const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
+/** An athlete's name, or `none` when nobody plays. */
+const athleteName = (y: LeagueYear, id: string | null, none = 'nobody') => (id ? y.athlete.get(id) ?? 'A player' : none);
 
 /** Weekly play for one team: this week's pick, standings, and every week so far. */
 export function WeeklyCard({ membershipId, leagueId, seasonId }: { membershipId: string; leagueId: string; seasonId: string }) {
   const { data, error, reload } = useLoad(() => loadLeagueYear(seasonId, leagueId), [seasonId, leagueId]);
   if (error) return <p className="error" role="alert">{error}</p>;
-  if (!data || data.result.weeks.length === 0) return null; // loading, or no weeks yet
+  if (!data) return <p className="muted" role="status">Loading matchups…</p>;
+  if (data.result.weeks.length === 0) return null; // no weeks yet
   const { weeks } = data.result;
   const sideOf = (w: WeekOutcome) => w.matchups.flatMap((m) => [m.home, m.away]).find((x) => x?.membershipId === membershipId) ?? null;
   const opponentOf = (w: WeekOutcome) => {
@@ -54,7 +57,7 @@ function PickWeek({ y, w, mine, them, membershipId, onSaved }: {
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const name = (id: string | null) => (id ? y.athlete.get(id) ?? 'A player' : 'nobody');
+  const name = (id: string | null) => athleteName(y, id);
   if (!mine) return <p className="muted">You joined after this week's picks were set. You'll play from next week.</p>;
   const rostered = mine.roster.length > 0;
   const available = new Set(mine.available);
@@ -97,7 +100,7 @@ function PickWeek({ y, w, mine, them, membershipId, onSaved }: {
             const injured = y.injured.has(id);
             const chosen = mine.picked === id;
             return (
-              <li key={id}>
+              <li key={id} className={used ? 'used' : undefined}>
                 <span className="meta">
                   <span className="title">{name(id)}</span>
                   {used && <span className="pill">Used</span>}
@@ -123,7 +126,7 @@ function PickWeek({ y, w, mine, them, membershipId, onSaved }: {
 
 function LiveWeek({ y, w, mine, them }: { y: LeagueYear; w: WeekOutcome; mine: YearSide | null; them: YearSide | null }) {
   if (!mine) return null;
-  const name = (id: string | null) => (id ? y.athlete.get(id) ?? 'A player' : 'nobody (forfeit)');
+  const name = (id: string | null) => athleteName(y, id, 'nobody (forfeit)');
   return (
     <div className="stack">
       <div className="head">
@@ -141,7 +144,7 @@ function LiveWeek({ y, w, mine, them }: { y: LeagueYear; w: WeekOutcome; mine: Y
 }
 
 function Notice({ y, side }: { y: LeagueYear; side: YearSide }) {
-  const name = (id: string | null) => (id ? y.athlete.get(id) ?? 'A player' : 'nobody');
+  const name = (id: string | null) => athleteName(y, id);
   if (!side.notice) return null;
   const who = side.athleteId ? `${name(side.athleteId)} was picked for you` : 'nobody was left to play (forfeit)';
   const why = { missed: "You didn't pick", injured: `${name(side.picked)} was injured`, used: `${name(side.picked)} had already played this cycle` }[side.notice];

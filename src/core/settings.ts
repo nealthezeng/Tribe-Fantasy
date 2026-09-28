@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   win_points: 3,
   loss_points: 1,
   tie_points: 1,
-  upset_k: 2,
+  upset_k: 0.5,
   standings_floor: null,
   decay_mode: 'exponential',
   decay_grace_stages: 1,

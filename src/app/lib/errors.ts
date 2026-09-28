@@ -49,7 +49,7 @@ const MESSAGES: Record<string, string> = {
   NOT_OPTED_IN: "That player isn't in this season's auction.",
   NOT_MEMBER: "That isn't your team.",
   WEEKS_HAVE_PICKS: "Managers have already picked for this stage's weeks, so they can't be rebuilt. Change a single week's lock instead.",
-  INVALID_LOCK_TIME: 'Pick a lock time.',
+  INVALID_LOCK_TIME: 'Pick a lock time before the week ends.',
   PICK_LOCKED: 'Picks for this week are locked.',
   NOT_ON_ROSTER: "That player isn't on your roster this season.",
   STANDINGS_MISSING: "The standings didn't include every team. Reload and try again.",

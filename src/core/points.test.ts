@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseSettings } from './settings';
-import { applyDelta, matchupDeltas, rankSnapshot, type StandingRow } from './points';
+import { DEFAULT_SETTINGS, parseSettings } from './settings';
+import { applyDelta, matchupDeltas, rankSnapshot, stageAllowance, type StandingRow } from './points';
 
 // Pinned to k = 1 so the numbers below read directly off the formula.
 const s = parseSettings({ upset_k: 1 });
@@ -54,5 +54,14 @@ describe('applyDelta', () => {
   it('allows negatives unless a floor is set', () => {
     expect(applyDelta(1, -2, s)).toBe(-1);
     expect(applyDelta(1, -2, parseSettings({ standings_floor: 0 }))).toBe(0);
+  });
+});
+
+describe('stageAllowance', () => {
+  it('gives the base to first, base + gap to last, and the middle to a tie', () => {
+    expect(stageAllowance(1, 6, DEFAULT_SETTINGS)).toBe(100);
+    expect(stageAllowance(6, 6, DEFAULT_SETTINGS)).toBe(130);
+    expect(stageAllowance(3.5, 6, DEFAULT_SETTINGS)).toBe(115);
+    expect(stageAllowance(1, 1, DEFAULT_SETTINGS)).toBe(100);
   });
 });

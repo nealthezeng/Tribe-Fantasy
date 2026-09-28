@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import {
   BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, queuedToTap, removeSent, rowToTap,
-  storeQueue, unsavedTaps,
+  storeQueue, subtractHint, unsavedTaps,
   type QueuedTap, type StatTapRow,
 } from '../tally/queue';
 
@@ -229,7 +229,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   function subtract(athleteId: string, stat: string) {
     const target = lastUndoable(saved, queued, keeperId, athleteId, stat);
     if (!target) {
-      setHint((counts[athleteId]?.[stat] ?? 0) > 0 ? 'Only your own taps can be removed.' : 'Already at 0.');
+      setHint(subtractHint(counts[athleteId]?.[stat] ?? 0));
       return;
     }
     setHint(null);

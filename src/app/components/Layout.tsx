@@ -32,6 +32,7 @@ function AccountMenu({ name, email }: { name: string | null; email: string | und
           <small>{email}</small>
         </p>
         <NavLink to="/me" onClick={close}>Me<small>Attendance and injuries</small></NavLink>
+        <NavLink to="/rules" onClick={close}>Rules<small>How scoring works</small></NavLink>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
       </div>
     </div>
