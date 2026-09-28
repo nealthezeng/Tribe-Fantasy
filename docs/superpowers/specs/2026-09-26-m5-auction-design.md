@@ -96,7 +96,7 @@ must not hide this stage's rosters.
 - No `bid_close_at`: "Auction not open yet".
 - Open: countdown to close, balance, list of opted-in athletes with an amount input and Save/Remove, an "injured"
   tag where it applies, and "Bidding on N athletes, total X credits". A note says the total may exceed the balance
-  but you only win what you can afford. The member's own athlete is shown without an input.
+  but you only win what you can afford. (Superseded 2026-09-28 by M8.5 §4: bids may not total more than your balance.) The member's own athlete is shown without an input.
 - Closed, not run: "Bids are closed. Rosters appear here once the auction runs.", plus all league bids per team.
 - Run: your roster (athlete, price, bid or fill); every team's roster and the full bid list, one expandable list per
   team; the seed. A late joiner sees "You joined after this stage's auction; your roster starts next stage."
