@@ -95,3 +95,46 @@ All of tsc, lint, build, app/core and DB suites green before merge. Final opus r
 
 If `0009` exists: user pastes it into tribe-dev BEFORE merging (additive fixes only). Then merge + push with user OK,
 CI + Deploy green, live bundle check, tag `m8`, tick board t01 t36 t48 t49 t50 t51 t64, `graphify update .`.
+
+## Amendments from the verified build (2026-09-27)
+
+Found while building the draft; these override the sections above where they differ.
+
+- **§1 audit result** (opus, read-only; no HIGH findings). Fixed in `0009_hardening.sql`:
+  1. `set_week_lock` could move a lock that had already passed, which unsealed picks and allowed picking after the
+     results → `PICK_LOCKED` once the old lock has passed.
+  2. `owns_athlete` looked only at the latest auctioned stage, so a stage's closing tournament (tallied and verified
+     after the next auction ran) wasn't owner-gated → it also counts stages that ended in the last 7 days. The tally
+     screen's grey-out (`ownershipStages` in `src/app/lib/auction.ts`) mirrors this with an 8-day window, because
+     one refused tap drops its whole batch.
+  3. A keeper who is the athlete could report and auto-confirm (or confirm) their own injury → blocked.
+  - Guards added: `private` has no usage/execute for anon/authenticated; every security definer function pins
+    `search_path`. The gate test was already `pg_proc`-driven, and anon execute was already guarded.
+  - Skipped (LOW, noted for spring): look-alike display names in the admin pickers; roster data readable across
+    leagues (fine with one league); two `run_auction` calls on different stages at once (admin-only); keepers can
+    create counted sessions on past dates (legit backfill, audited); admin-chosen 6-character invite codes.
+- **§1 bundle check** also catches a legacy `service_role` JWT (its base64 at three alignments).
+- **§2**: the backup is the whole database (every table), not one season: a backup should be complete. The file is
+  `tribe-backup-<YYYY-MM-DD>.json` = `{ exportedAt, tables }`. The stats CSV stays on the Stats tab (the panel
+  points there) instead of being duplicated.
+- **§3**: the contrast, `.linklike` and nav-overflow findings were from the old green theme; checked at 375px on
+  the current one and they pass, so there are no token changes. A bid below `min_bid` is refused with a message
+  (**Remove** deletes a bid; 0 is not a delete). The injuries query is already filtered to the season in
+  `toYearInput`, so that item is dropped. The countdown ticks every 15 s (it shows minutes).
+- **§5**: `stageAllowance(rank, n, s)` lives in `src/core/points.ts` and the rules page uses it too. The DB pin is in
+  the dry run (next stage's allowance from real standings equals `stageAllowance`). `npm run sim` is replaced by
+  `npm run tune -- [seeds] [managers] [roster]`.
+- **§5 results** (200 seeds, 6×4, 3 stages × 3 weeks; random chance of winning 16.7%):
+  - Tanking never pays **on average** in any combo (mean place Δ +0.2 to +0.5), but it helps in 11–19% of single
+    years.
+  - Decay barely matters: a manager rarely starts the same athlete in 2+ earlier stages.
+  - The "sharpest read wins" rate stays near chance (12–22%): stat noise dominates manager skill in a 3-stage
+    simulated year.
+  - Current defaults (gap 30, `upset_k` 2): tank Δ +0.27, tank pays 14.5%, churn 2.26.
+  - With `upset_k` ≥ 1, a favourite beating a team far below it earns **0**: the factor `1 + k·u` clamps at 0 for
+    u ≤ −1/k. The rules page shows "1st beats last: 0 / 0".
+  - **Recommendation: `upset_k` 0.5**, keep gap 30 and decay. Tank Δ rises to +0.49 (tanking hurts more), tank
+    pays drops to 11%, churn falls to 1.7, and every win earns something (1st beats last +1.5). This is a TS-only
+    change (scoring runs in the browser); a season whose settings store `upset_k` keeps its own value.
+- **§6**: supply is exactly 24 healthy athletes plus 1 injured, so the fill deals every healthy one. With spare
+  athletes the fill leaves a random one out, which made an assertion flaky.
