@@ -11,7 +11,7 @@ beforeEach(async () => {
   f = await statsFixture();
   stage = (await f.db.query<{ id: string }>(
     `insert into public.stages (season_id, name, starts_on, ends_on, bid_close_at, auction_seed, auction_run_at)
-     values ($1, 'Fall beta', '2026-10-18', '2026-11-08', now(), 'seed', now()) returning id`, [f.season])).rows[0].id;
+     values ($1, 'Fall beta', current_date - 3, current_date + 18, now(), 'seed', now()) returning id`, [f.season])).rows[0].id;
 });
 
 /** Superuser writes: `user` gets a team in the fixture's league with `athlete` on its roster in `inStage`. */

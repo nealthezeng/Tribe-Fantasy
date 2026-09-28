@@ -107,6 +107,14 @@ describe('set_week_lock', () => {
       .rejects.toThrow('PICK_LOCKED');
   });
 
+  it("won't move a lock past the week's own end (an admin who is also a manager could otherwise pick with hindsight, then move it back)", async () => {
+    await createWeeks();
+    const [, w1] = await weeks();
+    await lockIn(w1.id, 3600); // lock hasn't passed
+    await expect(as(f.db, f.admin, (tx) => rpc(tx, 'set_week_lock', { p_week: w1.id, p_at: '2099-01-01T00:00:00Z' })))
+      .rejects.toThrow('INVALID_LOCK_TIME');
+  });
+
   it('refuses an unknown week', async () => {
     await expect(as(f.db, f.admin, (tx) => rpc(tx, 'set_week_lock', { p_week: crypto.randomUUID(), p_at: inAnHour() })))
       .rejects.toThrow('NOT_FOUND');

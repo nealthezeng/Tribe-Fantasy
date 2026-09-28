@@ -2,15 +2,18 @@
 -- Only create or replace of existing functions: their grants carry over, so no grant loop is needed.
 
 -- A lock that has passed stays passed: moving it back would unseal picks and let managers pick after the results.
+-- A lock that hasn't passed yet still can't move past the week's own end: otherwise an admin who is also a
+-- manager could move it past the games, pick with hindsight, then move it back.
 create or replace function public.set_week_lock(p_week uuid, p_at timestamptz) returns void
 language plpgsql security definer set search_path = '' as $$
-declare old timestamptz;
+declare old timestamptz; week_end timestamptz;
 begin
   perform private.require_admin();
   if p_at is null then raise exception 'INVALID_LOCK_TIME'; end if;
-  select pick_lock_at into old from public.weeks where id = p_week for update;
+  select pick_lock_at, ends_at into old, week_end from public.weeks where id = p_week for update;
   if not found then raise exception 'NOT_FOUND'; end if;
   if old <= now() then raise exception 'PICK_LOCKED'; end if;
+  if p_at > week_end then raise exception 'INVALID_LOCK_TIME'; end if;
   update public.weeks set pick_lock_at = p_at where id = p_week;
   perform private.audit('set_week_lock', 'week', p_week::text, jsonb_build_object('old', old, 'new', p_at));
 end $$;
