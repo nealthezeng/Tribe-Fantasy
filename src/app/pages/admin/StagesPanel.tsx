@@ -192,6 +192,7 @@ function WeekLock({ week, act }: { week: WeekRow; act: (action: () => Promise<st
       <form className="row" onSubmit={(e) => {
         e.preventDefault();
         const at = new Date(value).toISOString();
+        if (new Date(at) <= new Date() && !window.confirm("This locks this week's picks now, and a passed lock can't be moved back. Lock now?")) return;
         void act(async () => {
           await api.setWeekLock(week.id, at);
           return `Week of ${formatDay(week.starts_on)}: picks lock ${formatWhen(at)}.`;

@@ -84,8 +84,10 @@
    - a week's pick lock can't be moved once it has passed, or to after the week ends;
    - a keeper still counts as an athlete's owner for a week after that stage ends (its closing tournament);
    - a keeper can't confirm their own injury.
-2. **Admin → Backup**: download a backup every week and keep it somewhere private. The ledger and standings CSVs
+2. **Admin → Settings** on the live season: if `upset_k` shows 2, set it to 0.5 before any week is scored. A season
+   stores every setting when it's saved, so the new default only reaches seasons that don't store `upset_k`.
+3. **Admin → Backup**: download a backup every week and keep it somewhere private. The ledger and standings CSVs
    are for the treasurer.
-3. The rules page is public at `#/rules` (linked from the landing page and the account menu). Its numbers are the
+4. The rules page is public at `#/rules` (linked from the landing page and the account menu). Its numbers are the
    standard settings in `src/core/settings.ts`, not a season's own settings.
 

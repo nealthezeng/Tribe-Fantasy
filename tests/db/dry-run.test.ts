@@ -38,6 +38,9 @@ beforeAll(async () => {
   await openAuction(f);
   await bid(f, teams[0].uid, teams[0].mid, f.athletes[0], 50);
   await bid(f, teams[1].uid, teams[1].mid, f.athletes[0], 50);
+  // Same-millisecond placed_at would leave the tie to a random id: make Ava's bid clearly first.
+  await f.db.query(`update public.bids set placed_at = placed_at - interval '1 second' where membership_id = $1 and athlete_id = $2`,
+    [teams[0].mid, f.athletes[0]]);
   await bid(f, teams[1].uid, teams[1].mid, f.athletes[1], 100);
   await bid(f, teams[1].uid, teams[1].mid, f.athletes[2], 100); // unaffordable after A1
   for (const [i, t] of teams.entries()) await bid(f, t.uid, t.mid, f.athletes[3 + i], 10 + i);

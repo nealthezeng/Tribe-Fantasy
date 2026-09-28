@@ -65,7 +65,7 @@ export function RulesPage() {
             {allowance(size)} for the team in last. Unspent credits carry over.</li>
           <li>Bids are sealed: nobody sees anyone's bids until the auction closes. Then every bid is shown to the
             league.</li>
-          <li>The highest bid wins each player and pays what it bid. A tie goes to the bid placed first. The minimum
+          <li>The highest bid wins each player and pays what it bid. A tie goes to the bid placed first (changing a bid counts as placing it again). A bid you can't afford by its turn is skipped. The minimum
             bid is {S.min_bid} credit.</li>
           <li>Players nobody won are dealt at random to teams with open spots, for free. Injured players are never
             dealt. If there aren't enough players, a team plays that season short.</li>
@@ -156,7 +156,7 @@ export function RulesPage() {
           <p>Your league sees rosters, results and every bid after the auction closes. Only you and the league staff
             see your credit balance. Other teams can't see your pick until it locks.</p>
           <h3>I'm a player. Can I opt out?</h3>
-          <p>Yes. Tell a captain. Players who opt out are never listed, bid on or scored.</p>
+          <p>Yes. Tell a captain before the next auction opens. Players who opt out aren't listed or bid on in the next auction.</p>
           <h3>What if a stat is wrong?</h3>
           <p>Tell a stat keeper. Sessions can be reopened before they lock, and an admin can correct a locked
             session. Scores update by themselves.</p>

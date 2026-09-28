@@ -28,7 +28,7 @@ jobs:
       # The site is public: fail if a secret key slipped in (new-style sb_secret_, or a legacy service_role JWT,
       # whose payload holds "service_role" base64-encoded at one of three alignments).
       - name: No secret keys in the bundle
-        run: "! grep -rlE 'sb_secret_|service_role|c2VydmljZV9yb2xl|NlcnZpY2Vfcm9sZ|zZXJ2aWNlX3JvbG' dist"
+        run: "test -d dist && ! grep -rlE 'sb_secret_|service_role|c2VydmljZV9yb2xl|NlcnZpY2Vfcm9sZ|zZXJ2aWNlX3JvbG' dist"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
