@@ -107,8 +107,7 @@ export function RulesPage() {
             {n(raw(tournament) * S.session_multipliers.tournament)}.</p>
           <p>Week score: <strong>{n(weekScore)}</strong>. The higher score wins the matchup.</p>
         </div>
-        <p className="muted">A session's stats count once a stat keeper has verified them and {S.stat_lock_hours} hours
-          have passed with no corrections.</p>
+        <p className="muted">A session's stats count {S.stat_lock_hours} hours after a stat keeper verifies them.</p>
       </article>
 
       <article className="card">
