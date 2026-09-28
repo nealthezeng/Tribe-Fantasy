@@ -19,7 +19,7 @@ describe('errorMessage', () => {
   });
   it('maps the M5 auction codes, naming the league that is short', () => {
     expect(errorMessage({ message: 'BID_CLOSED' })).toMatch(/has closed/);
-    expect(errorMessage({ message: 'INSUFFICIENT_CREDITS' })).toMatch(/more than your balance/);
+    expect(errorMessage({ message: 'INSUFFICIENT_CREDITS' })).toMatch(/Not enough credits/);
     expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES', details: 'League A' })).toMatch(/^League A has more roster spots/);
     expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES' })).toMatch(/^A league has more roster spots/);
   });

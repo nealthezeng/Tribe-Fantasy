@@ -110,8 +110,8 @@ describe('place_bid and delete_bid', () => {
     await expect(bid(f, alice, am, f.athletes[0], 0)).rejects.toThrow('INVALID_AMOUNT'); // min_bid 1
     await expect(bid(f, alice, am, f.athletes[0], null)).rejects.toThrow('INVALID_AMOUNT');
     await expect(bid(f, alice, am, f.athletes[0], 116)).rejects.toThrow('INSUFFICIENT_CREDITS');
-    await bid(f, alice, am, f.athletes[0], 115);
-    await bid(f, alice, am, f.athletes[1], 115); // the total across bids isn't capped
+    await expect(bid(f, alice, am, f.athletes[0], 106)).rejects.toThrow('INSUFFICIENT_CREDITS'); // 10 already on A6
+    await bid(f, alice, am, f.athletes[0], 105);
   });
 
   it('edits in place, resetting placed_at, and deletes', async () => {
@@ -207,11 +207,13 @@ describe('run_auction', () => {
     await openAuction(f);
     const [a0, a1, a2] = f.athletes;
     await bid(f, alice, am, a0, 100);
-    await bid(f, alice, am, a1, 90); // only 15 left after a0
+    await bid(f, alice, am, a1, 15); // bids may not total more than the balance (M8.5)
     await bid(f, bob, bm, a1, 5);
     await bid(f, bob, bm, a0, 1);
     await bid(f, bob, bm, a2, 3);
     await bid(f, bob, bm, f.athletes[3], 2); // roster full after a1 and a2
+    // Lower alice's balance after bidding: 5 left after a0, so the auction skips her 15 on a1.
+    await as(f.db, f.admin, (tx) => rpc(tx, 'adjust_credits', { p_membership: am, p_amount: -10, p_note: 'fix' }));
     await closeBids(f);
     await runAuction(f);
     const won = (await slots(f)).filter((s) => s.via === 'bid').map((s) => [s.membership_id, s.athlete_id, s.price]);
