@@ -38,15 +38,16 @@ begin
     jsonb_build_object('season_id', a.season_id, 'name', a.name, 'user_id', a.user_id));
 end $$;
 
--- For sessions started by mistake: unverified and no saved taps. The row lock conflicts with the KEY SHARE lock a
--- tap insert's FK check takes, so a tap either lands first (SESSION_NOT_EMPTY) or fails after the delete.
+-- For sessions started by mistake: unverified and no saved taps. Serialisation comes from save_taps' `for share`
+-- lock on the session row (0005): a queued tap either lands first (SESSION_NOT_EMPTY) or fails NOT_FOUND after
+-- the delete, and the phone's queue drops it.
 create function public.delete_session(p_session uuid) returns void
 language plpgsql security definer set search_path = '' as $$
-declare s public.sessions;
+declare uid uuid := private.require_keeper(); s public.sessions;
 begin
-  perform private.require_keeper();
   select * into s from public.sessions where id = p_session for update;
   if not found then raise exception 'NOT_FOUND'; end if;
+  if s.created_by is distinct from uid and not public.is_admin() then raise exception 'FORBIDDEN'; end if;
   if s.verified_at is not null then raise exception 'SESSION_VERIFIED'; end if;
   if exists (select 1 from public.stat_taps where session_id = p_session) then raise exception 'SESSION_NOT_EMPTY'; end if;
   delete from public.sessions where id = p_session;
@@ -89,7 +90,7 @@ begin
   end if;
   select coalesce(sum(amount), 0) into others from public.bids
   where stage_id = p_stage and membership_id = p_membership and athlete_id <> p_athlete;
-  if others + p_amount > private.balance(p_membership) then raise exception 'INSUFFICIENT_CREDITS'; end if;
+  if p_amount > private.balance(p_membership) - others then raise exception 'INSUFFICIENT_CREDITS'; end if;
   insert into public.bids (stage_id, membership_id, league_id, athlete_id, amount)
   values (p_stage, p_membership, lid, p_athlete, p_amount)
   on conflict (stage_id, membership_id, athlete_id) do update set amount = excluded.amount, placed_at = now();

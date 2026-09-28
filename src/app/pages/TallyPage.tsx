@@ -36,6 +36,7 @@ export function TallyPage() {
 function SessionPicker({ season, keeperId, onPick }: {
   season: CurrentSeason; keeperId: string; onPick: (id: string) => void;
 }) {
+  const { isAdmin } = useAuth();
   const [heldOn, setHeldOn] = useState(todayLocal());
   const [kind, setKind] = useState<'practice' | 'tournament'>('practice');
   const [counts, setCounts] = useState(true);
@@ -88,8 +89,9 @@ function SessionPicker({ season, keeperId, onPick }: {
                 {!s.counts && <span className="pill">Not counted</span>}
                 {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
               </span>
-              {/* Never offered while this phone still holds taps for it: they'd have nowhere to go. */}
-              {!s.verified_at && !unsaved.has(s.id) && (
+              {/* Never offered while this phone still holds taps for it: they'd have nowhere to go.
+                  Only the creator or an admin may delete (server enforces this too). */}
+              {!s.verified_at && !unsaved.has(s.id) && (s.created_by === keeperId || isAdmin) && (
                 <button className="secondary" onClick={() => void remove(s)}>Delete</button>
               )}
               <button className={s.verified_at ? 'secondary' : ''} onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>

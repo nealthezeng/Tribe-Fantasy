@@ -56,7 +56,7 @@ export function HomePage() {
         </div>
       )}
       {data?.map((m) => {
-        const subtitle = `${m.leagues?.name} · ${m.leagues?.seasons?.name}`;
+        const subtitle = [m.leagues?.name, m.leagues?.seasons?.name].filter(Boolean).join(' · ');
         const wallet = <Wallet entries={m.credit_ledger} />;
         const team = (
           <article className="card">
@@ -72,7 +72,7 @@ export function HomePage() {
           <Fragment key={m.id}>
             {m.leagues && uid ? (
               <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
-                balance={balance(m.credit_ledger)} joinedAt={m.created_at}
+                joinedAt={m.created_at}
                 teamName={m.team_name} subtitle={subtitle} team={team} wallet={wallet} />
             ) : team}
             {m.leagues && <WeeklyCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}

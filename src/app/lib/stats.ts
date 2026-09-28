@@ -28,10 +28,11 @@ export interface SessionRow {
   kind: 'practice' | 'tournament';
   held_on: string;
   counts: boolean;
+  created_by: string | null;
   verified_by: string | null;
   verified_at: string | null;
 }
-export const SESSION_COLUMNS = 'id, season_id, kind, held_on, counts, verified_by, verified_at';
+export const SESSION_COLUMNS = 'id, season_id, kind, held_on, counts, created_by, verified_by, verified_at';
 
 export type SessionState = 'open' | 'verified' | 'locked';
 

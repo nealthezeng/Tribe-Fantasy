@@ -63,11 +63,18 @@ describe('delete_athlete', () => {
 });
 
 describe('delete_session', () => {
-  it('lets a keeper delete an empty unverified session, with an audit row', async () => {
+  it('lets the creator delete an empty unverified session, with an audit row', async () => {
     const f = await statsFixture();
-    await as(f.db, f.k2, (tx) => rpc(tx, 'delete_session', { p_session: f.session }));
+    await as(f.db, f.k1, (tx) => rpc(tx, 'delete_session', { p_session: f.session }));
     expect((await f.db.query(`select 1 from public.sessions where id = $1`, [f.session])).rows).toHaveLength(0);
     expect((await audit(f.db, 'delete_session'))[0].details).toMatchObject({ kind: 'practice', held_on: '2026-11-16' });
+  });
+
+  it('refuses another keeper, and lets an admin delete anyone\'s session', async () => {
+    const f = await statsFixture();
+    await expect(as(f.db, f.k2, (tx) => rpc(tx, 'delete_session', { p_session: f.session }))).rejects.toThrow('FORBIDDEN');
+    await as(f.db, f.admin, (tx) => rpc(tx, 'delete_session', { p_session: f.session }));
+    expect((await f.db.query(`select 1 from public.sessions where id = $1`, [f.session])).rows).toHaveLength(0);
   });
 
   it('refuses a session with a saved tap, a verified session, and a missing one', async () => {

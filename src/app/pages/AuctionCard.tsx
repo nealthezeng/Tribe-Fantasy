@@ -8,7 +8,7 @@ import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
-import { credits } from '../lib/wallet';
+import { balance as sumLedger, credits } from '../lib/wallet';
 
 interface Athlete { id: string; name: string; user_id: string | null; opted_in: boolean }
 interface Team { id: string; team_name: string }
@@ -17,8 +17,8 @@ interface Team { id: string; team_name: string }
  * The team card and the auction for one team, in the stage pickAuctionStage chooses. While bidding is open they are
  * one block with a sticky header (players bid on, credits left); otherwise the team card, then the auction collapsed.
  */
-export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance, joinedAt, teamName, subtitle, team, wallet }: {
-  membershipId: string; leagueId: string; seasonId: string; userId: string; balance: number; joinedAt: string;
+export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, subtitle, team, wallet }: {
+  membershipId: string; leagueId: string; seasonId: string; userId: string; joinedAt: string;
   teamName: string; subtitle: string;
   /** The team card as it looks outside bidding. */
   team: ReactNode;
@@ -31,7 +31,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
     if (st.error) throw st.error;
     const stage = pickAuctionStage((st.data ?? []) as AuctionStage[]);
     if (!stage) return null;
-    const [season, athletes, injuries, bids, slots, teams] = await Promise.all([
+    const [season, athletes, injuries, bids, slots, teams, ledger] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
       // All of them, not just opted in: a rostered player who opts out later still needs a name.
       supabase!.from('athletes').select('id, name, user_id, opted_in').eq('season_id', seasonId).order('name'),
@@ -40,8 +40,11 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
         .order('amount', { ascending: false }),
       supabase!.from('roster_slots').select('membership_id, athlete_id, price, via').eq('stage_id', stage.id).eq('league_id', leagueId),
       supabase!.from('memberships').select('id, team_name').eq('league_id', leagueId).order('team_name'),
+      // Fetched fresh (not passed as a prop) so a donation credited while the tab is open doesn't leave the client
+      // refusing bids with a stale balance.
+      supabase!.from('credit_ledger').select('amount').eq('membership_id', membershipId),
     ]);
-    for (const r of [season, athletes, injuries, bids, slots, teams]) if (r.error) throw r.error;
+    for (const r of [season, athletes, injuries, bids, slots, teams, ledger]) if (r.error) throw r.error;
     const settings = parseSettings(season.data!.settings);
     return {
       stage,
@@ -52,8 +55,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
       bids: (bids.data ?? []) as BidRow[],
       slots: (slots.data ?? []) as SlotRow[],
       teams: (teams.data ?? []) as Team[],
+      balance: sumLedger((ledger.data ?? []) as { amount: number }[]),
     };
-  }, [seasonId, leagueId]);
+  }, [seasonId, leagueId, membershipId]);
 
   // Re-render while bidding is open so the countdown moves and the card flips to "closed" on time.
   const [now, setNow] = useState(Date.now);
@@ -71,12 +75,13 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
     setFlash((n) => n + 1);
     window.clearTimeout(flashTimer.current);
     flashTimer.current = window.setTimeout(() => setFlash(0), 1200);
+    reload(); // a stale balance (e.g. a donation credited while the tab was open) is the likely cause
   }
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
 
   if (loadError) return <>{team}<p className="error" role="alert">{loadError}</p></>;
   if (!data) return <>{team}</>; // loading, or no stage yet
-  const { stage, minBid, rosterSize, athletes, injured, bids, slots, teams } = data;
+  const { stage, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
   const phase = auctionPhase(stage, now);
   const name = new Map(athletes.map((a) => [a.id, a.name]));
   const mine = bids.filter((b) => b.membership_id === membershipId);
@@ -148,7 +153,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, balance,
       {team}
       <details className="card" aria-label={`${stage.name} auction`}>
         <summary>
-          {stage.name} auction
+          <h2>{stage.name} auction</h2>
           <span className={phase === 'run' ? 'pill' : 'pill info'}>
             {{ not_open: 'Not open yet', closed: 'Bids closed', run: 'Done' }[phase]}
           </span>

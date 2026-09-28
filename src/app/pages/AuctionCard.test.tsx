@@ -15,6 +15,7 @@ const db = vi.hoisted(() => ({
   bids: [] as Row[],
   roster_slots: [] as Row[],
   memberships: [] as Row[],
+  credit_ledger: [{ amount: 115 }] as Row[],
 }));
 
 vi.mock('../lib/supabase', () => ({
@@ -56,6 +57,7 @@ beforeEach(() => {
   db.bids = [];
   db.roster_slots = [];
   db.memberships = [];
+  db.credit_ledger = [{ amount: 115 }];
   vi.mocked(api.placeBid).mockClear();
   vi.mocked(api.deleteBid).mockClear();
 });
@@ -68,7 +70,7 @@ const athlete = (id: string, name: string) => ({ id, name, user_id: null, opted_
 
 function renderCard() {
   return render(
-    <AuctionCard membershipId="m1" leagueId="l1" seasonId="se1" userId="u1" balance={115} joinedAt="2026-09-01T00:00:00Z"
+    <AuctionCard membershipId="m1" leagueId="l1" seasonId="se1" userId="u1" joinedAt="2026-09-01T00:00:00Z"
       teamName="Test Zeal" subtitle="League A · Spring" team={<article>TEAM CARD</article>} wallet={<p>WALLET</p>} />,
   );
 }
@@ -120,6 +122,20 @@ describe('AuctionCard', () => {
     await waitFor(() => expect(document.body.textContent).toContain('105 credits left of 115'));
 
     expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
+  });
+
+  it('reloads the balance from the ledger (not a stale prop) after an over-budget refusal', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Alice') as unknown as Row];
+    renderCard();
+    await screen.findByText('Bidding open');
+    expect(document.body.textContent).toContain('115 credits left of 115');
+
+    db.credit_ledger = [{ amount: 165 }]; // a donation credited while the tab was open
+    fireEvent.change(screen.getByLabelText('Your bid on Alice, in credits'), { target: { value: '120' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Bid' }));
+    expect(api.placeBid).not.toHaveBeenCalled();
+    await waitFor(() => expect(document.body.textContent).toContain('165 credits left of 165'));
   });
 
   it('shows the team card plus a collapsed auction card before bidding opens', async () => {

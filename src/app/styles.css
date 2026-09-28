@@ -193,6 +193,8 @@ tbody tr:last-child td { border-bottom: 0; }
   background: var(--surface); border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0;
 }
 .bid-header.over { background: var(--error-soft); }
+/* The sticky header sits above the list, so a browser's own scroll-into-view for a focused control must clear it. */
+.bid input, .bid button { scroll-margin-top: 8rem; }
 .bid-sums { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
 .bid-sums p { display: flex; align-items: baseline; gap: var(--s2); }
 .bid-sums span { color: var(--muted); }
