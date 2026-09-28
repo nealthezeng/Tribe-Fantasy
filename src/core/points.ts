@@ -60,3 +60,8 @@ export function applyDelta(points: number, delta: number, s: SeasonSettings): nu
   const next = points + delta;
   return s.standings_floor === null ? next : Math.max(s.standings_floor, next);
 }
+
+/** A stage's free credits for a team at `rank` (1 = best, ties averaged) of `n`. Mirrors grant_stage_allowance (0008). */
+export function stageAllowance(rank: number, n: number, s: SeasonSettings): number {
+  return Math.round(n < 2 ? s.allowance_base : s.allowance_base + (s.allowance_gap * (rank - 1)) / (n - 1));
+}

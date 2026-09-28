@@ -110,6 +110,7 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, 16px side p
   like a link. `.button` makes a link look like a button. Buttons in a stack sit at their natural width, left.
 - **`.list`**: on the page, each row is its own bordered box (min 56px tall). Inside a `.card`, rows become
   plain rows split by divider lines.
+- **Bullet lists** directly inside a `.card` (the rules page) sit flush with 8px gaps.
 - **Banners** like "Welcome! Set your name" show only on the League page, never on task screens like Tally.
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
   `.warn`, `.bad`.
