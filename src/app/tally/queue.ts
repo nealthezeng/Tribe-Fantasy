@@ -126,3 +126,6 @@ export function lastUndoable(saved: Tap[], queued: Tap[], keeperId: string, athl
   if (q.length > 0) return q[q.length - 1];
   return live(saved).sort((a, b) => a.tappedAt - b.tappedAt).at(-1) ?? null;
 }
+
+/** Why holding a button took nothing off: someone else's taps make up the count, or there's nothing to take. */
+export const subtractHint = (count: number) => (count > 0 ? 'Only your own taps can be removed.' : 'Already at 0.');

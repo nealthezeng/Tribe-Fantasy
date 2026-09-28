@@ -109,6 +109,7 @@ label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(
 .list .title { font-weight: var(--fw-semi); }
 .list a.title { color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
 .list a.title:hover { text-decoration: underline; }
+.list li.used .title { color: var(--muted); font-weight: var(--fw-regular); } /* greyed; the "Used" pill says why */
 
 
 /* State in words and shape: pills always carry their own label. */
@@ -173,7 +174,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .disc-hub { fill: var(--blue); }
 
 /* Auction: a short amount box beside each player; admin auction controls take their own line in a stage row. */
-.bid { display: flex; gap: var(--s2); align-items: center; }
+.bid { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); align-items: center; margin-left: auto; }
+.bid small { flex-basis: 100%; text-align: right; }
 .bid input { width: 96px; }
 .list li > .row { flex: 1 1 100%; }
 

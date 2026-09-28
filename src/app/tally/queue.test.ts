@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Tap } from '../../core/taps';
 import {
-  canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, removeSent, storeQueue, unsavedTaps,
+  canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, removeSent, storeQueue, subtractHint, unsavedTaps,
   type QueuedTap,
 } from './queue';
 
@@ -94,6 +94,15 @@ describe('lastUndoable for one button (hold to subtract)', () => {
 
   it('never goes below zero: an undone tap cannot be undone again', () => {
     expect(lastUndoable([tap('g1', 'me', 1)], [tap('u1', 'me', 2, 'g1')], 'me', 'sam', 'goal')).toBeNull();
+  });
+});
+
+describe('subtractHint', () => {
+  it("says why nothing came off: another keeper's taps, or already at 0", () => {
+    // Another keeper tapped once; this keeper has nothing to take back.
+    expect(lastUndoable([tap('g1', 'other', 1)], [], 'me', 'sam', 'goal')).toBeNull();
+    expect(subtractHint(1)).toBe('Only your own taps can be removed.');
+    expect(subtractHint(0)).toBe('Already at 0.');
   });
 });
 
