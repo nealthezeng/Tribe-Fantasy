@@ -63,6 +63,7 @@ export function RulesPage() {
         <ul>
           <li>Every team gets free credits at the start of each season: {allowance(1)} for the team in first, up to{' '}
             {allowance(size)} for the team in last. Unspent credits carry over.</li>
+          <li>Your bids together can't be more than your credits: the app won't take a bid that goes over.</li>
           <li>Bids are sealed: nobody sees anyone's bids until the auction closes. Then every bid is shown to the
             league.</li>
           <li>The highest bid wins each player and pays what it bid. A tie goes to the bid placed first (changing a bid counts as placing it again). A bid you can't afford by its turn is skipped. The minimum

@@ -55,23 +55,30 @@ export function HomePage() {
           <Link to="/join" className="button">Join with an invite code</Link>
         </div>
       )}
-      {data?.map((m) => (
-        <Fragment key={m.id}>
+      {data?.map((m) => {
+        const subtitle = `${m.leagues?.name} · ${m.leagues?.seasons?.name}`;
+        const wallet = <Wallet entries={m.credit_ledger} />;
+        const team = (
           <article className="card">
             <div>
               <h2>{m.team_name}</h2>
-              <p className="muted">{m.leagues?.name} · {m.leagues?.seasons?.name}</p>
+              <p className="muted">{subtitle}</p>
             </div>
             <p><span className="big">{balance(m.credit_ledger)}</span> {Math.abs(balance(m.credit_ledger)) === 1 ? 'credit' : 'credits'}</p>
-            <Wallet entries={m.credit_ledger} />
+            {wallet}
           </article>
-          {m.leagues && uid && (
-            <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
-              balance={balance(m.credit_ledger)} joinedAt={m.created_at} />
-          )}
-          {m.leagues && <WeeklyCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}
-        </Fragment>
-      ))}
+        );
+        return (
+          <Fragment key={m.id}>
+            {m.leagues && uid ? (
+              <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
+                balance={balance(m.credit_ledger)} joinedAt={m.created_at}
+                teamName={m.team_name} subtitle={subtitle} team={team} wallet={wallet} />
+            ) : team}
+            {m.leagues && <WeeklyCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}
+          </Fragment>
+        );
+      })}
       {data && data.length > 0 && <p><Link to="/join">Join another league</Link></p>}
     </section>
   );

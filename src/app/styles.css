@@ -185,7 +185,23 @@ tbody tr:last-child td { border-bottom: 0; }
 .subnav button:hover:not(:disabled) { background: var(--surface-2); }
 .subnav button[aria-pressed='true'], .subnav button[aria-pressed='true']:hover:not(:disabled) { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 
+/* League tab while bidding is open: the header stays on screen while you scroll the bid list (the top bar isn't
+   sticky, so top: 0). Negative margins let it cover the card's padding edge to edge. */
+.bid-header {
+  position: sticky; top: 0; z-index: 2; display: grid; gap: var(--s2);
+  margin: calc(-1 * var(--s4)) calc(-1 * var(--s4)) 0; padding: var(--s3) var(--s4);
+  background: var(--surface); border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0;
+}
+.bid-header.over { background: var(--error-soft); }
+.bid-sums { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
+.bid-sums p { display: flex; align-items: baseline; gap: var(--s2); }
+.bid-sums span { color: var(--muted); }
+.flash-bad { color: var(--error); } /* reduced motion: just red while .over lasts */
+@keyframes flash-bad { 50% { transform: scale(1.15); } }
+
 @media (prefers-reduced-motion: no-preference) {
+  .flash-bad { display: inline-block; animation: flash-bad 400ms ease-in-out 3; }
+  .bid-header { transition: background-color 150ms ease-out; }
   button, .button, a, .pill { transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out; }
   .tally-buttons button { transition: none; } /* a tap must show instantly */
 }
@@ -195,5 +211,6 @@ tbody tr:last-child td { border-bottom: 0; }
 @media (max-width: 600px) {
   .card, .hero, .page > .list > li { margin-inline: -16px; border-radius: 0; border-inline: 0; }
   .card, .hero, .page > .list > li { padding-inline: 16px; }
+  .bid-header { border-radius: 0; }
   .shell > .hero:first-child { margin-top: calc(-1 * var(--s5)); border-top: 0; } /* one black block with the top bar */
 }
