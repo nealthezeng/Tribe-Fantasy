@@ -76,3 +76,16 @@
    before anyone has picked).
 5. Standings and scores are computed in each browser from locked stats, so a correction or reopen shows up on the
    next page load. **Grant allowance** now pays by the current standings and warns if an earlier week isn't final.
+
+## M8 hardening (after 0001–0008)
+
+1. SQL Editor: paste and run `supabase/migrations/0009_hardening.sql`. It only replaces four functions, so it is
+   safe before or after the deploy:
+   - a week's pick lock can't be moved once it has passed, or to after the week ends;
+   - a keeper still counts as an athlete's owner for a week after that stage ends (its closing tournament);
+   - a keeper can't confirm their own injury.
+2. **Admin → Backup**: download a backup every week and keep it somewhere private. The ledger and standings CSVs
+   are for the treasurer.
+3. The rules page is public at `#/rules` (linked from the landing page and the account menu). Its numbers are the
+   standard settings in `src/core/settings.ts`, not a season's own settings.
+
