@@ -77,6 +77,23 @@ describe('database guards', () => {
     expect(rows).toEqual([]);
   });
 
+  it('keeps private out of reach: no schema usage, no function execute for anon/authenticated', async () => {
+    const { rows } = await db.query(`
+      select g.grantee, coalesce(p.oid::regprocedure::text, 'schema') as what
+      from (values ('anon'), ('authenticated')) as g(grantee)
+      left join pg_proc p on p.pronamespace = 'private'::regnamespace and has_function_privilege(g.grantee, p.oid, 'execute')
+      where p.oid is not null or has_schema_privilege(g.grantee, 'private', 'usage')`);
+    expect(rows).toEqual([]);
+  });
+
+  it('pins search_path on every security definer function', async () => {
+    const { rows } = await db.query(`
+      select p.oid::regprocedure::text as fn from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname in ('public', 'private') and p.prosecdef
+        and not coalesce(p.proconfig @> array['search_path=""'], false)`);
+    expect(rows).toEqual([]);
+  });
+
   it('keeps default privileges tight for objects created after the migrations run', async () => {
     // Regression test for the default-privilege gap: Supabase (and the shim mirroring
     // it) grants anon/authenticated ALL on new tables and EXECUTE on new functions by

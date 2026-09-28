@@ -107,6 +107,8 @@ describe('RPC gate', () => {
       }
       if (name === 'set_week_lock') {
         c.week = (await db.query<{ id: string }>(`select id from public.weeks order by starts_on offset 1 limit 1`)).rows[0].id;
+        // A passed lock can't be moved, so keep this test off the calendar.
+        await db.query(`update public.weeks set pick_lock_at = now() + interval '1 hour' where id = $1`, [c.week]);
       }
       if (name === 'run_auction') {
         await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);

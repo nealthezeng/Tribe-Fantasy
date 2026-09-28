@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { auctionPhase, pickAuctionStage, timeLeft, type AuctionStage } from './auction';
+import { auctionPhase, ownershipStages, pickAuctionStage, timeLeft, type AuctionStage } from './auction';
 
 const now = Date.parse('2026-10-18T12:00:00Z');
 
@@ -37,5 +37,16 @@ describe('pickAuctionStage', () => {
   it('falls back to the latest stage before any auction opens, and to null with no stages', () => {
     expect(pickAuctionStage([stage('a', '2026-10-18', null), stage('b', '2027-02-01', null)])?.id).toBe('b');
     expect(pickAuctionStage([])).toBeNull();
+  });
+});
+
+describe('ownershipStages', () => {
+  const st = (id: string, starts_on: string, ends_on: string) => ({ id, starts_on, ends_on });
+  it('keeps the latest stage and any that ended in the last 8 days', () => {
+    const stages = [st('old', '2026-09-01', '2026-10-01'), st('fall', '2026-10-18', '2026-11-08'), st('next', '2026-11-09', '2026-11-29')];
+    expect(ownershipStages(stages, '2026-11-10')).toEqual(['fall', 'next']);
+    expect(ownershipStages(stages, '2026-11-16')).toEqual(['fall', 'next']);
+    expect(ownershipStages(stages, '2026-11-17')).toEqual(['next']);
+    expect(ownershipStages([], '2026-11-17')).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { as, createUser, freshDb, migrationSql, rpc } from './helpers';
-import { auctionFixture, member, type AuctionFixture } from './auction-fixture';
+import { auctionFixture, inAnHour, member, type AuctionFixture } from './auction-fixture';
 import { makeKeeper } from './stats-fixture';
 
 let f: AuctionFixture;
@@ -72,6 +72,10 @@ describe('create_stage_weeks', () => {
     expect((await weeks()).map((w) => `${w.starts_on}..${w.ends_on}`)).toEqual(['2026-10-19..2026-10-25', '2026-10-26..2026-11-01']);
   });
 
+  it('refuses an unknown stage', async () => {
+    await expect(createWeeks(crypto.randomUUID())).rejects.toThrow('NOT_FOUND');
+  });
+
   it('is admin-only', async () => {
     await expect(as(f.db, alice, (tx) => rpc(tx, 'create_stage_weeks', { p_stage: f.stage }))).rejects.toThrow('FORBIDDEN');
     await expect(as(f.db, alice, (tx) => rpc(tx, 'set_week_lock', { p_week: null, p_at: null }))).rejects.toThrow('FORBIDDEN');
@@ -82,11 +86,30 @@ describe('set_week_lock', () => {
   it('moves one week and audits old and new', async () => {
     await createWeeks();
     const [, w1] = await weeks();
-    await as(f.db, f.admin, (tx) => rpc(tx, 'set_week_lock', { p_week: w1.id, p_at: '2026-10-20T22:00:00Z' }));
-    expect((await weeks())[1].lock).toBe('2026-10-20T22:00Z');
+    await lockIn(w1.id, 3600);
+    const before = (await f.db.query<{ ms: number }>(
+      'select extract(epoch from pick_lock_at) * 1000 as ms from public.weeks where id = $1', [w1.id])).rows[0].ms;
+    const at = new Date(Date.now() + 7_200_000).toISOString();
+    await as(f.db, f.admin, (tx) => rpc(tx, 'set_week_lock', { p_week: w1.id, p_at: at }));
+    expect(Date.parse((await weeks())[1].lock)).toBe(Date.parse(at.slice(0, 16) + 'Z'));
     await expect(as(f.db, f.admin, (tx) => rpc(tx, 'set_week_lock', { p_week: w1.id, p_at: null }))).rejects.toThrow('INVALID_LOCK_TIME');
-    const log = await f.db.query<{ details: { new: string } }>(`select details from public.audit_log where action = 'set_week_lock'`);
+    const log = await f.db.query<{ details: { old: string; new: string } }>(`select details from public.audit_log where action = 'set_week_lock'`);
     expect(log.rows).toHaveLength(1);
+    expect(Math.abs(Date.parse(log.rows[0].details.old) - Number(before))).toBeLessThan(1);
+    expect(Date.parse(log.rows[0].details.new)).toBe(Date.parse(at));
+  });
+
+  it("won't move a lock that has passed (that would unseal picks and allow picking after the results)", async () => {
+    await createWeeks();
+    const [, w1] = await weeks();
+    await lockIn(w1.id, -1);
+    await expect(as(f.db, f.admin, (tx) => rpc(tx, 'set_week_lock', { p_week: w1.id, p_at: inAnHour() })))
+      .rejects.toThrow('PICK_LOCKED');
+  });
+
+  it('refuses an unknown week', async () => {
+    await expect(as(f.db, f.admin, (tx) => rpc(tx, 'set_week_lock', { p_week: crypto.randomUUID(), p_at: inAnHour() })))
+      .rejects.toThrow('NOT_FOUND');
   });
 });
 
@@ -114,6 +137,20 @@ describe('set_pick', () => {
     await lockIn(week, -1);
     await expect(setPick(alice, aliceM, week, f.athletes[0])).rejects.toThrow('PICK_LOCKED');
     await expect(setPick(alice, aliceM, week, null)).rejects.toThrow('PICK_LOCKED');
+  });
+
+  it("refuses a week from another season's stage (the athlete isn't on that stage's roster)", async () => {
+    const other = await as(f.db, f.admin, async (tx) => {
+      const season = (await rpc(tx, 'create_season', { p_name: 'Next year', p_settings: {} })) as string;
+      const stage = (await rpc(tx, 'create_stage', {
+        p_season: season, p_name: 'Spring', p_starts_on: '2027-02-01', p_ends_on: '2027-02-21', p_tournament: null })) as string;
+      await rpc(tx, 'create_stage_weeks', { p_stage: stage });
+      return stage;
+    });
+    const w = (await f.db.query<{ id: string }>('select id from public.weeks where stage_id = $1 order by starts_on limit 1', [other])).rows[0].id;
+    await lockIn(w, 3600);
+    await expect(setPick(alice, aliceM, w, f.athletes[0])).rejects.toThrow('NOT_ON_ROSTER');
+    expect((await f.db.query('select 1 from public.picks')).rows).toEqual([]);
   });
 
   it("doesn't check no-repeat or injuries (the scorer replaces those picks at the lock)", async () => {

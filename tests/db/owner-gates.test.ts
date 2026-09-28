@@ -14,15 +14,21 @@ beforeEach(async () => {
      values ($1, 'Fall beta', '2026-10-18', '2026-11-08', now(), 'seed', now()) returning id`, [f.season])).rows[0].id;
 });
 
-/** Superuser writes: `user` gets a team in the fixture's league with `athlete` on its roster. */
-async function own(user: string, athlete: string) {
+/** Superuser writes: `user` gets a team in the fixture's league with `athlete` on its roster in `inStage`. */
+async function own(user: string, athlete: string, inStage = stage) {
   const mid = (await f.db.query<{ id: string }>(
     `insert into public.memberships (league_id, user_id, team_name) values ($1, $2, $3) returning id`,
     [f.league, user, `Team ${user.slice(0, 8)}`])).rows[0].id;
   await f.db.query(
     `insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
-     values ($1, $2, $3, $4, 0, 'fill')`, [stage, mid, f.league, athlete]);
+     values ($1, $2, $3, $4, 0, 'fill')`, [inStage, mid, f.league, athlete]);
 }
+
+/** Superuser write: an auctioned stage `fromDays`..`toDays` from today (negative = past). */
+const stageAt = async (name: string, fromDays: number, toDays: number) => (await f.db.query<{ id: string }>(
+  `insert into public.stages (season_id, name, starts_on, ends_on, bid_close_at, auction_seed, auction_run_at)
+   values ($1, $2, current_date + $3::int, current_date + $4::int, now(), 'seed', now()) returning id`,
+  [f.season, name, fromDays, toDays])).rows[0].id;
 
 const now = () => new Date().toISOString();
 const save = (keeper: string, athlete: string) =>
@@ -79,6 +85,27 @@ describe('owner gates', () => {
     await mark(f.ali);
     await f.db.query(`update public.athletes set user_id = $1 where id = $2`, [f.k1, f.sam]); // k1 is Sam
     await mark(f.sam);
+  });
+
+  it("still counts last stage's owner while its closing tournament is verified after the next auction", async () => {
+    const ended = await stageAt('Just ended', -20, -2);
+    await stageAt('Next', -1, 20);
+    await own(f.k1, f.sam, ended);
+    await expect(save(f.k1, f.sam)).rejects.toThrow('OWNS_ATHLETE');
+  });
+
+  it('forgets owners of a stage that ended over a week ago', async () => {
+    const old = await stageAt('Long over', -30, -10);
+    await own(f.k1, f.sam, old);
+    await save(f.k1, f.sam);
+  });
+
+  it('a keeper who is the injured player can report but not confirm their own injury', async () => {
+    await f.db.query(`update public.athletes set user_id = $1 where id = $2`, [f.k1, f.sam]); // k1 is Sam
+    const iid = (await as(f.db, f.k1, (tx) => rpc(tx, 'report_injury', { p_athlete: f.sam }))) as string;
+    const row = await f.db.query<{ confirmed_at: string | null }>(`select confirmed_at from public.injuries where id = $1`, [iid]);
+    expect(row.rows[0].confirmed_at).toBeNull();
+    await expect(as(f.db, f.k1, (tx) => rpc(tx, 'confirm_injury', { p_injury: iid }))).rejects.toThrow('OWNS_ATHLETE');
   });
 
   it('confirm_injury refuses an owner, and report_injury by an owner is not auto-confirmed', async () => {
