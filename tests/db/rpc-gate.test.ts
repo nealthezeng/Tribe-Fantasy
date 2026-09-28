@@ -13,7 +13,7 @@ const MEMBER_CALLABLE = [
   'set_pick',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
-const KEEPER_CALLABLE = ['confirm_injury', 'create_session', 'reopen_session', 'save_taps', 'verify_session'];
+const KEEPER_CALLABLE = ['confirm_injury', 'create_session', 'delete_session', 'reopen_session', 'save_taps', 'verify_session'];
 
 let db: PGlite;
 let fns: { name: string; nargs: number }[];
@@ -91,6 +91,9 @@ describe('RPC gate', () => {
       ['create_stage_weeks', admin, () => ({ p_stage: c.stage })],
       ['set_week_lock', admin, () => ({ p_week: c.week, p_at: new Date(Date.now() + 3_600_000).toISOString() })],
       ['set_pick', player, () => ({ p_membership: c.membership, p_week: c.week, p_athlete: c.athlete })],
+      ['rename_athlete', admin, () => ({ p_athlete: c.athlete, p_name: 'Patricia' })],
+      ['delete_athlete', admin, () => ({ p_athlete: c.spare })],
+      ['delete_session', keeper, () => ({ p_session: c.empty })],
     ];
 
     const covered = new Set(steps.map(([name]) => name));
@@ -110,6 +113,13 @@ describe('RPC gate', () => {
         // A passed lock can't be moved, and 0009's set_week_lock refuses a p_at past the week's end, so keep both
         // off the calendar (the week's own ends_at is a fixed 2026 date from the fixture stage).
         await db.query(`update public.weeks set pick_lock_at = now() + interval '1 hour', ends_at = now() + interval '1 day' where id = $1`, [c.week]);
+      }
+      if (name === 'delete_athlete') {
+        c.spare = (await as(db, admin, (tx) => rpc(tx, 'add_athlete', { p_season: c.season, p_name: 'Spare', p_user: null }))) as string;
+      }
+      if (name === 'delete_session') {
+        c.empty = (await as(db, keeper, (tx) =>
+          rpc(tx, 'create_session', { p_season: c.season, p_kind: 'practice', p_held_on: '2026-11-17', p_counts: true }))) as string;
       }
       if (name === 'run_auction') {
         await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);

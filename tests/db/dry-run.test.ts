@@ -41,9 +41,13 @@ beforeAll(async () => {
   // Same-millisecond placed_at would leave the tie to a random id: make Ava's bid clearly first.
   await f.db.query(`update public.bids set placed_at = placed_at - interval '1 second' where membership_id = $1 and athlete_id = $2`,
     [teams[0].mid, f.athletes[0]]);
-  await bid(f, teams[1].uid, teams[1].mid, f.athletes[1], 100);
-  await bid(f, teams[1].uid, teams[1].mid, f.athletes[2], 100); // unaffordable after A1
   for (const [i, t] of teams.entries()) await bid(f, t.uid, t.mid, f.athletes[3 + i], 10 + i);
+  // Ben overspends. place_bid refuses a total over the balance since M8.5, so these are direct writes: they exercise
+  // run_auction's affordability skip, the safety net for a balance lowered mid-auction.
+  for (const [athlete, amount] of [[f.athletes[1], 100], [f.athletes[2], 100]] as const) {
+    await f.db.query(`insert into public.bids (stage_id, membership_id, league_id, athlete_id, amount) values ($1, $2, $3, $4, $5)`,
+      [f.stage, teams[1].mid, f.league, athlete, amount]); // A2 is unaffordable after A1
+  }
   await closeBids(f);
   expect(await runAuction(f)).toEqual({ by_bid: 8, by_fill: 16, empty: 0 });
 

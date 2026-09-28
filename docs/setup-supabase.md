@@ -91,3 +91,19 @@
 4. The rules page is public at `#/rules` (linked from the landing page and the account menu). Its numbers are the
    standard settings in `src/core/settings.ts`, not a season's own settings.
 
+## M8.5 quality-of-life (after 0001–0009)
+
+1. Before pasting, check no open stage already has a manager whose bids total more than their balance (the new
+   `place_bid` would refuse that manager's next bid, but existing bids are untouched either way):
+   ```sql
+   select b.membership_id, sum(b.amount) as bid_total,
+          (select coalesce(sum(amount), 0) from public.credit_ledger where membership_id = b.membership_id) as balance
+   from public.bids b join public.stages s on s.id = b.stage_id
+   where s.bid_close_at > now() and s.auction_run_at is null
+   group by b.membership_id
+   having sum(b.amount) > (select coalesce(sum(amount), 0) from public.credit_ledger where membership_id = b.membership_id);
+   ```
+2. SQL Editor: paste and run `supabase/migrations/0010_qol.sql` before the deploy. It's additive, so the old site
+   keeps working — the only behaviour change it sees is the stricter `place_bid`: bids may not total more than the
+   balance.
+

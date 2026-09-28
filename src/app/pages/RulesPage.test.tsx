@@ -22,4 +22,9 @@ describe('RulesPage', () => {
     expect(screen.getByText(/A donation is a donation to the team fund/).textContent).toMatch(/no cash value/);
     expect(document.body.textContent).toContain('merch prize');
   });
+
+  it('says bids may not total more than your credits', () => {
+    render(<RulesPage />);
+    expect(document.body.textContent).toContain("Your bids together can't be more than your credits");
+  });
 });

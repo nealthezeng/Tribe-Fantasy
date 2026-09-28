@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { allocate, type Bid } from '../../src/core/allocation';
 import { as, rpc } from './helpers';
-import { auctionFixture, bid, closeBids, grant, member, openAuction, runAuction, slots } from './auction-fixture';
+import { auctionFixture, closeBids, grant, member, openAuction, runAuction, slots } from './auction-fixture';
 
 /** Small deterministic PRNG so a failing draft can be replayed. */
 function lcg(seed: number) {
@@ -23,9 +23,14 @@ describe('run_auction matches allocate()', () => {
         if (extra !== 0) await as(f.db, f.admin, (tx) => rpc(tx, 'adjust_credits', { p_membership: mid, p_amount: extra, p_note: 'x' }));
       }
       await openAuction(f);
-      for (const [uid, mid] of teams) {
+      for (const [, mid] of teams) {
         for (const athlete of f.athletes) {
-          if (rand(3) === 0) await bid(f, uid, mid, athlete, 1 + rand(60)); // amounts collide often
+          // Direct writes: totals may exceed budgets here (place_bid refuses that since M8.5), so the
+          // affordability skip both sides implement still gets exercised. Amounts collide often.
+          if (rand(3) === 0) {
+            await f.db.query(`insert into public.bids (stage_id, membership_id, league_id, athlete_id, amount)
+              values ($1, $2, $3, $4, $5)`, [f.stage, mid, f.league, athlete, 1 + rand(60)]);
+          }
         }
       }
       // Distinct millisecond timestamps in random order, so ties by amount resolve on placed_at as in the core.
