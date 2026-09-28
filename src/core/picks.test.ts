@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
-import { availableAthletes, defaultPick, usedThisCycle, validatePick, type PickRecord } from './picks';
+import { defaultPick, usedThisCycle, validatePick, type PickRecord } from './picks';
 
 const s = parseSettings({});
 const p = (week: number, managerId: string, athleteId: string): PickRecord => ({ week, managerId, athleteId });
@@ -10,43 +10,20 @@ describe('usedThisCycle', () => {
 
   it('tracks athletes used so far this cycle, only counting weeks before the current one', () => {
     const picks = [p(1, 'm1', 'a1'), p(2, 'm1', 'a2'), p(3, 'm1', 'a3')];
-    expect([...usedThisCycle('m1', roster, picks, 3, s)].sort()).toEqual(['a1', 'a2']);
+    expect([...usedThisCycle('m1', roster, picks, 3)].sort()).toEqual(['a1', 'a2']);
   });
 
   it('resets once every rostered athlete has been used', () => {
     const picks = [p(1, 'm1', 'a1'), p(2, 'm1', 'a2'), p(3, 'm1', 'a3'), p(4, 'm1', 'a2')];
-    expect([...usedThisCycle('m1', roster, picks, 4, s)]).toEqual([]);
-    expect([...usedThisCycle('m1', roster, picks, 5, s)]).toEqual(['a2']);
-  });
-
-  it('counts a traded-in athlete the previous owner used this cycle (trade_keeps_usage)', () => {
-    const picks = [p(1, 'm1', 'a1'), p(1, 'm2', 'a3')];
-    expect([...usedThisCycle('m1', roster, picks, 2, s)].sort()).toEqual(['a1', 'a3']);
-    const off = parseSettings({ trade_keeps_usage: false });
-    expect([...usedThisCycle('m1', roster, picks, 2, off)]).toEqual(['a1']);
-  });
-
-  it('resets instead of deadlocking when trades leave every rostered athlete used', () => {
-    const picks = [p(1, 'm1', 'a1'), p(1, 'm2', 'a2'), p(1, 'm3', 'a3')];
-    const used = usedThisCycle('m1', roster, picks, 2, s);
-    expect(availableAthletes(roster, used)).toEqual(roster);
+    expect([...usedThisCycle('m1', roster, picks, 4)]).toEqual([]);
+    expect([...usedThisCycle('m1', roster, picks, 5)]).toEqual(['a2']);
   });
 
   it('ignores used athletes who are no longer on the roster', () => {
     const picks = [p(1, 'm1', 'gone')];
-    expect([...usedThisCycle('m1', roster, picks, 2, s)]).toEqual([]);
+    expect([...usedThisCycle('m1', roster, picks, 2)]).toEqual([]);
   });
 
-  it('starts a new cycle when trade-carried usage completes the old one', () => {
-    const picks = [p(1, 'm1', 'a1'), p(2, 'm1', 'a2'), p(1, 'm2', 'a3'), p(3, 'm1', 'a1')];
-    expect([...usedThisCycle('m1', roster, picks, 4, s)]).toEqual(['a1']);
-  });
-
-  it('does not carry usage when ownership is not exclusive', () => {
-    const picks = [p(1, 'm1', 'a1'), p(1, 'm2', 'a3')];
-    const nonExclusive = parseSettings({ exclusive_ownership: false });
-    expect([...usedThisCycle('m1', roster, picks, 2, nonExclusive)]).toEqual(['a1']);
-  });
 });
 
 describe('validatePick', () => {

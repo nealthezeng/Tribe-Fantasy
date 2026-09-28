@@ -126,8 +126,10 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, 16px side p
 
 ## Tally board
 
-- A sticky `.tally-bar` holds the back link, the session name, the sync pill (Saved / Saving / Offline, in
-  words) and "Undo last tap".
+- A sticky `.tally-bar` holds the back link, the session name and the sync pill (Saved / Saving / Offline, in
+  words). There is no undo button: holding a stat button (~500 ms) takes one of your own taps off, with a
+  buzz and an inverted flash (`.minus`) so it never reads as a tap. Minus, Delete or Backspace does the same
+  from the keyboard.
 - Each player is a `.tally-card`. Stat buttons are big neutral tiles (at least 76px tall, 56px wide) with the
   label on top, the count large in the middle and the points small below. They are not gold; gold is only the press flash.
 - Negative stats use a dashed border so the difference is not colour alone.

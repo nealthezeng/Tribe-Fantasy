@@ -1,4 +1,3 @@
-import { tenureMultiplier } from './decay';
 import { applyDelta, matchupDeltas, rankSnapshot, type StandingRow } from './points';
 import { athleteWeekScore, type StatLine } from './scoring';
 import type { SeasonSettings } from './settings';
@@ -10,12 +9,12 @@ export interface WeekMatchup {
 }
 
 export interface WeekInput {
-  week: number;
   settings: SeasonSettings;
   matchups: WeekMatchup[];
   picks: Record<string, string | null>;
   statLines: StatLine[];
-  acquiredWeek: Record<string, number>;
+  /** Degradation per picked (manager, athlete), keyed by `pairKey`. See `stageMultiplier`. */
+  multipliers: Record<string, number>;
   standings: StandingRow[];
 }
 
@@ -41,7 +40,7 @@ export interface WeekResult {
   standings: StandingRow[];
 }
 
-export const acquiredKey = (managerId: string, athleteId: string) => `${managerId}:${athleteId}`;
+export const pairKey = (managerId: string, athleteId: string) => `${managerId}:${athleteId}`;
 
 export function scoreWeek(input: WeekInput): WeekResult {
   const s = input.settings;
@@ -59,8 +58,9 @@ export function scoreWeek(input: WeekInput): WeekResult {
     const athleteId = input.picks[managerId] ?? null;
     if (athleteId === null) return { managerId, athleteId, athleteScore: 0, multiplier: 0, score: 0, delta: 0 };
     const athleteScore = scoreOf(athleteId);
-    const acquired = input.acquiredWeek[acquiredKey(managerId, athleteId)] ?? input.week;
-    const multiplier = tenureMultiplier(input.week, acquired, s);
+    const multiplier = input.multipliers[pairKey(managerId, athleteId)];
+    // Gate from the M1+M2 reviews: a missing entry is a caller bug, never a silent 1.
+    if (multiplier === undefined) throw new Error(`No multiplier for ${pairKey(managerId, athleteId)}`);
     return { managerId, athleteId, athleteScore, multiplier, score: athleteScore * multiplier, delta: 0 };
   };
 

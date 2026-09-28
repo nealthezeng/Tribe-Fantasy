@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
 import { applyDelta, matchupDeltas, rankSnapshot, type StandingRow } from './points';
 
-const s = parseSettings({});
+// Pinned to k = 1 so the numbers below read directly off the formula.
+const s = parseSettings({ upset_k: 1 });
 const rows: StandingRow[] = [
   { managerId: 'm1', points: 9, totalScore: 10 },
   { managerId: 'm2', points: 6, totalScore: 10 },

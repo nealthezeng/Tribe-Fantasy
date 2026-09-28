@@ -1,5 +1,5 @@
 import type { PGlite } from '@electric-sql/pglite';
-import { as, createUser, freshDb, makeAdmin, rpc } from './helpers';
+import { as, createUser, freshDb, makeAdmin, rpc, tiedRanks } from './helpers';
 
 export interface AuctionFixture {
   db: PGlite;
@@ -42,7 +42,10 @@ export async function member(db: PGlite, name: string, code = 'LEAGUE1'): Promis
   return [uid, mid];
 }
 
-export const grant = (f: AuctionFixture) => as(f.db, f.admin, (tx) => rpc(tx, 'grant_stage_allowance', { p_stage: f.stage }));
+export const grant = async (f: AuctionFixture) => {
+  const ranks = await tiedRanks(f.db);
+  return as(f.db, f.admin, (tx) => rpc(tx, 'grant_stage_allowance', { p_stage: f.stage, p_ranks: ranks }));
+};
 export const openAuction = (f: AuctionFixture, closeAt: string | null = inAnHour()) =>
   as(f.db, f.admin, (tx) => rpc(tx, 'open_auction', { p_stage: f.stage, p_close_at: closeAt }));
 /** Superuser write: moves the close time into the past without waiting. */

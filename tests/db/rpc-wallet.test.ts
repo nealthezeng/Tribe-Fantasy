@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { PGlite } from '@electric-sql/pglite';
 import { DEFAULT_SETTINGS } from '../../src/core/settings';
-import { as, createUser, freshDb, makeAdmin, migrationSql, rpc } from './helpers';
+import { as, createUser, freshDb, makeAdmin, migrationSql, rpc, tiedRanks } from './helpers';
 
 let db: PGlite;
 let admin: string;
@@ -13,7 +13,11 @@ const stage = (name: string, starts: string, ends: string, tournament: string | 
   as(db, admin, (tx) => rpc(tx, 'create_stage', {
     p_season: season, p_name: name, p_starts_on: starts, p_ends_on: ends, p_tournament: tournament,
   })) as Promise<string>;
-const grant = (stageId: string) => as(db, admin, (tx) => rpc(tx, 'grant_stage_allowance', { p_stage: stageId }));
+/** `ranks` defaults to everyone tied, as before any week is final. */
+const grant = async (stageId: string, ranks?: Record<string, number>) => {
+  const r = ranks ?? await tiedRanks(db);
+  return as(db, admin, (tx) => rpc(tx, 'grant_stage_allowance', { p_stage: stageId, p_ranks: r }));
+};
 
 /** A signed-up user with a profile who joined `league`; returns [userId, membershipId]. */
 async function member(name: string, code = 'LEAGUE1'): Promise<[string, string]> {
@@ -25,11 +29,6 @@ async function member(name: string, code = 'LEAGUE1'): Promise<[string, string]>
 const amounts = async (mid: string) =>
   (await db.query<{ kind: string; amount: number }>(
     `select kind, amount from public.credit_ledger where membership_id = $1 order by id`, [mid])).rows;
-const pointsAre = (byMembership: Record<string, number>) =>
-  db.exec(`create or replace function private.standings_points(p_membership uuid) returns numeric
-    language sql stable security definer set search_path = '' as $$
-      select coalesce((('${JSON.stringify(byMembership)}'::jsonb) ->> p_membership::text)::numeric, 0)
-    $$;`);
 
 beforeEach(async () => {
   db = await freshDb();
@@ -100,9 +99,8 @@ describe('grant_stage_allowance', () => {
     const [, b] = await member('bob');
     const [, c] = await member('carol');
     const [, d] = await member('dave');
-    // ranks: a 1, b and c tied for 2-3 (2.5), d 4. n = 4 → 100 + 30 × (r − 1) / 3
-    await pointsAre({ [a]: 9, [b]: 5, [c]: 5, [d]: 1 });
-    await grant(fall);
+    // b and c tied for 2-3 share 2.5. n = 4 → 100 + 30 × (r − 1) / 3
+    await grant(fall, { [a]: 1, [b]: 2.5, [c]: 2.5, [d]: 4 });
     expect((await amounts(a))[0].amount).toBe(100);
     expect((await amounts(b))[0].amount).toBe(115);
     expect((await amounts(c))[0].amount).toBe(115);
@@ -120,12 +118,10 @@ describe('grant_stage_allowance', () => {
     const [, b] = await member('bob');
     const [, c] = await member('carol');
     const [, solo] = await member('solo', 'LEAGUE2');
-    await pointsAre({ [a]: 3, [b]: 2, [c]: 1 });
-    await grant(fall);
+    await grant(fall, { [a]: 1, [b]: 2, [c]: 3, [solo]: 1 });
     expect((await amounts(b))[0].amount).toBe(55);
     expect((await amounts(c))[0].amount).toBe(60);
     expect((await amounts(solo))[0].amount).toBe(50);
-    await pointsAre({});
     await settings({ allowance_base: 100, allowance_gap: 25 });
     const spring = await stage('Spring 1', '2027-02-01', '2027-02-21');
     await grant(spring);
@@ -147,7 +143,23 @@ describe('grant_stage_allowance', () => {
     const [alice, a] = await member('alice');
     expect(await grant(fall)).toBe(0);
     expect(await amounts(a)).toEqual([]);
-    await expect(as(db, alice, (tx) => rpc(tx, 'grant_stage_allowance', { p_stage: fall }))).rejects.toThrow('FORBIDDEN');
+    await expect(as(db, alice, (tx) => rpc(tx, 'grant_stage_allowance', { p_stage: fall, p_ranks: {} }))).rejects.toThrow('FORBIDDEN');
+  });
+
+  it('refuses unless every membership has a rank within its league size (never-NULL gate)', async () => {
+    const fall = await stage('Fall beta', '2026-10-18', '2026-11-08');
+    const [, a] = await member('alice');
+    const [, b] = await member('bob');
+    for (const bad of [{ [a]: 1 }, { [a]: 1, [b]: 3 }, { [a]: 1, [b]: 0 }, { [a]: 1, [b]: '2' }, { [a]: 1, [b]: null }, []]) {
+      await expect(grant(fall, bad as Record<string, number>), JSON.stringify(bad)).rejects.toThrow('STANDINGS_MISSING');
+    }
+    await expect(as(db, admin, (tx) => rpc(tx, 'grant_stage_allowance', { p_stage: fall, p_ranks: null })))
+      .rejects.toThrow('STANDINGS_MISSING');
+    expect(await amounts(a)).toEqual([]);
+    expect(await grant(fall, { [a]: 1, [b]: 2 })).toBe(2);
+    const log = await db.query<{ details: { ranks: object } }>(
+      `select details from public.audit_log where action = 'grant_stage_allowance'`);
+    expect(log.rows[0].details.ranks).toEqual({ [a]: 1, [b]: 2 });
   });
 });
 

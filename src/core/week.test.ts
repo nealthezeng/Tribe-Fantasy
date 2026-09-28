@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
-import { acquiredKey, scoreWeek, type WeekInput } from './week';
+import { pairKey, scoreWeek, type WeekInput } from './week';
 
 const s = parseSettings({ points_mode: 'fixed', normalize_mode: 'per_point' });
 const base = (over: Partial<WeekInput> = {}): WeekInput => ({
-  week: 1,
   settings: s,
   matchups: [{ id: 'x1', home: 'm1', away: 'm2' }, { id: 'x2', home: 'm3', away: null }],
   picks: { m1: 'a1', m2: 'a2', m3: 'a3' },
@@ -12,7 +11,7 @@ const base = (over: Partial<WeekInput> = {}): WeekInput => ({
     { athleteId: 'a1', sessionType: 'practice', pointsPlayed: 10, stats: { goal: 4 } },
     { athleteId: 'a2', sessionType: 'practice', pointsPlayed: 10, stats: { goal: 1 } },
   ],
-  acquiredWeek: {},
+  multipliers: { 'm1:a1': 1, 'm2:a2': 1, 'm3:a3': 1 },
   standings: ['m1', 'm2', 'm3'].map((managerId) => ({ managerId, points: 0, totalScore: 0 })),
   ...over,
 });
@@ -29,10 +28,14 @@ describe('scoreWeek', () => {
     expect(r.standings.find((row) => row.managerId === 'm1')!.totalScore).toBeCloseTo(1.2);
   });
 
-  it('applies the tenure multiplier from acquiredWeek', () => {
-    const r = scoreWeek(base({ week: 4, acquiredWeek: { [acquiredKey('m1', 'a1')]: 0 } }));
-    expect(r.matchups[0].home.multiplier).toBeCloseTo(0.9025);
-    expect(r.matchups[0].home.score).toBeCloseTo(1.2 * 0.9025);
+  it('applies the degradation multiplier for the picked pair', () => {
+    const r = scoreWeek(base({ multipliers: { ...base().multipliers, [pairKey('m1', 'a1')]: 0.9 } }));
+    expect(r.matchups[0].home.multiplier).toBeCloseTo(0.9);
+    expect(r.matchups[0].home.score).toBeCloseTo(1.2 * 0.9);
+  });
+
+  it('throws instead of defaulting when a started pair has no multiplier (gate)', () => {
+    expect(() => scoreWeek(base({ multipliers: { 'm2:a2': 1, 'm3:a3': 1 } }))).toThrow(/m1:a1/);
   });
 
   it('treats a forfeited pick as a score of 0', () => {
@@ -43,7 +46,7 @@ describe('scoreWeek', () => {
 
   it('uses the standings before the week for rank weighting', () => {
     const r = scoreWeek(base({
-      settings: parseSettings({}),
+      settings: parseSettings({ upset_k: 1 }),
       standings: [
         { managerId: 'm1', points: 0, totalScore: 0 },
         { managerId: 'm2', points: 9, totalScore: 9 },

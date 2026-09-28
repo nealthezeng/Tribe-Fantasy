@@ -10,6 +10,7 @@ const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
   'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
+  'set_pick',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = ['confirm_injury', 'create_session', 'reopen_session', 'save_taps', 'verify_session'];
@@ -62,7 +63,7 @@ describe('RPC gate', () => {
         p_tournament: null }), (r) => (c.stage = r as string)],
       ['update_stage', admin, () => ({ p_stage: c.stage, p_name: 'Fall beta', p_starts_on: '2026-10-18',
         p_ends_on: '2026-11-08', p_tournament: 'Nov' })],
-      ['grant_stage_allowance', admin, () => ({ p_stage: c.stage })],
+      ['grant_stage_allowance', admin, () => ({ p_stage: c.stage, p_ranks: { [c.membership]: 1 } })],
       ['record_donation', admin, () => ({ p_membership: c.membership, p_dollars: 5, p_note: null })],
       ['adjust_credits', admin, () => ({ p_membership: c.membership, p_amount: -1, p_note: 'gate' })],
       ['add_athlete', admin, () => ({ p_season: c.season, p_name: 'Pat', p_user: null }), (r) => (c.athlete = r as string)],
@@ -87,6 +88,9 @@ describe('RPC gate', () => {
       ['place_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete, p_amount: 1 })],
       ['delete_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete })],
       ['run_auction', admin, () => ({ p_stage: c.stage })],
+      ['create_stage_weeks', admin, () => ({ p_stage: c.stage })],
+      ['set_week_lock', admin, () => ({ p_week: c.week, p_at: new Date(Date.now() + 3_600_000).toISOString() })],
+      ['set_pick', player, () => ({ p_membership: c.membership, p_week: c.week, p_athlete: c.athlete })],
     ];
 
     const covered = new Set(steps.map(([name]) => name));
@@ -100,6 +104,9 @@ describe('RPC gate', () => {
           rpc(tx, 'verify_session', { p_session: c.session, p_lines: [{ athlete_id: c.athlete, stats: { goal: 1 } }] }),
         );
         await db.query(`update public.sessions set verified_at = now() - interval '49 hours' where id = $1`, [c.session]);
+      }
+      if (name === 'set_week_lock') {
+        c.week = (await db.query<{ id: string }>(`select id from public.weeks order by starts_on offset 1 limit 1`)).rows[0].id;
       }
       if (name === 'run_auction') {
         await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);

@@ -62,7 +62,10 @@ describe('injuries', () => {
     await call(f.k1, 'report_injury', { p_athlete: f.sam });
     expect(await visibleInjuries(f.member)).toEqual([{ athlete_id: f.sam }]);
     await call(player, 'clear_injury', { p_athlete: f.sam });
-    expect(await visibleInjuries(f.member)).toEqual([]);
+    // Still visible once cleared (M6: past weeks replay injuries), but no longer open.
+    const open = await as(f.db, f.member, (tx) => tx.query('select 1 from public.injuries where cleared_at is null'));
+    expect(open.rows).toEqual([]);
+    expect(await visibleInjuries(f.member)).toEqual([{ athlete_id: f.sam }]);
     await expect(call(player, 'clear_injury', { p_athlete: f.sam })).rejects.toThrow('NOT_FOUND');
   });
 

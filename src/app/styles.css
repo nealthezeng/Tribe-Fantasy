@@ -153,6 +153,10 @@ tbody tr:last-child td { border-bottom: 0; }
   background: var(--surface-2); color: var(--fg); border: 1px solid var(--line-strong);
 }
 .tally-buttons button:active:not(:disabled) { background: var(--gold); color: var(--on-gold); border-color: var(--gold-press); }
+/* Hold to subtract: no long-press menu or text selection, and a distinct flash (inverted, not gold) on −1. */
+.tally-buttons button { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.tally-buttons button.minus, .tally-buttons button.minus:is(:hover, :active):not(:disabled) { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.tally-buttons button.minus .tally-w { color: inherit; }
 .tally-buttons button.neg, .tally-buttons button.neg:hover:not(:disabled) { border-style: dashed; }
 .tally-count { font-size: 24px; font-weight: var(--fw-bold); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .tally-w { font-size: 11px; font-weight: var(--fw-medium); color: var(--muted); }

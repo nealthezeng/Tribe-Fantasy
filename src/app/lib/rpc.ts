@@ -46,7 +46,12 @@ export const api = {
     call<void>('update_stage', {
       p_stage: stageId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: tournament,
     }),
-  grantStageAllowance: (stageId: string) => call<number>('grant_stage_allowance', { p_stage: stageId }),
+  grantStageAllowance: (stageId: string, ranks: Record<string, number>) =>
+    call<number>('grant_stage_allowance', { p_stage: stageId, p_ranks: ranks }),
+  createStageWeeks: (stageId: string) => call<number>('create_stage_weeks', { p_stage: stageId }),
+  setWeekLock: (weekId: string, at: string) => call<void>('set_week_lock', { p_week: weekId, p_at: at }),
+  setPick: (membershipId: string, weekId: string, athleteId: string | null) =>
+    call<void>('set_pick', { p_membership: membershipId, p_week: weekId, p_athlete: athleteId }),
   recordDonation: (membershipId: string, dollars: number, note: string) =>
     call<number>('record_donation', { p_membership: membershipId, p_dollars: dollars, p_note: note }),
   adjustCredits: (membershipId: string, amount: number, note: string) =>

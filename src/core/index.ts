@@ -9,3 +9,4 @@ export * from './picks';
 export * from './week';
 export * from './simulate';
 export * from './taps';
+export * from './year';

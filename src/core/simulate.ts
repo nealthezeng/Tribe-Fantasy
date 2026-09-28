@@ -1,11 +1,12 @@
 import { allocate, fillLeftovers, type Bid, type ManagerBudget } from './allocation';
+import { stageMultiplier } from './decay';
 import { availableAthletes, defaultPick, usedThisCycle, type PickRecord } from './picks';
 import type { StandingRow } from './points';
 import { hashSeed, mulberry32 } from './rng';
 import { roundRobin } from './schedule';
 import type { StatLine } from './scoring';
 import { parseSettings, type SeasonSettings } from './settings';
-import { acquiredKey, scoreWeek, type WeekResult } from './week';
+import { pairKey, scoreWeek, type WeekResult } from './week';
 
 export interface SimConfig {
   managers: number;
@@ -56,10 +57,11 @@ export function simulateSeason(cfg: SimConfig): SimResult {
   const round1 = allocate(bids, budgets, athleteIds);
   const filled = fillLeftovers(round1.remaining, round1.unclaimed, cfg.seed);
   const rosters: Record<string, string[]> = Object.fromEntries(managerIds.map((m) => [m, [] as string[]]));
-  const acquiredWeek: Record<string, number> = {};
+  // ponytail: one stage, so every pair is a first start (multiplier 1). Multi-stage years come with M8 tuning.
+  const multipliers: Record<string, number> = {};
   for (const aw of [...round1.awards, ...filled]) {
     rosters[aw.managerId].push(aw.athleteId);
-    acquiredWeek[acquiredKey(aw.managerId, aw.athleteId)] = 0;
+    multipliers[pairKey(aw.managerId, aw.athleteId)] = stageMultiplier(0, s);
   }
   for (const m of managerIds) rosters[m].sort();
 
@@ -89,19 +91,18 @@ export function simulateSeason(cfg: SimConfig): SimResult {
 
     const weekPicks: Record<string, string | null> = {};
     for (const m of managerIds) {
-      const used = usedThisCycle(m, rosters[m], picks, week, s);
+      const used = usedThisCycle(m, rosters[m], picks, week);
       const choice = defaultPick(availableAthletes(rosters[m], used), history, s);
       weekPicks[m] = choice;
       if (choice !== null) picks.push({ week, managerId: m, athleteId: choice });
     }
 
     const result = scoreWeek({
-      week,
       settings: s,
       matchups: schedule[week - 1].map(([home, away], i) => ({ id: `w${week}-${i}`, home, away })),
       picks: weekPicks,
       statLines,
-      acquiredWeek,
+      multipliers,
       standings,
     });
     for (const [a, score] of Object.entries(result.athleteScores)) (history[a] ??= []).push(score);

@@ -49,3 +49,10 @@ export async function rpc(tx: Transaction, fn: string, args: Record<string, unkn
   const res = await tx.query<{ result: unknown }>(sql, params);
   return res.rows[0]?.result;
 }
+
+/** Every membership tied (rank (n + 1) / 2 in its league): what grant_stage_allowance gets before any week is final. */
+export async function tiedRanks(db: PGlite): Promise<Record<string, number>> {
+  const res = await db.query<{ id: string; n: number }>(
+    'select id, count(*) over (partition by league_id)::int as n from public.memberships');
+  return Object.fromEntries(res.rows.map((r) => [r.id, (r.n + 1) / 2]));
+}
