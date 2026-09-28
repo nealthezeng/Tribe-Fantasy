@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react';
 import { Navigate } from 'react-router';
 import { useAuth } from '../../auth/AuthProvider';
 import { AthletesPanel } from './AthletesPanel';
+import { BackupPanel } from './BackupPanel';
 import { LeaguesPanel } from './LeaguesPanel';
 import { SeasonsPanel } from './SeasonsPanel';
 import { SettingsEditor } from './SettingsEditor';
@@ -12,7 +13,7 @@ import { WalletsPanel } from './WalletsPanel';
 /** Most-used first. Each tab mounts fresh, so Wallets always shows balances after a grant on Stages. */
 const TABS = [
   ['stages', 'Stages'], ['leagues', 'Leagues'], ['wallets', 'Wallets'],
-  ['athletes', 'Athletes'], ['keepers', 'Keepers'], ['settings', 'Settings'],
+  ['athletes', 'Athletes'], ['keepers', 'Keepers'], ['settings', 'Settings'], ['backup', 'Backup'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -40,6 +41,7 @@ export function AdminPage() {
           {tab === 'wallets' && <WalletsPanel seasonId={seasonId} />}
           {tab === 'athletes' && <AthletesPanel seasonId={seasonId} />}
           {tab === 'settings' && <SettingsEditor seasonId={seasonId} />}
+          {tab === 'backup' && <BackupPanel seasonId={seasonId} />}
         </Fragment>
       )}
     </section>
