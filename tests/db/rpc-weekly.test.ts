@@ -86,7 +86,9 @@ describe('set_week_lock', () => {
   it('moves one week and audits old and new', async () => {
     await createWeeks();
     const [, w1] = await weeks();
-    await lockIn(w1.id, 3600);
+    // The fixture's week ends_at is a fixed 2026 date; push it (and the lock) off the real calendar so this test
+    // doesn't rot once "now" catches up to that date (0009's set_week_lock now refuses p_at past the week's end).
+    await f.db.query(`update public.weeks set pick_lock_at = now() + interval '1 hour', ends_at = now() + interval '1 day' where id = $1`, [w1.id]);
     const before = (await f.db.query<{ ms: number }>(
       'select extract(epoch from pick_lock_at) * 1000 as ms from public.weeks where id = $1', [w1.id])).rows[0].ms;
     const at = new Date(Date.now() + 7_200_000).toISOString();
