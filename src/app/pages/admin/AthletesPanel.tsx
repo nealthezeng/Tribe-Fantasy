@@ -10,6 +10,7 @@ interface ProfileRow { id: string; display_name: string }
 export function AthletesPanel({ seasonId }: { seasonId: string }) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const athletes = useLoad(async () => {
     const [athletes, profiles] = await Promise.all([
       supabase!.from('athletes').select('id, name, opted_in, user_id').eq('season_id', seasonId).order('name'),
@@ -38,6 +39,20 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
     });
   }
 
+  function rename(e: FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    void run(async () => {
+      await api.renameAthlete(editing.id, editing.name);
+      setEditing(null);
+    });
+  }
+
+  function remove(a: AthleteRow) {
+    if (!window.confirm(`Remove ${a.name}? This can't be undone.`)) return;
+    void run(() => api.deleteAthlete(a.id));
+  }
+
   const count = athletes.data?.list.filter((a) => a.opted_in).length ?? 0;
   return (
     <div className="card">
@@ -47,10 +62,19 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
       <ul className="list">
         {athletes.data?.list.map((a) => (
           <li key={a.id}>
-            <span className="meta">
-              <span className={a.opted_in ? 'title' : 'title muted'}>{a.name}</span>
-              {!a.opted_in && <span className="pill">Opted out</span>}
-            </span>
+            {editing?.id === a.id ? (
+              <form className="row" onSubmit={rename} onKeyDown={(e) => e.key === 'Escape' && setEditing(null)}>
+                <input aria-label={`New name for ${a.name}`} required maxLength={60} autoFocus value={editing.name}
+                  onChange={(e) => setEditing({ id: a.id, name: e.target.value })} />
+                <button>Save</button>
+                <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button>
+              </form>
+            ) : (
+              <span className="meta">
+                <span className={a.opted_in ? 'title' : 'title muted'}>{a.name}</span>
+                {!a.opted_in && <span className="pill">Opted out</span>}
+              </span>
+            )}
             <select aria-label={`Account for ${a.name}`} value={a.user_id ?? ''}
               onChange={(e) => void run(() => api.linkAthleteUser(a.id, e.target.value || null))}>
               <option value="">No linked account</option>
@@ -59,6 +83,8 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
             <button className="secondary" onClick={() => void run(() => api.setAthleteOptIn(a.id, !a.opted_in))}>
               {a.opted_in ? 'Opt out' : 'Opt back in'}
             </button>
+            <button className="secondary" onClick={() => setEditing({ id: a.id, name: a.name })}>Rename</button>
+            <button className="secondary" onClick={() => remove(a)}>Remove</button>
           </li>
         ))}
       </ul>

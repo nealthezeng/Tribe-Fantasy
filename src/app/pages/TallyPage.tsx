@@ -40,6 +40,7 @@ function SessionPicker({ season, keeperId, onPick }: {
   const [kind, setKind] = useState<'practice' | 'tournament'>('practice');
   const [counts, setCounts] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   // Taps still on this phone, so they're never stranded: their sessions are listed even once verified.
   const [unsaved] = useState(() => new Map(queuedSessions(keeperId).map((q) => [q.sessionId, q.count])));
   const sessions = useLoad(async () => {
@@ -50,6 +51,17 @@ function SessionPicker({ season, keeperId, onPick }: {
     if (error) throw error;
     return (data ?? []) as SessionRow[];
   }, [season.id, unsaved]);
+
+  async function remove(s: SessionRow) {
+    if (!window.confirm(`Delete the ${sessionTitle(s)} session? This can't be undone.`)) return;
+    setDeleteError(null);
+    try {
+      await api.deleteSession(s.id);
+      sessions.reload();
+    } catch (err) {
+      setDeleteError(errorMessage(err));
+    }
+  }
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -76,10 +88,15 @@ function SessionPicker({ season, keeperId, onPick }: {
                 {!s.counts && <span className="pill">Not counted</span>}
                 {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
               </span>
+              {/* Never offered while this phone still holds taps for it: they'd have nowhere to go. */}
+              {!s.verified_at && !unsaved.has(s.id) && (
+                <button className="secondary" onClick={() => void remove(s)}>Delete</button>
+              )}
               <button className={s.verified_at ? 'secondary' : ''} onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
             </li>
           ))}
         </ul>
+        {deleteError && <p className="error" role="alert">{deleteError}</p>}
       </div>
       <form className="card" onSubmit={create}>
         <h2>New session</h2>
