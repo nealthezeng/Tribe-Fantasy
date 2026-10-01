@@ -21,7 +21,7 @@ export const api = {
   setAthleteOptIn: (athleteId: string, optedIn: boolean) =>
     call<void>('set_athlete_opt_in', { p_athlete: athleteId, p_opted_in: optedIn }),
   renameAthlete: (athleteId: string, name: string) => call<void>('rename_athlete', { p_athlete: athleteId, p_name: name }),
-  deleteAthlete: (athleteId: string) => call<void>('delete_athlete', { p_athlete: athleteId }),
+  deleteAthlete: (athleteId: string, force = false) => call<void>('delete_athlete', { p_athlete: athleteId, p_force: force }),
   grantRole: (userId: string, role: 'stat_keeper') => call<void>('grant_role', { p_user: userId, p_role: role }),
   revokeRole: (userId: string, role: 'stat_keeper') => call<void>('revoke_role', { p_user: userId, p_role: role }),
   linkAthleteUser: (athleteId: string, userId: string | null) =>
@@ -33,7 +33,7 @@ export const api = {
   verifySession: (sessionId: string, lines: { athlete_id: string; stats: Record<string, number> }[]) =>
     call<void>('verify_session', { p_session: sessionId, p_lines: lines }),
   reopenSession: (sessionId: string) => call<void>('reopen_session', { p_session: sessionId }),
-  deleteSession: (sessionId: string) => call<void>('delete_session', { p_session: sessionId }),
+  deleteSession: (sessionId: string, force = false) => call<void>('delete_session', { p_session: sessionId, p_force: force }),
   correctStatLine: (sessionId: string, athleteId: string, stats: Record<string, number>) =>
     call<void>('correct_stat_line', { p_session: sessionId, p_athlete: athleteId, p_stats: stats }),
   setAttendance: (sessionId: string, athleteId: string, status: 'present' | 'absent') =>
