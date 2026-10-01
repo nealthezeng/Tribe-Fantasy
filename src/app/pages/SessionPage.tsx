@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { parseSettings } from '../../core/settings';
 import { rawScore } from '../../core/scoring';
 import { mergeTaps } from '../../core/taps';
@@ -20,6 +20,7 @@ export function SessionPage() {
   const { session: auth, isKeeper, isAdmin } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
 
   const data = useLoad(async () => {
     const sess = await supabase!.from('sessions').select(SESSION_COLUMNS).eq('id', id).maybeSingle();
@@ -71,6 +72,21 @@ export function SessionPage() {
       setError(errorMessage(err));
     } finally {
       data.reload(); // after a failure too: e.g. LINES_MISMATCH means the preview is stale
+      setBusy(false);
+    }
+  }
+
+  // Admin cleanup (t81): any session, verified or locked, with everything tallied in it.
+  async function remove() {
+    if (!window.confirm(`Delete the ${sessionTitle(session)} session and all its stats? Past results and standings `
+      + "can change. This can't be undone.")) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await api.deleteSession(id, true);
+      navigate('/stats');
+    } catch (err) {
+      setError(errorMessage(err));
       setBusy(false);
     }
   }
@@ -151,6 +167,10 @@ export function SessionPage() {
           );
         })}
       </div>
+
+      {isAdmin && (
+        <p><button className="secondary" disabled={busy} onClick={() => void remove()}>Delete session</button></p>
+      )}
     </section>
   );
 }

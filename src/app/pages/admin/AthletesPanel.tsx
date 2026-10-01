@@ -50,7 +50,17 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
 
   function remove(a: AthleteRow) {
     if (!window.confirm(`Remove ${a.name}? This can't be undone.`)) return;
-    void run(() => api.deleteAthlete(a.id));
+    void run(async () => {
+      try {
+        await api.deleteAthlete(a.id);
+      } catch (err) {
+        // Has history: only an explicit second yes wipes it (t81).
+        if ((err as { message?: string })?.message !== 'ATHLETE_IN_USE') throw err;
+        if (!window.confirm(`${a.name} has stats, bids, roster spots or picks. Deleting removes all of it, refunds `
+          + 'auction credits, and can change past results and standings. Delete anyway?')) return;
+        await api.deleteAthlete(a.id, true);
+      }
+    });
   }
 
   const count = athletes.data?.list.filter((a) => a.opted_in).length ?? 0;
