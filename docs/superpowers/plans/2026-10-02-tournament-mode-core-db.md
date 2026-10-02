@@ -1618,8 +1618,10 @@ git commit -m "feat(db): tournament games, Swiss pairings, sealed game picks and
 - [ ] Full checks: `npx vitest run tests/db` alone, then `npx vitest run src`, `npx tsc -b`, `npx eslint .`,
   `npm run build`.
 - [ ] Drop the stash (`git stash drop` on the `tournament-core-db-verified-draft` entry only).
-- [ ] Go-live (user OK required): 0012 is additive and the live build never calls it, so the user can paste it into
-  tribe-dev any time. Before pushing, confirm the live season's stored `roster_size` is at least 2 (amendment 9).
-  Merging is safe for the live site: the app doesn't use tournament code until T3. Then merge + push, tag
+- [ ] Go-live (user OK required), in this order: (1) confirm the live season's stored `roster_size` is at least 2
+  (amendment 9); (2) the user pastes 0012 into tribe-dev (additive; harmless to the current live build); (3) only
+  then merge + push, because the admin Backup tab reads every table in `BACKUP_TABLES`, including the four new
+  ones, and throws if they don't exist; (4) once anyone saves season settings on the new build, never roll back
+  past this merge (the old build rejects the stored `bench_size` / `tiredness_multipliers` keys). Then tag
   `m9-core`, update the taskboard and memory, `graphify update .`.
 - [ ] Next: plan T3 (app) + T4 (retire weekly) from the same spec.

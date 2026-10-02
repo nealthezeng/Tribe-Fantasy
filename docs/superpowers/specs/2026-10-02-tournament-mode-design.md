@@ -183,6 +183,9 @@ Gaps found when checking the draft against the code. They fill holes and change 
    (which knows `bench_size`/`tiredness_multipliers`) against the live DB, the deployed build rejects the unknown
    keys and the live site breaks. So: no settings saves from a preview until the core settings change is live. Before
    deploying, check the live season's stored `roster_size` is ≥ 2, or the new `bench_size < roster_size` check fails.
+   Apply 0012 before deploying the merged build, because the admin Backup tab reads the four new tables and throws
+   without them. Once settings are saved on the new build, never roll back past the merge (the old build rejects
+   the new keys).
 10. **Final RPC shapes (from the verified build).** `set_bench(membership, stage, athletes uuid[])` takes exactly
     the bench count (`BENCH_SIZE` otherwise), so a larger `bench_size` works too. `swap_bench(membership, stage, out,
     in)`: `TOURNAMENT_NOT_STARTED` before game 1 starts (change the bench with `set_bench` instead), `NOT_ACTIVE`,
@@ -198,3 +201,5 @@ Gaps found when checking the draft against the code. They fill holes and change 
     defaults (`upset_k` 0.5, `[0.5, 0.75]`): repeating costs 1.1 final places on average and pays in 16% of years;
     tanking the last game costs 0.3 places. No tiredness (`[]`) makes the sharpest manager win more (26% vs 20%,
     random 16.7%) but lets everyone start their best every game. Keep the defaults and re-run on real stats.
+13. **Provisional = every started game.** `nextPairings` runs before `finish_game` marks the game finished, so in
+    provisional mode every started non-void game counts (the only unfinished one is the game being finished).
