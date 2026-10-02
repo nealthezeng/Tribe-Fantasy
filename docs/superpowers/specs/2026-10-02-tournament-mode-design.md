@@ -151,3 +151,34 @@ Swiss itself runs in the browser, as allocation does; the audit row lets anyone 
 
 Win probabilities (needs a season of game stats), live provisional points shown to managers, multiple real
 teams at one tournament, trades.
+
+## Amendments (2026-10-02, local review of the cloud draft)
+
+Gaps found when checking the draft against the code. They fill holes and change no decision in §1.
+
+1. **Short rosters.** Unfillable auction slots stay empty (M5), so a roster can be smaller than `roster_size`.
+   Bench = `min(bench_size, roster − 1)`: there is always at least one active athlete. A roster of 1 has no bench.
+2. **Pre-select scope.** `set_game_pick` accepts only the **next game**: the lowest game number in the stage that
+   hasn't started (1 before the tournament opens). Any other number → `PICK_LOCKED` (past) or `NOT_NEXT_GAME`
+   (further ahead). Picks are kept per game, so a pick for game N doesn't carry to N+1.
+3. **Start / Finish races.** Several keepers share the tally. `start_game` → `GAME_STARTED` if already started;
+   `finish_game` → `GAME_NOT_LIVE` unless started and not finished. The first keeper wins; the others' screens
+   reload the game state. `finish_game` also refuses `PAIRINGS_INVALID` when the shape check (§4) fails.
+4. **Deleted game session.** `games.session_id` is `on delete set null`. A started game with no session is **void**:
+   no matchups, no points, its starts don't count for tiredness, and it doesn't hold back later games (like M6's
+   skipped week). Admin force-delete (t81) is the only way this happens.
+5. **Which sessions count.** Tournament scoring reads only sessions linked to a game. Any other session (practice or
+   a stray tally) scores nothing. The tally screen's own "New session" stays for practice tallying, which records
+   stats and never affects matchups.
+6. **game_picks FKs.** `athlete_id → athletes (on delete cascade)`, matching `roster_slots`. A force-deleted
+   athlete's pick vanishes and the auto-pick covers it.
+7. **Verification and owner gates.** Every game includes every rostered athlete, so a keeper who manages can never
+   verify a game (`OWNS_ATHLETE`). Before Nov 7 at least one keeper or admin who manages no team must be available
+   to verify, or the official results never come. Coaches with `stat_keeper` are the plan (beta risk, M5).
+8. **Old weekly data.** `weeks` and `picks` tables stay in T1–T3 (the deployed weekly UI reads them). T4 removes the
+   weekly UI and settings keys. Its migration drops `weeks`/`picks` only after the user confirms there's nothing to
+   keep (the live stage has 3 weeks of test data).
+9. **Settings deploy order.** The settings editor saves every key. If someone saves settings from a branch preview
+   (which knows `bench_size`/`tiredness_multipliers`) against the live DB, the deployed build rejects the unknown
+   keys and the live site breaks. So: no settings saves from a preview until the core settings change is live. Before
+   deploying, check the live season's stored `roster_size` is ≥ 2, or the new `bench_size < roster_size` check fails.
