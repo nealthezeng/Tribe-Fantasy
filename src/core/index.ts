@@ -12,3 +12,4 @@ export * from './taps';
 export * from './year';
 export * from './tiredness';
 export * from './swiss';
+export * from './tournament';
