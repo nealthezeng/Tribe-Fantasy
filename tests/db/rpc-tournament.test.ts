@@ -185,6 +185,8 @@ describe('set_bench', () => {
     await expect(setBench(alice, aliceM, [f.athletes[4]])).rejects.toThrow('NOT_ON_ROSTER');
     await expect(setBench(bob, aliceM, [f.athletes[0]])).rejects.toThrow('NOT_MEMBER');
     await setBench(carol, carolM, []); // a one-athlete roster has no bench
+    await as(f.db, carol, (tx) => rpc(tx, 'set_bench', { p_membership: carolM, p_stage: f.stage, p_athletes: null }));
+    expect(await benchOf(carolM)).toEqual([]); // NULL means no bench too
   });
 
   it('refuses once the tournament has started', async () => {

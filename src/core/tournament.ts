@@ -81,7 +81,8 @@ const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * Tournament mode §2: plays the league's year game by game from league-readable rows. Pure and deterministic.
- * `provisional`: a finished game counts as final whatever its stats' lock (for pairing only, never shown).
+ * `provisional`: a started game counts as final whatever its stats' lock or whether it has been finished yet
+ * (for pairing only, never shown).
  */
 export function scoreTournaments(input: TournamentInput, opts: { provisional?: boolean } = {}): TournamentResult {
   const s = input.settings;
@@ -151,7 +152,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     let status: GameStatus =
       g.startedAt === null ? 'upcoming'
         : sessionGone ? 'void'
-          : isLocked(g.sessionId!) || (opts.provisional && g.finishedAt !== null) ? 'final'
+          : isLocked(g.sessionId!) || (opts.provisional && g.startedAt !== null) ? 'final'
             : g.finishedAt === null ? 'live' : 'pending';
     const ownFinal = status !== 'void' && g.sessionId !== null && isLocked(g.sessionId);
     if (status === 'final' && blocked) status = 'pending';
@@ -268,7 +269,8 @@ export function liveStatLines(sessionId: string, taps: Tap[], s: SeasonSettings)
 /**
  * Swiss pairings for the league's next game (spec §2): provisional standings, then `swissPairings` over the
  * members who have joined by `now`, counting meetings (and byes) in every started game of the year.
- * Callers pass verified lines where they exist and `liveStatLines` otherwise.
+ * Callers pass verified lines where they exist and `liveStatLines` otherwise. Called while the game being
+ * finished is still live (before `finish_game`), so that game counts too.
  */
 export function nextPairings(input: TournamentInput): Pairing[] {
   const r = scoreTournaments(input, { provisional: true });

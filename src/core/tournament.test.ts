@@ -126,7 +126,7 @@ describe('scoreTournaments', () => {
     const v = scoreTournaments(base({ games: [game(1), game(2, 'S1', { sessionId: null }), game(3)] }));
     expect(v.games.map((g) => g.status)).toEqual(['final', 'void', 'final']);
     expect(side(v, 'S1g2', 'm1').delta).toBeNull();
-    // a1 started game 1; game 2 was void, so a1 in game 3 is two games on, not one.
+    // a2's game-2 start was void, so a2 in game 3 is not a game on from it.
     const again = scoreTournaments(base({
       games: [game(1), game(2, 'S1', { sessionId: null }), game(3)],
       picks: [...base().picks.filter((p) => p.number !== 3), pick(3, 'm1', 'a2'), pick(3, 'm2', 'b3')],
@@ -142,13 +142,40 @@ describe('scoreTournaments', () => {
     expect(side(r, 'S1g4', 'm1').rest).toEqual({ a1: 1, a2: 0.75, a3: 0.5 });
   });
 
-  it('counts a finished game as final only when provisional', () => {
-    const b = base();
+  it('counts a started game as final only when provisional', () => {
+    const b = base({ games: [game(1), game(2), game(3, 'S1', { finishedAt: null })] });
     b.sessions = b.sessions.map((x) => ({ ...x, verifiedAt: null }));
-    expect(scoreTournaments(b).games.map((g) => g.status)).toEqual(['pending', 'pending', 'pending']);
+    expect(scoreTournaments(b).games.map((g) => g.status)).toEqual(['pending', 'pending', 'live']);
     const p = scoreTournaments(b, { provisional: true });
     expect(p.games.map((g) => g.status)).toEqual(['final', 'final', 'final']);
     expect(p.standings.find((x) => x.membershipId === 'm1')!.points).toBe(3);
+  });
+
+  it('scores a bye as a final side with no points move', () => {
+    const g1 = game(1);
+    const r = scoreTournaments(base({
+      games: [g1],
+      pairings: [{ gameId: g1.id, home: 'm1', away: 'm2' }, { gameId: g1.id, home: 'm3', away: null }],
+      members: ['m1', 'm2', 'm3'].map((id) => ({ id, createdAt: '2026-10-01T00:00:00Z' })),
+      slots: [...base().slots, ...roster('S1', 'm3', ['c1', 'c2', 'c3', 'c4'])],
+      statLines: [goals('S1s1', 'a1', 4), goals('S1s1', 'b1', 2), goals('S1s1', 'c1', 3), goals('S1s1', 'c2', 3), goals('S1s1', 'c3', 3)],
+    }));
+    expect(r.games[0].status).toBe('final');
+    expect(side(r, 'S1g1', 'm3')).toMatchObject({ score: 3, delta: 0, result: null });
+    expect(r.standings.find((x) => x.membershipId === 'm3')).toMatchObject({ points: 0, wins: 0, losses: 0, ties: 0, totalScore: 3 });
+  });
+
+  it('forfeits a paired manager with no roster in the stage', () => {
+    const g1 = game(1);
+    const r = scoreTournaments(base({
+      games: [g1],
+      pairings: [{ gameId: g1.id, home: 'm1', away: 'm2' }],
+      slots: roster('S1', 'm1', ['a1', 'a2', 'a3', 'a4']),
+    }));
+    expect(side(r, 'S1g1', 'm2')).toMatchObject({ athleteId: null, notice: 'inactive', score: 0, result: 'L' });
+    expect(side(r, 'S1g1', 'm1')).toMatchObject({ result: 'W' });
+    expect(r.standings.find((x) => x.membershipId === 'm1')).toMatchObject({ wins: 1, losses: 0 });
+    expect(r.standings.find((x) => x.membershipId === 'm2')).toMatchObject({ wins: 0, losses: 1 });
   });
 
   it('degrades a pair started in an earlier tournament (stage decay, grace 0)', () => {
@@ -204,7 +231,7 @@ describe('lineup', () => {
 
 describe('nextPairings', () => {
   const four = (over: Partial<TournamentInput> = {}) => {
-    const g1 = game(1);
+    const g1 = game(1, 'S1', { finishedAt: null }); // nextPairings runs before finish_game marks the game finished
     return base({
       games: [g1],
       pairings: [{ gameId: g1.id, home: 'm1', away: 'm2' }, { gameId: g1.id, home: 'm3', away: 'm4' }],
@@ -213,7 +240,7 @@ describe('nextPairings', () => {
       picks: [],
       sessions: [{ id: g1.sessionId!, verifiedAt: null }],
       statLines: [goals('S1s1', 'a1', 5), goals('S1s1', 'b1', 1), goals('S1s1', 'c1', 1), goals('S1s1', 'd1', 4)],
-      now: Date.parse(g1.finishedAt!),
+      now: Date.parse(g1.startedAt!) + H,
       ...over,
     });
   };

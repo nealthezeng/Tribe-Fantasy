@@ -158,7 +158,7 @@ begin
   update public.games set session_id = sid, started_at = now() where id = p_game;
   if g.number = 1 then
     with r as (
-      select rs.id, rs.membership_id, rs.bench,
+      select rs.id, rs.membership_id,
         row_number() over (partition by rs.membership_id order by rs.price, rs.athlete_id) as cheap,
         count(*) over (partition by rs.membership_id) as size,
         count(*) filter (where rs.bench) over (partition by rs.membership_id) as flagged
@@ -239,7 +239,7 @@ begin
      or cardinality(coalesce(p_athletes, '{}')) <> private.bench_count(p_stage, size) then
     raise exception 'BENCH_SIZE';
   end if;
-  update public.roster_slots set bench = (athlete_id = any (p_athletes))
+  update public.roster_slots set bench = coalesce(athlete_id = any (p_athletes), false)
   where stage_id = p_stage and membership_id = p_membership;
   perform private.audit('set_bench', 'stage', p_stage::text, jsonb_build_object('membership_id', p_membership, 'athletes', p_athletes));
 end $$;
