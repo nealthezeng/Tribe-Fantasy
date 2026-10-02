@@ -83,6 +83,25 @@ describe('parseSettings', () => {
     }
   });
 
+  it('has the tournament bench and tiredness defaults (tournament mode §3)', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ bench_size: 1, tiredness_multipliers: [0.5, 0.75] });
+  });
+
+  it('takes a tiredness list of up to 10 factors in [0, 1]', () => {
+    expect(parseSettings({ tiredness_multipliers: [] }).tiredness_multipliers).toEqual([]);
+    expect(parseSettings({ tiredness_multipliers: [0, 1] }).tiredness_multipliers).toEqual([0, 1]);
+    for (const bad of [{ tiredness_multipliers: 0.5 }, { tiredness_multipliers: [1.1] }, { tiredness_multipliers: [-0.1] },
+      { tiredness_multipliers: ['x'] }, { tiredness_multipliers: Array(11).fill(1) }]) {
+      expect(() => parseSettings(bad), JSON.stringify(bad)).toThrow(/tiredness_multipliers/);
+    }
+  });
+
+  it('keeps at least one active athlete: bench_size < roster_size', () => {
+    expect(parseSettings({ roster_size: 3, bench_size: 0 }).bench_size).toBe(0);
+    expect(() => parseSettings({ roster_size: 3, bench_size: 3 })).toThrow(/bench_size must be less than roster_size/);
+    expect(() => parseSettings({ bench_size: 1.5 })).toThrow(/bench_size/);
+  });
+
   it('rejects the settings retired by the stages revision', () => {
     for (const key of ['min_credits_to_play', 'free_entry', 'extra_credit_cap', 'decay_grace_weeks', 'decay_return_window',
       'trade_review_hours', 'trade_keeps_usage']) {

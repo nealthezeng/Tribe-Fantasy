@@ -63,3 +63,22 @@ export function defaultPick(
   };
   return [...available].sort((a, b) => avg(b) - avg(a) || (a < b ? -1 : a > b ? 1 : 0))[0];
 }
+
+/**
+ * Tournament mode §2: the most rested candidate (highest tiredness multiplier), then `defaultPick`'s order.
+ * `tiredness` must cover every candidate.
+ */
+export function autoPick(
+  candidates: string[],
+  tiredness: Record<string, number>,
+  history: Record<string, number[]>,
+  s: SeasonSettings,
+): string | null {
+  const rest = (id: string) => {
+    const m = tiredness[id];
+    if (m === undefined) throw new Error(`No tiredness for ${id}`);
+    return m;
+  };
+  const top = Math.max(...candidates.map(rest));
+  return defaultPick(candidates.filter((c) => rest(c) === top), history, s);
+}

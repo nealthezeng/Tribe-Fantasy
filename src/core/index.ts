@@ -10,3 +10,5 @@ export * from './week';
 export * from './simulate';
 export * from './taps';
 export * from './year';
+export * from './tiredness';
+export * from './swiss';
