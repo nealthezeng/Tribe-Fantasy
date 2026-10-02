@@ -8,7 +8,8 @@ export const BACKUP_TABLES: Record<string, string[]> = {
   memberships: ['id'], athletes: ['id'], audit_log: ['id'], sessions: ['id'], stat_taps: ['id'],
   stat_lines: ['session_id', 'athlete_id'], attendance: ['session_id', 'athlete_id'], injuries: ['id'],
   stages: ['id'], credit_ledger: ['id'], bids: ['id'], roster_slots: ['id'], weeks: ['id'],
-  picks: ['week_id', 'membership_id'],
+  picks: ['week_id', 'membership_id'], games: ['id'], game_pairings: ['game_id', 'home'],
+  game_picks: ['stage_id', 'game_number', 'membership_id'], bench_swaps: ['id'],
 };
 
 export interface Backup { exportedAt: string; tables: Record<string, unknown[]> }

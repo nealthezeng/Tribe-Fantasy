@@ -10,10 +10,13 @@ const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
   'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
-  'set_pick',
+  'set_bench', 'set_game_pick', 'set_pick', 'swap_bench',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
-const KEEPER_CALLABLE = ['confirm_injury', 'create_session', 'delete_session', 'reopen_session', 'save_taps', 'verify_session'];
+const KEEPER_CALLABLE = [
+  'confirm_injury', 'create_session', 'delete_session', 'finish_game', 'reopen_session', 'save_taps', 'start_game',
+  'verify_session',
+];
 
 let db: PGlite;
 let fns: { name: string; nargs: number }[];
@@ -94,6 +97,15 @@ describe('RPC gate', () => {
       ['rename_athlete', admin, () => ({ p_athlete: c.athlete, p_name: 'Patricia' })],
       ['delete_athlete', admin, () => ({ p_athlete: c.spare })],
       ['delete_session', keeper, () => ({ p_session: c.empty })],
+      ['set_game_pick', player, () => ({ p_membership: c.membership, p_stage: c.stage, p_number: 1, p_athlete: null })],
+      // roster_size 1 here, so the bench is empty (Postgres array literal: the rpc helper sends arrays as JSON).
+      ['set_bench', player, () => ({ p_membership: c.membership, p_stage: c.stage, p_athletes: '{}' })],
+      ['open_tournament', admin, () => ({ p_stage: c.stage, p_pairings: [{ league_id: c.league, home: c.membership, away: null }] }),
+        (r) => (c.game = r as string)],
+      ['start_game', keeper, () => ({ p_game: c.game })],
+      ['swap_bench', player, () => ({ p_membership: c.membership, p_stage: c.stage, p_out: c.hurt, p_in: c.sub })],
+      ['finish_game', keeper, () => ({ p_game: c.game, p_pairings: [{ league_id: c.league, home: c.membership, away: null }],
+        p_provisional: {} })],
     ];
 
     const covered = new Set(steps.map(([name]) => name));
@@ -120,6 +132,15 @@ describe('RPC gate', () => {
       if (name === 'delete_session') {
         c.empty = (await as(db, keeper, (tx) =>
           rpc(tx, 'create_session', { p_season: c.season, p_kind: 'practice', p_held_on: '2026-11-17', p_counts: true }))) as string;
+      }
+      if (name === 'swap_bench') {
+        // Superuser writes: an injured active athlete and a bench athlete on the gate membership's roster.
+        for (const [key, bench] of [['hurt', false], ['sub', true]] as const) {
+          c[key] = (await as(db, admin, (tx) => rpc(tx, 'add_athlete', { p_season: c.season, p_name: key, p_user: null }))) as string;
+          await db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via, bench)
+            values ($1, $2, $3, $4, 0, 'fill', $5)`, [c.stage, c.membership, c.league, c[key], bench]);
+        }
+        await db.query('insert into public.injuries (athlete_id, confirmed_at) values ($1, now())', [c.hurt]);
       }
       if (name === 'run_auction') {
         await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);

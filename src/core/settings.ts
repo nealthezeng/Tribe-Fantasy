@@ -9,6 +9,8 @@ export interface SeasonSettings {
   allowance_gap: number;
   max_members: number;
   roster_size: number;
+  /** Roster athletes kept on the bench; they play only after a swap for an injured active athlete. */
+  bench_size: number;
   min_bid: number;
   exclusive_ownership: boolean;
   allow_self_ownership: boolean;
@@ -28,6 +30,8 @@ export interface SeasonSettings {
   decay_grace_stages: number;
   decay_rate: number;
   decay_floor: number;
+  /** Tournament mode: factor for an athlete who started 1, 2, … games ago for the same manager; past the list = 1. */
+  tiredness_multipliers: number[];
   usage_reset: 'cycle';
   default_pick: 'best_unused' | 'forfeit';
   pick_lock_day: PickLockDay;
@@ -43,6 +47,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   allowance_gap: 30,
   max_members: 6,
   roster_size: 4,
+  bench_size: 1,
   min_bid: 1,
   exclusive_ownership: true,
   allow_self_ownership: false,
@@ -62,6 +67,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   decay_grace_stages: 1,
   decay_rate: 0.9,
   decay_floor: 0.6,
+  tiredness_multipliers: [0.5, 0.75],
   usage_reset: 'cycle',
   default_pick: 'best_unused',
   pick_lock_day: 'mon',
@@ -121,6 +127,7 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   allowance_gap: num(0, 100_000, true),
   max_members: num(2, 50, true),
   roster_size: num(1, 30, true),
+  bench_size: num(0, 5, true),
   min_bid: num(0, 10_000_000, true),
   exclusive_ownership: bool,
   allow_self_ownership: bool,
@@ -140,6 +147,9 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   decay_grace_stages: num(0, 20, true),
   decay_rate: num(0, 1),
   decay_floor: num(0, 1),
+  tiredness_multipliers: (v) =>
+    Array.isArray(v) && v.length <= 10 && v.every((x) => typeof x === 'number' && x >= 0 && x <= 1)
+      ? null : 'must be a list of up to 10 numbers between 0 and 1',
   usage_reset: oneOf('cycle'),
   default_pick: oneOf('best_unused', 'forfeit'),
   pick_lock_day: oneOf(...PICK_LOCK_DAYS),
@@ -180,6 +190,9 @@ export function parseSettings(input: unknown): SeasonSettings {
   for (const [key, check] of Object.entries(CHECKS)) {
     const problem = check(merged[key]);
     if (problem) issues.push(`${key} ${problem}`);
+  }
+  if (issues.length === 0 && (merged.bench_size as number) >= (merged.roster_size as number)) {
+    issues.push('bench_size must be less than roster_size');
   }
   if (issues.length > 0) throw new SettingsError(issues);
 
