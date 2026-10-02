@@ -166,7 +166,8 @@ Gaps found when checking the draft against the code. They fill holes and change 
    reload the game state. `finish_game` also refuses `PAIRINGS_INVALID` when the shape check (§4) fails.
 4. **Deleted game session.** `games.session_id` is `on delete set null`. A started game with no session is **void**:
    no matchups, no points, its starts don't count for tiredness, and it doesn't hold back later games (like M6's
-   skipped week). Admin force-delete (t81) is the only way this happens.
+   skipped week). This happens when the session is deleted: by its creator while still empty, or by an admin's
+   force-delete (t81).
 5. **Which sessions count.** Tournament scoring reads only sessions linked to a game. Any other session (practice or
    a stray tally) scores nothing. The tally screen's own "New session" stays for practice tallying, which records
    stats and never affects matchups.
@@ -182,3 +183,18 @@ Gaps found when checking the draft against the code. They fill holes and change 
    (which knows `bench_size`/`tiredness_multipliers`) against the live DB, the deployed build rejects the unknown
    keys and the live site breaks. So: no settings saves from a preview until the core settings change is live. Before
    deploying, check the live season's stored `roster_size` is ≥ 2, or the new `bench_size < roster_size` check fails.
+10. **Final RPC shapes (from the verified build).** `set_bench(membership, stage, athletes uuid[])` takes exactly
+    the bench count (`BENCH_SIZE` otherwise), so a larger `bench_size` works too. `swap_bench(membership, stage, out,
+    in)`: `TOURNAMENT_NOT_STARTED` before game 1 starts (change the bench with `set_bench` instead), `NOT_ACTIVE`,
+    `NOT_ON_BENCH`, `NOT_INJURED`, `SWAP_USED`. `start_game` of game 1 writes the default bench into the
+    `roster_slots.bench` flags for any roster without a valid choice, so `swap_bench` and the core read the same
+    bench. A swap never changes the flags: the core applies it from `from_game` on, so earlier games replay
+    unchanged. Every new table is in the admin Backup.
+11. **Game scores** use `athleteWeekScore` on the game's one session. Game sessions are `tournament` sessions, so
+    `session_multipliers.tournament` (×2) doubles every score alike, which changes no result.
+12. **Simulator and tuning.** `simulateYear` plays a year of tournaments (stages × games, Swiss each game, managers
+    pick best read × tiredness, bench their worst). `npm run tune` sweeps `upset_k` × tiredness and adds a
+    "repeater" (always starts their best, ignores tiredness). 100 seeds, 6×4, 3 tournaments × 6 games, current
+    defaults (`upset_k` 0.5, `[0.5, 0.75]`): repeating costs 1.1 final places on average and pays in 16% of years;
+    tanking the last game costs 0.3 places. No tiredness (`[]`) makes the sharpest manager win more (26% vs 20%,
+    random 16.7%) but lets everyone start their best every game. Keep the defaults and re-run on real stats.
