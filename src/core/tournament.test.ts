@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
-import { lineup, liveStatLines, nextPairings, pairingInputs, scoreTournaments, type TournamentGame, type TournamentInput } from './tournament';
-import type { YearStatLine } from './year';
+import { lineup, liveStatLines, nextPairings, pairingInputs, scoreTournaments, type TournamentGame, type TournamentInput, type YearStatLine } from './tournament';
 
 // Fixed points (upset_k 0: win +3, loss −1), 1 point per goal, no tournament doubling: easy arithmetic.
 const s = parseSettings({ upset_k: 0, stat_weights: { goal: 1 }, session_multipliers: { tournament: 1 } });

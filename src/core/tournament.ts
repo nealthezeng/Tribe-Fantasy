@@ -1,14 +1,30 @@
 import { stageMultiplier } from './decay';
 import { autoPick } from './picks';
 import { rankSnapshot, TIE_EPSILON } from './points';
-import type { Pairing } from './schedule';
 import { athleteWeekScore, type StatLine } from './scoring';
 import type { SeasonSettings } from './settings';
-import { meetingKey, swissPairings } from './swiss';
+import { meetingKey, swissPairings, type Pairing } from './swiss';
 import { mergeTaps, type Tap } from './taps';
 import { tirednessMultiplier } from './tiredness';
 import { pairKey, scoreWeek, type SideResult } from './week';
-import type { YearInjury, YearMember, YearStanding, YearStatLine } from './year';
+
+export interface YearMember { id: string; createdAt: string }
+export interface YearStatLine { sessionId: string; athleteId: string; stats: Record<string, number>; pointsPlayed: number }
+/** Confirmed injuries only; unconfirmed reports have no game effect. */
+export interface YearInjury { athleteId: string; confirmedAt: string; clearedAt: string | null }
+export interface YearStanding {
+  membershipId: string;
+  points: number;
+  totalScore: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  /** Average rank among ties (1 = best): what the allowance and rank weighting use. */
+  rank: number;
+  /** Display place: 1 + teams strictly ahead. */
+  place: number;
+  tied: boolean;
+}
 
 /** One row of public.games. Times are ISO. */
 export interface TournamentGame {
@@ -118,7 +134,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
 
   const lastStart = new Map<string, number>(); // `${stage}:${membership}:${athlete}` → game number
   const startedIn = new Map<string, Set<string>>(); // pairKey → stages with a start
-  const table = new Map(input.members.map((m) => [m.id, { points: 0, totalScore: 0, wins: 0, losses: 0, ties: 0 }]));
+  const table: Table = new Map(input.members.map((m) => [m.id, { points: 0, totalScore: 0, wins: 0, losses: 0, ties: 0 }]));
 
   /** One manager's side of game `number` in `stageId`, as of `asOf`. */
   const sideOf = (membershipId: string, stageId: string, number: number, asOf: number): TournamentSide => {
@@ -177,36 +193,8 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     }
 
     if (status === 'final') {
-      const lines = linesBySession.get(g.sessionId!) ?? [];
       const members = input.members.filter((m) => ms(m.createdAt) <= asOf || sides.has(m.id)).map((m) => m.id).sort();
-      const multipliers: Record<string, number> = {};
-      for (const x of sides.values()) {
-        if (x.athleteId !== null) multipliers[pairKey(x.membershipId, x.athleteId)] = x.tired! * x.decay!;
-      }
-      const r = scoreWeek({
-        settings: s,
-        matchups: pairings.map((p, j) => ({ id: `${g.id}:${j}`, home: p.home, away: p.away })),
-        picks: Object.fromEntries([...sides.values()].map((x) => [x.membershipId, x.athleteId])),
-        statLines: lines,
-        multipliers,
-        standings: members.map((m) => ({ managerId: m, points: table.get(m)!.points, totalScore: table.get(m)!.totalScore })),
-      });
-      const apply = (sr: SideResult, other: SideResult | null) => {
-        const result = other === null ? null
-          : Math.abs(sr.score - other.score) < TIE_EPSILON ? 'T' : sr.score > other.score ? 'W' : 'L';
-        Object.assign(sides.get(sr.managerId)!, { athleteScore: sr.athleteScore, score: sr.score, delta: sr.delta, result });
-        const row = table.get(sr.managerId)!;
-        const after = r.standings.find((x) => x.managerId === sr.managerId)!;
-        row.points = after.points;
-        row.totalScore = after.totalScore;
-        if (result === 'W') row.wins++;
-        if (result === 'L') row.losses++;
-        if (result === 'T') row.ties++;
-      };
-      for (const mt of r.matchups) {
-        apply(mt.home, mt.away);
-        if (mt.away) apply(mt.away, mt.home);
-      }
+      settleGame(g, pairings, sides, linesBySession.get(g.sessionId!) ?? [], members, table, s);
     }
     if (ownFinal) {
       const lines = linesBySession.get(g.sessionId!) ?? [];
@@ -227,15 +215,54 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     next = { stageId, number, sides: withRoster.map((m) => sideOf(m, stageId, number, now)) };
   }
 
+  return { games: outcomes, standings: standingsOf(table), next };
+}
+
+type Table = Map<string, Omit<YearStanding, 'membershipId' | 'rank' | 'place' | 'tied'>>;
+
+/** Scores a final game into `sides` (scores, results) and `table` (points, totals, W/L/T). */
+function settleGame(g: TournamentGame, pairings: TournamentPairing[], sides: Map<string, TournamentSide>, lines: StatLine[],
+  members: string[], table: Table, s: SeasonSettings): void {
+  const multipliers: Record<string, number> = {};
+  for (const x of sides.values()) {
+    if (x.athleteId !== null) multipliers[pairKey(x.membershipId, x.athleteId)] = x.tired! * x.decay!;
+  }
+  const r = scoreWeek({
+    settings: s,
+    matchups: pairings.map((p, j) => ({ id: `${g.id}:${j}`, home: p.home, away: p.away })),
+    picks: Object.fromEntries([...sides.values()].map((x) => [x.membershipId, x.athleteId])),
+    statLines: lines,
+    multipliers,
+    standings: members.map((m) => ({ managerId: m, points: table.get(m)!.points, totalScore: table.get(m)!.totalScore })),
+  });
+  const apply = (sr: SideResult, other: SideResult | null) => {
+    const result = other === null ? null
+      : Math.abs(sr.score - other.score) < TIE_EPSILON ? 'T' : sr.score > other.score ? 'W' : 'L';
+    Object.assign(sides.get(sr.managerId)!, { athleteScore: sr.athleteScore, score: sr.score, delta: sr.delta, result });
+    const row = table.get(sr.managerId)!;
+    const after = r.standings.find((x) => x.managerId === sr.managerId)!;
+    row.points = after.points;
+    row.totalScore = after.totalScore;
+    if (result === 'W') row.wins++;
+    if (result === 'L') row.losses++;
+    if (result === 'T') row.ties++;
+  };
+  for (const mt of r.matchups) {
+    apply(mt.home, mt.away);
+    if (mt.away) apply(mt.away, mt.home);
+  }
+}
+
+/** Standings by rank (ties share the average rank), then id. */
+function standingsOf(table: Table): YearStanding[] {
   const rows = [...table.entries()].map(([managerId, r]) => ({ managerId, ...r }));
   const ranks = rankSnapshot(rows);
-  const standings = rows.map((r) => ({
+  return rows.map((r) => ({
     membershipId: r.managerId, points: r.points, totalScore: r.totalScore, wins: r.wins, losses: r.losses, ties: r.ties,
     rank: ranks[r.managerId],
     place: 1 + rows.filter((o) => o.points > r.points || (o.points === r.points && o.totalScore > r.totalScore)).length,
     tied: rows.some((o) => o !== r && o.points === r.points && o.totalScore === r.totalScore),
   })).sort((a, b) => a.rank - b.rank || cmp(a.membershipId, b.membershipId));
-  return { games: outcomes, standings, next };
 }
 
 /**

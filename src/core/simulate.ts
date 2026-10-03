@@ -2,8 +2,7 @@ import { allocate, fillLeftovers, type Bid, type ManagerBudget } from './allocat
 import { stageAllowance } from './points';
 import { hashSeed, mulberry32 } from './rng';
 import { parseSettings, type SeasonSettings } from './settings';
-import { nextPairings, scoreTournaments, type TournamentInput, type TournamentResult } from './tournament';
-import type { YearStatLine } from './year';
+import { nextPairings, scoreTournaments, type TournamentInput, type TournamentResult, type YearStatLine } from './tournament';
 
 export interface YearSimConfig {
   managers: number;

@@ -70,16 +70,13 @@ describe('parseSettings', () => {
     expect(parseSettings({ max_members: 8, roster_size: 3 }).max_members).toBe(8);
   });
 
-  it('has the stage decay and pick lock defaults (stages revision §4, M6)', () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({
-      decay_grace_stages: 1, decay_rate: 0.9, decay_floor: 0.6, upset_k: 0.5, pick_lock_day: 'mon', pick_lock_time: '21:00',
-    });
+  it('has the stage decay defaults (stages revision §4)', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ decay_grace_stages: 1, decay_rate: 0.9, decay_floor: 0.6, upset_k: 0.5 });
   });
 
-  it('takes a pick lock day and a 24-hour HH:MM time only', () => {
-    expect(parseSettings({ pick_lock_day: 'tue', pick_lock_time: '17:30' })).toMatchObject({ pick_lock_day: 'tue', pick_lock_time: '17:30' });
-    for (const bad of [{ pick_lock_day: 'monday' }, { pick_lock_time: '9:00' }, { pick_lock_time: '24:00' }, { pick_lock_time: 2100 }]) {
-      expect(() => parseSettings(bad), JSON.stringify(bad)).toThrow(SettingsError);
+  it('rejects the weekly settings retired by tournament mode (T4; 0013 strips them from stored seasons)', () => {
+    for (const key of ['pick_lock_day', 'pick_lock_time', 'usage_reset']) {
+      expect(() => parseSettings({ [key]: 'mon' })).toThrow(`unknown setting "${key}"`);
     }
   });
 

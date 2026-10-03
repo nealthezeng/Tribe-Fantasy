@@ -1,4 +1,4 @@
-import type { YearStanding } from '../../core/year';
+import type { YearStanding } from '../../core/tournament';
 import { fetchAll } from './tournament';
 import { supabase } from './supabase';
 
