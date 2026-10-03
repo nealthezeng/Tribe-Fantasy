@@ -5,9 +5,8 @@ import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 
 export function JoinPage() {
-  const { session, loading, displayName, refresh } = useAuth();
+  const { session, loading } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [team, setTeam] = useState('');
   const [busy, setBusy] = useState(false);
@@ -21,10 +20,6 @@ export function JoinPage() {
     setBusy(true);
     setError(null);
     try {
-      if (!displayName) {
-        await api.setDisplayName(name);
-        await refresh();
-      }
       await api.joinLeague(code, team);
       navigate('/');
     } catch (err) {
@@ -38,9 +33,6 @@ export function JoinPage() {
     <section className="card">
       <h1>Join a league</h1>
       <form onSubmit={submit}>
-        {!displayName && (
-          <label>Your name<input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>
-        )}
         <label>Invite code<input className="code" required value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="off" spellCheck={false} /></label>
         <label>Team name<input required maxLength={40} value={team} onChange={(e) => setTeam(e.target.value)} /></label>
         <button disabled={busy}>{busy ? 'Joining…' : 'Join league'}</button>

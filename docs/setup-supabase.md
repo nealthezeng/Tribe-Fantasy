@@ -35,7 +35,7 @@
    `"normalize_mode": "none"` and add `"tap_merge_seconds": 10`, then save.
    Change `stat_weights` before the first tap of a season; removing a stat that already has taps makes those
    sessions impossible to verify.
-3. Coaches: have each sign in and set a name, then **Admin → Stat keepers → Make keeper**. Don't make coaches admins.
+3. Coaches: have each sign in once (the app asks for their name; no league needed), then **Admin → Stat keepers → Make keeper**. Don't make coaches admins.
 4. Players: **Admin → Athletes → linked account** for each player who wants to mark attendance/injuries.
 
 ## M4 stages and wallet (after 0001–0005)

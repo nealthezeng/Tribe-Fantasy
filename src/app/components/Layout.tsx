@@ -1,6 +1,8 @@
-import { useRef } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { errorMessage } from '../lib/errors';
+import { api } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { useInk } from '../lib/useInk';
 
@@ -42,10 +44,40 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
   );
 }
 
+/** First sign-in: a name before anything else, so staff can find (and make keepers of) people outside any league. */
+function NameForm() {
+  const { refresh } = useAuth();
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.setDisplayName(name);
+      await refresh();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="card">
+      <h1>What's your name?</h1>
+      <p className="muted">Teammates and staff see it on the league and stats pages.</p>
+      <form onSubmit={submit}>
+        <label>Your name<input required maxLength={60} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></label>
+        <button disabled={busy}>{busy ? 'Saving…' : 'Save name'}</button>
+      </form>
+      {error && <p className="error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 export function Layout() {
   const { session, isAdmin, isKeeper, displayName, loading, authError, clearAuthError } = useAuth();
   const path = useLocation().pathname;
-  const onHome = path === '/';
   const tabs = useInk<HTMLElement>(`${path} ${isKeeper} ${Boolean(session)}`);
   return (
     <>
@@ -72,10 +104,7 @@ export function Layout() {
             <button type="button" className="linklike" onClick={clearAuthError}>Dismiss</button>
           </p>
         )}
-        {onHome && !loading && session && !displayName && (
-          <p className="notice">Welcome! <Link to="/join">Set your name and join a league</Link>.</p>
-        )}
-        <Outlet />
+        {!loading && session && !displayName ? <NameForm /> : <Outlet />}
       </main>
     </>
   );

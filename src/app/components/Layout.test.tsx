@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Layout } from './Layout';
 
-const auth = vi.hoisted(() => ({ isAdmin: false }));
+const auth = vi.hoisted(() => ({ isAdmin: false, displayName: 'Pat' as string | null }));
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({
-    session: { user: { id: 'u1', email: 'pat@x.test' } }, isAdmin: auth.isAdmin, isKeeper: true, displayName: 'Pat',
+    session: { user: { id: 'u1', email: 'pat@x.test' } }, isAdmin: auth.isAdmin, isKeeper: true, displayName: auth.displayName,
     loading: false, authError: null, clearAuthError: () => {},
   }),
 }));
@@ -16,7 +16,10 @@ const renderLayout = () => render(<MemoryRouter><Layout /></MemoryRouter>);
 // The popover is closed in these tests, so its links are hidden from the accessibility tree.
 const adminLinks = () => screen.queryAllByRole('link', { name: /admin/i, hidden: true });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  auth.displayName = 'Pat';
+});
 
 describe('Layout', () => {
   it('puts Admin in the account menu for an admin, never in the tab bar', () => {
@@ -31,5 +34,13 @@ describe('Layout', () => {
     auth.isAdmin = false;
     renderLayout();
     expect(adminLinks()).toHaveLength(0);
+  });
+
+  it('asks a signed-in user with no name for one before anything else, league or not (t119)', () => {
+    auth.displayName = null;
+    render(<MemoryRouter><Routes><Route element={<Layout />}><Route index element={<p>league page</p>} /></Route></Routes></MemoryRouter>);
+    expect(screen.getByRole('heading', { name: /what's your name/i })).toBeTruthy();
+    expect(screen.getByLabelText(/your name/i)).toBeTruthy();
+    expect(screen.queryByText('league page')).toBeNull();
   });
 });

@@ -34,7 +34,7 @@ export function StaffPanel() {
     <div className="card">
       <h2>Stat keepers</h2>
       {!people.data && !people.error && <p className="muted" role="status">Loading…</p>}
-      <p className="muted">People appear here after they sign in and set a name.</p>
+      <p className="muted">People appear here after they first sign in.</p>
       <ul className="list">
         {people.data?.map((p) => (
           <li key={p.id}>
