@@ -159,7 +159,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
           </span>
         </summary>
 
-        {phase === 'not_open' && <p className="muted">Bidding hasn't opened for this season yet.</p>}
+        {phase === 'not_open' && <p className="muted">Bidding hasn't opened for this tournament yet.</p>}
 
         {phase === 'closed' && <p className="notice">Bids are closed. Rosters appear here once the auction runs.</p>}
 
@@ -171,8 +171,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               {roster.length === 0 ? (
                 <p className="muted">
                   {new Date(joinedAt) > new Date(stage.auction_run_at!)
-                    ? "You joined after this stage's auction. Your roster starts next stage."
-                    : 'No players this stage.'}
+                    ? "You joined after this tournament's auction. Your roster starts next tournament."
+                    : 'No players this tournament.'}
                 </p>
               ) : <SlotList slots={roster} name={name} />}
             </>

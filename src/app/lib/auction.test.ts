@@ -24,7 +24,7 @@ describe('timeLeft', () => {
 
 describe('pickAuctionStage', () => {
   const stage = (id: string, starts_on: string, bid_close_at: string | null): AuctionStage =>
-    ({ id, name: id, starts_on, bid_close_at, auction_seed: null, auction_run_at: null });
+    ({ id, name: id, starts_on, ends_on: starts_on, bid_close_at, auction_seed: null, auction_run_at: null });
 
   it('keeps showing the stage whose auction opened last when a later stage is created early', () => {
     const fall = stage('fall', '2026-10-18', '2026-10-19T20:00:00Z');

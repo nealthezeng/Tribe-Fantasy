@@ -8,15 +8,15 @@ web
 
 ## Users
 
-- **Managers**: members of the college ultimate team who buy credits, bid on teammates ("athletes") in a stage auction, and manage a fantasy roster week to week.
-- **Athletes**: team members who opt in to be draftable; their practice/tournament performance drives fantasy scoring.
-- **Stat keepers / coaches**: tap in live stats (goals, assists, blocks, callahans, turnovers) during practices and tournaments via a big-button tally screen; cannot record or verify their own athletes.
-- **Admins**: run seasons/stages, settings, invite codes, leagues, and confirmed-donation bookkeeping (treasurer role).
+- **Managers**: members of the college ultimate team who buy credits, bid on teammates ("athletes") in a tournament auction, and manage a fantasy roster across the season.
+- **Athletes**: team members who opt in to be draftable; their tournament game stats drive fantasy scoring.
+- **Stat keepers / coaches**: tap in live stats (goals, assists, blocks, callahans, turnovers) during tournament games via a big-button tally screen; cannot record or verify their own athletes.
+- **Admins**: run seasons/tournaments, settings, invite codes, leagues, and confirmed-donation bookkeeping (treasurer role).
 - **League viewers**: see stat lines once verified and league standings.
 
 ## Product Purpose
 
-A donation-funded fantasy league for a college ultimate team: managers bid credits (bought via real-money donations to the team fund) on their own teammates, draft rosters, and compete weekly head-to-head based on real practice/tournament stats. Success means the league runs engagingly through the season (managers active weekly) and raises meaningful donations for the team fund — both matter equally, not one at the expense of the other.
+A donation-funded fantasy league for a college ultimate team: managers bid credits (bought via real-money donations to the team fund) on their own teammates, draft rosters, and compete head-to-head in every tournament game based on real stats. Success means the league runs engagingly through the season (managers active every tournament) and raises meaningful donations for the team fund — both matter equally, not one at the expense of the other.
 
 ## Positioning
 
@@ -24,8 +24,8 @@ Unlike a generic fantasy sports app, the "athletes" are the users' own teammates
 
 ## Operating Context
 
-- Runs in stages (~2-3 week blocks ending at tournaments) within a year-long league; a fresh credit auction happens each stage; standings and ranks never reset across stages.
-- Stats are entered live at practices/tournaments on phones/tablets by keepers, then verified by a second person before they count toward league scoring.
+- Runs in tournaments (each one event, paired one 1-v-1 matchup per game) within a season-long league; a fresh credit auction happens before each tournament; standings and ranks never reset across tournaments.
+- Stats are entered live at tournament games on phones/tablets by keepers, then verified by a second person before they count toward league scoring.
 - Money flows only as donations recorded by admins/treasurer against a university club-sports or student-org giving channel — never a personal payment account.
 - Deployed as a public GitHub Pages SPA (hash routing) backed by Supabase (Postgres + auth + RLS); all writes go through security-definer RPCs.
 

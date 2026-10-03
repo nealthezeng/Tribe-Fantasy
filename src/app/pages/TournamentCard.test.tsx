@@ -18,7 +18,7 @@ const roster = (m: string, ids: string[]) =>
 /** Two teams before the tournament opens: a4 and b4 are the cheapest, so they're benched by default. */
 const base = (): TournamentRows => ({
   settings: {},
-  stages: [{ id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', bid_close_at: '2026-11-03T00:00:00Z', auction_seed: null,
+  stages: [{ id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-08', bid_close_at: '2026-11-03T00:00:00Z', auction_seed: null,
     auction_run_at: '2026-11-04T00:00:00Z' }],
   games: [],
   pairings: [],
@@ -64,9 +64,9 @@ describe('TournamentCard', () => {
     await show(base());
     expect(screen.getByText(/Your opponent is set when the tournament opens/)).toBeTruthy();
     expect(screen.getByText('Arlo').parentElement?.textContent).toContain('Bench');
-    fireEvent.click(screen.getAllByRole('button', { name: 'Pick' })[0]); // Alex, first by name
+    fireEvent.click(screen.getByRole('button', { name: 'Pick Alex' }));
     await waitFor(() => expect(api.setGamePick).toHaveBeenCalledWith('m1', 'S1', 1, 'a3'));
-    fireEvent.click(screen.getAllByRole('button', { name: 'Bench' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Bench Alex' }));
     await waitFor(() => expect(api.setBench).toHaveBeenCalledWith('m1', 'S1', ['a3']));
   });
 
@@ -78,7 +78,7 @@ describe('TournamentCard', () => {
     // Quinn is who the scorer would auto-pick for Flow: shown nowhere until game 2 starts.
     expect(document.body.textContent).not.toContain('Quinn');
     expect(screen.getByText(/Waiting on stats/)).toBeTruthy(); // game 1, finished but not verified
-    expect(screen.queryByRole('button', { name: 'Bench' })).toBeNull(); // the tournament has started
+    expect(screen.queryByRole('button', { name: /^Bench / })).toBeNull(); // the tournament has started
   });
 
   it('offers the bench swap for an injured active player once the tournament has started', async () => {
@@ -86,6 +86,14 @@ describe('TournamentCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Swap in for Avery' }));
     expect(confirm).toHaveBeenCalled();
     await waitFor(() => expect(api.swapBench).toHaveBeenCalledWith('m1', 'S1', 'a2', 'a4'));
+  });
+
+  it('keeps showing the standings between tournaments, with nothing to pick (T4)', async () => {
+    // No games and no playing stage: the next auction hasn't run.
+    await show({ ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] });
+    expect(screen.getByRole('cell', { name: 'Flow' })).toBeTruthy();
+    expect(screen.getByText('No games played yet.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Pick / })).toBeNull();
   });
 
   it('marks a game whose tally was deleted as void', async () => {

@@ -1,4 +1,5 @@
-import type { Pairing } from './schedule';
+/** One matchup: `[home, away]`, away null = bye. */
+export type Pairing = [string, string | null];
 
 /** Key for how often two teams (or a team and the bye, `b` null) have met. Order-free. */
 export const meetingKey = (a: string, b: string | null) =>

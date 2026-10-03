@@ -53,10 +53,10 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
 
   return (
     <div className="card">
-      <h2>Stages</h2>
+      <h2>Tournaments</h2>
       {!stages.data && !stages.error && <p className="muted" role="status">Loading…</p>}
       <p className="muted">
-        Players see stages as "seasons". Each stage is one tournament. Grant a stage's allowance before its auction:
+        The season is split into tournaments. Grant a tournament's allowance before its auction:
         it pays by the current standings, and running it again only credits teams that joined since. Then open the
         auction with a closing time, run it once bids close, and open the tournament: game 1 is paired by the
         standings. Keepers start and finish each game on the Tally tab.
@@ -66,7 +66,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           <li key={s.id}>
             <span>
               <span className="title">{s.name}</span><br />
-              <small>{formatDay(s.starts_on)} – {formatDay(s.ends_on)}{s.tournament ? ` · ends at ${s.tournament}` : ''}</small><br />
+              <small>{formatDay(s.starts_on)} – {formatDay(s.ends_on)}{s.tournament ? ` · at ${s.tournament}` : ''}</small><br />
               <small>{auctionStatus(s)}</small>
             </span>
             <span className="meta">
@@ -88,13 +88,13 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           </li>
         ))}
       </ul>
-      {stages.data?.length === 0 && <p className="muted">No stages yet. Add the first one below.</p>}
+      {stages.data?.length === 0 && <p className="muted">No tournaments yet. Add the first one below.</p>}
       <form onSubmit={save} className="row section">
         <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
         <label>Starts<input type="date" required value={form.starts_on} onChange={set('starts_on')} /></label>
         <label>Ends<input type="date" required value={form.ends_on} onChange={set('ends_on')} /></label>
-        <label>Ends at tournament<input maxLength={60} value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
-        <button>{form.id ? 'Save stage' : 'Add stage'}</button>
+        <label>Event<input maxLength={60} value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
+        <button>{form.id ? 'Save tournament' : 'Add tournament'}</button>
         {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
       </form>
       {status && <p className="success" role="status">{status}</p>}

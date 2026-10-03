@@ -27,8 +27,6 @@ export const api = {
   revokeRole: (userId: string, role: 'stat_keeper') => call<void>('revoke_role', { p_user: userId, p_role: role }),
   linkAthleteUser: (athleteId: string, userId: string | null) =>
     call<void>('link_athlete_user', { p_athlete: athleteId, p_user: userId }),
-  createSession: (seasonId: string, kind: 'practice' | 'tournament', heldOn: string, counts: boolean) =>
-    call<string>('create_session', { p_season: seasonId, p_kind: kind, p_held_on: heldOn, p_counts: counts }),
   saveTaps: (sessionId: string, clientNow: string, taps: QueuedTap[]) =>
     call<number>('save_taps', { p_session: sessionId, p_client_now: clientNow, p_taps: taps }),
   verifySession: (sessionId: string, lines: { athlete_id: string; stats: Record<string, number> }[]) =>

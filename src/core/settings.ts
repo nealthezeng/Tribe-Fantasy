@@ -1,6 +1,4 @@
 export type SessionType = 'practice' | 'tournament';
-export const PICK_LOCK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
-export type PickLockDay = (typeof PICK_LOCK_DAYS)[number];
 
 export interface SeasonSettings {
   credits_per_dollar: number;
@@ -32,10 +30,7 @@ export interface SeasonSettings {
   decay_floor: number;
   /** Tournament mode: factor for an athlete who started 1, 2, … games ago for the same manager; past the list = 1. */
   tiredness_multipliers: number[];
-  usage_reset: 'cycle';
   default_pick: 'best_unused' | 'forfeit';
-  pick_lock_day: PickLockDay;
-  pick_lock_time: string;
   stat_lock_hours: number;
   tap_merge_seconds: number;
 }
@@ -68,10 +63,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   decay_rate: 0.9,
   decay_floor: 0.6,
   tiredness_multipliers: [0.5, 0.75],
-  usage_reset: 'cycle',
   default_pick: 'best_unused',
-  pick_lock_day: 'mon',
-  pick_lock_time: '21:00',
   stat_lock_hours: 48,
   tap_merge_seconds: 10,
 };
@@ -150,11 +142,7 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   tiredness_multipliers: (v) =>
     Array.isArray(v) && v.length <= 10 && v.every((x) => typeof x === 'number' && x >= 0 && x <= 1)
       ? null : 'must be a list of up to 10 numbers between 0 and 1',
-  usage_reset: oneOf('cycle'),
   default_pick: oneOf('best_unused', 'forfeit'),
-  pick_lock_day: oneOf(...PICK_LOCK_DAYS),
-  // 24-hour HH:MM in America/New_York; 0008's create_stage_weeks reads it.
-  pick_lock_time: (v) => (typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? null : 'must be HH:MM (24-hour)'),
   stat_lock_hours: num(0, 720),
   tap_merge_seconds: num(0, 60),
 };

@@ -6,7 +6,7 @@ A clean, simple look, not a professional product. Most use is on phones, often a
 
 - **One job per screen.** The main action is obvious and sits first. Everything else is quieter or tucked away.
 - **Plain words.** Label things by what they do ("Grant allowance", "Undo last tap"), not by how they work.
-  Players see stages as "seasons".
+  Everyone sees stages as "tournaments"; the league year is the "season".
 - **Always show state.** Something is loading, saved, unsaved, offline, or failed, and the page says which.
   Errors say what to do next.
 - **Consistent.** The same spacing, colours, buttons and cards everywhere. Reuse the tokens and classes in
@@ -27,7 +27,7 @@ Pages live in `src/app/pages/` with hash routes. Shared layout is `src/app/compo
 
 **Players:** `#/` HomePage, `#/join` JoinPage, `#/login` LoginPage, `#/stats` StatsPage, `#/stats/:id`
 SessionPage, `#/me` MePage
-- Answer "how is my team doing?" at a glance: team, balance, this week's matchup. Details go one tap deeper.
+- Answer "how is my team doing?" at a glance: team, balance, this tournament's matchup. Details go one tap deeper.
 - Friendly empty states ("You're not in a league yet. Join with an invite code.").
 
 **Stat keepers:** `#/tally` TallyPage

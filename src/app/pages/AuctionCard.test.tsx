@@ -63,7 +63,7 @@ beforeEach(() => {
 });
 
 const openStage: AuctionStage = {
-  id: 's1', name: 'Fall', starts_on: '2026-10-18', bid_close_at: new Date(Date.now() + 3_600_000).toISOString(),
+  id: 's1', name: 'Fall', starts_on: '2026-10-18', ends_on: '2026-10-19', bid_close_at: new Date(Date.now() + 3_600_000).toISOString(),
   auction_seed: null, auction_run_at: null,
 };
 const athlete = (id: string, name: string) => ({ id, name, user_id: null, opted_in: true });

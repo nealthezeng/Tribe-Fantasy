@@ -1,9 +1,30 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, mergeRanks, toTournamentInput, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, toTournamentInput, type TournamentRows } from './tournament';
+import type { AuctionStage } from './auction';
+import type { GameRow } from './tournament';
+
+let mockStages: AuctionStage[] = [];
+let mockGames: GameRow[] = [];
+
+vi.mock('./supabase', () => ({
+  supabase: {
+    from: (table: string) => {
+      const rows = table === 'stages' ? mockStages : table === 'games' ? mockGames : [];
+      const builder = {
+        select: () => builder,
+        eq: () => builder,
+        order: () => builder,
+        limit: () => builder,
+        then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
+      };
+      return builder;
+    },
+  },
+}));
 
 const T = '2026-11-07T14:00:00+00:00';
-const stage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', bid_close_at: '2026-11-03T00:00:00+00:00',
+const stage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-15', bid_close_at: '2026-11-03T00:00:00+00:00',
   auction_seed: null, auction_run_at: '2026-11-04T00:00:00+00:00' };
 const rows: TournamentRows = {
   settings: {},
@@ -53,11 +74,17 @@ describe('toTournamentInput', () => {
     const next = { ...stage, id: 'S2', starts_on: '2026-11-20', bid_close_at: '2026-11-25T00:00:00+00:00', auction_run_at: null };
     expect(toTournamentInput({ ...rows, stages: [stage, next] }, 123).currentStageId).toBeNull();
   });
+
+  it("has no current stage once the tournament's last day has passed (T4)", () => {
+    const at = (iso: string) => toTournamentInput(rows, Date.parse(iso)).currentStageId;
+    expect(at('2026-11-15T12:00:00')).toBe('S1'); // local time: the last day
+    expect(at('2026-11-16T12:00:00')).toBeNull();
+  });
 });
 
 describe('buildLeagueTournament', () => {
   it('scores the year and carries names for the UI', () => {
-    const y = buildLeagueTournament(rows, Date.parse('2027-01-01T00:00:00Z'));
+    const y = buildLeagueTournament(rows, Date.parse('2026-11-10T12:00:00Z')); // game 1's stats locked, tournament not over
     expect(y.result.games.map((g) => g.status)).toEqual(['final', 'upcoming']);
     // Tournament ×2: goal 3 × 2 = 6. m2 never picked, so b1 played for them (and scored 0).
     const [m] = y.result.games[0].matchups;
@@ -116,5 +143,31 @@ describe('fetchAll', () => {
     });
     expect(got).toEqual(all);
     expect(asked).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
+  });
+});
+
+describe('loadCurrentGame', () => {
+  const baseStage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-15', bid_close_at: '2026-11-03T00:00:00+00:00',
+    auction_seed: null, auction_run_at: '2026-11-04T00:00:00+00:00' };
+
+  it("still returns a live game after the tournament's last day, so it can be finished", async () => {
+    mockStages = [baseStage];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: '2026-11-15T14:00:00+00:00', finished_at: null }];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
+    expect(result?.game.id).toBe('g2');
+  });
+
+  it("has no game to start after the tournament's last day", async () => {
+    mockStages = [baseStage];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
+    expect(result).toBeNull();
+  });
+
+  it('returns the next game to start on the last day', async () => {
+    mockStages = [baseStage];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-15T12:00:00'));
+    expect(result?.game.id).toBe('g2');
   });
 });

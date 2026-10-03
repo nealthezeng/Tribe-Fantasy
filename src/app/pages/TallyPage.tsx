@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router';
 import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
@@ -6,7 +6,7 @@ import { loadOwnedAthletes } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import {
-  loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel, todayLocal,
+  loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel,
   type CurrentSeason, type SessionRow,
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
@@ -37,14 +37,9 @@ export function TallyPage() {
 function SessionPicker({ season, keeperId, onPick }: {
   season: CurrentSeason; keeperId: string; onPick: (id: string) => void;
 }) {
-  const { isAdmin } = useAuth();
-  const [heldOn, setHeldOn] = useState(todayLocal());
-  const [kind, setKind] = useState<'practice' | 'tournament'>('practice');
-  const [counts, setCounts] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   // Taps still on this phone, so they're never stranded: their sessions are listed even once verified.
   const [unsaved] = useState(() => new Map(queuedSessions(keeperId).map((q) => [q.sessionId, q.count])));
+  // Tournament games only (T4): practice tallying is retired. A non-game session shows up only to drain this phone's taps.
   const sessions = useLoad(async () => {
     const open = `and(season_id.eq.${season.id},verified_at.is.null)`;
     const { data, error } = await supabase!.from('sessions').select(SESSION_COLUMNS)
@@ -57,76 +52,31 @@ function SessionPicker({ season, keeperId, onPick }: {
       : { data: [], error: null };
     if (games.error) throw games.error;
     const game = new Map((games.data ?? []).map((g) => [g.session_id as string, g.number as number]));
-    return rows.map((s) => ({ ...s, game: game.get(s.id) ?? null }));
+    return rows.filter((s) => game.has(s.id) || unsaved.has(s.id)).map((s) => ({ ...s, game: game.get(s.id) ?? null }));
   }, [season.id, unsaved]);
-
-  async function remove(s: SessionRow) {
-    if (!window.confirm(`Delete the ${sessionTitle(s)} session? This can't be undone.`)) return;
-    setDeleteError(null);
-    try {
-      await api.deleteSession(s.id);
-      sessions.reload();
-    } catch (err) {
-      setDeleteError(errorMessage(err));
-    }
-  }
-
-  async function create(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      onPick(await api.createSession(season.id, kind, heldOn, counts));
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
 
   return (
     <section className="page">
       <h1>Tally</h1>
       <GameControls season={season} onOpen={onPick} unsaved={unsaved} />
       <div className="card">
-        <h2>Open sessions</h2>
+        <h2>Open games</h2>
         {!sessions.data && !sessions.error && <p className="muted" role="status">Loading…</p>}
-        {sessions.data?.length === 0 && <p className="muted">None open. Start one below.</p>}
+        {sessions.data?.length === 0 && <p className="muted">No open games.</p>}
         <ul className="list">
           {sessions.data?.map((s) => (
             <li key={s.id}>
               <span className="meta">
                 <span className="title">{sessionTitle(s)}</span>
                 {s.game !== null && <span className="pill info">Game {s.game}</span>}
-                {!s.counts && <span className="pill">Not counted</span>}
                 {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
               </span>
-              {/* Never offered while this phone still holds taps for it: they'd have nowhere to go.
-                  Only the creator or an admin may delete (server enforces this too). A game's session isn't offered
-                  here: deleting it voids the game (an admin can still force-delete it from the session page). */}
-              {!s.verified_at && !unsaved.has(s.id) && s.game === null && (s.created_by === keeperId || isAdmin) && (
-                <button className="secondary" onClick={() => void remove(s)}>Delete</button>
-              )}
               <button className={s.verified_at ? 'secondary' : ''} onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
             </li>
           ))}
         </ul>
-        {deleteError && <p className="error" role="alert">{deleteError}</p>}
+        {sessions.error && <p className="error" role="alert">{sessions.error}</p>}
       </div>
-      <form className="card" onSubmit={create}>
-        <h2>New session</h2>
-        <label>Date<input type="date" required value={heldOn} onChange={(e) => setHeldOn(e.target.value)} /></label>
-        <label>Type
-          <select value={kind} onChange={(e) => setKind(e.target.value as 'practice' | 'tournament')}>
-            <option value="practice">Practice</option>
-            <option value="tournament">Tournament</option>
-          </select>
-        </label>
-        <label className="check">
-          <input type="checkbox" checked={counts} onChange={(e) => setCounts(e.target.checked)} />
-          Counts toward stats (untick for drills)
-        </label>
-        <p className="muted"><small>Tournament games are tallied with Start game. A session started here records stats but never scores a matchup.</small></p>
-        <button>Start tallying</button>
-        {(error || sessions.error) && <p className="error" role="alert">{error ?? sessions.error}</p>}
-      </form>
     </section>
   );
 }

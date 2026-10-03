@@ -10,7 +10,7 @@ const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
   'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
-  'set_bench', 'set_game_pick', 'set_pick', 'swap_bench',
+  'set_bench', 'set_game_pick', 'swap_bench',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
@@ -91,9 +91,6 @@ describe('RPC gate', () => {
       ['place_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete, p_amount: 1 })],
       ['delete_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete })],
       ['run_auction', admin, () => ({ p_stage: c.stage })],
-      ['create_stage_weeks', admin, () => ({ p_stage: c.stage })],
-      ['set_week_lock', admin, () => ({ p_week: c.week, p_at: new Date(Date.now() + 3_600_000).toISOString() })],
-      ['set_pick', player, () => ({ p_membership: c.membership, p_week: c.week, p_athlete: c.athlete })],
       ['rename_athlete', admin, () => ({ p_athlete: c.athlete, p_name: 'Patricia' })],
       ['delete_athlete', admin, () => ({ p_athlete: c.spare })],
       ['delete_session', keeper, () => ({ p_session: c.empty })],
@@ -119,12 +116,6 @@ describe('RPC gate', () => {
           rpc(tx, 'verify_session', { p_session: c.session, p_lines: [{ athlete_id: c.athlete, stats: { goal: 1 } }] }),
         );
         await db.query(`update public.sessions set verified_at = now() - interval '49 hours' where id = $1`, [c.session]);
-      }
-      if (name === 'set_week_lock') {
-        c.week = (await db.query<{ id: string }>(`select id from public.weeks order by starts_on offset 1 limit 1`)).rows[0].id;
-        // A passed lock can't be moved, and 0009's set_week_lock refuses a p_at past the week's end, so keep both
-        // off the calendar (the week's own ends_at is a fixed 2026 date from the fixture stage).
-        await db.query(`update public.weeks set pick_lock_at = now() + interval '1 hour', ends_at = now() + interval '1 day' where id = $1`, [c.week]);
       }
       if (name === 'delete_athlete') {
         c.spare = (await as(db, admin, (tx) => rpc(tx, 'add_athlete', { p_season: c.season, p_name: 'Spare', p_user: null }))) as string;
