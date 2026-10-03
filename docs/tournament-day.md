@@ -34,7 +34,7 @@ So at least one keeper who is **not** a manager must be there or online to verif
 
 - The player reports it on their **Me** page, or tells a keeper.
 - A keeper taps **Confirm injury** on the Tally screen. Nobody can confirm their own injury.
-- From then on, a manager who started that player gets the auto-pick, and can swap their bench player in for the
+- From then on, a manager who picked that player gets an auto-pick instead, and can swap their bench player in for the
   rest of the tournament (League tab, once per tournament).
 - When the player is back, they tap **I'm back** on their Me page.
 
