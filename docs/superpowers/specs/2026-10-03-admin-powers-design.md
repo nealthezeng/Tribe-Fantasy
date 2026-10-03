@@ -105,3 +105,16 @@ admin who tapped.
 
 Restoring a deleted tournament (the Backup tab is the safety net: take one before deleting). Deleting a game from
 the middle of a tournament. Renaming a tournament (`update_stage` already does it).
+
+## Amendments (2026-10-03, from the verified build `admin-powers-verified-draft`)
+
+1. **Where opponents are set:** only on the tally page's tournament card (`GameControls`, for the next or live
+   game). Admins are keepers too, so the per-game field in the admin Tournaments tab was dropped as redundant.
+   Staff screens say "Game 2 vs Duke" (the number keeps Start/Finish unambiguous); player screens say "vs Duke"
+   (`gameLabel`). The admin "Check pairings" lines keep bare game numbers.
+2. **Where the admin buttons live:** "Delete tournament" sits in the tournament's Edit form (Edit opens it);
+   "Undo game N" sits in the folded Tournament section next to Check pairings.
+3. **App tests:** the TallyPage/SessionPage admin exemptions are one-line conditions; the DB tests pin the real
+   rules, so those two get no UI tests. StagesPanel gets tests for Undo (picks the newest STARTED game) and Delete.
+4. **Undoing game 1 reopens bench choices** (`set_bench` only refuses once a game has started); pinned in a DB test.
+5. **Branch base:** `admin-powers` is cut from `m9-fixes` (unmerged at plan time), so merging it ships m9-fixes too.
