@@ -169,6 +169,13 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
   underlined, errors are written out.
 - **Gold means act.** Use gold for the main action and the current place, not for decoration or long text.
 - **Gold and baby blue are never text colours on white.** Text on gold is `--on-gold`; light-mode links use `--link`.
+- **Depth**: floating panes (cards, number tiles, the scoreboard, the account menu, sticky bid header and admin
+  subnav) are frosted glass: `--pane-bg` layered fill, `--pane-highlight` top edge, `--pane-shadow`, `--pane-blur`, over
+  a faint gold and blue `--bg-ambient` glow on the page. Light mode is white glass, dark mode smoked glass. List rows
+  and the tally board never blur (phone GPU).
+- **Buttons are keycaps**: `--btn-sheen` (a layer behind the label, so it rides on any fill), `--btn-bevel` and
+  `--btn-drop`; pressed they sink (`--btn-press`, 1px down) and spring back (`--dur-release`, `--ease-spring`). Links,
+  menu items and tally tiles stay flat. A chosen pick is green (`.picked`) with a drawn check and a one-time pop.
 - **Motion is small and physical**, and only when the user has not asked for reduced motion: 150ms colour fades
   (`--dur`), every button sinks to 97% while pressed (`--dur-press`), gold buttons rise 1px with a gold
   `--shadow-lift` on hover, and tab markers glide (`--dur-slide`, `--ease-glide`). The tally board never moves:

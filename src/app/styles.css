@@ -2,7 +2,7 @@
 @import './tokens.css';
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: var(--fs-md); line-height: 1.5; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background-color: var(--bg); background-image: var(--bg-ambient); background-attachment: fixed; color: var(--fg); font-family: var(--font-sans); font-size: var(--fs-md); line-height: 1.5; -webkit-text-size-adjust: 100%; }
 ::selection { background: var(--gold); color: var(--on-gold); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 h1, h2, h3 { font-family: var(--font-heading); font-stretch: var(--heading-stretch); line-height: 1.15; text-wrap: balance; margin: 0; }
@@ -51,8 +51,8 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .account-button[aria-current='page'] .avatar { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px var(--blue); }
 .account-menu {
   position: absolute; inset: auto; top: calc(var(--bar-height) - 2px); right: max(var(--gutter), calc((100% - var(--shell)) / 2 + var(--gutter)));
-  margin: 0; width: min(264px, calc(100% - 2 * var(--gutter))); padding: var(--s2); border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-pop);
+  margin: 0; width: min(264px, calc(100% - 2 * var(--gutter))); padding: var(--s2); border: 1px solid var(--pane-border); border-radius: var(--radius-sm);
+  background: var(--pane-bg); color: var(--fg);
 }
 .account-who { display: grid; padding: var(--s2) var(--s3) var(--s3); margin-bottom: var(--s1); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .account-menu :is(a, button), .account-menu button:is(:hover, :active):not(:disabled) {
@@ -66,7 +66,10 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .page, .card, .stack, .section { display: grid; gap: var(--s3); align-content: start; }
 .page { gap: var(--s4); }
 .page > :first-child { margin-bottom: var(--s2); }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s4); }
+.card { background: var(--pane-bg); border: 1px solid var(--pane-border); border-radius: var(--radius); padding: var(--s4); }
+/* Frosted glass: the few panes that float (not list rows, not the tally board) blur what's behind them. */
+.card, .tiles > div, .account-menu, .bid-header, .subnav { -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur); }
+.card, .tiles > div, .account-menu { box-shadow: var(--pane-highlight), var(--pane-shadow); }
 .section { border-top: 1px solid var(--line); padding-top: var(--s4); margin-top: var(--s1); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
 .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); }
@@ -89,6 +92,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface); color: var(--fg); border-color: var(--line-strong); }
 .secondary:hover:not(:disabled) { background: var(--surface-2); }
 .secondary:active:not(:disabled) { background: var(--line); }
+/* Keycap buttons: a sheen layer behind the label (so it rides on any fill), a lit top edge and a small drop shadow.
+   Pressed, the shadow turns inward and the sheen dims, so the key sinks. Tally tiles, links and menu items stay flat. */
+:is(button, .button):not(.linklike, .account-button, :where(.tally-buttons, .account-menu) *) {
+  position: relative; isolation: isolate; box-shadow: var(--btn-bevel), var(--btn-drop);
+  &::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--btn-sheen); pointer-events: none; }
+  &:active:not(:disabled) { box-shadow: var(--btn-press); }
+  &:active:not(:disabled)::before { opacity: 0.35; }
+}
+.secondary.picked, .secondary.picked:is(:hover, :active):not(:disabled) { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+.picked svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.picked .clear { font-weight: var(--fw-regular); }
 .linklike, .linklike:hover:not(:disabled), .linklike:active:not(:disabled) {
   background: none; border: 0; color: var(--link); padding: 0 var(--s1); font-weight: var(--fw-semi); text-decoration: underline; text-underline-offset: 3px;
 }
@@ -202,18 +216,19 @@ tbody tr:last-child td { border-bottom: 0; }
 .live { display: inline-flex; align-items: center; gap: var(--s2); color: var(--error); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.06em; }
 .dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid currentColor; opacity: 0.35; transform: scale(1.8); }
-.score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: var(--s2) var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--bar); color: var(--bar-fg); }
+.score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: var(--s2) var(--s3); padding: var(--s4); border: 1px solid var(--pane-border); border-radius: var(--radius); background: var(--score-bg); color: var(--bar-fg); box-shadow: var(--score-shadow); }
 .score .vs { color: var(--bar-muted); padding-bottom: var(--s2); }
 .score-side { display: grid; gap: var(--s1); min-width: 0; overflow-wrap: anywhere; }
 .score-side:last-of-type { text-align: right; }
 .score-side small { color: var(--bar-muted); }
 .score-side.lost { color: var(--bar-muted); }
+.score-side.picked :is(small, .pts-name) { color: var(--ok-on-bar); }
 .pts, .pts-name { font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); line-height: 0.95; }
 .pts { font-size: var(--fs-score); font-variant-numeric: tabular-nums; }
 .pts-name { font-size: var(--fs-xl); }
 .score-note { grid-column: 1 / -1; color: var(--bar-muted); font-size: var(--fs-sm); }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
-.tiles > div { display: grid; gap: var(--s1); align-content: start; padding: var(--s3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.tiles > div { display: grid; gap: var(--s1); align-content: start; padding: var(--s3); background: var(--pane-bg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); }
 .tiles dt { font-size: var(--fs-sm); color: var(--muted); }
 .tiles dd { margin: 0; }
 .of { font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--muted); }
@@ -222,7 +237,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .more::after { content: ''; width: 7px; height: 7px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
 
 /* Admin: one section at a time, picked from a sticky row of tabs. */
-.subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); scrollbar-width: none; }
+.subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--sticky-bg); border-bottom: 1px solid var(--pane-border); scrollbar-width: none; }
 .subnav button, .subnav button:hover:not(:disabled) { position: relative; z-index: 1; flex: none; background: transparent; color: var(--fg); border-color: var(--line-strong); border-radius: var(--radius-pill); padding: var(--s2) 14px; font-size: var(--fs-sm); }
 .subnav button:hover:not(:disabled) { background: var(--surface-2); }
 .subnav button[aria-pressed='true'], .subnav button[aria-pressed='true']:hover:not(:disabled) { background: transparent; color: var(--bg); border-color: var(--fg); }
@@ -251,7 +266,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .bid-header {
   position: sticky; top: 0; z-index: 2; display: grid; gap: var(--s2);
   margin: calc(-1 * var(--s4)) calc(-1 * var(--s4)) 0; padding: var(--s3) var(--s4);
-  background: var(--surface); border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--pane-bg); border-bottom: 1px solid var(--pane-border); border-radius: var(--radius) var(--radius) 0 0;
 }
 .bid-header.over { background: var(--error-soft); }
 /* The sticky header sits above the list, so a browser's own scroll-into-view for a focused control must clear it. */
@@ -260,6 +275,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .bid-sums p { display: flex; align-items: baseline; gap: var(--s2); }
 .bid-sums span { color: var(--muted); }
 .flash-bad { color: var(--error); } /* reduced motion: just red while .over lasts */
+@keyframes pick-pop { from { transform: scale(0.92); box-shadow: 0 0 0 0 var(--pick-ring); } to { transform: scale(1); box-shadow: 0 0 0 10px transparent; } }
 @keyframes live-pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.6); opacity: 0; } }
 @keyframes flash-bad { 50% { transform: scale(1.15); } }
 
@@ -268,20 +284,24 @@ tbody tr:last-child td { border-bottom: 0; }
   .bid-header { transition: background-color var(--dur) var(--ease); }
   button, .button, a, .pill {
     transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease),
-      transform var(--dur-press) var(--ease), box-shadow var(--dur) var(--ease);
+      transform var(--dur-release) var(--ease-spring), box-shadow var(--dur) var(--ease);
   }
+  /* Press fast, release with a small spring past rest. */
+  :is(button, .button):active:not(:disabled) { transition-duration: var(--dur-press); transition-timing-function: var(--ease); }
+  :is(button, .button)::before { transition: opacity var(--dur) var(--ease); }
+  .picked { animation: pick-pop var(--dur-pop) var(--ease-spring); }
   /* width animates on purpose: the marker is absolutely positioned, so only it re-lays-out (scaleX would warp the pill). */
   .dot::after { animation: live-pulse var(--dur-pulse) var(--ease-glide) infinite; }
   .more::after { transition: transform var(--dur) var(--ease); }
   .more:hover::after { transform: translateX(3px) rotate(45deg); }
   .ink.ready { transition: transform var(--dur-slide) var(--ease-glide), width var(--dur-slide) var(--ease-glide); }
   /* Every button sinks a little while pressed; gold (main action) buttons also lift on hover. */
-  :is(button, .button):active:not(:disabled) { transform: scale(0.97); }
+  :is(button, .button):active:not(:disabled) { transform: translateY(1px) scale(0.98); }
   :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):hover:not(:disabled) {
-    transform: translateY(-1px); box-shadow: var(--shadow-lift);
+    transform: translateY(-1px); box-shadow: var(--btn-bevel), var(--shadow-lift);
   }
   :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):active:not(:disabled) {
-    transform: translateY(0) scale(0.97); box-shadow: none;
+    transform: translateY(1px) scale(0.98); box-shadow: var(--btn-press);
   }
   /* A tally tap must show instantly and the tile must not move under the thumb. */
   .tally-buttons button, .tally-buttons button:is(:hover, :active):not(:disabled) { transition: none; transform: none; box-shadow: none; }

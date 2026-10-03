@@ -97,7 +97,34 @@
   --ease-glide: cubic-bezier(0.16, 1, 0.3, 1); /* fast start, long soft landing */
   --dur-flash: 400ms;   /* the over-budget flash on the bid header, x3 */
   --dur-pulse: 1.6s;    /* the ring around the Live dot, looping */
+  --dur-release: 340ms; /* a pressed button springs back */
+  --dur-pop: 420ms;     /* a pick turning green */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoots a little, then settles */
   --shadow-lift: 0 6px 14px -4px rgb(201 148 0 / 0.55), 0 2px 4px rgb(15 20 25 / 0.12); /* gold button hover */
+
+  /* Depth. Panes (cards, tiles, scoreboard, sticky headers, the account menu) are frosted glass: a translucent
+     layered fill, a 1px top highlight, a soft offset shadow and a blur of whatever sits behind. The page has a faint
+     gold and blue glow so the glass has something to frost. Light mode is white glass; dark mode is smoked glass. */
+  --bg-ambient: radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / 0.10), transparent 62%),
+    radial-gradient(800px 520px at 105% 12%, rgb(140 200 242 / 0.16), transparent 60%);
+  --pane-bg: linear-gradient(180deg, rgb(255 255 255 / 0.94), rgb(255 255 255 / 0.80));
+  --pane-border: rgb(15 20 25 / 0.08);
+  --pane-highlight: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --pane-shadow: 0 1px 2px rgb(15 20 25 / 0.05), 0 10px 28px -14px rgb(15 20 25 / 0.22);
+  --pane-blur: blur(14px) saturate(150%);
+  --sticky-bg: rgb(244 247 250 / 0.78);  /* sticky headers: content scrolls under the frost */
+  --score-bg: radial-gradient(130% 90% at 0% 0%, rgb(245 183 0 / 0.16), transparent 55%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0) 45%), var(--bar);
+  --score-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 16px 36px -16px rgb(15 20 25 / 0.55), 0 2px 6px rgb(15 20 25 / 0.18);
+  --ok-on-bar: #7fd69a;  /* green that reads on the black scoreboard in both themes */
+
+  /* Buttons are keycaps: a sheen over the fill, a lit top edge, a shaded bottom edge and a small drop shadow.
+     Pressed, the sheen dims and the shadow turns inward, so the key sinks. The tally board keeps flat tiles. */
+  --btn-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(15 20 25 / 0.05));
+  --btn-bevel: inset 0 1px 0 rgb(255 255 255 / 0.6), inset 0 -1px 0 rgb(15 20 25 / 0.14);
+  --btn-drop: 0 1px 2px rgb(15 20 25 / 0.14), 0 3px 8px -3px rgb(15 20 25 / 0.16);
+  --btn-press: inset 0 2px 5px rgb(15 20 25 / 0.28), inset 0 0 0 1px rgb(15 20 25 / 0.04);
+  --pick-ring: rgb(29 107 53 / 0.45);  /* the ring that spreads when a pick turns green */
 
   color-scheme: light;
 }
@@ -123,5 +150,20 @@
     --error: #ff8a80; --error-soft: #3b1a18;
     --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
     --shadow-lift: 0 6px 16px -4px rgb(245 183 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.4);
+    --bg-ambient: radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / 0.09), transparent 62%),
+      radial-gradient(800px 560px at 105% 10%, rgb(140 200 242 / 0.10), transparent 60%);
+    --pane-bg: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.025)), rgb(20 26 33 / 0.72);
+    --pane-border: rgb(255 255 255 / 0.08);
+    --pane-highlight: inset 0 1px 0 rgb(255 255 255 / 0.09);
+    --pane-shadow: 0 2px 4px rgb(0 0 0 / 0.35), 0 18px 40px -18px rgb(0 0 0 / 0.85);
+    --sticky-bg: rgb(11 15 20 / 0.72);
+    --score-bg: radial-gradient(130% 90% at 0% 0%, rgb(245 183 0 / 0.14), transparent 55%),
+      linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 45%), rgb(5 7 10 / 0.9);
+    --score-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 22px 44px -18px rgb(0 0 0 / 0.95), 0 2px 6px rgb(0 0 0 / 0.5);
+    --btn-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.14));
+    --btn-bevel: inset 0 1px 0 rgb(255 255 255 / 0.16), inset 0 -1px 0 rgb(0 0 0 / 0.35);
+    --btn-drop: 0 1px 2px rgb(0 0 0 / 0.5), 0 4px 12px -4px rgb(0 0 0 / 0.7);
+    --btn-press: inset 0 2px 6px rgb(0 0 0 / 0.55), inset 0 0 0 1px rgb(0 0 0 / 0.2);
+    --pick-ring: rgb(127 214 154 / 0.5);
   }
 }

@@ -112,6 +112,7 @@ function Matchup({ y, membershipId, teamName, subtitle, balance }: {
       {g && them && mine && (
         <div className="score">
           <ScoreSide label={status === 'upcoming' ? 'Your pick' : 'You played'} y={y} athleteId={minePlayer}
+            picked={status === 'upcoming' && minePlayer !== null}
             score={final ? mine.score : null} empty={status === 'upcoming' ? 'No pick yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
           <span className="vs">{final ? 'to' : 'vs'}</span>
           <ScoreSide label={status === 'upcoming' ? 'Their pick' : 'They played'} y={y}
@@ -130,12 +131,14 @@ function Matchup({ y, membershipId, teamName, subtitle, balance }: {
   );
 }
 
-function ScoreSide({ label, y, athleteId, score, empty, lost = false }: {
+function ScoreSide({ label, y, athleteId, score, empty, lost = false, picked = false }: {
   label: string; y: LeagueTournament; athleteId: string | null; score: number | null; empty: string; lost?: boolean;
+  /** Your pick is set for the next game: shown in green. */
+  picked?: boolean;
 }) {
   const name = athleteId ? y.athlete.get(athleteId) ?? 'A player' : empty;
   return (
-    <div className={lost ? 'score-side lost' : 'score-side'}>
+    <div className={['score-side', lost && 'lost', picked && 'picked'].filter(Boolean).join(' ')}>
       <small>{label}</small>
       {score !== null ? <><span className="pts">{fmt(score)}</span><strong>{name}</strong></> : <span className="pts-name">{name}</span>}
     </div>
@@ -218,8 +221,9 @@ function PickGame({ y, next, membershipId, onSaved }: {
                 <button className="secondary" aria-label={`Bench ${name(id)}`} disabled={busy} onClick={() => void bench(id)}>Bench</button>
               )}
               {chosen ? (
-                <button className="secondary" aria-pressed="true" disabled={busy} onClick={() => void choose(null)}>
-                  Your pick ✓ <span className="muted">· Clear</span>
+                <button className="secondary picked" aria-pressed="true" disabled={busy} onClick={() => void choose(null)}>
+                  <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" /></svg>
+                  Your pick <span className="clear">· Clear</span>
                 </button>
               ) : (
                 <button aria-label={`Pick ${name(id)}`} disabled={busy} onClick={() => void choose(id)}>Pick</button>
