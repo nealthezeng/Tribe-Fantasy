@@ -18,9 +18,9 @@ export const credits = (n: number) => `${n} ${Math.abs(n) === 1 ? 'credit' : 'cr
 
 export function entryLabel(e: LedgerEntry): string {
   switch (e.kind) {
-    case 'allowance': return `Allowance — ${e.stages?.name ?? 'season'}`;
+    case 'allowance': return `Allowance — ${e.stages?.name ?? 'tournament'}`;
     case 'donation': return `Donation to the team — $${Number(e.dollars).toFixed(2)}`;
     case 'adjustment': return `Adjustment — ${e.note ?? ''}`;
-    case 'bid': return `Auction — ${e.stages?.name ?? 'stage'}`;
+    case 'bid': return `Auction — ${e.stages?.name ?? 'tournament'}`;
   }
 }

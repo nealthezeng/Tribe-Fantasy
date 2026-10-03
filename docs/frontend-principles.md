@@ -6,7 +6,7 @@ A clean, simple look, not a professional product. Most use is on phones, often a
 
 - **One job per screen.** The main action is obvious and sits first. Everything else is quieter or tucked away.
 - **Plain words.** Label things by what they do ("Grant allowance", "Undo last tap"), not by how they work.
-  Players see stages as "seasons".
+  Everyone sees stages as "tournaments"; the league year is the "season".
 - **Always show state.** Something is loading, saved, unsaved, offline, or failed, and the page says which.
   Errors say what to do next.
 - **Consistent.** The same spacing, colours, buttons and cards everywhere. Reuse the tokens and classes in

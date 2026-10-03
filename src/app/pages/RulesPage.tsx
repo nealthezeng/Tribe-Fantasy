@@ -38,22 +38,22 @@ export function RulesPage() {
       </p>
 
       <article className="card">
-        <h2>The year</h2>
+        <h2>The season</h2>
         <ul>
-          <li>The league runs all year. The year is split into <strong>seasons</strong>, and each season is one of our
+          <li>The league runs all season, and the season is split into <strong>tournaments</strong>: our team's
             tournaments.</li>
           <li>Each league has up to {S.max_members} teams. Every game our team plays at the tournament, every fantasy
-            team plays one head-to-head matchup. Standings never reset between seasons.</li>
-          <li>Rosters are rebuilt every season in a fresh auction. Each roster holds {S.roster_size} players:{' '}
+            team plays one head-to-head matchup. Standings never reset between tournaments.</li>
+          <li>Rosters are rebuilt for every tournament in a fresh auction. Each roster holds {S.roster_size} players:{' '}
             {active} active and {bench} on the bench. There are no trades.</li>
-          <li>The team at the top of the year's standings wins a merch prize. There is no cash prize.</li>
+          <li>The team at the top of the season's standings wins a merch prize. There is no cash prize.</li>
         </ul>
       </article>
 
       <article className="card">
         <h2>Credits and the auction</h2>
         <ul>
-          <li>Every team gets free credits at the start of each season: {allowance(1)} for the team in first, up to{' '}
+          <li>Every team gets free credits before each tournament: {allowance(1)} for the team in first, up to{' '}
             {allowance(size)} for the team in last. Unspent credits carry over.</li>
           <li>Your bids together can't be more than your credits: the app won't take a bid that goes over.</li>
           <li>Bids are sealed: nobody sees anyone's bids until the auction closes. Then every bid is shown to the
@@ -61,7 +61,7 @@ export function RulesPage() {
           <li>The highest bid wins each player and pays what it bid. A tie goes to the bid placed first (changing a bid counts as placing it again). A bid you can't afford by its turn is skipped. The minimum
             bid is {S.min_bid} credit.</li>
           <li>Players nobody won are dealt at random to teams with open spots, for free. Injured players are never
-            dealt. If there aren't enough players, a team plays that season short.</li>
+            dealt. If there aren't enough players, a team plays that tournament short.</li>
           <li>You can't own yourself.</li>
         </ul>
       </article>
@@ -78,7 +78,7 @@ export function RulesPage() {
           <li>Forgot to pick, or your pick is injured or on your bench? We start your most rested healthy active player (then
             the one scoring best lately), and you'll see a notice.</li>
           <li>Choose your bench before game 1 starts; if you don't, it's the player you paid least for. The bench plays
-            only if an active player gets injured: then you can swap it in for the rest of the season, once.</li>
+            only if an active player gets injured: then you can swap it in for the rest of the tournament, once.</li>
         </ul>
         <div className="section">
           <h3>Tired players</h3>
@@ -90,7 +90,7 @@ export function RulesPage() {
                 {S.tiredness_multipliers.map((m, i) => (
                   <tr key={i}><td>{i === 0 ? 'The game before' : `${i + 1} games before`}</td><td>×{n(m)}</td></tr>
                 ))}
-                <tr><td>Earlier, or not yet this season</td><td>×1</td></tr>
+                <tr><td>Earlier, or not yet this tournament</td><td>×1</td></tr>
               </tbody>
             </table>
           </div>
@@ -138,11 +138,11 @@ export function RulesPage() {
       </article>
 
       <article className="card">
-        <h2>Starting the same player every season</h2>
-        <p>Stats from a player you've started in earlier seasons count a little less, so rosters keep changing.</p>
+        <h2>Starting the same player every tournament</h2>
+        <p>Stats from a player you've started in earlier tournaments count a little less, so rosters keep changing.</p>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Earlier seasons you started them</th><th>Their stats count</th></tr></thead>
+            <thead><tr><th>Earlier tournaments you started them</th><th>Their stats count</th></tr></thead>
             <tbody>
               {[0, 1, 2, 3, 4, 6].map((k) => (
                 <tr key={k}><td>{k}</td><td>×{n(stageMultiplier(k, S))}</td></tr>
