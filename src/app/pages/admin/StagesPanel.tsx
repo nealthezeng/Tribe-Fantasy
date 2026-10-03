@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { auctionPhase, formatWhen } from '../../lib/auction';
+import { auctionPhase, formatWhen, pickAuctionStage } from '../../lib/auction';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
 import { formatDay } from '../../lib/stats';
 import { useLoad } from '../../lib/useLoad';
-import { seasonRanks, WEEK_COLUMNS, type WeekRow } from '../../lib/weekly';
+import {
+  checkPairing, describePairings, GAME_COLUMNS, seasonPairings, seasonRanks, type GameRow, type GamePairing, type LeaguePairingInput,
+} from '../../lib/tournament';
 
 interface StageRow {
   id: string; name: string; starts_on: string; ends_on: string; tournament: string | null;
@@ -46,6 +48,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
     });
   }
 
+  const current = pickAuctionStage(stages.data ?? []);
   const set = (key: keyof typeof EMPTY) => (e: { target: { value: string } }) => setForm({ ...form, [key]: e.target.value });
 
   return (
@@ -53,10 +56,10 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
       <h2>Stages</h2>
       {!stages.data && !stages.error && <p className="muted" role="status">Loading…</p>}
       <p className="muted">
-        Players see stages as "seasons". Grant a stage's allowance before its auction: it pays by the current
-        standings, and running it again only credits teams that joined since. Then open the auction with a closing
-        time, run it once bids close, and create the stage's weeks. Weeks run Monday to Sunday; picks lock at the
-        season's pick_lock_day and pick_lock_time (Eastern). After changing a stage's dates, rebuild its weeks.
+        Players see stages as "seasons". Each stage is one tournament. Grant a stage's allowance before its auction:
+        it pays by the current standings, and running it again only credits teams that joined since. Then open the
+        auction with a closing time, run it once bids close, and open the tournament: game 1 is paired by the
+        standings. Keepers start and finish each game on the Tally tab.
       </p>
       <ul className="list">
         {stages.data?.map((s) => (
@@ -71,9 +74,9 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
                 id: s.id, name: s.name, starts_on: s.starts_on, ends_on: s.ends_on, tournament: s.tournament ?? '',
               })}>Edit</button>
               <button onClick={() => void run(async () => {
-                const { ranks, unsettled } = await seasonRanks(seasonId, s.starts_on);
+                const { ranks, unsettled } = await seasonRanks(seasonId, s.id);
                 if (unsettled > 0 && !window.confirm(
-                  `${unsettled} earlier ${unsettled === 1 ? 'week is' : 'weeks are'} not final yet, so the standings may still change. Grant anyway?`)) return;
+                  `${unsettled} earlier ${unsettled === 1 ? 'game is' : 'games are'} not final yet, so the standings may still change. Grant anyway?`)) return;
                 const n = await api.grantStageAllowance(s.id, ranks);
                 return `${s.name}: credited ${n} ${n === 1 ? 'team' : 'teams'}.`;
               })}>
@@ -81,7 +84,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
               </button>
             </span>
             <AuctionControls stage={s} run={run} />
-            <WeeksControls stage={s} run={run} />
+            <TournamentControls stage={s} current={current?.id === s.id} seasonId={seasonId} run={run} />
           </li>
         ))}
       </ul>
@@ -146,61 +149,64 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
   );
 }
 
-function WeeksControls({ stage, run }: { stage: StageRow; run: (action: () => Promise<string | void>) => Promise<void> }) {
-  const weeks = useLoad(async () => {
-    const { data, error } = await supabase!.from('weeks').select(WEEK_COLUMNS).eq('stage_id', stage.id).order('starts_on');
+interface FinishAudit { entity_id: string; details: { pairings: GamePairing[]; provisional: LeaguePairingInput[] } }
+
+/** Open the stage's tournament once its auction has run; then staff can re-check every Swiss pairing a keeper made. */
+function TournamentControls({ stage, current, seasonId, run }: {
+  stage: StageRow; current: boolean; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
+}) {
+  const [checks, setChecks] = useState<string[] | null>(null);
+  const games = useLoad(async () => {
+    const { data, error } = await supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id).order('number');
     if (error) throw error;
-    return (data ?? []) as WeekRow[];
+    return (data ?? []) as GameRow[];
   }, [stage.id]);
-  const act = (action: () => Promise<string | void>) => run(async () => {
-    const done = await action();
-    weeks.reload();
-    return done;
+  if (!stage.auction_run_at) return null;
+  if (games.error) return <p className="error" role="alert">{games.error}</p>;
+  if (!games.data) return null;
+
+  if (games.data.length === 0) {
+    if (!current) return null;
+    return (
+      <div className="row">
+        <button onClick={() => void run(async () => {
+          const p = await seasonPairings(seasonId);
+          if (!window.confirm(`Open the ${stage.name} tournament? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
+          await api.openTournament(stage.id, p.pairings);
+          games.reload();
+          return `${stage.name}: game 1 is paired. Keepers start it on the Tally tab.`;
+        })}>Open tournament</button>
+      </div>
+    );
+  }
+
+  const last = games.data[games.data.length - 1];
+  const number = new Map(games.data.map((g) => [g.id, g.number]));
+  const check = () => void run(async () => {
+    const { data, error } = await supabase!.from('audit_log').select('entity_id, details')
+      .eq('action', 'finish_game').in('entity_id', games.data!.map((g) => g.id));
+    if (error) throw error;
+    const rows = ((data ?? []) as FinishAudit[]).sort((a, b) => number.get(a.entity_id)! - number.get(b.entity_id)!);
+    setChecks(rows.map((r) => `Game ${number.get(r.entity_id)! + 1}: ${checkPairing(r.details)
+      ? 'matches a Swiss re-run of the standings it was made from.'
+      : "doesn't match a Swiss re-run. Look at this finish_game row in the audit log."}`));
   });
-  const n = weeks.data?.length ?? 0;
   return (
     <details className="section">
-      <summary>Weeks {weeks.data && <span className="muted">· {n === 0 ? 'none yet' : n}</span>}</summary>
+      <summary>Tournament <span className="muted">· game {last.number} {last.started_at ? 'live' : 'next'}</span></summary>
       <div className="stack">
-        <button className={n === 0 ? '' : 'secondary'} onClick={() => {
-          if (n > 0 && !window.confirm(`Rebuild the ${stage.name} weeks from its dates? Custom lock times are lost.`)) return;
-          void act(async () => `${stage.name}: ${await api.createStageWeeks(stage.id)} weeks.`);
-        }}>{n === 0 ? 'Create weeks' : 'Rebuild weeks'}</button>
-        <ul className="list">
-          {weeks.data?.map((w) => <WeekLock key={`${w.id}:${w.pick_lock_at}`} week={w} act={act} />)}
-        </ul>
-        {weeks.error && <p className="error" role="alert">{weeks.error}</p>}
+        <p className="muted">
+          Game 1 was paired when the tournament opened. Each later pairing came from the phone that finished the game
+          before it. Check re-runs the Swiss step on the standings that phone sent; the audit log has those standings.
+        </p>
+        <button className="secondary" onClick={check}>Check pairings</button>
+        {checks && (
+          <ul className="list">
+            {checks.length === 0 && <li className="muted">No game has finished yet.</li>}
+            {checks.map((c) => <li key={c}>{c}</li>)}
+          </ul>
+        )}
       </div>
     </details>
-  );
-}
-
-/** datetime-local works in the admin's own time zone. */
-const toLocalInput = (iso: string) => {
-  const d = new Date(iso);
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
-};
-
-function WeekLock({ week, act }: { week: WeekRow; act: (action: () => Promise<string | void>) => Promise<void> }) {
-  const [value, setValue] = useState(toLocalInput(week.pick_lock_at));
-  return (
-    <li>
-      <span>
-        <span className="title">{formatDay(week.starts_on)} – {formatDay(week.ends_on)}</span><br />
-        <small>Picks lock {formatWhen(week.pick_lock_at)}</small>
-      </span>
-      <form className="row" onSubmit={(e) => {
-        e.preventDefault();
-        const at = new Date(value).toISOString();
-        if (new Date(at) <= new Date() && !window.confirm("This locks this week's picks now, and a passed lock can't be moved back. Lock now?")) return;
-        void act(async () => {
-          await api.setWeekLock(week.id, at);
-          return `Week of ${formatDay(week.starts_on)}: picks lock ${formatWhen(at)}.`;
-        });
-      }}>
-        <label>Lock (your time)<input type="datetime-local" required value={value} onChange={(e) => setValue(e.target.value)} /></label>
-        <button className="secondary" disabled={value === toLocalInput(week.pick_lock_at)}>Save lock</button>
-      </form>
-    </li>
   );
 }

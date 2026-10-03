@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BACKUP_TABLES, ledgerRows, standingsRows } from './backup';
-import type { LeagueYear } from './weekly';
+import type { LeagueTournament } from './tournament';
 
 describe('backup', () => {
   it('lists every table the migrations create', async () => {
@@ -27,9 +27,9 @@ describe('backup', () => {
     const row = (membershipId: string, place: number, tied: boolean, points: number) =>
       ({ membershipId, place, tied, points, rank: place, wins: 1, losses: 0, ties: 0, totalScore: 3.456 });
     const year = {
-      result: { weeks: [], standings: [row('b', 2, true, 1), row('a', 1, false, 2.256), row('c', 2, true, 1)] },
+      result: { games: [], standings: [row('b', 2, true, 1), row('a', 1, false, 2.256), row('c', 2, true, 1)] },
       team: new Map([['a', 'Zeal'], ['b', 'Money'], ['c', 'Gimp']]),
-    } as unknown as LeagueYear;
+    } as unknown as LeagueTournament;
     expect(standingsRows([{ name: 'A', year }]).map((r) => r.slice(0, 4))).toEqual([
       ['league', 'place', 'team', 'points'], ['A', '1', 'Zeal', 2.26], ['A', 'T2', 'Money', 1], ['A', 'T2', 'Gimp', 1],
     ]);

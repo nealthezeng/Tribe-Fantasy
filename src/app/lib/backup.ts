@@ -1,5 +1,5 @@
-import type { LeagueYear } from './weekly';
-import { fetchAll } from './weekly';
+import type { YearStanding } from '../../core/year';
+import { fetchAll } from './tournament';
 import { supabase } from './supabase';
 
 /** Every public table and a unique order, so paged reads never skip or repeat a row. */
@@ -48,7 +48,7 @@ export function ledgerRows(leagues: LedgerLeague[]): (string | number)[][] {
 }
 
 /** The League tab's standings, one row per team, best first. */
-export function standingsRows(leagues: { name: string; year: LeagueYear }[]): (string | number)[][] {
+export function standingsRows(leagues: { name: string; year: { result: { standings: YearStanding[] }; team: Map<string, string> } }[]): (string | number)[][] {
   const rows = leagues.flatMap(({ name, year }) => [...year.result.standings]
     .sort((a, b) => a.place - b.place)
     .map((s) => [name, `${s.tied ? 'T' : ''}${s.place}`, year.team.get(s.membershipId) ?? s.membershipId,

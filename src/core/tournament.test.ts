@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
-import { lineup, liveStatLines, nextPairings, scoreTournaments, type TournamentGame, type TournamentInput } from './tournament';
+import { lineup, liveStatLines, nextPairings, pairingInputs, scoreTournaments, type TournamentGame, type TournamentInput } from './tournament';
 import type { YearStatLine } from './year';
 
 // Fixed points (upset_k 0: win +3, loss −1), 1 point per goal, no tournament doubling: easy arithmetic.
@@ -259,6 +259,11 @@ describe('nextPairings', () => {
     expect(joined).toHaveLength(3);
     expect(joined.filter(([, b]) => b === null)).toHaveLength(1);
     expect(joined.flat().filter((x) => x !== null).sort()).toEqual(['m1', 'm2', 'm3', 'm4', 'm5']);
+  });
+
+  it('exposes the standings order and meetings it pairs from', () => {
+    // m1 (5 goals) and m4 (4) won game 1; m2 and m3 lost on 1 goal each, so id breaks the tie.
+    expect(pairingInputs(four())).toEqual({ order: ['m1', 'm4', 'm2', 'm3'], meetings: { 'm1|m2': 1, 'm3|m4': 1 } });
   });
 
   it('ignores pairings of a game that never started', () => {

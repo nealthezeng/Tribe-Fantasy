@@ -13,7 +13,7 @@ export const AUCTION_STAGE_COLUMNS = 'id, name, starts_on, bid_close_at, auction
 
 /** The stage whose auction opened most recently; before any opens, the latest by start date. Creating next stage
  * early must not hide this stage's rosters. */
-export function pickAuctionStage(stages: AuctionStage[]): AuctionStage | null {
+export function pickAuctionStage<T extends Pick<AuctionStage, 'bid_close_at' | 'starts_on'>>(stages: T[]): T | null {
   const opened = stages.filter((s) => s.bid_close_at).sort((a, b) => b.bid_close_at!.localeCompare(a.bid_close_at!));
   return opened[0] ?? [...stages].sort((a, b) => b.starts_on.localeCompare(a.starts_on))[0] ?? null;
 }

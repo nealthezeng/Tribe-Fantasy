@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscMark } from '../components/Layout';
 import { AuctionCard } from './AuctionCard';
-import { WeeklyCard } from './WeeklyCard';
+import { TournamentCard } from './TournamentCard';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
@@ -75,7 +75,7 @@ export function HomePage() {
                 joinedAt={m.created_at}
                 teamName={m.team_name} subtitle={subtitle} team={team} wallet={wallet} />
             ) : team}
-            {m.leagues && <WeeklyCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}
+            {m.leagues && <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}
           </Fragment>
         );
       })}

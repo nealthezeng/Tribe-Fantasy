@@ -4,23 +4,15 @@ import { DEFAULT_SETTINGS as S } from '../../core/settings';
 import { stageMultiplier } from '../../core/decay';
 import { statLabel } from '../lib/stats';
 
-const LOCK_DAY: Record<string, string> = { mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
 const n = (x: number) => +x.toFixed(2);
 const signed = (x: number) => (x > 0 ? `+${n(x)}` : `${n(x)}`);
 
-/** 9:00 PM from '21:00'. */
-function clock(hhmm: string) {
-  const [h, m] = hhmm.split(':').map(Number);
-  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
-}
-
-// The worked example: one practice and one tournament for the same player in one week.
-const practice = { goal: 1, assist: 2, turnover: 1 };
-const tournament = { goal: 2, block: 1, turnover: 2 };
-const weekScore = athleteWeekScore([
-  { athleteId: 'x', sessionType: 'practice', pointsPlayed: 0, stats: practice },
-  { athleteId: 'x', sessionType: 'tournament', pointsPlayed: 0, stats: tournament },
-], S);
+// The worked example: one player's stats in one game.
+const game = { goal: 2, block: 1, turnover: 2 };
+const gameScore = athleteWeekScore([{ athleteId: 'x', sessionType: 'tournament', pointsPlayed: 0, stats: game }], S);
+const tired = S.tiredness_multipliers[0] ?? 1;
+const bench = S.bench_size;
+const active = S.roster_size - bench;
 const raw = (stats: Record<string, number>) => Object.entries(stats).reduce((t, [k, c]) => t + (S.stat_weights[k] ?? 0) * c, 0);
 const line = (stats: Record<string, number>) => Object.entries(stats).map(([k, c]) => `${c} ${statLabel(k)}`).join(', ');
 
@@ -48,12 +40,12 @@ export function RulesPage() {
       <article className="card">
         <h2>The year</h2>
         <ul>
-          <li>The league runs all year. The year is split into <strong>seasons</strong> of two or three weeks, each
-            ending at a tournament.</li>
-          <li>Each league has up to {S.max_members} teams. Every team plays one head-to-head matchup a week, all
-            year. Standings never reset between seasons.</li>
-          <li>Rosters are rebuilt every season in a fresh auction. Each roster holds {S.roster_size} players. There are
-            no trades.</li>
+          <li>The league runs all year. The year is split into <strong>seasons</strong>, and each season is one of our
+            tournaments.</li>
+          <li>Each league has up to {S.max_members} teams. Every game our team plays at the tournament, every fantasy
+            team plays one head-to-head matchup. Standings never reset between seasons.</li>
+          <li>Rosters are rebuilt every season in a fresh auction. Each roster holds {S.roster_size} players:{' '}
+            {active} active and {bench} on the bench. There are no trades.</li>
           <li>The team at the top of the year's standings wins a merch prize. There is no cash prize.</li>
         </ul>
       </article>
@@ -75,22 +67,40 @@ export function RulesPage() {
       </article>
 
       <article className="card">
-        <h2>Your weekly pick</h2>
+        <h2>Your game picks</h2>
         <ul>
-          <li>Each week you start <strong>one</strong> player from your roster. You can't start the same player twice
-            until you've used everyone on your roster that season.</li>
-          <li>Picks lock {LOCK_DAY[S.pick_lock_day]} at {clock(S.pick_lock_time)} (Eastern). Other teams' picks stay
-            hidden until then.</li>
-          <li>Forgot to pick? We start your best unused player (by their scores so far) for you.</li>
-          <li>If your pick is injured at the lock, we swap in your best unused healthy player, and you'll see a
-            notice. A week where your player was injured and didn't play doesn't use them up.</li>
+          <li>Each game you start <strong>one</strong> of your active players against one other fantasy team.</li>
+          <li>Opponents are paired Swiss style: teams close in the standings meet, and you don't play the same team
+            twice if it can be avoided. Game 1 is paired by the standings when the
+            tournament opens; each later game is paired when the game before it finishes.</li>
+          <li>Pick for the next game any time before it starts, even before you know your opponent. Picks lock when a
+            stat keeper starts the game. Other teams' picks stay hidden until then.</li>
+          <li>Forgot to pick, or your pick is injured or on your bench? We start your most rested healthy active player (then
+            the one scoring best lately), and you'll see a notice.</li>
+          <li>Choose your bench before game 1 starts; if you don't, it's the player you paid least for. The bench plays
+            only if an active player gets injured: then you can swap it in for the rest of the season, once.</li>
         </ul>
+        <div className="section">
+          <h3>Tired players</h3>
+          <p>Starting a player in back-to-back games tires them. Rotating your {active} active players never does.</p>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>You last started them</th><th>Their stats count</th></tr></thead>
+              <tbody>
+                {S.tiredness_multipliers.map((m, i) => (
+                  <tr key={i}><td>{i === 0 ? 'The game before' : `${i + 1} games before`}</td><td>×{n(m)}</td></tr>
+                ))}
+                <tr><td>Earlier, or not yet this season</td><td>×1</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </article>
 
       <article className="card">
         <h2>Scoring</h2>
-        <p>Your score is your player's stats from that week's practices and tournaments. Tournament stats count
-          ×{S.session_multipliers.tournament}.</p>
+        <p>Your score is your player's stats from that one game, ×{S.session_multipliers.tournament} for a
+          tournament. Practices aren't scored.</p>
         <div className="table-wrap">
           <table>
             <thead><tr><th>Stat</th><th>Points</th></tr></thead>
@@ -103,10 +113,9 @@ export function RulesPage() {
         </div>
         <div className="section">
           <h3>Example</h3>
-          <p>Practice: {line(practice)} = {n(raw(practice))}.</p>
-          <p>Tournament: {line(tournament)} = {n(raw(tournament))}, ×{S.session_multipliers.tournament} ={' '}
-            {n(raw(tournament) * S.session_multipliers.tournament)}.</p>
-          <p>Week score: <strong>{n(weekScore)}</strong>. The higher score wins the matchup.</p>
+          <p>{line(game)} = {n(raw(game))}, ×{S.session_multipliers.tournament} = {n(raw(game) * S.session_multipliers.tournament)}.</p>
+          <p>Game score: <strong>{n(gameScore)}</strong>. If you also started them the game before, it's{' '}
+            {n(gameScore)} × {n(tired)} = {n(gameScore * tired)}. The higher score wins the matchup.</p>
         </div>
         <p className="muted">A session's stats count {S.stat_lock_hours} hours after a stat keeper verifies them.</p>
       </article>
@@ -155,7 +164,7 @@ export function RulesPage() {
             fall beta.</p>
           <h3>Who can see what?</h3>
           <p>Your league sees rosters, results and every bid after the auction closes. Only you and the league staff
-            see your credit balance. Other teams can't see your pick until it locks.</p>
+            see your credit balance. Other teams can't see your pick until the game starts.</p>
           <h3>I'm a player. Can I opt out?</h3>
           <p>Yes. Tell a captain before the next auction opens. Players who opt out aren't listed or bid on in the next auction.</p>
           <h3>What if a stat is wrong?</h3>

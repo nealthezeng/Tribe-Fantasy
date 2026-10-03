@@ -171,6 +171,35 @@ describe('set_game_pick', () => {
     const stranger = await createUser(f.db, 'stranger@x.test');
     expect(await visible(stranger)).toEqual([]);
   });
+
+  it("keeps the next game's pick sealed while the current game is live", async () => {
+    const g1 = await open();
+    await setPick(alice, aliceM, 1, f.athletes[0]);
+    await start(g1);
+    await setPick(alice, aliceM, 2, f.athletes[1]);
+    const seen = await as(f.db, bob, async (tx) => (await tx.query<{ game_number: number }>(
+      'select game_number from public.game_picks where membership_id = $1 order by game_number', [aliceM])).rows);
+    expect(seen).toEqual([{ game_number: 1 }]);
+  });
+
+  it('audits a pick without its athlete', async () => {
+    await setPick(alice, aliceM, 1, f.athletes[0]);
+    expect(JSON.stringify(await audit('set_game_pick'))).not.toContain(f.athletes[0]);
+  });
+});
+
+describe('NOT_FOUND', () => {
+  it('names a missing game or stage', async () => {
+    const nope = crypto.randomUUID();
+    await expect(start(nope)).rejects.toThrow('NOT_FOUND');
+    await expect(finish(nope)).rejects.toThrow('NOT_FOUND');
+    const calls: [string, Record<string, unknown>][] = [
+      ['set_game_pick', { p_membership: aliceM, p_stage: nope, p_number: 1, p_athlete: f.athletes[0] }],
+      ['set_bench', { p_membership: aliceM, p_stage: nope, p_athletes: `{${f.athletes[0]}}` }],
+      ['swap_bench', { p_membership: aliceM, p_stage: nope, p_out: f.athletes[0], p_in: f.athletes[3] }],
+    ];
+    for (const [fn, args] of calls) await expect(as(f.db, alice, (tx) => rpc(tx, fn, args)), fn).rejects.toThrow('NOT_FOUND');
+  });
 });
 
 describe('set_bench', () => {
@@ -218,5 +247,10 @@ describe('deletes', () => {
     await setPick(alice, aliceM, 1, f.athletes[0]);
     await f.db.query('delete from public.athletes where id = $1', [f.athletes[0]]);
     expect((await f.db.query('select 1 from public.game_picks')).rows).toEqual([]);
+    await start(await open());
+    await injure(f, f.athletes[1]);
+    await swap(alice, aliceM, f.athletes[1], f.athletes[3]);
+    await f.db.query('delete from public.athletes where id = $1', [f.athletes[3]]);
+    expect((await f.db.query('select 1 from public.bench_swaps')).rows).toEqual([]);
   });
 });

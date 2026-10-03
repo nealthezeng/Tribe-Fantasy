@@ -273,6 +273,12 @@ export function liveStatLines(sessionId: string, taps: Tap[], s: SeasonSettings)
  * finished is still live (before `finish_game`), so that game counts too.
  */
 export function nextPairings(input: TournamentInput): Pairing[] {
+  const { order, meetings } = pairingInputs(input);
+  return swissPairings(order, meetings);
+}
+
+/** What `nextPairings` feeds `swissPairings`: saved with the pairing so staff can re-run it (spec §7). */
+export function pairingInputs(input: TournamentInput): { order: string[]; meetings: Record<string, number> } {
   const r = scoreTournaments(input, { provisional: true });
   const present = new Set(input.members.filter((m) => ms(m.createdAt) <= input.now).map((m) => m.id));
   const order = r.standings.filter((x) => present.has(x.membershipId))
@@ -285,5 +291,5 @@ export function nextPairings(input: TournamentInput): Pairing[] {
     const k = meetingKey(p.home, p.away);
     meetings[k] = (meetings[k] ?? 0) + 1;
   }
-  return swissPairings(order, meetings);
+  return { order, meetings };
 }

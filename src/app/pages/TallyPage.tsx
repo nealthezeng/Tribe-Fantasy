@@ -11,6 +11,7 @@ import {
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
+import { GameControls } from './GameControls';
 import {
   BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, queuedToTap, removeSent, rowToTap,
   storeQueue, subtractHint, unsavedTaps,
@@ -50,7 +51,13 @@ function SessionPicker({ season, keeperId, onPick }: {
       .or(unsaved.size ? `${open},id.in.(${[...unsaved.keys()].join(',')})` : open)
       .order('held_on', { ascending: false });
     if (error) throw error;
-    return (data ?? []) as SessionRow[];
+    const rows = (data ?? []) as SessionRow[];
+    const games = rows.length
+      ? await supabase!.from('games').select('session_id, number').in('session_id', rows.map((s) => s.id))
+      : { data: [], error: null };
+    if (games.error) throw games.error;
+    const game = new Map((games.data ?? []).map((g) => [g.session_id as string, g.number as number]));
+    return rows.map((s) => ({ ...s, game: game.get(s.id) ?? null }));
   }, [season.id, unsaved]);
 
   async function remove(s: SessionRow) {
@@ -77,6 +84,7 @@ function SessionPicker({ season, keeperId, onPick }: {
   return (
     <section className="page">
       <h1>Tally</h1>
+      <GameControls season={season} onOpen={onPick} unsaved={unsaved} />
       <div className="card">
         <h2>Open sessions</h2>
         {!sessions.data && !sessions.error && <p className="muted" role="status">Loading…</p>}
@@ -86,12 +94,14 @@ function SessionPicker({ season, keeperId, onPick }: {
             <li key={s.id}>
               <span className="meta">
                 <span className="title">{sessionTitle(s)}</span>
+                {s.game !== null && <span className="pill info">Game {s.game}</span>}
                 {!s.counts && <span className="pill">Not counted</span>}
                 {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
               </span>
               {/* Never offered while this phone still holds taps for it: they'd have nowhere to go.
-                  Only the creator or an admin may delete (server enforces this too). */}
-              {!s.verified_at && !unsaved.has(s.id) && (s.created_by === keeperId || isAdmin) && (
+                  Only the creator or an admin may delete (server enforces this too). A game's session isn't offered
+                  here: deleting it voids the game (an admin can still force-delete it from the session page). */}
+              {!s.verified_at && !unsaved.has(s.id) && s.game === null && (s.created_by === keeperId || isAdmin) && (
                 <button className="secondary" onClick={() => void remove(s)}>Delete</button>
               )}
               <button className={s.verified_at ? 'secondary' : ''} onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
@@ -111,8 +121,9 @@ function SessionPicker({ season, keeperId, onPick }: {
         </label>
         <label className="check">
           <input type="checkbox" checked={counts} onChange={(e) => setCounts(e.target.checked)} />
-          Counts for fantasy (untick for drills)
+          Counts toward stats (untick for drills)
         </label>
+        <p className="muted"><small>Tournament games are tallied with Start game. A session started here records stats but never scores a matchup.</small></p>
         <button>Start tallying</button>
         {(error || sessions.error) && <p className="error" role="alert">{error ?? sessions.error}</p>}
       </form>
@@ -287,6 +298,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
             {queue.length > 0 && !online && <span className="pill warn">Offline · {queue.length} unsaved</span>}
           </span>
         </div>
+        <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length]])} />
       </div>
       {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {closed && !verified && <p className="notice">This session is from an earlier season, so tallying is closed here. Taps already saved on this phone still upload.</p>}
