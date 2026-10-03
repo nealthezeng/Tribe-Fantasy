@@ -1,5 +1,6 @@
 import type { QueuedTap } from '../tally/queue';
 import { supabase } from './supabase';
+import type { GamePairing, LeaguePairingInput } from './tournament';
 
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('NOT_CONFIGURED');
@@ -66,4 +67,15 @@ export const api = {
     call<void>('delete_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId }),
   runAuction: (stageId: string) =>
     call<{ by_bid: number; by_fill: number; empty: number }>('run_auction', { p_stage: stageId }),
+  openTournament: (stageId: string, pairings: GamePairing[]) =>
+    call<string>('open_tournament', { p_stage: stageId, p_pairings: pairings }),
+  startGame: (gameId: string) => call<string>('start_game', { p_game: gameId }),
+  finishGame: (gameId: string, pairings: GamePairing[], provisional: LeaguePairingInput[]) =>
+    call<string>('finish_game', { p_game: gameId, p_pairings: pairings, p_provisional: provisional }),
+  setGamePick: (membershipId: string, stageId: string, number: number, athleteId: string | null) =>
+    call<void>('set_game_pick', { p_membership: membershipId, p_stage: stageId, p_number: number, p_athlete: athleteId }),
+  setBench: (membershipId: string, stageId: string, athleteIds: string[]) =>
+    call<void>('set_bench', { p_membership: membershipId, p_stage: stageId, p_athletes: athleteIds }),
+  swapBench: (membershipId: string, stageId: string, outAthlete: string, inAthlete: string) =>
+    call<void>('swap_bench', { p_membership: membershipId, p_stage: stageId, p_out: outAthlete, p_in: inAthlete }),
 };

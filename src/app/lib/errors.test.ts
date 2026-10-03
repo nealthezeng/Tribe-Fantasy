@@ -23,6 +23,13 @@ describe('errorMessage', () => {
     expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES', details: 'League A' })).toMatch(/^League A has more roster spots/);
     expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES' })).toMatch(/^A league has more roster spots/);
   });
+  it('has plain language for every code the tournament migration raises', async () => {
+    const { readFileSync } = await import('node:fs');
+    const sql = readFileSync(new URL('../../../supabase/migrations/0012_tournament.sql', import.meta.url), 'utf8');
+    const codes = [...new Set([...sql.matchAll(/raise exception '([A-Z_]+)'/g)].map((m) => m[1]))];
+    expect(codes.length).toBeGreaterThan(10);
+    expect(codes.filter((c) => errorMessage({ message: c }).startsWith('Something went wrong'))).toEqual([]);
+  });
   it('falls back to the raw message', () => {
     expect(errorMessage({ message: 'socket hang up' })).toBe('Something went wrong: socket hang up');
     expect(errorMessage('boom')).toBe('Something went wrong: boom');
