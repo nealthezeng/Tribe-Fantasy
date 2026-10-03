@@ -78,17 +78,22 @@ Condensed headings take no negative letter-spacing; it closes the word gaps. To 
 | `--fs-hero` | 40px | The signed-out hero headline |
 
 Body line height 1.5, headings 1.2 and balanced. Numbers that line up use `.num` or tabular figures.
-Small fixed sizes exist only inside their component: pills and table headers 13px, brand 17px, tally counts 24px,
-tally labels 12px and weights 11px, hero headline 40px and hero text 18px.
+Smaller steps for single components are tokens too: `--fs-3xs` 11px (tally weights), `--fs-2xs` 12px (tally
+labels), `--fs-lead` 18px (brand, hero text, invite codes, tally player names), `--fs-count` 24px (tally counts).
+`src/app/tokens.test.ts` fails if `styles.css` gains a colour, font size, font family, radius or duration literal.
 
 ## Space and shape
 
 Spacing: `--s1` 4, `--s2` 8, `--s3` 12, `--s4` 16, `--s5` 24, `--s6` 32 (px). Layouts stack with grid `gap`, not margins.
 
 Radii: `--radius` 14px for cards and the hero, `--radius-sm` 10px for buttons, inputs, list rows and notices,
-999px for pills and subnav chips. One shadow, `--shadow-pop`, only on the floating account menu.
+`--radius-xs` 8px for account menu items, `--radius-pill` for pills and subnav chips. One shadow, `--shadow-pop`,
+only on the floating account menu.
 
-Frame: a full-width black top bar, then one column (`--shell` 720px, 16px side padding, 24px top).
+Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 76px stat buttons. Motion:
+`--dur` 150ms with `--ease`, and `--dur-flash` 400ms for the over-budget flash.
+
+Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 16px side padding, 24px top).
 
 **Phones (600px and narrower):** cards, the hero and page-level list rows run edge to edge as full-width bands
 (no side borders, no radius), like a native settings screen. Rounded floating cards are for wider screens only.
@@ -110,6 +115,8 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, 16px side p
   like a link. `.button` makes a link look like a button. Buttons in a stack sit at their natural width, left.
 - **`.list`**: on the page, each row is its own bordered box (min 56px tall). Inside a `.card`, rows become
   plain rows split by divider lines. `li.used` greys the row's title (a "Used" pill says why).
+- **`.actions`**: a row of equal-width buttons that never wraps unevenly. Admin athlete rows (`li.athlete`)
+  stack name, account picker and `.actions` on phones and sit on one line from 640px.
 - **Bullet lists** directly inside a `.card` (the rules page) have no margin and 8px gaps.
 - **Banners** like "Welcome! Set your name" show only on the League page, never on task screens like Tally.
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
