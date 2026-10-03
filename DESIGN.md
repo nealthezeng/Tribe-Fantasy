@@ -76,7 +76,7 @@ Condensed headings take no negative letter-spacing; it closes the word gaps. To 
 | `--fs-md` | 16px | Body, `h3` |
 | `--fs-lg` | 20px | `h2` |
 | `--fs-brand` | 24px | The brand in the top bar (display) |
-| `--fs-xl` | 26px | Spare step |
+| `--fs-xl` | 26px | Player names on the scoreboard, the Credits card balance |
 | `--fs-num` | 40px | `.big` headline numbers (display, tabular) |
 | `--fs-display` | 40px | `h1` page titles (display) |
 | `--fs-hero` | 64px | The signed-out hero headline (display) |
@@ -99,8 +99,9 @@ Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 
 
 Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 16px side padding, 24px top).
 
-**Phones (600px and narrower):** cards, the hero and page-level list rows run edge to edge as full-width bands
-(no side borders, no radius), like a native settings screen. Rounded floating cards are for wider screens only.
+**Phones (600px and narrower):** every box floats as a rounded glass pane inside the 16px gutter, the same as on
+wider screens and like the scoreboard; cards use 12px padding and the bid columns slim to 4rem / 3.5rem / 44px. Only
+the signed-out hero runs edge to edge, merging with the top bar. (Before M9 polish, phone cards were square bands.)
 
 ## Words
 
@@ -188,6 +189,7 @@ Errors say what happened and what to do; an unknown error shows its code only in
 - **Button lettering** (user's pick, board t112): Archivo bold at a narrow 78% width, all caps, 0.06em tracking,
   14px (`--font-button`, `--fw-button`, `--fs-button`, `--button-stretch`, `--button-case`, `--button-track`), like a
   jersey label. Text links, account-menu items and the whole tally card keep their own lettering.
+- **Disabled buttons** are a quiet `--surface-2` fill with `--muted` text, not faded gold; a pick mid-save stays green.
 - **Buttons are flat and crisp** (user's pick over keycap, push-key, glow and metal styles, board t111): plain fills,
   no border or bevel. Hover lifts 1px and gold buttons glow (`--shadow-lift`); press squeezes to 95% and springs back
   (`--dur-release`, `--ease-spring`). Chips and segmented buttons don't move. A chosen pick is green (`.picked`) with a

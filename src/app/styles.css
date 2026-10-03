@@ -94,6 +94,9 @@ button, .button {
 button:hover:not(:disabled), .button:hover { background: var(--gold-hover); }
 button:active:not(:disabled), .button:active { background: var(--gold-press); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). A pick mid-save keeps its
+   green; tally tiles and segmented buttons keep their own disabled look. */
+:is(button, .button):disabled:not(.picked, :where(.tally-buttons, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
 /* Secondary: a soft borderless fill; the keycap light and shadow give it its edge. */
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
 .secondary:hover:not(:disabled) { background: var(--line); }
@@ -314,11 +317,13 @@ tbody tr:last-child td { border-bottom: 0; }
   .tally-buttons button, .tally-buttons button:is(:hover, :active):not(:disabled) { transition: none; transform: none; box-shadow: none; }
 }
 
-/* Phones: sections run edge to edge like a native settings screen, instead of floating rounded boxes.
-   Kept last so it wins over each component's own radius and border. */
+/* Phones: every box floats as a rounded glass pane inside the gutter, like the scoreboard (M9 polish), with a little
+   less padding and slimmer bid columns so names keep their room. Only the signed-out hero runs edge to edge.
+   Kept last so it wins over each component's own rules. */
 @media (max-width: 600px) {
-  .card, .hero, .page > .list > li { margin-inline: calc(-1 * var(--gutter)); border-radius: 0; border-inline: 0; }
-  .card, .hero, .page > .list > li { padding-inline: var(--gutter); }
-  .bid-header { border-radius: 0; }
+  .card { padding: var(--s3); }
+  .bid-header { margin: calc(-1 * var(--s3)) calc(-1 * var(--s3)) 0; padding-inline: var(--s3); }
+  .bid { grid-template-columns: 4rem 3.5rem var(--tap); }
+  .hero { margin-inline: calc(-1 * var(--gutter)); border-radius: 0; border-inline: 0; padding-inline: var(--gutter); }
   .shell > .hero:first-child { margin-top: calc(-1 * var(--s5)); border-top: 0; } /* one black block with the top bar */
 }
