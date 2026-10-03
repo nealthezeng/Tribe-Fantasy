@@ -27,7 +27,7 @@ Pages live in `src/app/pages/` with hash routes. Shared layout is `src/app/compo
 
 **Players:** `#/` HomePage, `#/join` JoinPage, `#/login` LoginPage, `#/stats` StatsPage, `#/stats/:id`
 SessionPage, `#/me` MePage
-- Answer "how is my team doing?" at a glance: team, balance, this week's matchup. Details go one tap deeper.
+- Answer "how is my team doing?" at a glance: team, balance, this tournament's matchup. Details go one tap deeper.
 - Friendly empty states ("You're not in a league yet. Join with an invite code.").
 
 **Stat keepers:** `#/tally` TallyPage

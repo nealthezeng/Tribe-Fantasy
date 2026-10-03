@@ -69,11 +69,7 @@
    deploy, don't save **Settings** or create a season on the old site — an old admin tab writes the retired keys
    back and the new site then rejects them.
 2. After the deploy, hard-reload any open admin or keeper tabs — do this before touching **Settings**.
-3. **Admin → Settings**: picks lock at `pick_lock_day` + `pick_lock_time` (Eastern). Fall: `mon` / `21:00`. Change it
-   before creating a stage's weeks; a week keeps the lock it was created with.
-4. **Admin → Stages → Weeks**: after a stage's auction runs, press **Create weeks** (Monday–Sunday weeks). Edit a
-   single week's lock there if a practice moves. Changed the stage's dates? Press **Rebuild weeks** (only possible
-   before anyone has picked).
+3–4. Retired by T4 (0013): weekly picks and weeks are gone.
 5. Standings and scores are computed in each browser from locked stats, so a correction or reopen shows up on the
    next page load. **Grant allowance** now pays by the current standings and warns if an earlier week isn't final.
 
@@ -107,3 +103,24 @@
    keeps working — the only behaviour change it sees is the stricter `place_bid`: bids may not total more than the
    balance.
 
+3. SQL Editor: paste and run `supabase/migrations/0011_force_delete.sql` before the deploy: admin force-delete of an
+   athlete or session (the old one-argument calls still work).
+
+## Tournament mode (after 0001–0011)
+
+1. SQL Editor: paste and run `supabase/migrations/0012_tournament.sql` before deploying the tournament build: games,
+   pairings, game picks and bench swaps. It's additive; the old site keeps working.
+
+## T4 retire weekly (after 0001–0012)
+
+1. Optional: **Admin → Backup** → download a Backup JSON first to keep the old weekly rows.
+2. SQL Editor: paste and run `supabase/migrations/0013_retire_weekly.sql` **before** deploying the T4 build. It drops
+   weeks, picks and their RPCs, and strips `pick_lock_day`, `pick_lock_time` and `usage_reset` from season settings.
+3. Between the paste and the deploy, nobody saves season **Settings** on the old site — an old admin tab writes
+   those keys back and the new build rejects them.
+4. After the deploy, hard-reload every open admin and keeper tab (GitHub Pages can serve a cached `index.html` for a
+   few minutes).
+5. If the site errors on settings after the deploy, run in the SQL Editor:
+   ```sql
+   update public.seasons set settings = settings - array['pick_lock_day','pick_lock_time','usage_reset'];
+   ```

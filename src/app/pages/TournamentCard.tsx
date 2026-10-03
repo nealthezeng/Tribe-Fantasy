@@ -20,7 +20,7 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 
 /**
  * Tournament play for one team: the game being played, the next game's pick, standings, and every game so far.
- * Standings show all year, between tournaments too.
+ * Standings show all season, between tournaments too.
  */
 export function TournamentCard({ membershipId, leagueId, seasonId }: { membershipId: string; leagueId: string; seasonId: string }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);

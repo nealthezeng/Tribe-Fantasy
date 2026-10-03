@@ -40,9 +40,9 @@ export function RulesPage() {
       <article className="card">
         <h2>The season</h2>
         <ul>
-          <li>The league runs all season, and the season is split into <strong>tournaments</strong>: our team's
-            tournaments.</li>
-          <li>Each league has up to {S.max_members} teams. Every game our team plays at the tournament, every fantasy
+          <li>The league runs all season, and the season is split into <strong>tournaments</strong>, the events our
+            team plays.</li>
+          <li>Each league has up to {S.max_members} teams. Every game our team plays at a tournament, every fantasy
             team plays one head-to-head matchup. Standings never reset between tournaments.</li>
           <li>Rosters are rebuilt for every tournament in a fresh auction. Each roster holds {S.roster_size} players:{' '}
             {active} active and {bench} on the bench. There are no trades.</li>

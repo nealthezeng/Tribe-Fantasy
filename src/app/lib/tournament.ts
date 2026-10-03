@@ -195,7 +195,6 @@ export async function seasonPairings(seasonId: string, now = Date.now()): Promis
   };
 }
 
-/** The tally's game: the newest game of the playing stage (null before its tournament opens or after its last day). */
 /**
  * The tally's game: the newest game of the stage whose auction has run (null before its tournament opens). After the
  * stage's last day only a live game is returned, so it can still be finished; Start game is gone.

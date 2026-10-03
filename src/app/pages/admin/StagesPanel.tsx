@@ -56,7 +56,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
       <h2>Tournaments</h2>
       {!stages.data && !stages.error && <p className="muted" role="status">Loading…</p>}
       <p className="muted">
-        The season is split into tournaments (stages in the code). Grant a tournament's allowance before its auction:
+        The season is split into tournaments. Grant a tournament's allowance before its auction:
         it pays by the current standings, and running it again only credits teams that joined since. Then open the
         auction with a closing time, run it once bids close, and open the tournament: game 1 is paired by the
         standings. Keepers start and finish each game on the Tally tab.

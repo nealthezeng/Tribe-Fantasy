@@ -288,5 +288,7 @@ git commit -m "docs(app): stages are tournaments to everyone, the year is the se
 - [ ] GO-LIVE (after the Oct 17–18 dry run, user OK each step): (1) user takes a Backup JSON if they want the
   weekly test data; (2) nobody saves season settings on the old build from here on; (3) user pastes **0013**
   into tribe-dev; anon probe: `set_pick` gone (PGRST202), `delete_athlete` still 42501 for anon; (4) merge to
-  main, push, CI + Deploy green, live bundle has the change; (5) tag `m9-t4`; (6) board t84 done; (7) delete
-  `t4-verified-draft`; (8) `graphify update .`.
+  main, push, CI + Deploy green, live bundle has the change; (5) hard-reload every open admin and keeper tab (Pages
+  can serve a cached index.html for a few minutes); if the site errors on settings, run `update public.seasons set
+  settings = settings - array['pick_lock_day','pick_lock_time','usage_reset'];`; (6) tag `m9-t4`; (7) board t84
+  done; (8) delete `t4-verified-draft`; (9) `graphify update .`.

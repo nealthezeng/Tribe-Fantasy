@@ -150,21 +150,21 @@ describe('loadCurrentGame', () => {
   const baseStage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-15', bid_close_at: '2026-11-03T00:00:00+00:00',
     auction_seed: null, auction_run_at: '2026-11-04T00:00:00+00:00' };
 
-  it('a) after last day with live game → returns that game', async () => {
+  it("still returns a live game after the tournament's last day, so it can be finished", async () => {
     mockStages = [baseStage];
     mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: '2026-11-15T14:00:00+00:00', finished_at: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
     expect(result?.game.id).toBe('g2');
   });
 
-  it('b) after last day with unstarted game → returns null', async () => {
+  it("has no game to start after the tournament's last day", async () => {
     mockStages = [baseStage];
     mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
     expect(result).toBeNull();
   });
 
-  it('c) on last day with unstarted game → returns it', async () => {
+  it('returns the next game to start on the last day', async () => {
     mockStages = [baseStage];
     mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-15T12:00:00'));
