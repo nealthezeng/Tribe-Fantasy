@@ -7,8 +7,8 @@ export const BACKUP_TABLES: Record<string, string[]> = {
   profiles: ['id'], user_roles: ['user_id', 'role'], seasons: ['id'], leagues: ['id'], invites: ['code'],
   memberships: ['id'], athletes: ['id'], audit_log: ['id'], sessions: ['id'], stat_taps: ['id'],
   stat_lines: ['session_id', 'athlete_id'], attendance: ['session_id', 'athlete_id'], injuries: ['id'],
-  stages: ['id'], credit_ledger: ['id'], bids: ['id'], roster_slots: ['id'], weeks: ['id'],
-  picks: ['week_id', 'membership_id'], games: ['id'], game_pairings: ['game_id', 'home'],
+  stages: ['id'], credit_ledger: ['id'], bids: ['id'], roster_slots: ['id'],
+  games: ['id'], game_pairings: ['game_id', 'home'],
   game_picks: ['stage_id', 'game_number', 'membership_id'], bench_swaps: ['id'],
 };
 
@@ -44,7 +44,7 @@ export function ledgerRows(leagues: LedgerLeague[]): (string | number)[][] {
     e.stages?.name ?? '', e.note ?? '',
   ])));
   rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-  return [['date', 'league', 'team', 'kind', 'credits', 'dollars', 'stage', 'note'], ...rows];
+  return [['date', 'league', 'team', 'kind', 'credits', 'dollars', 'tournament', 'note'], ...rows];
 }
 
 /** The League tab's standings, one row per team, best first. */

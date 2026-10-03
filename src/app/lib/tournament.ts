@@ -5,6 +5,7 @@ import {
 } from '../../core/tournament';
 import { rowToTap, type StatTapRow } from '../tally/queue';
 import { AUCTION_STAGE_COLUMNS, pickAuctionStage, type AuctionStage } from './auction';
+import { todayLocal } from './stats';
 import { supabase } from './supabase';
 
 export interface GameRow {
@@ -38,13 +39,18 @@ export interface TournamentRows {
   athletes: { id: string; name: string }[];
 }
 
+/** The stage picks and Start game are for: its auction has run and its last day hasn't passed. Else none. */
+function playingStage(stages: AuctionStage[], now: number): AuctionStage | null {
+  const s = pickAuctionStage(stages);
+  return s?.auction_run_at && todayLocal(new Date(now)) <= s.ends_on ? s : null;
+}
+
 export function toTournamentInput(rows: TournamentRows, now: number): TournamentInput {
   const settings = parseSettings(rows.settings);
   const athletes = new Set(rows.athletes.map((a) => a.id));
   // Unverified sessions have no stat lines yet: their live taps stand in (only staff load them).
   const live = rows.sessions.filter((s) => s.verified_at === null).flatMap((s) =>
     liveStatLines(s.id, rows.taps.filter((t) => t.session_id === s.id).map(rowToTap), settings));
-  const current = pickAuctionStage(rows.stages);
   return {
     settings,
     now,
@@ -66,8 +72,8 @@ export function toTournamentInput(rows: TournamentRows, now: number): Tournament
     // Injuries have no season column: keep this season's athletes, confirmed reports only.
     injuries: rows.injuries.filter((i) => i.confirmed_at !== null && athletes.has(i.athlete_id))
       .map((i) => ({ athleteId: i.athlete_id, confirmedAt: i.confirmed_at!, clearedAt: i.cleared_at })),
-    // Picks and lineups are for the stage whose auction has run; between tournaments (next auction open) there's none.
-    currentStageId: current?.auction_run_at ? current.id : null,
+    // Between tournaments (last day past, or the next auction not run yet) there's nothing to pick.
+    currentStageId: playingStage(rows.stages, now)?.id ?? null,
   };
 }
 
@@ -189,10 +195,10 @@ export async function seasonPairings(seasonId: string, now = Date.now()): Promis
   };
 }
 
-/** The tally's game: the newest game of the stage whose auction has run (null before its tournament opens). */
-export async function loadCurrentGame(seasonId: string): Promise<{ stage: AuctionStage; game: GameRow } | null> {
-  const stage = pickAuctionStage(await rowsOf<AuctionStage>(supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)));
-  if (!stage?.auction_run_at) return null;
+/** The tally's game: the newest game of the playing stage (null before its tournament opens or after its last day). */
+export async function loadCurrentGame(seasonId: string, now = Date.now()): Promise<{ stage: AuctionStage; game: GameRow } | null> {
+  const stage = playingStage(await rowsOf<AuctionStage>(supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)), now);
+  if (!stage) return null;
   const [game] = await rowsOf<GameRow>(supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id)
     .order('number', { ascending: false }).limit(1));
   return game ? { stage, game } : null;

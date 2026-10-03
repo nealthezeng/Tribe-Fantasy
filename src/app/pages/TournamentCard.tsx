@@ -18,13 +18,15 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
   return m.home.membershipId === membershipId ? m.away : m.home;
 };
 
-/** Tournament play for one team: the game being played, the next game's pick, standings, and every game so far. */
+/**
+ * Tournament play for one team: the game being played, the next game's pick, standings, and every game so far.
+ * Standings show all year, between tournaments too.
+ */
 export function TournamentCard({ membershipId, leagueId, seasonId }: { membershipId: string; leagueId: string; seasonId: string }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);
   if (error && !data) return <p className="error" role="alert">{error}</p>;
   if (!data) return <p className="muted" role="status">Loading games…</p>;
   const { games, next } = data.result;
-  if (games.length === 0 && next === null) return null; // no tournament yet
   const live = games.find((g) => g.status === 'live' && opponentIn(g, membershipId) !== undefined);
   const played = [...games].reverse().filter((g) => g.status === 'pending' || g.status === 'final' || g.status === 'void');
 
@@ -53,7 +55,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const mine = next.sides.find((x) => x.membershipId === membershipId);
   const title = `Game ${next.number} · ${y.stage.get(next.stageId) ?? ''}`;
   if (!mine) {
-    return <div className="stack"><h3>{title}</h3><p className="muted">You have no players this stage, so you forfeit each game you're paired in.</p></div>;
+    return <div className="stack"><h3>{title}</h3><p className="muted">You have no players this tournament, so you forfeit each game you're paired in.</p></div>;
   }
   const paired = y.result.games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number);
   const them = paired ? opponentIn(paired, membershipId) : undefined;
@@ -80,7 +82,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
   // ponytail: benching rotates out the longest-benched player; with the default bench of 1 that's a plain swap.
   const bench = (athleteId: string) => act(() => api.setBench(membershipId, next.stageId, [athleteId, ...mine.bench].slice(0, mine.bench.length)));
   const swapIn = (out: string, inAthlete: string) => {
-    if (!window.confirm(`Swap ${name(inAthlete)} in for ${name(out)} for the rest of this stage? You get one swap per stage.`)) return;
+    if (!window.confirm(`Swap ${name(inAthlete)} in for ${name(out)} for the rest of this tournament? You get one swap per tournament.`)) return;
     void act(() => api.swapBench(membershipId, next.stageId, out, inAthlete));
   };
 
@@ -117,14 +119,14 @@ function PickGame({ y, next, membershipId, onSaved }: {
                 {y.injured.has(id) && <span className="pill bad">Injured</span>}
               </span>
               {!started && mine.bench.length > 0 && (
-                <button className="secondary" disabled={busy} onClick={() => void bench(id)}>Bench</button>
+                <button className="secondary" aria-label={`Bench ${name(id)}`} disabled={busy} onClick={() => void bench(id)}>Bench</button>
               )}
               {chosen ? (
                 <button className="secondary" aria-pressed="true" disabled={busy} onClick={() => void choose(null)}>
                   Your pick ✓ <span className="muted">· Clear</span>
                 </button>
               ) : (
-                <button disabled={busy} onClick={() => void choose(id)}>Pick</button>
+                <button aria-label={`Pick ${name(id)}`} disabled={busy} onClick={() => void choose(id)}>Pick</button>
               )}
             </li>
           );
@@ -144,7 +146,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
       </ul>
       <p className="muted"><small>
         {started
-          ? 'Your bench player comes in only if an active player gets injured (one swap per stage).'
+          ? 'Your bench player comes in only if an active player gets injured (one swap per tournament).'
           : 'Choose your bench before game 1 starts. It plays only if an active player gets injured.'}
         {y.settings.tiredness_multipliers.length > 0 && <> Starting a player again soon tires them: {
           y.settings.tiredness_multipliers.map((m, i) => `×${fmt(m)} ${i === 0 ? 'the next game' : `${i + 1} games later`}`).join(', ')}.</>}
@@ -247,7 +249,7 @@ function SideDetail({ y, g, side }: { y: LeagueTournament; g: GameOutcome; side:
     : y.input.statLines.find((l) => l.sessionId === g.game.sessionId && l.athleteId === side.athleteId);
   const factors = [
     side.tired !== null && side.tired !== 1 ? ` × ${fmt(side.tired)} tired` : '',
-    side.decay !== null && side.decay !== 1 ? ` × ${fmt(side.decay)} earlier seasons` : '',
+    side.decay !== null && side.decay !== 1 ? ` × ${fmt(side.decay)} earlier tournaments` : '',
   ].join('');
   return (
     <div className="stack">
@@ -265,7 +267,7 @@ function SideDetail({ y, g, side }: { y: LeagueTournament; g: GameOutcome; side:
           </li>
           <li>
             <span>Game score{factors}</span>
-            <strong className="num">{fmt(side.athleteScore!)}{factors && <>{factors.replace(/ tired| earlier seasons/g, '')} = {fmt(side.score)}</>}</strong>
+            <strong className="num">{fmt(side.athleteScore!)}{factors && <>{factors.replace(/ tired| earlier tournaments/g, '')} = {fmt(side.score)}</>}</strong>
           </li>
         </ul>
       )}

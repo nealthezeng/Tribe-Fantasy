@@ -3,12 +3,13 @@ import { BACKUP_TABLES, ledgerRows, standingsRows } from './backup';
 import type { LeagueTournament } from './tournament';
 
 describe('backup', () => {
-  it('lists every table the migrations create', async () => {
+  it('lists every table the migrations create and keep', async () => {
     const { readdirSync, readFileSync } = await import('node:fs');
     const dir = new URL('../../../supabase/migrations/', import.meta.url);
     const sql = readdirSync(dir).map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n');
-    const created = [...sql.matchAll(/create table public\.(\w+)/g)].map((m) => m[1]).sort();
-    expect(Object.keys(BACKUP_TABLES).sort()).toEqual(created);
+    const dropped = new Set([...sql.matchAll(/drop table public\.(\w+)/g)].map((m) => m[1]));
+    const kept = [...sql.matchAll(/create table public\.(\w+)/g)].map((m) => m[1]).filter((t) => !dropped.has(t)).sort();
+    expect(Object.keys(BACKUP_TABLES).sort()).toEqual(kept);
   });
 
   it('writes the ledger oldest first with dollars to the cent', () => {
@@ -17,7 +18,7 @@ describe('backup', () => {
       { created_at: '2026-10-18T00:00:00Z', kind: 'donation', amount: 100, dollars: '5', note: 'cash', stages: null },
     ] }] }]);
     expect(rows).toEqual([
-      ['date', 'league', 'team', 'kind', 'credits', 'dollars', 'stage', 'note'],
+      ['date', 'league', 'team', 'kind', 'credits', 'dollars', 'tournament', 'note'],
       ['2026-10-18T00:00:00Z', 'A', 'Zeal', 'donation', 100, '5.00', '', 'cash'],
       ['2026-10-19T00:00:00Z', 'A', 'Zeal', 'bid', -40, '', 'Fall', ''],
     ]);

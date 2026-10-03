@@ -3,7 +3,7 @@ import type { TournamentResult } from '../../core/tournament';
 import { buildLeagueTournament, checkPairing, fetchAll, mergeRanks, toTournamentInput, type TournamentRows } from './tournament';
 
 const T = '2026-11-07T14:00:00+00:00';
-const stage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', bid_close_at: '2026-11-03T00:00:00+00:00',
+const stage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-15', bid_close_at: '2026-11-03T00:00:00+00:00',
   auction_seed: null, auction_run_at: '2026-11-04T00:00:00+00:00' };
 const rows: TournamentRows = {
   settings: {},
@@ -53,11 +53,17 @@ describe('toTournamentInput', () => {
     const next = { ...stage, id: 'S2', starts_on: '2026-11-20', bid_close_at: '2026-11-25T00:00:00+00:00', auction_run_at: null };
     expect(toTournamentInput({ ...rows, stages: [stage, next] }, 123).currentStageId).toBeNull();
   });
+
+  it("has no current stage once the tournament's last day has passed (T4)", () => {
+    const at = (iso: string) => toTournamentInput(rows, Date.parse(iso)).currentStageId;
+    expect(at('2026-11-15T12:00:00')).toBe('S1'); // local time: the last day
+    expect(at('2026-11-16T12:00:00')).toBeNull();
+  });
 });
 
 describe('buildLeagueTournament', () => {
   it('scores the year and carries names for the UI', () => {
-    const y = buildLeagueTournament(rows, Date.parse('2027-01-01T00:00:00Z'));
+    const y = buildLeagueTournament(rows, Date.parse('2026-11-10T12:00:00Z')); // game 1's stats locked, tournament not over
     expect(y.result.games.map((g) => g.status)).toEqual(['final', 'upcoming']);
     // Tournament ×2: goal 3 × 2 = 6. m2 never picked, so b1 played for them (and scored 0).
     const [m] = y.result.games[0].matchups;

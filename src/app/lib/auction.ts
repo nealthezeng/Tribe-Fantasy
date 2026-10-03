@@ -5,11 +5,12 @@ export interface AuctionStage {
   id: string;
   name: string;
   starts_on: string;
+  ends_on: string;
   bid_close_at: string | null;
   auction_seed: string | null;
   auction_run_at: string | null;
 }
-export const AUCTION_STAGE_COLUMNS = 'id, name, starts_on, bid_close_at, auction_seed, auction_run_at';
+export const AUCTION_STAGE_COLUMNS = 'id, name, starts_on, ends_on, bid_close_at, auction_seed, auction_run_at';
 
 /** The stage whose auction opened most recently; before any opens, the latest by start date. Creating next stage
  * early must not hide this stage's rosters. */
