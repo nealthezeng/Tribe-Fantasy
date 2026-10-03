@@ -146,7 +146,7 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
       });
     }}>
       <label>Bids close<input type="datetime-local" required value={closeAt} onChange={(e) => setCloseAt(e.target.value)} /></label>
-      <button>{phase === 'open' ? 'Move close time' : 'Open auction'}</button>
+      <button>{phase === 'open' ? 'Change close time' : 'Open auction'}</button>
     </form>
   );
 }

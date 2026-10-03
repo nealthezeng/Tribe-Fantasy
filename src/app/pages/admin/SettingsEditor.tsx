@@ -47,10 +47,10 @@ export function SettingsEditor({ seasonId }: { seasonId: string }) {
     <div className="card">
       <h2>Season settings</h2>
       <div className="stack">
-        <p className="muted">Every rule knob from the spec, as JSON. Changes are validated here and recorded in the audit log.</p>
+        <p className="muted">Every league rule, as JSON. Saving checks it first and records the change in the audit log.</p>
         {season.data === undefined && !season.error && <p className="muted" role="status">Loading…</p>}
         <textarea aria-label="Season settings JSON" value={text} onChange={(e) => { setText(e.target.value); setStatus(null); }} spellCheck={false} />
-        <button onClick={save}>Validate and save</button>
+        <button onClick={save}>Save settings</button>
         {status && <p className="success" role="status">{status}</p>}
         {issues.length > 0 && <ul className="error" role="alert">{issues.map((i) => <li key={i}>{i}</li>)}</ul>}
         {season.error && <p className="error" role="alert">{season.error}</p>}

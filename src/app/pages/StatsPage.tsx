@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
-import { downloadText, loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel, toCsv, type SessionRow } from '../lib/stats';
+import {
+  downloadText, formatDay, gameTitles, loadCurrentSeason, SESSION_COLUMNS, sessionState, statLabel, titleOf, toCsv, type SessionRow,
+} from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 
@@ -21,7 +23,8 @@ export function StatsPage() {
     const { data, error } = await supabase!.from('sessions').select(SESSION_COLUMNS)
       .eq('season_id', season.id).order('held_on', { ascending: false });
     if (error) throw error;
-    return { season, sessions: (data ?? []) as SessionRow[] };
+    const sessions = (data ?? []) as SessionRow[];
+    return { season, sessions, games: await gameTitles(sessions.map((s) => s.id)) };
   }, []);
 
   async function exportCsv() {
@@ -67,7 +70,7 @@ export function StatsPage() {
   if (data.error) return <p className="error" role="alert">{data.error}</p>;
   if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) return <p>No season yet.</p>;
-  const { season, sessions } = data.data;
+  const { season, sessions, games } = data.data;
   return (
     <section className="page">
       <div className="head">
@@ -75,11 +78,14 @@ export function StatsPage() {
         {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      {sessions.length === 0 && <p className="muted">No sessions yet. Stat keepers start one from Tally.</p>}
+      {sessions.length === 0 && <p className="muted">No games yet. Each game's stats show up here once keepers tally it.</p>}
       <ul className="list">
         {sessions.map((s) => (
           <li key={s.id}>
-            <Link className="title" to={`/stats/${s.id}`}>{sessionTitle(s)}</Link>
+            <span>
+              <Link className="title" to={`/stats/${s.id}`}>{titleOf(s, games)}</Link>
+              {games.has(s.id) && <> <small>{formatDay(s.held_on)}</small></>}
+            </span>
             <span className="meta">
               {!s.counts && <span className="pill">Not counted</span>}
               {STATE_PILL[sessionState(s, season.settings.stat_lock_hours)]}

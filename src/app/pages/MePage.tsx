@@ -3,7 +3,7 @@ import { Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { SESSION_COLUMNS, sessionState, sessionTitle, todayLocal, type SessionRow } from '../lib/stats';
+import { gameTitles, SESSION_COLUMNS, sessionState, titleOf, todayLocal, type SessionRow } from '../lib/stats';
 import { parseSettings } from '../../core/settings';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
@@ -12,11 +12,13 @@ interface MeData {
   athlete: { id: string; name: string };
   lockHours: number;
   sessions: SessionRow[];
+  /** "Game 3 · Fall Beta" per session that is a game. */
+  games: Map<string, string>;
   attendance: Map<string, 'present' | 'absent'>;
   injury: { confirmed_at: string | null } | null;
 }
 
-/** A player's own page: attendance for the last week of sessions, and injury reports. */
+/** A player's own page: attendance for the last week of games, and injury reports. */
 export function MePage() {
   const { session, loading } = useAuth();
   const uid = session?.user.id;
@@ -41,6 +43,7 @@ export function MePage() {
       athlete: { id: a.data.id, name: a.data.name },
       lockHours: parseSettings(season?.settings).stat_lock_hours,
       sessions: (sessions.data ?? []) as SessionRow[],
+      games: await gameTitles(((sessions.data ?? []) as SessionRow[]).map((s) => s.id)),
       attendance: new Map((attendance.data ?? []).map((r: { session_id: string; status: 'present' | 'absent' }) => [r.session_id, r.status])),
       injury: injury.data,
     };
@@ -68,7 +71,7 @@ export function MePage() {
       </section>
     );
   }
-  const { athlete, lockHours, sessions, attendance, injury } = data.data;
+  const { athlete, lockHours, sessions, games, attendance, injury } = data.data;
   return (
     <section className="page">
       <h1>{athlete.name}</h1>
@@ -90,16 +93,16 @@ export function MePage() {
       </div>
       <div className="card">
         <h2>Attendance</h2>
-        <p className="muted">Sessions from the last week. Each one closes {lockHours} hours after it's verified.</p>
-        {sessions.length === 0 && <p>No sessions in the last week.</p>}
+        <p className="muted">Games from the last week. You can change your answer until {lockHours} hours after a game's stats are verified.</p>
+        {sessions.length === 0 && <p>No games in the last week.</p>}
         <ul className="list">
           {sessions.map((s) => {
             const status = attendance.get(s.id);
             const locked = sessionState(s, lockHours) === 'locked';
             return (
               <li key={s.id}>
-                <span className="title">{sessionTitle(s)}</span>
-                <span className="segmented" role="group" aria-label={`Attendance for ${sessionTitle(s)}`}>
+                <span className="title">{titleOf(s, games)}</span>
+                <span className="segmented" role="group" aria-label={`Attendance for ${titleOf(s, games)}`}>
                   {(['present', 'absent'] as const).map((st) => (
                     <button key={st} aria-pressed={status === st} disabled={locked}
                       onClick={() => void run(() => api.setAttendance(s.id, athlete.id, st))}>

@@ -23,6 +23,7 @@ vi.mock('../lib/supabase', () => ({
       const builder = {
         select: () => builder,
         eq: () => builder,
+        in: () => builder,
         maybeSingle: () => Promise.resolve({ data: session, error: null }),
         single: () => Promise.resolve({ data: { settings: {} }, error: null }),
         then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
@@ -57,7 +58,7 @@ describe('SessionPage delete (t81)', () => {
     confirm.mockReturnValue(true);
     vi.mocked(api.deleteSession).mockResolvedValue(undefined);
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete session' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete these stats' }));
     await waitFor(() => expect(api.deleteSession).toHaveBeenCalledWith('s1', true));
     expect(confirm.mock.calls[0][0]).toMatch(/Past results and standings can change/);
     expect(await screen.findByText('ALL SESSIONS')).toBeTruthy();
@@ -67,7 +68,7 @@ describe('SessionPage delete (t81)', () => {
     auth.isAdmin = true;
     confirm.mockReturnValue(false);
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete session' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete these stats' }));
     expect(api.deleteSession).not.toHaveBeenCalled();
   });
 
@@ -75,6 +76,6 @@ describe('SessionPage delete (t81)', () => {
     auth.isAdmin = false;
     renderPage();
     await screen.findByText('Attendance');
-    expect(screen.queryByRole('button', { name: 'Delete session' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete these stats' })).toBeNull();
   });
 });

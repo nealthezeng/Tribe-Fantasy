@@ -44,7 +44,7 @@ export function LoginPage() {
       {!sent ? (
         <form onSubmit={sendEmail}>
           <label>Email<input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <button disabled={busy}>{busy ? 'Sending…' : 'Email me a sign-in link'}</button>
+          <button disabled={busy}>{busy ? 'Sending…' : 'Send sign-in link'}</button>
         </form>
       ) : (
         <form onSubmit={verifyCode}>

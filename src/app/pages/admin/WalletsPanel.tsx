@@ -66,7 +66,7 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
       ))}
       <CreditForm
         title="Adjust credits"
-        help="Fixes a mistake. The ledger is never edited, so this adds a correcting entry. Use a negative number to take credits away."
+        help="Fixes a mistake by adding a correcting entry; past entries never change. Use a negative number to take credits away."
         teams={teams}
         amountLabel="Credits (+/−)"
         step="1"

@@ -102,6 +102,14 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
 **Phones (600px and narrower):** cards, the hero and page-level list rows run edge to edge as full-width bands
 (no side borders, no radius), like a native settings screen. Rounded floating cards are for wider screens only.
 
+## Words
+
+Player-facing glossary (clarify pass, board t115): a **season** is the league year; a **tournament** is one event
+(a stage in code); a **game** is one tournament game and its tally (a session in code). Lists and titles name the
+game, "Game 3 · Fall Beta", with the date as small text; only older practice sessions fall back to date · kind.
+Buttons say the action and its object ("Save settings", "Change close time", "Reopen tally", "Delete these stats").
+Errors say what happened and what to do; an unknown error shows its code only in brackets after that.
+
 ## Components
 
 - **Top bar** (`.topbar`): black. Brand on the left, the account avatar on the right, and tabs: League, Stats,
