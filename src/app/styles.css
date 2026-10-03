@@ -185,6 +185,37 @@ tbody tr:last-child td { border-bottom: 0; }
 .bid input { width: 96px; }
 .list li > .row { flex: 1 1 100%; }
 
+/* League tab, matchup first: a big headline, a line of facts, a black scoreboard, then three number tiles. */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.matchup { display: grid; gap: var(--s2); }
+.display { font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); font-stretch: normal; font-size: var(--fs-matchup); line-height: 0.9; }
+.vs { font-family: var(--font-sans); font-weight: var(--fw-semi); font-size: var(--fs-sm); text-transform: lowercase; letter-spacing: normal; color: var(--muted); }
+.display .vs { vertical-align: 0.6em; padding-inline: var(--s1); }
+.strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); font-size: var(--fs-sm); color: var(--muted); }
+.strip strong { color: var(--fg); }
+.chip { border: 1px solid var(--line-strong); border-radius: var(--radius-xs); padding: 0 var(--s2); color: var(--fg); font-weight: var(--fw-semi); }
+.live { display: inline-flex; align-items: center; gap: var(--s2); color: var(--error); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.06em; }
+.dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid currentColor; opacity: 0.35; transform: scale(1.8); }
+.score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: var(--s2) var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--radius); background: var(--bar); color: var(--bar-fg); }
+.score .vs { color: var(--bar-muted); padding-bottom: var(--s2); }
+.score-side { display: grid; gap: var(--s1); min-width: 0; overflow-wrap: anywhere; }
+.score-side:last-of-type { text-align: right; }
+.score-side small { color: var(--bar-muted); }
+.score-side.lost { color: var(--bar-muted); }
+.pts, .pts-name { font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); line-height: 0.95; }
+.pts { font-size: var(--fs-score); font-variant-numeric: tabular-nums; }
+.pts-name { font-size: var(--fs-xl); }
+.score-note { grid-column: 1 / -1; color: var(--bar-muted); font-size: var(--fs-sm); }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
+.tiles > div { display: grid; gap: var(--s1); align-content: start; padding: var(--s3); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.tiles dt { font-size: var(--fs-sm); color: var(--muted); }
+.tiles dd { margin: 0; }
+.of { font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--muted); }
+/* A secondary way on: underlined text with a drawn arrow that nudges forward on hover. Gold buttons stay for actions. */
+.more { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); font-weight: var(--fw-semi); }
+.more::after { content: ''; width: 7px; height: 7px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
+
 /* Admin: one section at a time, picked from a sticky row of tabs. */
 .subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); scrollbar-width: none; }
 .subnav button, .subnav button:hover:not(:disabled) { position: relative; z-index: 1; flex: none; background: transparent; color: var(--fg); border-color: var(--line-strong); border-radius: var(--radius-pill); padding: var(--s2) 14px; font-size: var(--fs-sm); }
@@ -224,6 +255,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .bid-sums p { display: flex; align-items: baseline; gap: var(--s2); }
 .bid-sums span { color: var(--muted); }
 .flash-bad { color: var(--error); } /* reduced motion: just red while .over lasts */
+@keyframes live-pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.6); opacity: 0; } }
 @keyframes flash-bad { 50% { transform: scale(1.15); } }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -234,6 +266,9 @@ tbody tr:last-child td { border-bottom: 0; }
       transform var(--dur-press) var(--ease), box-shadow var(--dur) var(--ease);
   }
   /* width animates on purpose: the marker is absolutely positioned, so only it re-lays-out (scaleX would warp the pill). */
+  .dot::after { animation: live-pulse var(--dur-pulse) var(--ease-glide) infinite; }
+  .more::after { transition: transform var(--dur) var(--ease); }
+  .more:hover::after { transform: translateX(3px) rotate(45deg); }
   .ink.ready { transition: transform var(--dur-slide) var(--ease-glide), width var(--dur-slide) var(--ease-glide); }
   /* Every button sinks a little while pressed; gold (main action) buttons also lift on hover. */
   :is(button, .button):active:not(:disabled) { transform: scale(0.97); }

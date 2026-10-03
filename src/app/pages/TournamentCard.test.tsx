@@ -55,7 +55,7 @@ beforeEach(() => {
 });
 const show = async (r: TournamentRows) => {
   rows.current = r;
-  render(<TournamentCard membershipId="m1" leagueId="L" seasonId="se" />);
+  render(<TournamentCard membershipId="m1" leagueId="L" seasonId="se" teamName="Zeal" subtitle="League A" balance={85} />);
   await screen.findByRole('heading', { name: 'Tournament' });
 };
 
@@ -75,6 +75,11 @@ describe('TournamentCard', () => {
     expect(screen.getByRole('heading', { name: 'Game 2 · Fall beta' })).toBeTruthy();
     expect(screen.getByText(/Their pick stays hidden until the game starts/).textContent).toContain('Flow');
     expect(screen.getByText('Ash').parentElement?.textContent).toContain('Tired ×0.5');
+    // The header leads with the next matchup; neither side's pick is set, and theirs reads as hidden.
+    expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
+    expect(screen.getByText('No pick yet')).toBeTruthy();
+    expect(screen.getByText('Hidden')).toBeTruthy();
+    expect(screen.getByText('Credits').nextElementSibling?.textContent).toBe('85');
     // Quinn is who the scorer would auto-pick for Flow: shown nowhere until game 2 starts.
     expect(document.body.textContent).not.toContain('Quinn');
     expect(screen.getByText(/Waiting on stats/)).toBeTruthy(); // game 1, finished but not verified

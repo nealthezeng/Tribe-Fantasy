@@ -46,7 +46,8 @@ export function HomePage() {
   }
   return (
     <section className="page">
-      <h1>Your teams</h1>
+      {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
+      <h1 className={data?.length ? 'sr-only' : undefined}>Your teams</h1>
       {error && <p className="error" role="alert">{error}</p>}
       {!data && !error && <p className="muted" role="status">Loading…</p>}
       {data && data.length === 0 && (
@@ -68,18 +69,17 @@ export function HomePage() {
             {wallet}
           </article>
         );
+        if (!m.leagues || !uid) return <Fragment key={m.id}>{team}</Fragment>;
         return (
-          <Fragment key={m.id}>
-            {m.leagues && uid ? (
-              <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
-                joinedAt={m.created_at}
-                teamName={m.team_name} subtitle={subtitle} team={team} wallet={wallet} />
-            ) : team}
-            {m.leagues && <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}
-          </Fragment>
+          <TournamentCard key={m.id} membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
+            teamName={m.team_name} subtitle={subtitle} balance={balance(m.credit_ledger)}>
+            <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
+              joinedAt={m.created_at}
+              teamName={m.team_name} team={<article className="card">{wallet}</article>} wallet={wallet} />
+          </TournamentCard>
         );
       })}
-      {data && data.length > 0 && <p><Link to="/join">Join another league</Link></p>}
+      {data && data.length > 0 && <p><Link to="/join" className="more">Join another league</Link></p>}
     </section>
   );
 }

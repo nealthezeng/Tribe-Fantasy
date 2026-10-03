@@ -71,7 +71,7 @@ const athlete = (id: string, name: string) => ({ id, name, user_id: null, opted_
 function renderCard() {
   return render(
     <AuctionCard membershipId="m1" leagueId="l1" seasonId="se1" userId="u1" joinedAt="2026-09-01T00:00:00Z"
-      teamName="Test Zeal" subtitle="League A · Spring" team={<article>TEAM CARD</article>} wallet={<p>WALLET</p>} />,
+      teamName="Test Zeal" team={<article>TEAM CARD</article>} wallet={<p>WALLET</p>} />,
   );
 }
 

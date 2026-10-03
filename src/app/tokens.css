@@ -69,6 +69,8 @@
   --fs-num: 40px;     /* display face */
   --fs-display: 40px; /* page titles, display face */
   --fs-hero: 64px;    /* display face */
+  --fs-matchup: clamp(40px, 12vw, 64px); /* League matchup headline, display face; shrinks on phones */
+  --fs-score: 56px;   /* final scores on the scoreboard, display face */
 
   /* Spacing, shape, elevation */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
@@ -94,6 +96,7 @@
   --dur-slide: 420ms;   /* tab marker gliding to the new tab */
   --ease-glide: cubic-bezier(0.16, 1, 0.3, 1); /* fast start, long soft landing */
   --dur-flash: 400ms;   /* the over-budget flash on the bid header, x3 */
+  --dur-pulse: 1.6s;    /* the ring around the Live dot, looping */
   --shadow-lift: 0 6px 14px -4px rgb(201 148 0 / 0.55), 0 2px 4px rgb(15 20 25 / 0.12); /* gold button hover */
 
   color-scheme: light;

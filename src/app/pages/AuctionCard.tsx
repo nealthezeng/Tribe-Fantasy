@@ -17,9 +17,9 @@ interface Team { id: string; team_name: string }
  * The team card and the auction for one team, in the stage pickAuctionStage chooses. While bidding is open they are
  * one block with a sticky header (players bid on, credits left); otherwise the team card, then the auction collapsed.
  */
-export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, subtitle, team, wallet }: {
+export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, team, wallet }: {
   membershipId: string; leagueId: string; seasonId: string; userId: string; joinedAt: string;
-  teamName: string; subtitle: string;
+  teamName: string;
   /** The team card as it looks outside bidding. */
   team: ReactNode;
   /** Credit history, shown inside the combined block while bidding is open. */
@@ -103,7 +103,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       <article className="card" aria-label={`${teamName}: ${stage.name} auction`}>
         <div className={flash ? 'bid-header over' : 'bid-header'}>
           <div className="head">
-            <h2>{teamName}</h2>
+            <h2>{stage.name} auction</h2>
             <span className="pill ok">Bidding open</span>
           </div>
           <div className="bid-sums">
@@ -114,7 +114,6 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             </p>
           </div>
         </div>
-        <p className="muted">{subtitle}</p>
         {wallet}
         <BidList open={mine.length === 0}
           summary={<>{stage.name} auction <span className="muted">· closes {timeLeft(stage.bid_close_at!, now)}</span></>}>

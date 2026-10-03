@@ -84,6 +84,8 @@ export interface LeagueTournament {
   team: Map<string, string>;
   athlete: Map<string, string>;
   stage: Map<string, string>;
+  /** Each stage's dates, for the League header. */
+  stageDates: Map<string, { starts_on: string; ends_on: string }>;
   /** Athletes with a confirmed injury that hasn't cleared. */
   injured: Set<string>;
 }
@@ -97,6 +99,7 @@ export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): L
     team: new Map(rows.members.map((m) => [m.id, m.team_name])),
     athlete: new Map(rows.athletes.map((a) => [a.id, a.name])),
     stage: new Map(rows.stages.map((x) => [x.id, x.name])),
+    stageDates: new Map(rows.stages.map((x) => [x.id, { starts_on: x.starts_on, ends_on: x.ends_on }])),
     injured: new Set(input.injuries.filter((i) => i.clearedAt === null || Date.parse(i.clearedAt) > now).map((i) => i.athleteId)),
   };
 }

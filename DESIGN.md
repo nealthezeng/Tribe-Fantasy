@@ -137,6 +137,14 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
 - **`.subnav`**: admin's sticky, sideways-scrolling row of rounded tabs (`aria-pressed`). Admin shows one section
   at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
   chips are see-through so the pill shows while it moves). Admin opens on the newest season.
+- **League tab, matchup first** (`Matchup` in `TournamentCard.tsx`): per team, the game that matters now (live,
+  else next, else last played) as a `.display` headline "TEAM vs OPPONENT" (`--fs-matchup`, shrinks on phones; the
+  page `h1` is `.sr-only` once you have a team). Under it a `.strip` of facts: tournament, a `.chip` with the dates,
+  game number, and the state (a red `.live` dot whose ring pulses, Next up, Waiting on stats, or Won/Lost ±points).
+  Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
+  final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Credits, Place
+  "N `.of` M", Record. Then the auction, then the Tournament card (pick, standings, games).
+- **`.more`**: a secondary way on, an underlined text link with a drawn chevron that nudges right on hover.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
   gold call to action, the large disc behind.
 - **Tables** (`.table-wrap`): 14px tabular figures, right-aligned numbers, first column left, divider rows.
