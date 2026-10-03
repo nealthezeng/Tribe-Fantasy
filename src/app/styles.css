@@ -179,10 +179,15 @@ tbody tr:last-child td { border-bottom: 0; }
 .disc-ring { fill: none; stroke: var(--gold-deep); }
 .disc-hub { fill: var(--blue); }
 
-/* Auction: a short amount box beside each player; admin auction controls take their own line in a stage row. */
-.bid { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); align-items: center; margin-left: auto; }
-.bid small { flex-basis: 100%; text-align: right; }
-.bid input { width: 96px; }
+/* Auction rows: the name takes what's left (a pill drops under it), and every row's bid controls sit in the same
+   three columns (amount, Bid/Save, remove), so the boxes line up whether a row has a bid, a pill, or neither.
+   Admin auction controls take their own line in a stage row. */
+.list li.bid-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.bid { display: grid; grid-template-columns: 4.5rem 4rem var(--tap); gap: var(--s2); align-items: center; }
+.bid button { padding-inline: var(--s2); }
+.bid small { grid-column: 1 / -1; text-align: right; }
+.icon { width: var(--tap); padding: 0; }
+.icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
 .list li > .row { flex: 1 1 100%; }
 
 /* League tab, matchup first: a big headline, a line of facts, a black scoreboard, then three number tiles. */

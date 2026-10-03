@@ -126,7 +126,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             {athletes.filter((a) => a.opted_in).map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
               return (
-                <li key={a.id}>
+                <li key={a.id} className="bid-row">
                   <span className="meta">
                     <span className="title">{a.name}</span>
                     {injured.has(a.id) && <span className="pill bad">Injured</span>}
@@ -253,9 +253,9 @@ export function BidControl({ athlete, bid, minBid, available, onOverBudget, onSa
         aria-label={`Your bid on ${athlete.name}, in credits`} placeholder="Bid" aria-invalid={(entered && !valid) || over} />
       <button disabled={busy || !valid || amount === bid}>{bid === null ? 'Bid' : 'Save'}</button>
       {bid !== null && (
-        <button type="button" className="secondary" disabled={busy}
+        <button type="button" className="secondary icon" disabled={busy} aria-label={`Remove your bid on ${athlete.name}`}
           onClick={() => { setBusy(true); void onRemove().finally(() => setBusy(false)); }}>
-          Remove
+          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" /></svg>
         </button>
       )}
       {entered && !valid && <small className="error">Bid at least {minBid}, in whole credits.</small>}
