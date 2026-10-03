@@ -216,3 +216,16 @@ Gaps found when checking the draft against the code. They fill holes and change 
     from tournament standings ("unsettled" = started, not-final games of other stages). Open tournament pairs game
     1 with the same provisional `nextPairings`, so an earlier stage's unverified games count by their live taps.
     The M8 dry run now plays a tournament end to end.
+15. **T4 decisions (2026-10-03, user).** Migration `0013_retire_weekly` drops `weeks`, `picks`, `create_stage_weeks`,
+    `set_week_lock` and `set_pick` (the 3 test weeks go; the user OK'd it), strips `pick_lock_day`, `pick_lock_time`
+    and `usage_reset` from stored settings (parseSettings now rejects them, so paste 0013 BEFORE deploying, and
+    nobody saves settings on the old build in between), and redefines `delete_athlete`: game picks and bench swaps
+    (either side) block a plain delete and are counted (`picks`, `swaps`) in a forced one. Core: `year.ts`,
+    `roundRobin` and the no-repeat cycle helpers go; their shared types move to `tournament.ts`; `scoreTournaments`
+    loses its final-game and standings blocks to helpers. **Practice tallying is retired**: the Tally page lists
+    open game sessions only (plus any session this phone still holds taps for) and has no New session form or
+    Delete. `create_session` stays in SQL (DB tests build sessions with it; a practice session scores nothing).
+    **Naming:** stages are "tournaments" to everyone, admin Tournaments tab included; the league year is the
+    "season" (code and DB names keep `stage`). The League tab shows standings even between tournaments. A stage
+    stops being the playing stage once its `ends_on` (local date) has passed: no pick block, no Start game.
+    Teams with no roster stay in the pairings (question closed). Ships after the Oct 17–18 dry run.
