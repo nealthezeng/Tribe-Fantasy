@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { as, rpc } from './helpers';
+import { as, freshDb, migrationSql, rpc } from './helpers';
 import { auctionFixture, bid, grant, member, openAuction } from './auction-fixture';
 import { backdateVerify, statsFixture, tap } from './stats-fixture';
 
@@ -42,21 +42,21 @@ describe('delete_athlete', () => {
       .rejects.toThrow('NOT_FOUND');
   });
 
-  it('refuses an athlete with a bid, a roster slot or a pick', async () => {
+  it('refuses an athlete with a bid, a roster slot, a game pick or a bench swap', async () => {
     const f = await auctionFixture();
     const [alice, am] = await member(f.db, 'alice');
     await grant(f);
     await openAuction(f);
-    const [a0, a1, a2] = f.athletes;
+    const [a0, a1, a2, a3, a4] = f.athletes;
     await bid(f, alice, am, a0, 5);
-    // Superuser writes: a roster slot and a pick, without running the auction or building weeks.
+    // Superuser writes: a roster slot, a game pick and a bench swap (either side), without running the auction.
     await f.db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
       values ($1, $2, $3, $4, 0, 'fill')`, [f.stage, am, f.league, a1]);
-    const week = (await f.db.query<{ id: string }>(`insert into public.weeks (stage_id, starts_on, ends_on, starts_at, ends_at, pick_lock_at)
-      values ($1, '2026-10-19', '2026-10-25', '2026-10-19', '2026-10-26', '2026-10-20') returning id`, [f.stage])).rows[0].id;
-    await f.db.query(`insert into public.picks (week_id, membership_id, league_id, athlete_id) values ($1, $2, $3, $4)`,
-      [week, am, f.league, a2]);
-    for (const a of [a0, a1, a2]) {
+    await f.db.query(`insert into public.game_picks (stage_id, game_number, membership_id, league_id, athlete_id)
+      values ($1, 1, $2, $3, $4)`, [f.stage, am, f.league, a2]);
+    await f.db.query(`insert into public.bench_swaps (stage_id, membership_id, out_athlete, in_athlete, from_game)
+      values ($1, $2, $3, $4, 2)`, [f.stage, am, a3, a4]);
+    for (const a of [a0, a1, a2, a3, a4]) {
       await expect(as(f.db, f.admin, (tx) => rpc(tx, 'delete_athlete', { p_athlete: a }))).rejects.toThrow('ATHLETE_IN_USE');
     }
   });
@@ -79,10 +79,10 @@ describe('delete_athlete forced (t81)', () => {
     await f.db.query(`update public.memberships set league_id = $1 where id = $2`, [league2, bm]);
     await f.db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
       values ($1, $2, $3, $4, 0, 'fill')`, [f.stage, bm, league2, a]);
-    const week = (await f.db.query<{ id: string }>(`insert into public.weeks (stage_id, starts_on, ends_on, starts_at, ends_at, pick_lock_at)
-      values ($1, '2026-10-19', '2026-10-25', '2026-10-19', '2026-10-26', '2026-10-20') returning id`, [f.stage])).rows[0].id;
-    await f.db.query(`insert into public.picks (week_id, membership_id, league_id, athlete_id) values ($1, $2, $3, $4)`,
-      [week, am, f.league, a]);
+    await f.db.query(`insert into public.game_picks (stage_id, game_number, membership_id, league_id, athlete_id)
+      values ($1, 1, $2, $3, $4)`, [f.stage, am, f.league, a]);
+    await f.db.query(`insert into public.bench_swaps (stage_id, membership_id, out_athlete, in_athlete, from_game)
+      values ($1, $2, $3, $4, 2)`, [f.stage, am, f.athletes[1], a]);
     const name = (await f.db.query<{ name: string }>(`select name from public.athletes where id = $1`, [a])).rows[0].name;
     const balance = async (m: string) =>
       (await f.db.query<{ b: number }>(`select coalesce(sum(amount), 0)::int as b from public.credit_ledger where membership_id = $1`, [m])).rows[0].b;
@@ -91,16 +91,17 @@ describe('delete_athlete forced (t81)', () => {
     await as(f.db, f.admin, (tx) => rpc(tx, 'delete_athlete', { p_athlete: a, p_force: true }));
 
     expect((await f.db.query(`select 1 from public.athletes where id = $1`, [a])).rows).toHaveLength(0);
-    for (const t of ['bids', 'roster_slots', 'picks']) {
+    for (const t of ['bids', 'roster_slots', 'game_picks']) {
       expect((await f.db.query(`select 1 from public.${t} where athlete_id = $1`, [a])).rows, t).toHaveLength(0);
     }
+    expect((await f.db.query(`select 1 from public.bench_swaps`)).rows).toHaveLength(0);
     expect(await balance(am)).toBe(aliceBefore + 30);
     expect(await balance(bm)).toBe(bobBefore);
     const refund = await f.db.query<{ kind: string; note: string; stage_id: string }>(
       `select kind, note, stage_id from public.credit_ledger where membership_id = $1 and amount = 30`, [am]);
     expect(refund.rows).toEqual([{ kind: 'adjustment', note: `Refund: ${name} removed`, stage_id: f.stage }]);
     expect((await audit(f.db, 'delete_athlete'))[0].details).toMatchObject({
-      name, force: true, taps: 0, lines: 0, bids: 1, slots: 2, picks: 1, refunded: 30,
+      name, force: true, taps: 0, lines: 0, bids: 1, slots: 2, picks: 1, swaps: 1, refunded: 30,
     });
   });
 
@@ -202,5 +203,19 @@ describe('place_bid total cap', () => {
     await bid(f, alice, am, f.athletes[0], 110); // replaces its own 100, so 110 + 5 = 115
     const total = await f.db.query<{ t: number }>(`select sum(amount)::int as t from public.bids where membership_id = $1`, [am]);
     expect(total.rows[0].t).toBe(115);
+  });
+});
+
+describe('0013 retire weekly', () => {
+  it('strips the retired weekly settings and keeps the rest', async () => {
+    const db = await freshDb('0013');
+    await db.query(`insert into public.seasons (name, settings) values ('Old', $1)`,
+      [{ pick_lock_day: 'tue', pick_lock_time: '17:30', usage_reset: 'cycle', upset_k: 0.5 }]);
+    await db.exec(migrationSql('0013_retire_weekly.sql'));
+    const row = await db.query<{ settings: object }>(`select settings from public.seasons`);
+    expect(row.rows[0].settings).toEqual({ upset_k: 0.5 });
+    for (const t of ['weeks', 'picks']) {
+      expect((await db.query(`select to_regclass('public.${t}') as r`)).rows, t).toEqual([{ r: null }]);
+    }
   });
 });
