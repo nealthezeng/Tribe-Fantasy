@@ -93,14 +93,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
 .secondary:hover:not(:disabled) { background: var(--line); }
 .secondary:active:not(:disabled) { background: var(--line); }
-/* Keycap buttons: a sheen layer behind the label (so it rides on any fill), a lit top edge and a small drop shadow.
-   Pressed, the shadow turns inward and the sheen dims, so the key sinks. Tally tiles, links and menu items stay flat. */
-:is(button, .button):not(.linklike, .account-button, :where(.tally-buttons, .account-menu) *) {
-  position: relative; isolation: isolate; box-shadow: var(--btn-bevel), var(--btn-drop);
-  &::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--btn-sheen); pointer-events: none; }
-  &:active:not(:disabled) { box-shadow: var(--btn-press); }
-  &:active:not(:disabled)::before { opacity: 0.35; }
-}
 .secondary.picked, .secondary.picked:is(:hover, :active):not(:disabled) { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
 .picked svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .picked .clear { font-weight: var(--fw-regular); }
@@ -290,20 +282,22 @@ tbody tr:last-child td { border-bottom: 0; }
   }
   /* Press fast, release with a small spring past rest. */
   :is(button, .button):active:not(:disabled) { transition-duration: var(--dur-press); transition-timing-function: var(--ease); }
-  :is(button, .button)::before { transition: opacity var(--dur) var(--ease); }
   .secondary.picked { animation: pick-pop var(--dur-pop) var(--ease-spring); }
-  /* width animates on purpose: the marker is absolutely positioned, so only it re-lays-out (scaleX would warp the pill). */
   .dot::after { animation: live-pulse var(--dur-pulse) var(--ease-glide) infinite; }
   .more::after { transition: transform var(--dur) var(--ease); }
   .more:hover::after { transform: translateX(3px) rotate(45deg); }
+  /* width animates on purpose: the marker is absolutely positioned, so only it re-lays-out (scaleX would warp the pill). */
   .ink.ready { transition: transform var(--dur-slide) var(--ease-glide), width var(--dur-slide) var(--ease-glide); }
-  /* Every button sinks a little while pressed; gold (main action) buttons also lift on hover. */
-  :is(button, .button):active:not(:disabled) { transform: translateY(1px) scale(0.98); }
-  :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):hover:not(:disabled) {
-    transform: translateY(-1px); box-shadow: var(--btn-bevel), var(--shadow-lift);
+  /* Flat and crisp: buttons lift a pixel on hover (gold ones also glow) and squeeze when pressed, springing back.
+     Chips and segmented buttons stay put so they don't drift off their sliding marker. */
+  :is(button, .button):not(.linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):hover:not(:disabled) {
+    transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):active:not(:disabled) {
-    transform: translateY(1px) scale(0.98); box-shadow: var(--btn-press);
+  :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):hover:not(:disabled) {
+    box-shadow: var(--shadow-lift);
+  }
+  :is(button, .button):not(.linklike, .account-button, :where(.account-menu) *):active:not(:disabled) {
+    transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly and the tile must not move under the thumb. */
   .tally-buttons button, .tally-buttons button:is(:hover, :active):not(:disabled) { transition: none; transform: none; box-shadow: none; }

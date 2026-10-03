@@ -171,11 +171,12 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
   a faint gold and blue `--bg-ambient` glow on the page; each pane has a gold glow in its top-left corner, like the
   scoreboard. Page-level list rows get the same fill and shadow without the blur. Rows inside panes
   and the tally board never blur (phone GPU).
-- **Buttons are keycaps**: `--btn-sheen` (a layer behind the label, so it rides on any fill), `--btn-bevel` and
-  `--btn-drop`; pressed they sink (`--btn-press`, 1px down) and spring back (`--dur-release`, `--ease-spring`). Links,
-  menu items and tally tiles stay flat. A chosen pick is green (`.picked`) with a drawn check and a one-time pop.
+- **Buttons are flat and crisp** (user's pick over keycap, push-key, glow and metal styles, board t111): plain fills,
+  no border or bevel. Hover lifts 1px and gold buttons glow (`--shadow-lift`); press squeezes to 95% and springs back
+  (`--dur-release`, `--ease-spring`). Chips and segmented buttons don't move. A chosen pick is green (`.picked`) with a
+  drawn check and a one-time pop.
 - **Motion is small and physical**, and only when the user has not asked for reduced motion: 150ms colour fades
-  (`--dur`), every button sinks to 97% while pressed (`--dur-press`), gold buttons rise 1px with a gold
+  (`--dur`), every button squeezes to 95% while pressed (`--dur-press`), gold buttons rise 1px with a gold
   `--shadow-lift` on hover, and tab markers glide (`--dur-slide`, `--ease-glide`). The tally board never moves:
   no transitions, no press scale, no lift.
 - **Focus is always visible**: a 3px ring in `--focus`, offset 2px.
