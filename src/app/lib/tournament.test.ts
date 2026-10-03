@@ -82,6 +82,16 @@ describe('checkPairing', () => {
     expect(checkPairing({ pairings, provisional })).toBe(false);
     expect(checkPairing({ pairings, provisional: {} as never })).toBe(false); // not what a finish saves
   });
+  it('reports a mismatch for malformed audit row (missing order, junk order, null entry)', () => {
+    const pairings = [{ away: 'm3', home: 'm1', league_id: 'L' }];
+    expect(checkPairing({ pairings, provisional: [{}] as never })).toBe(false); // missing order
+    expect(checkPairing({ pairings, provisional: [null] as never })).toBe(false); // null entry
+    // 9 ids exceeds the 8-team max: would hang the tab during Swiss
+    expect(checkPairing({
+      pairings,
+      provisional: [{ league_id: 'L', order: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'], meetings: {} }],
+    })).toBe(false);
+  });
 });
 
 describe('mergeRanks', () => {

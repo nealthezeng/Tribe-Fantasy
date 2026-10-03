@@ -204,9 +204,15 @@ export async function loadCurrentGame(seasonId: string): Promise<{ stage: Auctio
  */
 export function checkPairing(details: { pairings: GamePairing[]; provisional: LeaguePairingInput[] }): boolean {
   if (!Array.isArray(details.pairings) || !Array.isArray(details.provisional)) return false;
-  // jsonb reorders object keys, so compare as plain strings.
-  const key = (p: GamePairing) => `${p.league_id}:${p.home}:${p.away ?? ''}`;
-  return details.provisional.flatMap(toPairings).map(key).join() === details.pairings.map(key).join();
+  try {
+    // Leagues are at most 8 teams. An order longer than that is junk and would hang the tab during exhaustive Swiss.
+    if (details.provisional.some((p) => p.order.length > 8)) return false;
+    // jsonb reorders object keys, so compare as plain strings.
+    const key = (p: GamePairing) => `${p.league_id}:${p.home}:${p.away ?? ''}`;
+    return details.provisional.flatMap(toPairings).map(key).join() === details.pairings.map(key).join();
+  } catch {
+    return false;
+  }
 }
 
 /** 'Zeal vs Flow · Money has a bye' */
