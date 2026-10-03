@@ -126,7 +126,7 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
 - **Banners** like "Welcome! Set your name" show only on the League page, never on task screens like Tally.
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
   `.warn`, `.bad`.
-- **`.notice`**: a soft blue box for information and next steps ("Set your name and join a league").
+- **`.notice`**: an info pane, the same glass as every box but glowing blue (`--notice-bg`), for information and next steps ("Set your name and join a league").
 - **`.success`**: green text with `role="status"` for a confirmed result. **`.error`**: red text with
   `role="alert"` for a failure, saying what to do next. Loading is `.muted` text with `role="status"`.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
