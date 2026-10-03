@@ -55,7 +55,7 @@ beforeEach(() => {
 });
 const show = async (r: TournamentRows) => {
   rows.current = r;
-  render(<TournamentCard membershipId="m1" leagueId="L" seasonId="se" teamName="Zeal" subtitle="League A" balance={85} />);
+  render(<TournamentCard membershipId="m1" leagueId="L" seasonId="se" teamName="Zeal" subtitle="League A" />);
   await screen.findByRole('heading', { name: 'Tournament' });
 };
 
@@ -79,7 +79,7 @@ describe('TournamentCard', () => {
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
     expect(screen.getByText('No pick yet')).toBeTruthy();
     expect(screen.getByText('Hidden')).toBeTruthy();
-    expect(screen.getByText('Credits').nextElementSibling?.textContent).toBe('85');
+    expect(screen.getByText('Record').nextElementSibling?.textContent).toBe('0–0');
     // Quinn is who the scorer would auto-pick for Flow: shown nowhere until game 2 starts.
     expect(document.body.textContent).not.toContain('Quinn');
     expect(screen.getByText(/Waiting on stats/)).toBeTruthy(); // game 1, finished but not verified
@@ -97,7 +97,7 @@ describe('TournamentCard', () => {
     // No games and no playing stage: the next auction hasn't run.
     await show({ ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] });
     expect(screen.getByRole('cell', { name: 'Flow' })).toBeTruthy();
-    expect(screen.getByText('No games played yet.')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Games' })).toBeNull(); // nothing played: no empty section
     expect(screen.queryByRole('button', { name: /^Pick / })).toBeNull();
   });
 

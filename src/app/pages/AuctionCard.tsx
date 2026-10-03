@@ -104,7 +104,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
         <div className={flash ? 'bid-header over' : 'bid-header'}>
           <div className="head">
             <h2>{stage.name} auction</h2>
-            <span className="pill ok">Bidding open</span>
+            <span className="pill ok">Closes {timeLeft(stage.bid_close_at!, now)}</span>
           </div>
           <div className="bid-sums">
             <p><strong className="big">{mine.length}</strong> <span>{mine.length === 1 ? 'player' : 'players'} bid on · roster {rosterSize}</span></p>
@@ -114,14 +114,12 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             </p>
           </div>
         </div>
-        {wallet}
+        <p className="muted">
+          Sealed until {formatWhen(stage.bid_close_at!)}. Highest bid wins each player; your bids can't add up to more
+          than your credits.
+        </p>
         <BidList open={mine.length === 0}
-          summary={<>{stage.name} auction <span className="muted">· closes {timeLeft(stage.bid_close_at!, now)}</span></>}>
-          <p>Bids close <strong>{timeLeft(stage.bid_close_at!, now)}</strong> · {formatWhen(stage.bid_close_at!)}</p>
-          <p className="muted">
-            Bids are sealed: nobody sees them until bidding closes. Your bids together can't be more than your
-            balance. The highest bid wins each player.
-          </p>
+          summary={<>Bid on players <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length}</span></>}>
           <ul className="list">
             {athletes.filter((a) => a.opted_in).map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
@@ -142,6 +140,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             })}
           </ul>
         </BidList>
+        {wallet}
         {error && <p className="error" role="alert">{error}</p>}
       </article>
     );

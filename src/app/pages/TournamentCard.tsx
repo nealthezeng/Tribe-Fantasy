@@ -20,11 +20,11 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 
 /**
  * One team on the League tab, matchup first: the game that matters now as a big headline with both picks, the
- * team's credits, place and record, then `children` (the auction), then the next pick, standings and every game.
+ * team's place, record and points, then `children` (the auction and credits), then the next pick, standings and games.
  * Standings show all season, between tournaments too.
  */
-export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, balance, children }: {
-  membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string; balance: number;
+export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, children }: {
+  membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string;
   children?: ReactNode;
 }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);
@@ -42,18 +42,19 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
 
   return (
     <>
-      <Matchup y={data} membershipId={membershipId} teamName={teamName} subtitle={subtitle} balance={balance} />
+      <Matchup y={data} membershipId={membershipId} teamName={teamName} subtitle={subtitle} />
       {children}
       <article className="card" aria-label="Tournament">
         <h2>Tournament</h2>
         {error && <p className="error" role="alert">{error}</p>}
         {next && <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />}
         <Standings y={data} membershipId={membershipId} />
-        <div className="section">
-          <h3>Games</h3>
-          {played.map((g) => <GameRow key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
-          {played.length === 0 && <p className="muted">No games played yet.</p>}
-        </div>
+        {played.length > 0 && (
+          <div className="section">
+            <h3>Games</h3>
+            {played.map((g) => <GameRow key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
+          </div>
+        )}
       </article>
     </>
   );
@@ -75,8 +76,8 @@ function focusGame(y: LeagueTournament, membershipId: string) {
 
 const RESULT = { W: 'Won', L: 'Lost', T: 'Tied' } as const;
 
-function Matchup({ y, membershipId, teamName, subtitle, balance }: {
-  y: LeagueTournament; membershipId: string; teamName: string; subtitle: string; balance: number;
+function Matchup({ y, membershipId, teamName, subtitle }: {
+  y: LeagueTournament; membershipId: string; teamName: string; subtitle: string;
 }) {
   const focus = focusGame(y, membershipId);
   const g = focus?.g ?? null;
@@ -123,9 +124,9 @@ function Matchup({ y, membershipId, teamName, subtitle, balance }: {
       )}
       {mine && status !== 'upcoming' && <Notice y={y} side={mine} />}
       <dl className="tiles">
-        <div><dt>Credits</dt><dd className="big">{balance}</dd></div>
         <div><dt>Place</dt><dd><span className="big">{row ? `${row.tied ? 'T' : ''}${row.place}` : '–'}</span> <span className="of">of {y.result.standings.length}</span></dd></div>
         <div><dt>Record</dt><dd className="big">{row ? `${row.wins}–${row.losses}${row.ties ? `–${row.ties}` : ''}` : '–'}</dd></div>
+        <div><dt>Points</dt><dd className="big">{row ? fmt(row.points) : '–'}</dd></div>
       </dl>
     </>
   );

@@ -91,8 +91,8 @@ labels), `--fs-lead` 18px (brand, hero text, invite codes, tally player names), 
 Spacing: `--s1` 4, `--s2` 8, `--s3` 12, `--s4` 16, `--s5` 24, `--s6` 32 (px). Layouts stack with grid `gap`, not margins.
 
 Radii: `--radius` 14px for cards and the hero, `--radius-sm` 10px for buttons, inputs, list rows and notices,
-`--radius-xs` 8px for account menu items, `--radius-pill` for pills and subnav chips. One shadow, `--shadow-pop`,
-only on the floating account menu.
+`--radius-xs` 8px for account menu items, `--radius-pill` for pills and subnav chips. Shadows belong to the pane
+system (`--pane-shadow`, `--score-shadow`, see Depth) plus the gold hover glow `--shadow-lift`.
 
 Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 76px stat buttons. Motion:
 `--dur` 150ms with `--ease`, and `--dur-flash` 400ms for the over-budget flash.
@@ -141,6 +141,12 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
   Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
   final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Credits, Place
   "N `.of` M", Record. Then the auction, then the Tournament card (pick, standings, games).
+- **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while bidding
+  they're "credits left" in the auction header; between auctions they're a collapsed Credits card with the balance in
+  its summary and the history inside.
+- **`.steps`**: a real sequence as numbered inline steps (admin Tournaments: grant, open, run, open tournament).
+- **Fold the rare forms**: forms used once a season (add a tournament, new league, adjust credits) live in a
+  collapsed `details.section`; Edit opens the tournament form.
 - **`.more`**: a secondary way on, an underlined text link with a drawn chevron that nudges right on hover.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
   gold call to action, the large disc behind.

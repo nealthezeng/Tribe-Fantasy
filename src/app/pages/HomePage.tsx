@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscMark } from '../components/Layout';
@@ -58,7 +58,7 @@ export function HomePage() {
       )}
       {data?.map((m) => {
         const subtitle = [m.leagues?.name, m.leagues?.seasons?.name].filter(Boolean).join(' · ');
-        const wallet = <Wallet entries={m.credit_ledger} />;
+        const wallet = <Wallet entries={m.credit_ledger} className="section" />;
         const team = (
           <article className="card">
             <div>
@@ -72,10 +72,12 @@ export function HomePage() {
         if (!m.leagues || !uid) return <Fragment key={m.id}>{team}</Fragment>;
         return (
           <TournamentCard key={m.id} membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
-            teamName={m.team_name} subtitle={subtitle} balance={balance(m.credit_ledger)}>
+            teamName={m.team_name} subtitle={subtitle}>
             <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
               joinedAt={m.created_at}
-              teamName={m.team_name} team={<article className="card">{wallet}</article>} wallet={wallet} />
+              teamName={m.team_name} wallet={wallet}
+              team={<Wallet entries={m.credit_ledger} className="card"
+                summary={<>Credits <span className="big credits-sum">{balance(m.credit_ledger)}</span></>} />} />
           </TournamentCard>
         );
       })}
@@ -84,11 +86,12 @@ export function HomePage() {
   );
 }
 
-function Wallet({ entries }: { entries: LedgerEntry[] }) {
+/** Credit history, collapsed. Between auctions it's its own card with the balance in the summary. */
+function Wallet({ entries, className, summary = 'Credit history' }: { entries: LedgerEntry[]; className: string; summary?: ReactNode }) {
   const newestFirst = [...entries].sort((a, b) => b.id - a.id);
   return (
-    <details>
-      <summary>Credit history</summary>
+    <details className={className}>
+      <summary>{summary}</summary>
       <ul className="list">
         {newestFirst.length === 0 && <li className="muted">No credits yet.</li>}
         {newestFirst.map((e) => (

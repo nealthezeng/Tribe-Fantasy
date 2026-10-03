@@ -85,7 +85,7 @@ describe('AuctionCard', () => {
   it('shows the combined header with nothing bid yet, list open, no separate team card', async () => {
     db.stages = [openStage as unknown as Row];
     renderCard();
-    await screen.findByText('Bidding open');
+    await screen.findByText(/^Closes in/);
     expect(document.body.textContent).toContain('115 credits left of 115');
     expect(document.body.textContent).toContain('0 players bid on · roster 4');
     expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
@@ -97,7 +97,7 @@ describe('AuctionCard', () => {
     db.athletes = [athlete('a', 'Alice') as unknown as Row, athlete('b', 'Bob') as unknown as Row];
     db.bids = [{ membership_id: 'm1', athlete_id: 'a', amount: 100 } satisfies BidRow as unknown as Row];
     renderCard();
-    await screen.findByText('Bidding open');
+    await screen.findByText(/^Closes in/);
     expect(document.body.textContent).toContain('15 credits left of 115');
 
     fireEvent.change(screen.getByLabelText('Your bid on Bob, in credits'), { target: { value: '16' } });
@@ -114,7 +114,7 @@ describe('AuctionCard', () => {
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('b', 'Bob') as unknown as Row];
     renderCard();
-    await screen.findByText('Bidding open');
+    await screen.findByText(/^Closes in/);
     expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
 
     fireEvent.change(screen.getByLabelText('Your bid on Bob, in credits'), { target: { value: '10' } });
@@ -128,7 +128,7 @@ describe('AuctionCard', () => {
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('a', 'Alice') as unknown as Row];
     renderCard();
-    await screen.findByText('Bidding open');
+    await screen.findByText(/^Closes in/);
     expect(document.body.textContent).toContain('115 credits left of 115');
 
     db.credit_ledger = [{ amount: 165 }]; // a donation credited while the tab was open

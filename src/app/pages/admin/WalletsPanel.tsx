@@ -115,20 +115,22 @@ function CreditForm({ title, help, teams, amountLabel, step, onSubmit }: {
   }
 
   return (
-    <form className="section" onSubmit={submit}>
-      <h3>{title}</h3>
-      <p className="muted">{help}</p>
-      <div className="row">
-        <label>Team
-          <select required value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-            <option value="">Choose…</option>
-            {teams.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-          </select>
-        </label>
-        <label>{amountLabel}<input type="number" required step={step} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
-        <label>Note<input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-        <button>Save</button>
-      </div>
-    </form>
+    <details className="section">
+      <summary>{title}</summary>
+        <form onSubmit={submit}>
+        <p className="muted">{help}</p>
+        <div className="row">
+          <label>Team
+            <select required value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+              <option value="">Choose…</option>
+              {teams.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            </select>
+          </label>
+          <label>{amountLabel}<input type="number" required step={step} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+          <label>Note<input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          <button>Save</button>
+        </div>
+      </form>
+    </details>
   );
 }
