@@ -3,7 +3,7 @@ import { ledgerRows, loadBackup, standingsRows, type LedgerLeague } from '../../
 import { errorMessage } from '../../lib/errors';
 import { downloadText, todayLocal, toCsv } from '../../lib/stats';
 import { supabase } from '../../lib/supabase';
-import { loadLeagueYear } from '../../lib/weekly';
+import { loadLeagueTournament } from '../../lib/tournament';
 
 /** Manual backups: the free Supabase plan keeps none we can download. Run it weekly (ops checklist). */
 export function BackupPanel({ seasonId }: { seasonId: string }) {
@@ -47,7 +47,7 @@ export function BackupPanel({ seasonId }: { seasonId: string }) {
 
   const standings = () => run('standings', async () => {
     const ls = await leagues();
-    const years = await Promise.all(ls.map(async (l) => ({ name: l.name, year: await loadLeagueYear(seasonId, l.id) })));
+    const years = await Promise.all(ls.map(async (l) => ({ name: l.name, year: await loadLeagueTournament(seasonId, l.id) })));
     downloadText(`tribe-standings-${todayLocal()}.csv`, toCsv(standingsRows(years)));
     return `Saved standings for ${ls.length} ${ls.length === 1 ? 'league' : 'leagues'}.`;
   });
