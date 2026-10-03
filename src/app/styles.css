@@ -20,7 +20,7 @@ code, .code, textarea { font-family: var(--font-mono); }
 small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--muted); }
 
 /* Top bar. Phone: brand + account menu, then a full-width row of tabs. Wider: one row. */
-.topbar { background: var(--bar); color: var(--bar-fg); border-bottom: 1px solid var(--line); }
+.topbar { background: var(--bar); color: var(--bar-fg); border-bottom: 1px solid var(--pane-border); }
 .topbar-inner {
   max-width: var(--shell); margin: 0 auto; padding: 0 var(--gutter); display: grid; align-items: center; column-gap: var(--s4);
   grid-template-columns: 1fr auto; grid-template-areas: 'brand account' 'tabs tabs';
@@ -122,10 +122,10 @@ label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(
 
 /* Lists: bordered rows on the page, divided rows inside a card (never a box inside a box). */
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
-.list li { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 14px; min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: var(--s2) var(--s3); flex-wrap: wrap; }
+.list li { background: var(--pane-bg); border: 1px solid var(--pane-border); box-shadow: var(--pane-highlight), var(--pane-shadow); border-radius: var(--radius-sm); padding: 10px 14px; min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: var(--s2) var(--s3); flex-wrap: wrap; }
 .list li select { width: auto; max-width: 100%; }
 .card .list { gap: 0; }
-.card .list li { background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: var(--s2) 0; }
+.card .list li { background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: var(--s2) 0; box-shadow: none; }
 .card .list li:first-child { border-top: 0; }
 .list .title { font-weight: var(--fw-semi); }
 .list a.title { color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; min-height: var(--tap); }
@@ -166,7 +166,7 @@ tbody tr:last-child td { border-bottom: 0; }
 /* Tally board: big neutral buttons with big counts, readable in sunlight. Attendance and injury sit apart. */
 .tally-bar { position: sticky; top: 0; z-index: 1; display: grid; gap: var(--s1); margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); }
 .tally-bar .head { gap: var(--s2); }
-.list li.tally-card { display: grid; justify-content: stretch; align-items: stretch; gap: var(--s3); padding: var(--s3); }
+.list li.tally-card { display: grid; justify-content: stretch; align-items: stretch; gap: var(--s3); padding: var(--s3); background: var(--surface); box-shadow: none; } /* plain and fast */
 .tally-head { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
 .tally-head strong { flex: 1 1 auto; font-size: var(--fs-lead); }
 .tally-head button { padding: 6px var(--s3); font-size: var(--fs-sm); }
@@ -186,7 +186,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .tally-buttons button:active:not(:disabled) .tally-w { color: inherit; }
 
 /* Signed-out landing: the one page that has to sell, so it gets the team colours at full strength. */
-.hero { border: 1px solid var(--line); position: relative; overflow: hidden; isolation: isolate; background: var(--bar); color: var(--bar-fg); border-radius: var(--radius); padding: var(--s6) var(--s5); display: grid; gap: var(--s4); justify-items: start; }
+.hero { border: 1px solid var(--pane-border); position: relative; overflow: hidden; isolation: isolate; background: var(--score-bg); box-shadow: var(--score-shadow); color: var(--bar-fg); border-radius: var(--radius); padding: var(--s6) var(--s5); display: grid; gap: var(--s4); justify-items: start; }
 .hero h1 { font-size: var(--fs-hero); line-height: 0.88; }
 .hero p { color: var(--bar-muted); font-size: var(--fs-lead); max-width: 22ch; }
 .hero-disc { position: absolute; z-index: -1; right: -60px; bottom: -60px; width: 168px; height: 168px; }

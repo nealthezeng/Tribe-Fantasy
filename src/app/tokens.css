@@ -1,41 +1,43 @@
 /* Design tokens: every colour, font, size and spacing value the app uses. Change the look here.
    styles.css only reads these; components never hard-code a colour or font.
-   Two places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html. */
+   Two places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html.
+   The site is always dark (M9): the scoreboard's world of smoked glass, gold glow and white type. */
 
 :root {
-  /* Team colours. Gold = actions and the current tab. Baby blue = info and selection.
-     Neither is readable as text on white, so light mode uses --link for links. */
+  color-scheme: dark;
+
+  /* Team colours. Gold = actions and the current tab. Baby blue = info, selection and links. */
   --gold: #f5b700;
   --gold-hover: #ffc629;
   --gold-press: #dba300;
   --gold-deep: #c99400;     /* the ring in the disc mark */
   --on-gold: #111111;       /* text on gold; never white */
   --blue: #8cc8f2;
-  --blue-soft: #e3f1fc;
-  --blue-ink: #0b4a75;
+  --blue-soft: #16304a;
+  --blue-ink: #bfe1fa;
 
   /* Neutrals */
-  --bg: #f4f7fa;
-  --surface: #ffffff;
-  --surface-2: #eef3f8;
-  --fg: #0f1419;
-  --muted: #56606b;
-  --line: #dbe2ea;
-  --line-strong: #8795a3;   /* input and button borders: 3:1 against white */
-  --link: #0b5d99;
-  --focus: #0b5d99;
+  --bg: #080b0f;            /* the page, under a faint gold and blue glow */
+  --surface: #121820;       /* inputs */
+  --surface-2: #1a2129;     /* secondary buttons, neutral pills */
+  --fg: #e8edf2;
+  --muted: #9aa6b2;
+  --line: #232c36;
+  --line-strong: #66737f;   /* input borders: 3:1 against the panes */
+  --link: #8cc8f2;
+  --focus: #8cc8f2;
 
-  /* Top bar and the signed-out hero */
-  --bar: #0f1419;
+  /* Top bar */
+  --bar: #05070a;
   --bar-fg: #ffffff;
-  --bar-muted: #b4bfca;
+  --bar-muted: #9aa6b2;
   --bar-line: rgb(255 255 255 / 0.12);
   --bar-hover: rgb(255 255 255 / 0.08);
 
   /* Status */
-  --ok: #1d6b35;    --ok-soft: #dcf1e2;
-  --warn: #8a4b00;  --warn-soft: #fdebd0;
-  --error: #b3261e; --error-soft: #fbe3e0;
+  --ok: #7fd69a;    --ok-soft: #16301f;
+  --warn: #f4b566;  --warn-soft: #3a2a13;
+  --error: #ff8a80; --error-soft: #3b1a18;
 
   /* Fonts. Archivo: a grotesque built for sports and news graphics, with even figures for stats.
      Loaded in index.html (weights 400-700, widths 87.5-100%); to swap it, change that link and these lines.
@@ -79,7 +81,7 @@
   --radius-sm: 10px;
   --radius-xs: 8px;
   --radius-pill: 999px;
-  --shadow-pop: 0 12px 32px rgb(15 20 25 / 0.18), 0 2px 6px rgb(15 20 25 / 0.08); /* menus only */
+  --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3); /* mockup frames */
   --shell: 720px;
   --bar-height: 56px;
 
@@ -100,72 +102,32 @@
   --dur-release: 340ms; /* a pressed button springs back */
   --dur-pop: 420ms;     /* a pick turning green */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoots a little, then settles */
-  --shadow-lift: 0 6px 14px -4px rgb(201 148 0 / 0.55), 0 2px 4px rgb(15 20 25 / 0.12); /* gold button hover */
+  --shadow-lift: 0 6px 16px -4px rgb(245 183 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.4); /* gold button hover */
 
-  /* Depth. Panes (cards, tiles, scoreboard, sticky headers, the account menu) are frosted glass: a translucent
-     layered fill, a 1px top highlight, a soft offset shadow and a blur of whatever sits behind. The page has a faint
-     gold and blue glow so the glass has something to frost. Light mode is white glass; dark mode is smoked glass. */
-  --bg-ambient: radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / 0.10), transparent 62%),
-    radial-gradient(800px 520px at 105% 12%, rgb(140 200 242 / 0.16), transparent 60%);
-  --pane-bg: linear-gradient(180deg, rgb(255 255 255 / 0.94), rgb(255 255 255 / 0.80));
-  --pane-border: rgb(15 20 25 / 0.08);
-  --pane-highlight: inset 0 1px 0 rgb(255 255 255 / 0.9);
-  --pane-shadow: 0 1px 2px rgb(15 20 25 / 0.05), 0 10px 28px -14px rgb(15 20 25 / 0.22);
+  /* Depth: the scoreboard's language on every box. Panes (cards, tiles, page-level rows, the account menu, sticky
+     headers) are smoked glass: a gold glow in the top-left corner (fixed size, so tall cards don't stretch it), a
+     sheen across the top, a lit 1px top edge, a hairline border and a deep soft shadow. The few that float also blur
+     what's behind them. The scoreboard and signed-out hero are the same glass, a shade darker with a stronger glow. */
+  --bg-ambient: radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / 0.09), transparent 62%),
+    radial-gradient(800px 560px at 105% 10%, rgb(140 200 242 / 0.10), transparent 60%);
+  --pane-bg: radial-gradient(420px 240px at 0 0, rgb(245 183 0 / 0.10), transparent 70%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0) 120px), rgb(13 17 22 / 0.8);
+  --pane-border: rgb(255 255 255 / 0.07);
+  --pane-highlight: inset 0 1px 0 rgb(255 255 255 / 0.1);
+  --pane-shadow: 0 2px 6px rgb(0 0 0 / 0.45), 0 22px 44px -20px rgb(0 0 0 / 0.95);
   --pane-blur: blur(14px) saturate(150%);
-  --sticky-bg: rgb(244 247 250 / 0.78);  /* sticky headers: content scrolls under the frost */
+  --sticky-bg: rgb(8 11 15 / 0.74);  /* sticky headers: content scrolls under the frost */
   --score-bg: radial-gradient(130% 90% at 0% 0%, rgb(245 183 0 / 0.16), transparent 55%),
-    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0) 45%), var(--bar);
-  --score-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 16px 36px -16px rgb(15 20 25 / 0.55), 0 2px 6px rgb(15 20 25 / 0.18);
-  --ok-on-bar: #7fd69a;  /* green that reads on the black scoreboard in both themes */
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 45%), rgb(5 7 10 / 0.92);
+  --score-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 22px 44px -18px rgb(0 0 0 / 0.95), 0 2px 6px rgb(0 0 0 / 0.5);
+  --ok-on-bar: #7fd69a;  /* green on the scoreboard */
 
-  /* Buttons are keycaps: a sheen over the fill, a lit top edge, a shaded bottom edge and a small drop shadow.
-     Pressed, the sheen dims and the shadow turns inward, so the key sinks. The tally board keeps flat tiles. */
-  --btn-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.38), rgb(255 255 255 / 0) 55%, rgb(15 20 25 / 0.05));
-  --btn-bevel: inset 0 1px 0 rgb(255 255 255 / 0.6);
-  --chip-bg: rgb(15 20 25 / 0.06);  /* admin tab chips: a soft fill the gliding pill shows through */
-  --btn-drop: 0 1px 2px rgb(15 20 25 / 0.14), 0 3px 8px -3px rgb(15 20 25 / 0.16);
-  --btn-press: inset 0 2px 5px rgb(15 20 25 / 0.28), inset 0 0 0 1px rgb(15 20 25 / 0.04);
-  --pick-ring: rgb(29 107 53 / 0.45);  /* the ring that spreads when a pick turns green */
-
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --blue-soft: #16304a;
-    --blue-ink: #bfe1fa;
-    --bg: #0b0f14;
-    --surface: #141a21;
-    --surface-2: #1b232c;
-    --fg: #e8edf2;
-    --muted: #9aa6b2;
-    --line: #26303b;
-    --line-strong: #66737f;
-    --link: #8cc8f2;
-    --focus: #8cc8f2;
-    --bar: #05070a;
-    --bar-muted: #9aa6b2;
-    --ok: #7fd69a;    --ok-soft: #16301f;
-    --warn: #f4b566;  --warn-soft: #3a2a13;
-    --error: #ff8a80; --error-soft: #3b1a18;
-    --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
-    --shadow-lift: 0 6px 16px -4px rgb(245 183 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.4);
-    --bg-ambient: radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / 0.09), transparent 62%),
-      radial-gradient(800px 560px at 105% 10%, rgb(140 200 242 / 0.10), transparent 60%);
-    --pane-bg: linear-gradient(180deg, rgb(255 255 255 / 0.075), rgb(255 255 255 / 0.025)), rgb(20 26 33 / 0.72);
-    --pane-border: rgb(255 255 255 / 0.08);
-    --pane-highlight: inset 0 1px 0 rgb(255 255 255 / 0.09);
-    --pane-shadow: 0 2px 4px rgb(0 0 0 / 0.35), 0 18px 40px -18px rgb(0 0 0 / 0.85);
-    --sticky-bg: rgb(11 15 20 / 0.72);
-    --score-bg: radial-gradient(130% 90% at 0% 0%, rgb(245 183 0 / 0.14), transparent 55%),
-      linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 45%), rgb(5 7 10 / 0.9);
-    --score-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 22px 44px -18px rgb(0 0 0 / 0.95), 0 2px 6px rgb(0 0 0 / 0.5);
-    --btn-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.14));
-    --btn-bevel: inset 0 1px 0 rgb(255 255 255 / 0.14);
-    --chip-bg: rgb(255 255 255 / 0.07);
-    --btn-drop: 0 1px 2px rgb(0 0 0 / 0.5), 0 4px 12px -4px rgb(0 0 0 / 0.7);
-    --btn-press: inset 0 2px 6px rgb(0 0 0 / 0.55), inset 0 0 0 1px rgb(0 0 0 / 0.2);
-    --pick-ring: rgb(127 214 154 / 0.5);
-  }
+  /* Buttons are keycaps: a sheen over the fill, a lit top edge and a small drop shadow. Pressed, the sheen dims and
+     the shadow turns inward, so the key sinks. The tally board keeps flat tiles. */
+  --btn-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 55%, rgb(0 0 0 / 0.14));
+  --btn-bevel: inset 0 1px 0 rgb(255 255 255 / 0.14);
+  --chip-bg: rgb(255 255 255 / 0.07);  /* admin tab chips: a soft fill the gliding pill shows through */
+  --btn-drop: 0 1px 2px rgb(0 0 0 / 0.5), 0 4px 12px -4px rgb(0 0 0 / 0.7);
+  --btn-press: inset 0 2px 6px rgb(0 0 0 / 0.55), inset 0 0 0 1px rgb(0 0 0 / 0.2);
+  --pick-ring: rgb(127 214 154 / 0.5);  /* the ring that spreads when a pick turns green */
 }

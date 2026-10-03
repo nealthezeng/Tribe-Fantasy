@@ -3,50 +3,47 @@
 What the shipped UI looks like, recorded from `src/app/styles.css`, `src/app/components/Layout.tsx` and
 `src/app/pages/`. How a page should behave (one job per screen, plain words, show state, the checklist) lives
 in [docs/frontend-principles.md](docs/frontend-principles.md). Who it is for lives in [PRODUCT.md](PRODUCT.md).
-**To change the look, edit `src/app/tokens.css`**: every colour, font, size, radius and the menu shadow live there,
-light and dark. `src/app/styles.css` imports it and only reads the tokens. The favicon and `theme-color` in
+**To change the look, edit `src/app/tokens.css`**: every colour, font, size, radius, shadow and
+duration lives there. `src/app/styles.css` imports it and only reads the tokens. The favicon and `theme-color` in
 `index.html` can't read CSS, so they repeat gold, baby blue and the bar colour by hand. Reuse the classes in
 `styles.css` before adding new ones. No UI libraries.
 
 ## Colour
 
-The team's two colours are fixed by the user. Black and white carry everything else.
+**Always dark** (M9, the user's choice): the whole site lives in the scoreboard's world of smoked glass, a faint gold
+and blue glow, and white type. There is no light theme and no toggle; `color-scheme: dark` is set in `tokens.css`
+and `index.html`. The team's two colours are fixed by the user: gold and baby blue.
 
-| Token | Light | Dark | Role |
-|---|---|---|---|
-| `--gold` | #f5b700 | same | Actions: primary buttons, current tab underline, text selection, checkboxes, the disc, the avatar |
-| `--gold-deep` | #c99400 | same | The ring in the disc mark |
-| `--gold-hover` / `--gold-press` | #ffc629 / #dba300 | same | Button hover and press |
-| `--on-gold` | #111111 | same | Text on gold. Never white. |
-| `--blue` | #8cc8f2 | same | Info and selection: `.subnav` hover border, the disc centre |
-| `--blue-soft` / `--blue-ink` | #e3f1fc / #0b4a75 | #16304a / #bfe1fa | `.notice` and `.pill.info` background and text |
-| `--link`, `--focus` | #0b5d99 | #8cc8f2 | Links and the 3px focus ring |
-
-Neither team colour is readable as text on white, so light mode uses the deep blue `#0b5d99` for links and focus.
-In dark mode the baby blue itself is readable and takes over.
+| Token | Value | Role |
+|---|---|---|
+| `--gold` | #f5b700 | Actions: primary buttons, current tab underline, text selection, checkboxes, the disc, the avatar |
+| `--gold-deep` | #c99400 | The ring in the disc mark |
+| `--gold-hover` / `--gold-press` | #ffc629 / #dba300 | Button hover and press |
+| `--on-gold` | #111111 | Text on gold. Never white. |
+| `--blue` | #8cc8f2 | Info and selection, the disc centre |
+| `--blue-soft` / `--blue-ink` | #16304a / #bfe1fa | `.notice` and `.pill.info` background and text |
+| `--link`, `--focus` | #8cc8f2 | Links and the 3px focus ring |
 
 Neutrals:
 
-| Token | Light | Dark | Role |
-|---|---|---|---|
-| `--bg` | #f4f7fa | #0b0f14 | Page background |
-| `--surface` | #ffffff | #141a21 | Cards, inputs, list rows, secondary buttons |
-| `--surface-2` | #eef3f8 | #1b232c | Tally buttons, neutral pill, secondary hover |
-| `--fg` | #0f1419 | #e8edf2 | Text |
-| `--muted` | #56606b | #9aa6b2 | Secondary text, table headers, placeholders |
-| `--line` | #dbe2ea | #26303b | Card borders and dividers |
-| `--line-strong` | #8795a3 | #66737f | Input, secondary button and segmented borders |
-| `--bar` / `--bar-fg` / `--bar-muted` | #0f1419 / #fff / #b4bfca | #05070a / #fff / #9aa6b2 | Top bar and hero |
+| Token | Value | Role |
+|---|---|---|
+| `--bg` | #080b0f | Page background, under `--bg-ambient` (gold glow top left, blue glow top right) |
+| `--surface` | #121820 | Inputs; tally player cards |
+| `--surface-2` | #1a2129 | Secondary buttons, tally buttons, neutral pill |
+| `--fg` | #e8edf2 | Text |
+| `--muted` | #9aa6b2 | Secondary text, labels, table headers, placeholders |
+| `--line` | #232c36 | Dividers inside panes |
+| `--line-strong` | #66737f | Input and segmented borders |
+| `--bar` / `--bar-fg` / `--bar-muted` | #05070a / #fff / #9aa6b2 | Top bar |
 
 Status, each with a soft background for pills:
 
-| Token | Light | Dark | Used by |
-|---|---|---|---|
-| `--ok` / `--ok-soft` | #1d6b35 / #dcf1e2 | #7fd69a / #16301f | `.success`, `.pill.ok` |
-| `--warn` / `--warn-soft` | #8a4b00 / #fdebd0 | #f4b566 / #3a2a13 | `.pill.warn` |
-| `--error` / `--error-soft` | #b3261e / #fbe3e0 | #ff8a80 / #3b1a18 | `.error`, `.pill.bad` |
-
-Dark mode follows `prefers-color-scheme` only. There is no toggle.
+| Token | Value | Used by |
+|---|---|---|
+| `--ok` / `--ok-soft` | #7fd69a / #16301f | `.success`, `.pill.ok`, a chosen pick |
+| `--warn` / `--warn-soft` | #f4b566 / #3a2a13 | `.pill.warn` |
+| `--error` / `--error-soft` | #ff8a80 / #3b1a18 | `.error`, `.pill.bad`, the Live dot |
 
 ## Brand mark
 
@@ -114,12 +111,12 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
 - **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
   and *Sign out*. The avatar gets a baby blue ring while you're on Me.
 - **`.page`**: a page's outer stack (16px gaps, a little extra space under the heading).
-- **`.card`**: white surface, 1px line border, 14px radius, 16px padding. `details.card` is a collapsible card
+- **`.card`**: a smoked-glass pane (`--pane-*`), hairline border, 14px radius, 16px padding. `details.card` is a collapsible card
   with a drawn chevron.
 - **`.section`**: a divided part inside a card: a top rule, not a new box.
 - **`.stack`**: a plain vertical group with 12px gaps.
 - **`.head` / `.meta` / `.row`**: title-with-actions row, wrapping inline details, and a wrapping form row.
-- **Buttons**: gold with dark text by default. `.secondary` is white with a strong border. `.linklike` looks
+- **Buttons**: gold with dark text by default. `.secondary` is a soft borderless `--surface-2` fill. `.linklike` looks
   like a link. `.button` makes a link look like a button. Buttons in a stack sit at their natural width, left.
 - **`.list`**: on the page, each row is its own bordered box (min 56px tall). Inside a `.card`, rows become
   plain rows split by divider lines. `li.used` greys the row's title (a "Used" pill says why).
@@ -168,10 +165,11 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
 - **Colour is never the only signal.** Pills carry words, negative tallies are dashed, the current tab is
   underlined, errors are written out.
 - **Gold means act.** Use gold for the main action and the current place, not for decoration or long text.
-- **Gold and baby blue are never text colours on white.** Text on gold is `--on-gold`; light-mode links use `--link`.
+- **Text on gold is always `--on-gold`.** Links and focus are baby blue (`--link`).
 - **Depth**: floating panes (cards, number tiles, the scoreboard, the account menu, sticky bid header and admin
   subnav) are frosted glass: `--pane-bg` layered fill, `--pane-highlight` top edge, `--pane-shadow`, `--pane-blur`, over
-  a faint gold and blue `--bg-ambient` glow on the page. Light mode is white glass, dark mode smoked glass. List rows
+  a faint gold and blue `--bg-ambient` glow on the page; each pane has a gold glow in its top-left corner, like the
+  scoreboard. Page-level list rows get the same fill and shadow without the blur. Rows inside panes
   and the tally board never blur (phone GPU).
 - **Buttons are keycaps**: `--btn-sheen` (a layer behind the label, so it rides on any fill), `--btn-bevel` and
   `--btn-drop`; pressed they sink (`--btn-press`, 1px down) and spring back (`--dur-release`, `--ease-spring`). Links,
