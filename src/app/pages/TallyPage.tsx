@@ -62,7 +62,7 @@ function SessionPicker({ season, keeperId, onPick }: {
       <div className="card">
         <h2>Open games</h2>
         {!sessions.data && !sessions.error && <p className="muted" role="status">Loading…</p>}
-        {sessions.data?.length === 0 && <p className="muted">None open. Start the next game above.</p>}
+        {sessions.data?.length === 0 && <p className="muted">No open games.</p>}
         <ul className="list">
           {sessions.data?.map((s) => (
             <li key={s.id}>

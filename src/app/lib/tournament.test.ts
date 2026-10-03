@@ -1,6 +1,27 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, mergeRanks, toTournamentInput, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, toTournamentInput, type TournamentRows } from './tournament';
+import type { AuctionStage } from './auction';
+import type { GameRow } from './tournament';
+
+let mockStages: AuctionStage[] = [];
+let mockGames: GameRow[] = [];
+
+vi.mock('./supabase', () => ({
+  supabase: {
+    from: (table: string) => {
+      const rows = table === 'stages' ? mockStages : table === 'games' ? mockGames : [];
+      const builder = {
+        select: () => builder,
+        eq: () => builder,
+        order: () => builder,
+        limit: () => builder,
+        then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
+      };
+      return builder;
+    },
+  },
+}));
 
 const T = '2026-11-07T14:00:00+00:00';
 const stage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-15', bid_close_at: '2026-11-03T00:00:00+00:00',
@@ -122,5 +143,31 @@ describe('fetchAll', () => {
     });
     expect(got).toEqual(all);
     expect(asked).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
+  });
+});
+
+describe('loadCurrentGame', () => {
+  const baseStage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-15', bid_close_at: '2026-11-03T00:00:00+00:00',
+    auction_seed: null, auction_run_at: '2026-11-04T00:00:00+00:00' };
+
+  it('a) after last day with live game → returns that game', async () => {
+    mockStages = [baseStage];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: '2026-11-15T14:00:00+00:00', finished_at: null }];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
+    expect(result?.game.id).toBe('g2');
+  });
+
+  it('b) after last day with unstarted game → returns null', async () => {
+    mockStages = [baseStage];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
+    expect(result).toBeNull();
+  });
+
+  it('c) on last day with unstarted game → returns it', async () => {
+    mockStages = [baseStage];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-15T12:00:00'));
+    expect(result?.game.id).toBe('g2');
   });
 });

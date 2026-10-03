@@ -196,12 +196,18 @@ export async function seasonPairings(seasonId: string, now = Date.now()): Promis
 }
 
 /** The tally's game: the newest game of the playing stage (null before its tournament opens or after its last day). */
+/**
+ * The tally's game: the newest game of the stage whose auction has run (null before its tournament opens). After the
+ * stage's last day only a live game is returned, so it can still be finished; Start game is gone.
+ */
 export async function loadCurrentGame(seasonId: string, now = Date.now()): Promise<{ stage: AuctionStage; game: GameRow } | null> {
-  const stage = playingStage(await rowsOf<AuctionStage>(supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)), now);
-  if (!stage) return null;
+  const stage = pickAuctionStage(await rowsOf<AuctionStage>(supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)));
+  if (!stage?.auction_run_at) return null;
   const [game] = await rowsOf<GameRow>(supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id)
     .order('number', { ascending: false }).limit(1));
-  return game ? { stage, game } : null;
+  if (!game) return null;
+  const live = game.started_at !== null && game.finished_at === null;
+  return live || playingStage([stage], now) ? { stage, game } : null;
 }
 
 /**
