@@ -203,3 +203,16 @@ Gaps found when checking the draft against the code. They fill holes and change 
     random 16.7%) but lets everyone start their best every game. Keep the defaults and re-run on real stats.
 13. **Provisional = every started game.** `nextPairings` runs before `finish_game` marks the game finished, so in
     provisional mode every started non-void game counts (the only unfinished one is the game being finished).
+14. **T3 app decisions (2026-10-02, user).** The weekly screens are **replaced** in T3, not shown beside the new
+    ones: the League tab and Admin → Stages show tournament play only, and `weekly.ts`, `WeeklyCard.tsx` and the
+    weekly RPC wrappers go. T4 keeps the rest: the migration (weeks/picks tables, weekly RPCs, old settings keys),
+    retiring `year.ts`, `delete_athlete`'s counts, the weekly error codes. **Finish** shows the next pairings in an
+    inline panel on the tally bar before confirming, and waits while the phone holds unsaved taps. `finish_game`'s
+    `p_provisional` is `[{league_id, order, meetings}]` per league (`pairingInputs`); staff **Check pairings**
+    (Admin → Stages) re-runs `swissPairings` on it and compares: it catches a non-Swiss pairing, not made-up
+    standings (those are in the audit row to eyeball). Picks and the tally use the stage whose auction opened most
+    recently, once it has run. The tally list never offers Delete on a game's session (that voids the game; admins
+    still can from the session page), and a void live game can be finished from the list. Allowance ranks come
+    from tournament standings ("unsettled" = started, not-final games of other stages). Open tournament pairs game
+    1 with the same provisional `nextPairings`, so an earlier stage's unverified games count by their live taps.
+    The M8 dry run now plays a tournament end to end.
