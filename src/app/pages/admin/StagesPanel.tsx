@@ -55,12 +55,10 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
     <div className="card">
       <h2>Tournaments</h2>
       {!stages.data && !stages.error && <p className="muted" role="status">Loading…</p>}
-      <p className="muted">
-        The season is split into tournaments. Grant a tournament's allowance before its auction:
-        it pays by the current standings, and running it again only credits teams that joined since. Then open the
-        auction with a closing time, run it once bids close, and open the tournament: game 1 is paired by the
-        standings. Keepers start and finish each game on the Tally tab.
-      </p>
+      {/* The real order of a tournament; game 1 is paired by the standings, and keepers run games from Tally. */}
+      <ol className="steps" aria-label="Each tournament, in order">
+        <li>Grant allowance</li><li>Open auction</li><li>Run auction</li><li>Open tournament</li>
+      </ol>
       <ul className="list">
         {stages.data?.map((s) => (
           <li key={s.id}>
@@ -89,14 +87,19 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
         ))}
       </ul>
       {stages.data?.length === 0 && <p className="muted">No tournaments yet. Add the first one below.</p>}
-      <form onSubmit={save} className="row section">
-        <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
-        <label>Starts<input type="date" required value={form.starts_on} onChange={set('starts_on')} /></label>
-        <label>Ends<input type="date" required value={form.ends_on} onChange={set('ends_on')} /></label>
-        <label>Event<input maxLength={60} value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
-        <button>{form.id ? 'Save tournament' : 'Add tournament'}</button>
-        {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
-      </form>
+      {/* Used once a tournament: folded away, and opened by Edit. */}
+      {/* Keyed by the tournament being edited, so Edit on another one reopens it even after a manual collapse. */}
+      <details key={form.id ?? 'new'} className="section" open={form.id ? true : undefined}>
+        <summary>{form.id ? 'Edit tournament' : 'Add a tournament'}</summary>
+        <form onSubmit={save} className="row">
+          <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
+          <label>Starts<input type="date" required value={form.starts_on} onChange={set('starts_on')} /></label>
+          <label>Ends<input type="date" required value={form.ends_on} onChange={set('ends_on')} /></label>
+          <label>Event<input maxLength={60} value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
+          <button>{form.id ? 'Save tournament' : 'Add tournament'}</button>
+          {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
+        </form>
+      </details>
       {status && <p className="success" role="status">{status}</p>}
       {(error || stages.error) && <p className="error" role="alert">{error ?? stages.error}</p>}
     </div>
@@ -144,7 +147,7 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
       });
     }}>
       <label>Bids close<input type="datetime-local" required value={closeAt} onChange={(e) => setCloseAt(e.target.value)} /></label>
-      <button>{phase === 'open' ? 'Move close time' : 'Open auction'}</button>
+      <button>{phase === 'open' ? 'Change close time' : 'Open auction'}</button>
     </form>
   );
 }

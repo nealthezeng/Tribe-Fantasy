@@ -1,48 +1,66 @@
 /* Design tokens: every colour, font, size and spacing value the app uses. Change the look here.
    styles.css only reads these; components never hard-code a colour or font.
-   Two places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html. */
+   Two places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html.
+   The site is always dark (M9): the scoreboard's world of smoked glass, gold glow and white type. */
 
 :root {
-  /* Team colours. Gold = actions and the current tab. Baby blue = info and selection.
-     Neither is readable as text on white, so light mode uses --link for links. */
+  color-scheme: dark;
+
+  /* Team colours. Gold = actions and the current tab. Baby blue = info, selection and links. */
   --gold: #f5b700;
   --gold-hover: #ffc629;
   --gold-press: #dba300;
   --gold-deep: #c99400;     /* the ring in the disc mark */
   --on-gold: #111111;       /* text on gold; never white */
   --blue: #8cc8f2;
-  --blue-soft: #e3f1fc;
-  --blue-ink: #0b4a75;
+  --blue-soft: #16304a;
+  --blue-ink: #bfe1fa;
 
   /* Neutrals */
-  --bg: #f4f7fa;
-  --surface: #ffffff;
-  --surface-2: #eef3f8;
-  --fg: #0f1419;
-  --muted: #56606b;
-  --line: #dbe2ea;
-  --line-strong: #8795a3;   /* input and button borders: 3:1 against white */
-  --link: #0b5d99;
-  --focus: #0b5d99;
+  --bg: #080b0f;            /* the page, under a faint gold and blue glow */
+  --surface: #121820;       /* inputs */
+  --surface-2: #1a2129;     /* secondary buttons, neutral pills */
+  --fg: #e8edf2;
+  --muted: #9aa6b2;
+  --line: #232c36;
+  --line-strong: #66737f;   /* input borders: 3:1 against the panes */
+  --link: #8cc8f2;
+  --focus: #8cc8f2;
 
-  /* Top bar and the signed-out hero */
-  --bar: #0f1419;
+  /* Top bar */
+  --bar: #05070a;
   --bar-fg: #ffffff;
-  --bar-muted: #b4bfca;
+  --bar-muted: #9aa6b2;
   --bar-line: rgb(255 255 255 / 0.12);
   --bar-hover: rgb(255 255 255 / 0.08);
 
   /* Status */
-  --ok: #1d6b35;    --ok-soft: #dcf1e2;
-  --warn: #8a4b00;  --warn-soft: #fdebd0;
-  --error: #b3261e; --error-soft: #fbe3e0;
+  --ok: #7fd69a;    --ok-soft: #16301f;
+  --warn: #f4b566;  --warn-soft: #3a2a13;
+  --error: #ff8a80; --error-soft: #3b1a18;
 
   /* Fonts. Archivo: a grotesque built for sports and news graphics, with even figures for stats.
-     Loaded in index.html (weights 400-700, widths 87.5-100%); to swap it, change that link and these lines.
-     Headings use a slightly condensed cut of the same family. */
+     Loaded in index.html (weights 400-700, widths 75-100%); to swap it, change that link and these lines.
+     Headings use a slightly condensed cut of the same family.
+     Big Shoulders Display (weight 800 only, also in index.html) is the loud voice: page titles, the brand, the hero
+     and big numbers. Tall and tight like a scoreboard; never below about 22px, never for running text. */
   --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-heading: var(--font-sans);
   --heading-stretch: 92%;
+  --font-display: 'Big Shoulders Display', var(--font-sans);
+  --fw-display: 800;
+  --display-case: uppercase;
+  --display-track: 0.01em;
+  /* Button labels: Archivo squeezed to a narrow cut, bold, all caps and spaced out, like a jersey label (user's pick,
+     M9). index.html loads Archivo's widths from 75% so this cut is real, not faked. */
+  --font-button: var(--font-sans);
+  --fw-button: 700;
+  --fs-button: 14px;
+  --button-stretch: 78%;
+  --button-case: uppercase;
+  --button-track: 0.06em;
+  --track-label: 0.06em;  /* small caps labels like LIVE */
+  --track-code: 0.08em;   /* invite codes */
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --fw-regular: 400;
   --fw-medium: 500;
@@ -50,44 +68,72 @@
   --fw-bold: 700;   /* headings, big numbers, the brand */
 
   /* Type scale */
+  --fs-3xs: 11px;   /* tally point weights */
+  --fs-2xs: 12px;   /* tally stat labels */
   --fs-xs: 13px;
   --fs-sm: 14px;
   --fs-md: 16px;
+  --fs-lead: 18px;  /* brand, hero text, invite codes, tally player names */
   --fs-lg: 20px;
+  --fs-count: 24px; /* tally counts */
+  --fs-brand: 24px;   /* display face */
   --fs-xl: 26px;
-  --fs-num: 32px;
-  --fs-hero: 40px;
+  --fs-num: 40px;     /* display face */
+  --fs-display: 40px; /* page titles, display face */
+  --fs-hero: 64px;    /* display face */
+  --fs-matchup: clamp(40px, 12vw, 64px); /* League matchup headline, display face; shrinks on phones */
+  --fs-score: 56px;   /* final scores on the scoreboard, display face */
 
   /* Spacing, shape, elevation */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+  --gutter: 16px;   /* page side padding; phone bands bleed out by this much */
   --radius: 14px;
   --radius-sm: 10px;
-  --shadow-pop: 0 12px 32px rgb(15 20 25 / 0.18), 0 2px 6px rgb(15 20 25 / 0.08); /* menus only */
+  --radius-xs: 8px;
+  --radius-pill: 999px;
   --shell: 720px;
   --bar-height: 56px;
 
-  color-scheme: light;
-}
+  /* Touch targets */
+  --tap: 44px;        /* the minimum for anything you can press */
+  --tap-lg: 48px;     /* tabs and menu items */
+  --tap-tally: 76px;  /* tally stat buttons */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --blue-soft: #16304a;
-    --blue-ink: #bfe1fa;
-    --bg: #0b0f14;
-    --surface: #141a21;
-    --surface-2: #1b232c;
-    --fg: #e8edf2;
-    --muted: #9aa6b2;
-    --line: #26303b;
-    --line-strong: #66737f;
-    --link: #8cc8f2;
-    --focus: #8cc8f2;
-    --bar: #05070a;
-    --bar-muted: #9aa6b2;
-    --ok: #7fd69a;    --ok-soft: #16301f;
-    --warn: #f4b566;  --warn-soft: #3a2a13;
-    --error: #ff8a80; --error-soft: #3b1a18;
-    --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
-  }
+  /* Motion, only without reduced motion. Colour fades, the sliding tab marker, button press and lift.
+     The tally board never animates. */
+  --dur: 150ms;
+  --ease: ease-out;
+  --dur-press: 120ms;   /* buttons sink while pressed */
+  --dur-slide: 420ms;   /* tab marker gliding to the new tab */
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1); /* fast start, long soft landing */
+  --dur-flash: 400ms;   /* the over-budget flash on the bid header, x3 */
+  --dur-pulse: 1.6s;    /* the ring around the Live dot, looping */
+  --dur-release: 340ms; /* a pressed button springs back */
+  --dur-pop: 420ms;     /* a pick turning green */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoots a little, then settles */
+  --shadow-lift: 0 6px 16px -6px rgb(245 183 0 / 0.55); /* gold button hover glow */
+
+  /* Depth: the scoreboard's language on every box. Panes (cards, tiles, page-level rows, the account menu, sticky
+     headers) are smoked glass: a gold glow in the top-left corner (fixed size, so tall cards don't stretch it), a
+     sheen across the top, a lit 1px top edge, a hairline border and a deep soft shadow. The few that float also blur
+     what's behind them. The scoreboard and signed-out hero are the same glass, a shade darker with a stronger glow. */
+  --bg-ambient: radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / 0.09), transparent 62%),
+    radial-gradient(800px 560px at 105% 10%, rgb(140 200 242 / 0.10), transparent 60%);
+  --pane-bg: radial-gradient(420px 240px at 0 0, rgb(245 183 0 / 0.10), transparent 70%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0) 120px), rgb(13 17 22 / 0.8);
+  --pane-border: rgb(255 255 255 / 0.07);
+  --notice-bg: radial-gradient(420px 240px at 0 0, rgb(140 200 242 / 0.16), transparent 70%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0) 120px), rgb(14 30 48 / 0.85); /* info boxes: the pane, glowing blue */
+  --pane-highlight: inset 0 1px 0 rgb(255 255 255 / 0.1);
+  --pane-shadow: 0 2px 6px rgb(0 0 0 / 0.45), 0 22px 44px -20px rgb(0 0 0 / 0.95);
+  --pane-blur: blur(14px) saturate(150%);
+  --sticky-bg: rgb(8 11 15 / 0.74);  /* sticky headers: content scrolls under the frost */
+  --score-bg: radial-gradient(130% 90% at 0% 0%, rgb(245 183 0 / 0.16), transparent 55%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.07), rgb(255 255 255 / 0) 45%), rgb(5 7 10 / 0.92);
+  --score-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 22px 44px -18px rgb(0 0 0 / 0.95), 0 2px 6px rgb(0 0 0 / 0.5);
+  --ok-on-bar: #7fd69a;  /* green on the scoreboard */
+
+  /* Buttons are flat and crisp: plain fills, a 1px lift on hover (gold adds --shadow-lift), a squeeze on press. */
+  --chip-bg: rgb(255 255 255 / 0.07);  /* admin tab chips: a soft fill the gliding pill shows through */
+  --pick-ring: rgb(127 214 154 / 0.5);  /* the ring that spreads when a pick turns green */
 }

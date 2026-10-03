@@ -56,8 +56,8 @@ export function BackupPanel({ seasonId }: { seasonId: string }) {
     <div className="card">
       <h2>Backup</h2>
       <p className="muted">
-        Download a backup every week and keep it somewhere private: it holds balances and injuries. Sealed bids
-        of an open auction and the next game's picks before it starts aren't included (nobody can read them yet).
+        Download one every week and keep it private: it includes balances and injuries. Sealed bids and picks for
+        games that haven't started aren't in it, since nobody can read those yet.
       </p>
       <div className="row">
         <button onClick={() => void backup()} disabled={busy !== null}>

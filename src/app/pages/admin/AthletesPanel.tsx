@@ -71,7 +71,7 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
       {athletes.data?.list.length === 0 && <p className="muted">No athletes yet. Add them below.</p>}
       <ul className="list">
         {athletes.data?.list.map((a) => (
-          <li key={a.id}>
+          <li key={a.id} className="athlete">
             {editing?.id === a.id ? (
               <form className="row" onSubmit={rename} onKeyDown={(e) => e.key === 'Escape' && setEditing(null)}>
                 <input aria-label={`New name for ${a.name}`} required maxLength={60} autoFocus value={editing.name}
@@ -90,11 +90,13 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
               <option value="">No linked account</option>
               {athletes.data?.profiles.map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
             </select>
-            <button className="secondary" onClick={() => void run(() => api.setAthleteOptIn(a.id, !a.opted_in))}>
-              {a.opted_in ? 'Opt out' : 'Opt back in'}
-            </button>
-            <button className="secondary" onClick={() => setEditing({ id: a.id, name: a.name })}>Rename</button>
-            <button className="secondary" onClick={() => remove(a)}>Remove</button>
+            <div className="actions">
+              <button className="secondary" onClick={() => void run(() => api.setAthleteOptIn(a.id, !a.opted_in))}>
+                {a.opted_in ? 'Opt out' : 'Opt back in'}
+              </button>
+              <button className="secondary" onClick={() => setEditing({ id: a.id, name: a.name })}>Rename</button>
+              <button className="secondary" onClick={() => remove(a)}>Remove</button>
+            </div>
           </li>
         ))}
       </ul>

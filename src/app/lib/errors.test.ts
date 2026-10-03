@@ -31,7 +31,7 @@ describe('errorMessage', () => {
     expect(codes.filter((c) => errorMessage({ message: c }).startsWith('Something went wrong'))).toEqual([]);
   });
   it('falls back to the raw message', () => {
-    expect(errorMessage({ message: 'socket hang up' })).toBe('Something went wrong: socket hang up');
-    expect(errorMessage('boom')).toBe('Something went wrong: boom');
+    expect(errorMessage({ message: 'socket hang up' })).toBe('Something went wrong (socket hang up). Try again, and tell an admin if it keeps happening.');
+    expect(errorMessage('boom')).toMatch(/^Something went wrong \(boom\)/);
   });
 });

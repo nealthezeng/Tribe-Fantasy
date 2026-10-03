@@ -63,10 +63,13 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
           <button className="secondary" onClick={() => void run(() => api.createInvite(l.id, randomCode(), 50, null))}>New invite code</button>
         </div>
       ))}
-      <form onSubmit={create} className="row section">
-        <label>New league<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="League A" /></label>
-        <button>Create</button>
-      </form>
+      <details className="section">
+        <summary>New league</summary>
+        <form onSubmit={create} className="row">
+          <label>Name<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="League A" /></label>
+          <button>Create</button>
+        </form>
+      </details>
       {(error || leagues.error) && <p className="error" role="alert">{error ?? leagues.error}</p>}
     </div>
   );

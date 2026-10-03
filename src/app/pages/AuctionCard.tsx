@@ -17,9 +17,9 @@ interface Team { id: string; team_name: string }
  * The team card and the auction for one team, in the stage pickAuctionStage chooses. While bidding is open they are
  * one block with a sticky header (players bid on, credits left); otherwise the team card, then the auction collapsed.
  */
-export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, subtitle, team, wallet }: {
+export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, team, wallet }: {
   membershipId: string; leagueId: string; seasonId: string; userId: string; joinedAt: string;
-  teamName: string; subtitle: string;
+  teamName: string;
   /** The team card as it looks outside bidding. */
   team: ReactNode;
   /** Credit history, shown inside the combined block while bidding is open. */
@@ -103,8 +103,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       <article className="card" aria-label={`${teamName}: ${stage.name} auction`}>
         <div className={flash ? 'bid-header over' : 'bid-header'}>
           <div className="head">
-            <h2>{teamName}</h2>
-            <span className="pill ok">Bidding open</span>
+            <h2>{stage.name} auction</h2>
+            <span className="pill ok">Closes {timeLeft(stage.bid_close_at!, now)}</span>
           </div>
           <div className="bid-sums">
             <p><strong className="big">{mine.length}</strong> <span>{mine.length === 1 ? 'player' : 'players'} bid on · roster {rosterSize}</span></p>
@@ -114,20 +114,17 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             </p>
           </div>
         </div>
-        <p className="muted">{subtitle}</p>
-        {wallet}
+        <p className="muted">
+          Sealed until {formatWhen(stage.bid_close_at!)}. Highest bid wins each player; your bids can't add up to more
+          than your credits.
+        </p>
         <BidList open={mine.length === 0}
-          summary={<>{stage.name} auction <span className="muted">· closes {timeLeft(stage.bid_close_at!, now)}</span></>}>
-          <p>Bids close <strong>{timeLeft(stage.bid_close_at!, now)}</strong> · {formatWhen(stage.bid_close_at!)}</p>
-          <p className="muted">
-            Bids are sealed: nobody sees them until bidding closes. Your bids together can't be more than your
-            balance. The highest bid wins each player.
-          </p>
+          summary={<>Bid on players <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} available</span></>}>
           <ul className="list">
             {athletes.filter((a) => a.opted_in).map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
               return (
-                <li key={a.id}>
+                <li key={a.id} className="bid-row">
                   <span className="meta">
                     <span className="title">{a.name}</span>
                     {injured.has(a.id) && <span className="pill bad">Injured</span>}
@@ -143,6 +140,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             })}
           </ul>
         </BidList>
+        {wallet}
         {error && <p className="error" role="alert">{error}</p>}
       </article>
     );
@@ -254,9 +252,9 @@ export function BidControl({ athlete, bid, minBid, available, onOverBudget, onSa
         aria-label={`Your bid on ${athlete.name}, in credits`} placeholder="Bid" aria-invalid={(entered && !valid) || over} />
       <button disabled={busy || !valid || amount === bid}>{bid === null ? 'Bid' : 'Save'}</button>
       {bid !== null && (
-        <button type="button" className="secondary" disabled={busy}
+        <button type="button" className="secondary icon" disabled={busy} aria-label={`Remove your bid on ${athlete.name}`}
           onClick={() => { setBusy(true); void onRemove().finally(() => setBusy(false)); }}>
-          Remove
+          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" /></svg>
         </button>
       )}
       {entered && !valid && <small className="error">Bid at least {minBid}, in whole credits.</small>}

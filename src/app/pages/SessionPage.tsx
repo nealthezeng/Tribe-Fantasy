@@ -6,7 +6,7 @@ import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { lockTime, SESSION_COLUMNS, sessionState, sessionTitle, statLabel, type SessionRow } from '../lib/stats';
+import { gameTitles, lockTime, SESSION_COLUMNS, sessionState, statLabel, titleOf, type SessionRow } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { rowToTap, type StatTapRow } from '../tally/queue';
@@ -39,6 +39,7 @@ export function SessionPage() {
     for (const r of [season, athletes, lines, attendance, taps, profiles]) if (r.error) throw r.error;
     return {
       session: s,
+      title: titleOf(s, await gameTitles([s.id])),
       settings: parseSettings(season.data!.settings),
       names: new Map((athletes.data ?? []).map((a: { id: string; name: string }) => [a.id, a.name])),
       lines: (lines.data ?? []) as LineRow[],
@@ -55,8 +56,8 @@ export function SessionPage() {
 
   if (data.error) return <p className="error" role="alert">{data.error}</p>;
   if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
-  if (data.data === null) return <p>That session doesn't exist. <Link to="/stats">All sessions</Link></p>;
-  const { session, settings, names, lines, attendance, taps, people } = data.data;
+  if (data.data === null) return <p>That game's stats aren't here any more. <Link to="/stats">All games</Link></p>;
+  const { session, title, settings, names, lines, attendance, taps, people } = data.data;
   const state = sessionState(session, settings.stat_lock_hours);
   const stats = Object.keys(settings.stat_weights);
   const name = (athleteId: string) => names.get(athleteId) ?? 'Unknown';
@@ -78,8 +79,7 @@ export function SessionPage() {
 
   // Admin cleanup (t81): any session, verified or locked, with everything tallied in it.
   async function remove() {
-    if (!window.confirm(`Delete the ${sessionTitle(session)} session and all its stats? Past results and standings `
-      + "can change. This can't be undone.")) return;
+    if (!window.confirm(`Delete all stats for ${title}? Past results and standings can change. This can't be undone.`)) return;
     setError(null);
     setBusy(true);
     try {
@@ -96,9 +96,9 @@ export function SessionPage() {
 
   return (
     <section className="page">
-      <p><Link to="/stats">← All sessions</Link></p>
+      <p><Link to="/stats">← All games</Link></p>
       <div className="stack">
-        <h1>{sessionTitle(session)}</h1>
+        <h1>{title}</h1>
         <p className="meta">
           {STATE_PILL[state]}
           {!session.counts && <span className="pill">Not counted</span>}
@@ -116,7 +116,7 @@ export function SessionPage() {
           <h2>Stats</h2>
           <StatTable stats={stats} rows={lines.map((l) => ({ athlete: name(l.athlete_id), counts: l.stats, score: rawScore(l.stats, settings.stat_weights) }))} />
           {isKeeper && state === 'verified' && (
-            <button className="secondary" disabled={busy} onClick={() => void run(() => api.reopenSession(id))}>Reopen for more tallying</button>
+            <button className="secondary" disabled={busy} onClick={() => void run(() => api.reopenSession(id))}>Reopen tally</button>
           )}
           {isAdmin && state === 'locked' && (
             <CorrectForm stats={stats} lines={lines} names={names} onSave={(athlete, s) => run(() => api.correctStatLine(id, athlete, s))} />
@@ -147,7 +147,7 @@ export function SessionPage() {
             </details>
           ))}
           {iTapped ? (
-            <p className="notice">You tallied this session, so another keeper has to verify it.</p>
+            <p className="notice">You tallied this game, so another keeper has to verify it.</p>
           ) : (
             <button disabled={busy} onClick={() => void verify()}>{busy ? 'Verifying…' : 'Verify these totals'}</button>
           )}
@@ -169,7 +169,7 @@ export function SessionPage() {
       </div>
 
       {isAdmin && (
-        <p><button className="secondary" disabled={busy} onClick={() => void remove()}>Delete session</button></p>
+        <p><button className="secondary" disabled={busy} onClick={() => void remove()}>Delete these stats</button></p>
       )}
     </section>
   );

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { statLabel } from '../lib/stats';
+import { formatDay, statLabel } from '../lib/stats';
 import { loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 
@@ -19,30 +19,135 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 };
 
 /**
- * Tournament play for one team: the game being played, the next game's pick, standings, and every game so far.
+ * One team on the League tab, matchup first: the game that matters now as a big headline with both picks, the
+ * team's place, record and points, then `children` (the auction and credits), then the next pick, standings and games.
  * Standings show all season, between tournaments too.
  */
-export function TournamentCard({ membershipId, leagueId, seasonId }: { membershipId: string; leagueId: string; seasonId: string }) {
+export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, children }: {
+  membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string;
+  children?: ReactNode;
+}) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);
-  if (error && !data) return <p className="error" role="alert">{error}</p>;
-  if (!data) return <p className="muted" role="status">Loading games…</p>;
+  if (!data) {
+    return (
+      <>
+        <div className="matchup"><h2 className="display">{teamName}</h2><p className="strip">{subtitle}</p></div>
+        {children}
+        {error ? <p className="error" role="alert">{error}</p> : <p className="muted" role="status">Loading games…</p>}
+      </>
+    );
+  }
   const { games, next } = data.result;
-  const live = games.find((g) => g.status === 'live' && opponentIn(g, membershipId) !== undefined);
   const played = [...games].reverse().filter((g) => g.status === 'pending' || g.status === 'final' || g.status === 'void');
 
   return (
-    <article className="card" aria-label="Tournament">
-      <h2>Tournament</h2>
-      {error && <p className="error" role="alert">{error}</p>}
-      {live && <LiveGame y={data} g={live} membershipId={membershipId} />}
-      {next && <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />}
-      <Standings y={data} membershipId={membershipId} />
-      <div className="section">
-        <h3>Games</h3>
-        {played.map((g) => <GameRow key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
-        {played.length === 0 && <p className="muted">No games played yet.</p>}
+    <>
+      <Matchup y={data} membershipId={membershipId} teamName={teamName} subtitle={subtitle} />
+      {children}
+      <article className="card" aria-label="Tournament">
+        <h2>Tournament</h2>
+        {error && <p className="error" role="alert">{error}</p>}
+        {next && <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />}
+        <Standings y={data} membershipId={membershipId} />
+        {played.length > 0 && (
+          <div className="section">
+            <h3>Games</h3>
+            {played.map((g) => <GameRow key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
+          </div>
+        )}
+      </article>
+    </>
+  );
+}
+
+/** The game that matters now: the live one, else the next one, else the last one played. */
+function focusGame(y: LeagueTournament, membershipId: string) {
+  const { games, next } = y.result;
+  const mineIn = (g: GameOutcome) => opponentIn(g, membershipId) !== undefined;
+  const live = games.find((g) => g.status === 'live' && mineIn(g));
+  if (live) return { stageId: live.game.stageId, number: live.game.number, g: live };
+  if (next) {
+    const g = games.find((x) => x.game.stageId === next.stageId && x.game.number === next.number);
+    return { stageId: next.stageId, number: next.number, g: g && mineIn(g) ? g : null };
+  }
+  const last = [...games].reverse().find((g) => (g.status === 'final' || g.status === 'pending') && mineIn(g));
+  return last ? { stageId: last.game.stageId, number: last.game.number, g: last } : null;
+}
+
+const RESULT = { W: 'Won', L: 'Lost', T: 'Tied' } as const;
+
+function Matchup({ y, membershipId, teamName, subtitle }: {
+  y: LeagueTournament; membershipId: string; teamName: string; subtitle: string;
+}) {
+  const focus = focusGame(y, membershipId);
+  const g = focus?.g ?? null;
+  const status = g?.status ?? 'upcoming';
+  const final = status === 'final';
+  const mine = g ? sides(g).find((x) => x?.membershipId === membershipId) ?? null
+    : y.result.next?.sides.find((x) => x.membershipId === membershipId) ?? null;
+  const them = g ? opponentIn(g, membershipId) : undefined; // undefined = not paired yet, null = bye
+  const dates = focus && y.stageDates.get(focus.stageId);
+  const row = y.result.standings.find((r) => r.membershipId === membershipId);
+  // Before a game starts the scorer's auto-pick is a guess, so show only the manager's own pick.
+  const minePlayer = status === 'upcoming' ? mine?.picked ?? null : mine?.athleteId ?? null;
+  // A pick that won't play (injured, or moved to the bench) must not look all set up here.
+  const doomed = status === 'upcoming' && minePlayer !== null && (mine?.notice === 'injured' || mine?.notice === 'inactive');
+
+  return (
+    <>
+      <div className="matchup">
+        <h2 className="display">
+          {teamName}
+          {them && <> <span className="vs">vs</span> {y.team.get(them.membershipId)}</>}
+        </h2>
+        <p className="strip">
+          {focus ? <>
+            <span>{y.stage.get(focus.stageId)}</span>
+            {dates && <span className="chip">{formatDay(dates.starts_on)} – {formatDay(dates.ends_on)}</span>}
+            <span>Game {focus.number}</span>
+            {them === null ? <span>Bye</span> : <>
+              {status === 'live' && <span className="live"><span className="dot" aria-hidden="true" />Live</span>}
+              {status === 'upcoming' && <span>Next up</span>}
+              {status === 'pending' && <span>Waiting on stats</span>}
+              {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
+            </>}
+            {doomed && <span className="pill warn">{mine?.notice === 'injured' ? 'Your pick is injured' : 'Your pick is on the bench'}</span>}
+          </> : <span>{subtitle}</span>}
+        </p>
       </div>
-    </article>
+      {g && them && mine && (
+        <div className="score">
+          <ScoreSide label={status === 'upcoming' ? 'Your pick' : 'You played'} y={y} athleteId={minePlayer}
+            picked={status === 'upcoming' && minePlayer !== null && !doomed}
+            score={final ? mine.score : null} empty={status === 'upcoming' ? 'No pick yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
+          <span className="vs">{final ? 'to' : 'vs'}</span>
+          <ScoreSide label={status === 'upcoming' ? 'Their pick' : 'They played'} y={y}
+            athleteId={status === 'upcoming' ? null : them.athleteId} score={final ? them.score : null}
+            empty={status === 'upcoming' ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
+          {(status === 'live' || status === 'pending') && <p className="score-note">Scores appear once this game's stats lock.</p>}
+        </div>
+      )}
+      {mine && status !== 'upcoming' && <Notice y={y} side={mine} />}
+      <dl className="tiles">
+        <div><dt>Place</dt><dd><span className="big">{row ? `${row.tied ? 'T' : ''}${row.place}` : '–'}</span> <span className="of">of {y.result.standings.length}</span></dd></div>
+        <div><dt>Record</dt><dd className="big">{row ? `${row.wins}–${row.losses}${row.ties ? `–${row.ties}` : ''}` : '–'}</dd></div>
+        <div><dt>Points</dt><dd className="big">{row ? fmt(row.points) : '–'}</dd></div>
+      </dl>
+    </>
+  );
+}
+
+function ScoreSide({ label, y, athleteId, score, empty, lost = false, picked = false }: {
+  label: string; y: LeagueTournament; athleteId: string | null; score: number | null; empty: string; lost?: boolean;
+  /** Your pick is set for the next game: shown in green. */
+  picked?: boolean;
+}) {
+  const name = athleteId ? y.athlete.get(athleteId) ?? 'A player' : empty;
+  return (
+    <div className={['score-side', lost && 'lost', picked && 'picked'].filter(Boolean).join(' ')}>
+      <small>{label}</small>
+      {score !== null ? <><span className="pts">{fmt(score)}</span><strong>{name}</strong></> : <span className="pts-name">{name}</span>}
+    </div>
   );
 }
 
@@ -122,8 +227,9 @@ function PickGame({ y, next, membershipId, onSaved }: {
                 <button className="secondary" aria-label={`Bench ${name(id)}`} disabled={busy} onClick={() => void bench(id)}>Bench</button>
               )}
               {chosen ? (
-                <button className="secondary" aria-pressed="true" disabled={busy} onClick={() => void choose(null)}>
-                  Your pick ✓ <span className="muted">· Clear</span>
+                <button className="secondary picked" aria-pressed="true" disabled={busy} onClick={() => void choose(null)}>
+                  <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" /></svg>
+                  Your pick <span className="clear">· Clear</span>
                 </button>
               ) : (
                 <button aria-label={`Pick ${name(id)}`} disabled={busy} onClick={() => void choose(id)}>Pick</button>
@@ -152,27 +258,6 @@ function PickGame({ y, next, membershipId, onSaved }: {
           y.settings.tiredness_multipliers.map((m, i) => `×${fmt(m)} ${i === 0 ? 'the next game' : `${i + 1} games later`}`).join(', ')}.</>}
       </small></p>
       {error && <p className="error" role="alert">{error}</p>}
-    </div>
-  );
-}
-
-function LiveGame({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome; membershipId: string }) {
-  const mine = sides(g).find((x) => x?.membershipId === membershipId);
-  if (!mine) return null;
-  const them = opponentIn(g, membershipId);
-  const name = (id: string | null) => athleteName(y, id, 'nobody (forfeit)');
-  return (
-    <div className="stack">
-      <div className="head">
-        <h3>Game {g.game.number} · {y.stage.get(g.game.stageId) ?? ''}</h3>
-        <span className="pill ok">Playing now</span>
-      </div>
-      <p>
-        {name(mine.athleteId)}
-        {them ? <> vs <strong>{y.team.get(them.membershipId)}</strong>: {name(them.athleteId)}</> : ' · bye'}
-      </p>
-      <Notice y={y} side={mine} />
-      <p className="muted">Scores appear once this game's stats lock.</p>
     </div>
   );
 }

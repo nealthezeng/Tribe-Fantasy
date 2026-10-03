@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscMark } from '../components/Layout';
@@ -46,7 +46,8 @@ export function HomePage() {
   }
   return (
     <section className="page">
-      <h1>Your teams</h1>
+      {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
+      <h1 className={data?.length ? 'sr-only' : undefined}>Your teams</h1>
       {error && <p className="error" role="alert">{error}</p>}
       {!data && !error && <p className="muted" role="status">Loading…</p>}
       {data && data.length === 0 && (
@@ -57,7 +58,7 @@ export function HomePage() {
       )}
       {data?.map((m) => {
         const subtitle = [m.leagues?.name, m.leagues?.seasons?.name].filter(Boolean).join(' · ');
-        const wallet = <Wallet entries={m.credit_ledger} />;
+        const wallet = <Wallet entries={m.credit_ledger} className="section" />;
         const team = (
           <article className="card">
             <div>
@@ -68,27 +69,29 @@ export function HomePage() {
             {wallet}
           </article>
         );
+        if (!m.leagues || !uid) return <Fragment key={m.id}>{team}</Fragment>;
         return (
-          <Fragment key={m.id}>
-            {m.leagues && uid ? (
-              <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
-                joinedAt={m.created_at}
-                teamName={m.team_name} subtitle={subtitle} team={team} wallet={wallet} />
-            ) : team}
-            {m.leagues && <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} />}
-          </Fragment>
+          <TournamentCard key={m.id} membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
+            teamName={m.team_name} subtitle={subtitle}>
+            <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
+              joinedAt={m.created_at}
+              teamName={m.team_name} wallet={wallet}
+              team={<Wallet entries={m.credit_ledger} className="card"
+                summary={<>Credits <span className="big credits-sum">{balance(m.credit_ledger)}</span></>} />} />
+          </TournamentCard>
         );
       })}
-      {data && data.length > 0 && <p><Link to="/join">Join another league</Link></p>}
+      {data && data.length > 0 && <p><Link to="/join" className="more">Join another league</Link></p>}
     </section>
   );
 }
 
-function Wallet({ entries }: { entries: LedgerEntry[] }) {
+/** Credit history, collapsed. Between auctions it's its own card with the balance in the summary. */
+function Wallet({ entries, className, summary = 'Credit history' }: { entries: LedgerEntry[]; className: string; summary?: ReactNode }) {
   const newestFirst = [...entries].sort((a, b) => b.id - a.id);
   return (
-    <details>
-      <summary>Credit history</summary>
+    <details className={className}>
+      <summary>{summary}</summary>
       <ul className="list">
         {newestFirst.length === 0 && <li className="muted">No credits yet.</li>}
         {newestFirst.map((e) => (

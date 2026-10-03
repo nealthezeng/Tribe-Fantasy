@@ -2,14 +2,14 @@ const MESSAGES: Record<string, string> = {
   NOT_CONFIGURED: 'The app is not connected to a database yet.',
   NOT_SIGNED_IN: 'Please sign in first.',
   FORBIDDEN: "You don't have permission to do that.",
-  NOT_FOUND: "That item doesn't exist.",
+  NOT_FOUND: "That's no longer there: it may have been deleted. Reload the page.",
   INVALID_NAME: 'Names must be 1–60 characters.',
   INVALID_SETTINGS: 'Those season settings are not valid.',
   LEAGUE_EXISTS: 'That season already has a league with this name.',
   INVALID_CODE: 'Invite codes are 6–20 letters or digits.',
   CODE_TAKEN: 'That invite code already exists.',
   ATHLETE_EXISTS: 'An athlete with that name is already in this season.',
-  ATHLETE_IN_USE: "This athlete has stats, bids or picks, so they can't be removed. Opt them out instead.",
+  ATHLETE_IN_USE: "This athlete has stats, bids or picks, so they weren't removed. Opt them out instead.",
   NO_PROFILE: 'Set your display name first.',
   INVALID_TEAM_NAME: 'Team names must be 1–40 characters.',
   INVALID_INVITE: 'That invite code is invalid, expired, or used up.',
@@ -18,14 +18,14 @@ const MESSAGES: Record<string, string> = {
   TEAM_NAME_TAKEN: 'Another team in this league already has that name.',
   INVALID_ROLE: 'Unknown role.',
   LAST_ADMIN: "You can't remove the last admin.",
-  INVALID_SESSION: 'Pick practice or tournament and a date.',
-  SESSION_VERIFIED: 'This session is already verified. Ask a keeper to reopen it.',
-  SESSION_LOCKED: 'This session is locked. Only an admin correction can change it now.',
-  SESSION_NOT_VERIFIED: 'This session is not verified yet.',
-  SESSION_NOT_EMPTY: "This session already has saved taps, so it can't be deleted.",
-  SESSION_NOT_LOCKED: 'Corrections are only for locked sessions. Reopen it instead.',
-  VERIFIER_TAPPED: 'You tallied this session, so another keeper has to verify it.',
-  OWNS_ATHLETE: "You own an athlete in this session, so you can't do that.",
+  INVALID_SESSION: 'That tally needs a date.',
+  SESSION_VERIFIED: 'These stats are already verified. Ask a keeper to reopen them.',
+  SESSION_LOCKED: 'These stats are locked. Only an admin correction can change them now.',
+  SESSION_NOT_VERIFIED: "These stats aren't verified yet.",
+  SESSION_NOT_EMPTY: "This tally already has saved taps, so it can't be deleted.",
+  SESSION_NOT_LOCKED: 'Corrections are only for locked stats. Reopen the tally instead.',
+  VERIFIER_TAPPED: 'You tallied this game, so another keeper has to verify it.',
+  OWNS_ATHLETE: 'You own a player this affects, so someone else has to do this.',
   UNKNOWN_STAT: "That stat isn't tracked this season.",
   INVALID_TAPS: 'Some taps were malformed and were not saved.',
   INVALID_LINES: 'Those stat totals are not valid.',
@@ -54,7 +54,7 @@ const MESSAGES: Record<string, string> = {
   NOT_NEXT_GAME: 'You can only pick for the next game.',
   GAMES_EXIST: 'This tournament is already open.',
   GAME_STARTED: 'Another keeper already started this game.',
-  GAME_NOT_LIVE: 'This game is already finished (or not started yet).',
+  GAME_NOT_LIVE: "This game isn't being played right now: it's finished or hasn't started.",
   PREVIOUS_GAME_LIVE: 'Finish the game before this one first.',
   PAIRINGS_INVALID: "Those pairings don't include every team exactly once. Reload and try again.",
   TOURNAMENT_STARTED: 'The tournament has started, so the bench is set. Use Swap in if an active player is injured.',
@@ -74,5 +74,6 @@ export function errorMessage(err: unknown): string {
   const e = typeof err === 'object' && err !== null ? (err as { message?: unknown; details?: unknown; detail?: unknown }) : {};
   const raw = 'message' in e ? String(e.message) : String(err);
   const detail = String(e.details ?? e.detail ?? 'A league');
-  return MESSAGES[raw.trim()]?.replace('{detail}', detail) ?? `Something went wrong: ${raw}`;
+  return MESSAGES[raw.trim()]?.replace('{detail}', detail)
+    ?? `Something went wrong (${raw}). Try again, and tell an admin if it keeps happening.`;
 }

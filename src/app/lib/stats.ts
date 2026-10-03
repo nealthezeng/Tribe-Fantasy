@@ -56,6 +56,18 @@ export const kindLabel = (kind: SessionRow['kind']) => (kind === 'tournament' ? 
 /** A session's title everywhere it's listed: 'Fri, Sep 25 · Practice'. */
 export const sessionTitle = (s: Pick<SessionRow, 'held_on' | 'kind'>) => `${formatDay(s.held_on)} · ${kindLabel(s.kind)}`;
 
+/** "Game 3 · Fall Beta" for each session that is a tournament game. Same-day games looked identical by date. */
+export async function gameTitles(sessionIds: string[]): Promise<Map<string, string>> {
+  if (sessionIds.length === 0) return new Map();
+  const { data, error } = await supabase!.from('games').select('session_id, number, stages(name)').in('session_id', sessionIds);
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as { session_id: string; number: number; stages: { name: string } | null }[];
+  return new Map(rows.map((g) => [g.session_id, `Game ${g.number} · ${g.stages?.name ?? 'Tournament'}`]));
+}
+
+/** A session's title: the game it was, else its date and kind (older practice sessions). */
+export const titleOf = (s: Pick<SessionRow, 'id' | 'held_on' | 'kind'>, games: Map<string, string>) => games.get(s.id) ?? sessionTitle(s);
+
 /** Today in the phone's time zone, as YYYY-MM-DD for <input type="date">. */
 export function todayLocal(now = new Date()): string {
   const off = now.getTimezoneOffset() * 60_000;

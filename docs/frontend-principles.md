@@ -12,13 +12,15 @@ A clean, simple look, not a professional product. Most use is on phones, often a
 - **Consistent.** The same spacing, colours, buttons and cards everywhere. Reuse the tokens and classes in
   `src/app/styles.css` (`.card`, `.list`, `.pill`, `.notice`, `.muted`) before adding new ones. Colours, fonts and
   sizes live only in `src/app/tokens.css`. `DESIGN.md` at the repo root records the whole system.
-- **Easy to read.** One font, a few sizes, generous whitespace, and a line length that stays readable
+- **Easy to read.** Archivo for reading, Big Shoulders only for the loud bits (titles, scores), a few sizes, generous whitespace, and a line length that stays readable
   (`.shell` is 720px wide).
 - **Works on a phone first.** One column at 375px wide, no sideways scrolling, and tap targets at least 44px.
-- **Accessible basics.** Every input has a label. Text contrast is at least 4.5:1 in both light and dark mode.
+- **Accessible basics.** Every input has a label. Text contrast is at least 4.5:1 (the site is always dark since M9).
   Colour is never the only signal. Everything works with the keyboard.
-- **Fast and quiet.** No spinners without a reason, no animation for its own sake, no new libraries for
+- **Fast and quiet.** No spinners without a reason, no new libraries for
   what CSS can do.
+- **Small, physical motion.** Colour fades, the gliding tab marker, a button's lift and squeeze, the Live pulse. All of it
+  off with reduced motion; see DESIGN.md. Nothing decorative.
 
 ## By audience
 
@@ -32,7 +34,8 @@ SessionPage, `#/me` MePage
 
 **Stat keepers:** `#/tally` TallyPage
 - Big buttons, readable in sunlight, usable one-handed. No mis-taps between neighbouring buttons.
-- Sync status always visible ("Saved ✓" / "3 unsaved"), and undo is always one tap away.
+- Sync status always visible ("Saved ✓" / "3 unsaved"); holding a stat button takes one of your taps off.
+- No motion, press effects or glass on the tally board: a tap must show instantly.
 - Nothing on the tally screen that doesn't help tally.
 
 **Admin console:** `#/admin` AdminPage and its panels in `pages/admin/`
@@ -45,7 +48,7 @@ SessionPage, `#/me` MePage
 
 - [ ] Main action obvious within 3 seconds
 - [ ] Loading, empty, error and success states all handled
-- [ ] Looks right at 375px and 1280px, in light and dark mode
+- [ ] Looks right at 375px, 768px and 1280px (always dark)
 - [ ] Labels on inputs, and keyboard reachable
 - [ ] Uses the existing tokens and classes; no new dependency
 - [ ] Team colours only in their roles: gold for actions, baby blue for info and selection, never either as text on white

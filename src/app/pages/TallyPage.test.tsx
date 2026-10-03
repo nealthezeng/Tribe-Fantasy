@@ -41,7 +41,7 @@ afterEach(() => {
 describe('TallyPage session list', () => {
   it('lists open tournament games only, with no way to start or delete a practice session (T4)', async () => {
     render(<MemoryRouter><TallyPage /></MemoryRouter>);
-    const game = (await screen.findByText('Game 2')).closest('li')!;
+    const game = (await screen.findByText(/^Game 2 ·/)).closest('li')!;
     expect(game.textContent).not.toContain('Delete');
     expect(screen.queryByText('Sat, Nov 7 · Practice')).toBeNull();
     expect(screen.queryByText('New session')).toBeNull();

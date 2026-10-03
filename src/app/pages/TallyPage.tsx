@@ -6,7 +6,7 @@ import { loadOwnedAthletes } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import {
-  loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel,
+  gameTitles, loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel,
   type CurrentSeason, type SessionRow,
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
@@ -47,11 +47,7 @@ function SessionPicker({ season, keeperId, onPick }: {
       .order('held_on', { ascending: false });
     if (error) throw error;
     const rows = (data ?? []) as SessionRow[];
-    const games = rows.length
-      ? await supabase!.from('games').select('session_id, number').in('session_id', rows.map((s) => s.id))
-      : { data: [], error: null };
-    if (games.error) throw games.error;
-    const game = new Map((games.data ?? []).map((g) => [g.session_id as string, g.number as number]));
+    const game = await gameTitles(rows.map((s) => s.id));
     return rows.filter((s) => game.has(s.id) || unsaved.has(s.id)).map((s) => ({ ...s, game: game.get(s.id) ?? null }));
   }, [season.id, unsaved]);
 
@@ -67,8 +63,7 @@ function SessionPicker({ season, keeperId, onPick }: {
           {sessions.data?.map((s) => (
             <li key={s.id}>
               <span className="meta">
-                <span className="title">{sessionTitle(s)}</span>
-                {s.game !== null && <span className="pill info">Game {s.game}</span>}
+                <span className="title">{s.game ?? sessionTitle(s)}</span>
                 {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
               </span>
               <button className={s.verified_at ? 'secondary' : ''} onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
@@ -162,7 +157,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     const retry = setInterval(() => void flush(), 15_000);
     return () => { clearTimeout(soon); clearInterval(retry); };
   }, [queue, flush]);
-  useEffect(() => () => void flush(), [flush]); // leaving the board (← Sessions) saves too
+  useEffect(() => () => void flush(), [flush]); // leaving the board (← Games) saves too
   useEffect(() => {
     const up = () => { setOnline(true); void flush(); };
     const down = () => setOnline(false);
@@ -238,7 +233,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     <section className="page">
       <div className="tally-bar">
         <div className="head">
-          <button className="linklike" onClick={onBack}>← Sessions</button>
+          <button className="linklike" onClick={onBack}>← Games</button>
           <strong>{sessionTitle(session)}</strong>
         </div>
         <div className="head">
