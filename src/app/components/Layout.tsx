@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
+import { useInk } from '../lib/useInk';
 
 /** A disc seen from above, in team gold. Colours come from tokens.css; the favicon in index.html repeats them. */
 export function DiscMark({ size = 24, className }: { size?: number; className?: string }) {
@@ -43,17 +44,20 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
 
 export function Layout() {
   const { session, isAdmin, isKeeper, displayName, loading, authError, clearAuthError } = useAuth();
-  const onHome = useLocation().pathname === '/';
+  const path = useLocation().pathname;
+  const onHome = path === '/';
+  const tabs = useInk<HTMLElement>(`${path} ${isKeeper} ${Boolean(session)}`);
   return (
     <>
       <header className="topbar">
         <div className="topbar-inner">
           <Link to="/" className="brand"><DiscMark />Tribe Fantasy</Link>
           {session && (
-            <nav className="tabs" aria-label="Main">
+            <nav className="tabs" aria-label="Main" ref={tabs}>
               <NavLink to="/" end>League</NavLink>
               <NavLink to="/stats">Stats</NavLink>
               {isKeeper && <NavLink to="/tally">Tally</NavLink>}
+              <span className="ink" aria-hidden="true" />
             </nav>
           )}
           {session

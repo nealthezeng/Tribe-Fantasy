@@ -39,10 +39,16 @@
 
   /* Fonts. Archivo: a grotesque built for sports and news graphics, with even figures for stats.
      Loaded in index.html (weights 400-700, widths 87.5-100%); to swap it, change that link and these lines.
-     Headings use a slightly condensed cut of the same family. */
+     Headings use a slightly condensed cut of the same family.
+     Big Shoulders Display (weight 800 only, also in index.html) is the loud voice: page titles, the brand, the hero
+     and big numbers. Tall and tight like a scoreboard; never below about 22px, never for running text. */
   --font-sans: 'Archivo', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-heading: var(--font-sans);
   --heading-stretch: 92%;
+  --font-display: 'Big Shoulders Display', var(--font-sans);
+  --fw-display: 800;
+  --display-case: uppercase;
+  --display-track: 0.01em;
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --fw-regular: 400;
   --fw-medium: 500;
@@ -58,9 +64,11 @@
   --fs-lead: 18px;  /* brand, hero text, invite codes, tally player names */
   --fs-lg: 20px;
   --fs-count: 24px; /* tally counts */
+  --fs-brand: 24px;   /* display face */
   --fs-xl: 26px;
-  --fs-num: 32px;
-  --fs-hero: 40px;
+  --fs-num: 40px;     /* display face */
+  --fs-display: 40px; /* page titles, display face */
+  --fs-hero: 64px;    /* display face */
 
   /* Spacing, shape, elevation */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
@@ -78,10 +86,15 @@
   --tap-lg: 48px;     /* tabs and menu items */
   --tap-tally: 76px;  /* tally stat buttons */
 
-  /* Motion: colour fades only, and only without reduced motion */
+  /* Motion, only without reduced motion. Colour fades, the sliding tab marker, button press and lift.
+     The tally board never animates. */
   --dur: 150ms;
   --ease: ease-out;
-  --dur-flash: 400ms; /* the over-budget flash on the bid header, x3 */
+  --dur-press: 120ms;   /* buttons sink while pressed */
+  --dur-slide: 420ms;   /* tab marker gliding to the new tab */
+  --ease-glide: cubic-bezier(0.16, 1, 0.3, 1); /* fast start, long soft landing */
+  --dur-flash: 400ms;   /* the over-budget flash on the bid header, x3 */
+  --shadow-lift: 0 6px 14px -4px rgb(201 148 0 / 0.55), 0 2px 4px rgb(15 20 25 / 0.12); /* gold button hover */
 
   color-scheme: light;
 }
@@ -106,5 +119,6 @@
     --warn: #f4b566;  --warn-soft: #3a2a13;
     --error: #ff8a80; --error-soft: #3b1a18;
     --shadow-pop: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
+    --shadow-lift: 0 6px 16px -4px rgb(245 183 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.4);
   }
 }

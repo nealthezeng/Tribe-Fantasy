@@ -56,14 +56,19 @@ in the black top bar, and at 168px, cropped off the corner, behind the signed-ou
 
 ## Type
 
-**Archivo** for everything: a grotesque made for sports and news graphics, with even figures for stats. It
-replaced the system font, which read soft and cartoonish at heavy weights. Loaded from Google Fonts in
-`index.html` (variable, weights 400–700, widths 87.5–100%, `display=swap`, system-ui fallback).
+Two faces, both from Google Fonts in `index.html` (`display=swap`):
+
+- **Big Shoulders Display** 800, uppercase (`--font-display`, `--fw-display`, `--display-case`, `--display-track`):
+  the loud voice. Tall and tight like a scoreboard. Only for `h1` page titles, the brand, the signed-out hero and
+  `.big` numbers; never below about 22px and never for running text. `h1 small` drops back to Archivo. Chosen by
+  the user in M9 from six pairings (board t101).
+- **Archivo** for everything else: a grotesque made for sports and news graphics, with even figures for stats
+  (variable, weights 400–700, widths 87.5–100%, system-ui fallback).
 
 Font tokens: `--font-sans` (Archivo stack), `--font-heading` (points at `--font-sans`) with `--heading-stretch`
 92% so headings and the brand use a slightly condensed cut, and `--font-mono` only for `code`, the settings
 textarea and `.code` (invite codes). Weights come from four tokens: `--fw-regular` 400 (body), `--fw-medium` 500,
-`--fw-semi` 600 (buttons, labels, pills, row titles) and `--fw-bold` 700 (headings, big numbers, the brand).
+`--fw-semi` 600 (buttons, labels, pills, row titles) and `--fw-bold` 700 (`h2`, `h3`).
 Condensed headings take no negative letter-spacing; it closes the word gaps. To swap the font, change the link in
 `index.html` and the font lines in `tokens.css`.
 
@@ -73,9 +78,11 @@ Condensed headings take no negative letter-spacing; it closes the word gaps. To 
 | `--fs-sm` | 14px | Labels, `small`, tables, subnav |
 | `--fs-md` | 16px | Body, `h3` |
 | `--fs-lg` | 20px | `h2` |
-| `--fs-xl` | 26px | `h1` |
-| `--fs-num` | 32px | `.big` headline numbers (tabular) |
-| `--fs-hero` | 40px | The signed-out hero headline |
+| `--fs-brand` | 24px | The brand in the top bar (display) |
+| `--fs-xl` | 26px | Spare step |
+| `--fs-num` | 40px | `.big` headline numbers (display, tabular) |
+| `--fs-display` | 40px | `h1` page titles (display) |
+| `--fs-hero` | 64px | The signed-out hero headline (display) |
 
 Body line height 1.5, headings 1.2 and balanced. Numbers that line up use `.num` or tabular figures.
 Smaller steps for single components are tokens too: `--fs-3xs` 11px (tally weights), `--fs-2xs` 12px (tally
@@ -102,7 +109,8 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
 
 - **Top bar** (`.topbar`): black. Brand on the left, the account avatar on the right, and tabs: League, Stats,
   Tally (keepers), Admin (admins). On phones the tabs are a second full-width row of equal tabs; from 640px it's
-  one row. Tabs are muted until hovered; the current tab is white with a 3px gold underline.
+  one row. Tabs are muted until hovered; the current tab is white, and one 3px gold `.ink` marker glides under it
+  when you switch (`useInk` in `src/app/lib/useInk.ts` measures the current tab).
 - **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
   and *Sign out*. The avatar gets a baby blue ring while you're on Me.
 - **`.page`**: a page's outer stack (16px gaps, a little extra space under the heading).
@@ -127,7 +135,8 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
   as background). Used for attendance.
 - **`.subnav`**: admin's sticky, sideways-scrolling row of rounded tabs (`aria-pressed`). Admin shows one section
-  at a time; the chosen tab is inverted like `.segmented`. Admin opens on the newest season.
+  at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
+  chips are see-through so the pill shows while it moves). Admin opens on the newest season.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
   gold call to action, the large disc behind.
 - **Tables** (`.table-wrap`): 14px tabular figures, right-aligned numbers, first column left, divider rows.
@@ -152,5 +161,8 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
   underlined, errors are written out.
 - **Gold means act.** Use gold for the main action and the current place, not for decoration or long text.
 - **Gold and baby blue are never text colours on white.** Text on gold is `--on-gold`; light-mode links use `--link`.
-- **Motion is 150ms colour fades only**, and only when the user has not asked for reduced motion.
+- **Motion is small and physical**, and only when the user has not asked for reduced motion: 150ms colour fades
+  (`--dur`), every button sinks to 97% while pressed (`--dur-press`), gold buttons rise 1px with a gold
+  `--shadow-lift` on hover, and tab markers glide (`--dur-slide`, `--ease-glide`). The tally board never moves:
+  no transitions, no press scale, no lift.
 - **Focus is always visible**: a 3px ring in `--focus`, offset 2px.
