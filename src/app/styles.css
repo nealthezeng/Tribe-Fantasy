@@ -86,6 +86,11 @@ button, .button {
   background: var(--gold); color: var(--on-gold); cursor: pointer; text-decoration: none; touch-action: manipulation;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
+/* Button lettering (tokens --font-button etc.). Text links, menu items and tally tiles keep their own lettering. */
+:is(button, .button):not(.linklike, .account-button, :where(.tally-buttons, .tally-head, .account-menu) *) {
+  font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
+  text-transform: var(--button-case); letter-spacing: var(--button-track);
+}
 button:hover:not(:disabled), .button:hover { background: var(--gold-hover); }
 button:active:not(:disabled), .button:active { background: var(--gold-press); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }

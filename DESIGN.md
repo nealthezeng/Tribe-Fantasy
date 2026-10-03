@@ -60,7 +60,7 @@ Two faces, both from Google Fonts in `index.html` (`display=swap`):
   `.big` numbers; never below about 22px and never for running text. `h1 small` drops back to Archivo. Chosen by
   the user in M9 from six pairings (board t101).
 - **Archivo** for everything else: a grotesque made for sports and news graphics, with even figures for stats
-  (variable, weights 400–700, widths 87.5–100%, system-ui fallback).
+  (variable, weights 400–700, widths 75–100%, system-ui fallback).
 
 Font tokens: `--font-sans` (Archivo stack), `--font-heading` (points at `--font-sans`) with `--heading-stretch`
 92% so headings and the brand use a slightly condensed cut, and `--font-mono` only for `code`, the settings
@@ -171,6 +171,9 @@ Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 
   a faint gold and blue `--bg-ambient` glow on the page; each pane has a gold glow in its top-left corner, like the
   scoreboard. Page-level list rows get the same fill and shadow without the blur. Rows inside panes
   and the tally board never blur (phone GPU).
+- **Button lettering** (user's pick, board t112): Archivo bold at a narrow 78% width, all caps, 0.06em tracking,
+  14px (`--font-button`, `--fw-button`, `--fs-button`, `--button-stretch`, `--button-case`, `--button-track`), like a
+  jersey label. Text links, account-menu items and the whole tally card keep their own lettering.
 - **Buttons are flat and crisp** (user's pick over keycap, push-key, glow and metal styles, board t111): plain fills,
   no border or bevel. Hover lifts 1px and gold buttons glow (`--shadow-lift`); press squeezes to 95% and springs back
   (`--dur-release`, `--ease-spring`). Chips and segmented buttons don't move. A chosen pick is green (`.picked`) with a

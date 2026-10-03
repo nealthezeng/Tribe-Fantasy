@@ -40,7 +40,7 @@
   --error: #ff8a80; --error-soft: #3b1a18;
 
   /* Fonts. Archivo: a grotesque built for sports and news graphics, with even figures for stats.
-     Loaded in index.html (weights 400-700, widths 87.5-100%); to swap it, change that link and these lines.
+     Loaded in index.html (weights 400-700, widths 75-100%); to swap it, change that link and these lines.
      Headings use a slightly condensed cut of the same family.
      Big Shoulders Display (weight 800 only, also in index.html) is the loud voice: page titles, the brand, the hero
      and big numbers. Tall and tight like a scoreboard; never below about 22px, never for running text. */
@@ -51,6 +51,14 @@
   --fw-display: 800;
   --display-case: uppercase;
   --display-track: 0.01em;
+  /* Button labels: Archivo squeezed to a narrow cut, bold, all caps and spaced out, like a jersey label (user's pick,
+     M9). index.html loads Archivo's widths from 75% so this cut is real, not faked. */
+  --font-button: var(--font-sans);
+  --fw-button: 700;
+  --fs-button: 14px;
+  --button-stretch: 78%;
+  --button-case: uppercase;
+  --button-track: 0.06em;
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --fw-regular: 400;
   --fw-medium: 500;
