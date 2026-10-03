@@ -21,7 +21,7 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 /** Tournament play for one team: the game being played, the next game's pick, standings, and every game so far. */
 export function TournamentCard({ membershipId, leagueId, seasonId }: { membershipId: string; leagueId: string; seasonId: string }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);
-  if (error) return <p className="error" role="alert">{error}</p>;
+  if (error && !data) return <p className="error" role="alert">{error}</p>;
   if (!data) return <p className="muted" role="status">Loading games…</p>;
   const { games, next } = data.result;
   if (games.length === 0 && next === null) return null; // no tournament yet
@@ -31,6 +31,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId }: { membershi
   return (
     <article className="card" aria-label="Tournament">
       <h2>Tournament</h2>
+      {error && <p className="error" role="alert">{error}</p>}
       {live && <LiveGame y={data} g={live} membershipId={membershipId} />}
       {next && <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />}
       <Standings y={data} membershipId={membershipId} />
@@ -52,7 +53,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const mine = next.sides.find((x) => x.membershipId === membershipId);
   const title = `Game ${next.number} · ${y.stage.get(next.stageId) ?? ''}`;
   if (!mine) {
-    return <div className="stack"><h3>{title}</h3><p className="muted">You have no players this stage, so you sit out its games.</p></div>;
+    return <div className="stack"><h3>{title}</h3><p className="muted">You have no players this stage, so you forfeit each game you're paired in.</p></div>;
   }
   const paired = y.result.games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number);
   const them = paired ? opponentIn(paired, membershipId) : undefined;

@@ -71,10 +71,11 @@ export function RulesPage() {
         <ul>
           <li>Each game you start <strong>one</strong> of your active players against one other fantasy team.</li>
           <li>Opponents are paired Swiss style: teams close in the standings meet, and you don't play the same team
-            twice if it can be avoided. Each pairing is set when the game before it finishes.</li>
+            twice if it can be avoided. Game 1 is paired by the standings when the
+            tournament opens; each later game is paired when the game before it finishes.</li>
           <li>Pick for the next game any time before it starts, even before you know your opponent. Picks lock when a
             stat keeper starts the game. Other teams' picks stay hidden until then.</li>
-          <li>Forgot to pick, or your pick is injured or on your bench? We start your most rested active player (then
+          <li>Forgot to pick, or your pick is injured or on your bench? We start your most rested healthy active player (then
             the one scoring best lately), and you'll see a notice.</li>
           <li>Choose your bench before game 1 starts; if you don't, it's the player you paid least for. The bench plays
             only if an active player gets injured: then you can swap it in for the rest of the season, once.</li>

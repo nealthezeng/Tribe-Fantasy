@@ -101,6 +101,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
               {describePairings(preview.pairings.filter((p) => p.league_id === leagueId), preview.team)}
             </p>
           ))}
+          {waiting > 0 && <p className="muted"><small>Finish waits until your taps are saved.</small></p>}
           <div className="row">
             <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>Finish game {n}</button>
             <button className="secondary" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { auctionPhase, formatWhen } from '../../lib/auction';
+import { auctionPhase, formatWhen, pickAuctionStage } from '../../lib/auction';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
@@ -48,6 +48,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
     });
   }
 
+  const current = pickAuctionStage(stages.data ?? []);
   const set = (key: keyof typeof EMPTY) => (e: { target: { value: string } }) => setForm({ ...form, [key]: e.target.value });
 
   return (
@@ -83,7 +84,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
               </button>
             </span>
             <AuctionControls stage={s} run={run} />
-            <TournamentControls stage={s} seasonId={seasonId} run={run} />
+            <TournamentControls stage={s} current={current?.id === s.id} seasonId={seasonId} run={run} />
           </li>
         ))}
       </ul>
@@ -151,8 +152,8 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
 interface FinishAudit { entity_id: string; details: { pairings: GamePairing[]; provisional: LeaguePairingInput[] } }
 
 /** Open the stage's tournament once its auction has run; then staff can re-check every Swiss pairing a keeper made. */
-function TournamentControls({ stage, seasonId, run }: {
-  stage: StageRow; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
+function TournamentControls({ stage, current, seasonId, run }: {
+  stage: StageRow; current: boolean; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
 }) {
   const [checks, setChecks] = useState<string[] | null>(null);
   const games = useLoad(async () => {
@@ -165,6 +166,7 @@ function TournamentControls({ stage, seasonId, run }: {
   if (!games.data) return null;
 
   if (games.data.length === 0) {
+    if (!current) return null;
     return (
       <div className="row">
         <button onClick={() => void run(async () => {
