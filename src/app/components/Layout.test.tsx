@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Layout } from './Layout';
@@ -42,5 +42,15 @@ describe('Layout', () => {
     expect(screen.getByRole('heading', { name: /what's your name/i })).toBeTruthy();
     expect(screen.getByLabelText(/your name/i)).toBeTruthy();
     expect(screen.queryByText('league page')).toBeNull();
+  });
+
+  it('flips between dark and light from the account menu and remembers it (t118)', () => {
+    document.documentElement.dataset.theme = 'dark';
+    renderLayout();
+    fireEvent.click(screen.getByRole('button', { name: 'Light mode', hidden: true }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem('theme')).toBe('light');
+    fireEvent.click(screen.getByRole('button', { name: 'Dark mode', hidden: true }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
   });
 });

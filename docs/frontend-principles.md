@@ -15,7 +15,7 @@ A clean, simple look, not a professional product. Most use is on phones, often a
 - **Easy to read.** Archivo for reading, Big Shoulders only for the loud bits (titles, scores), a few sizes, generous whitespace, and a line length that stays readable
   (`.shell` is 720px wide).
 - **Works on a phone first.** One column at 375px wide, no sideways scrolling, and tap targets at least 44px.
-- **Accessible basics.** Every input has a label. Text contrast is at least 4.5:1 (the site is always dark since M9).
+- **Accessible basics.** Every input has a label. Text contrast is at least 4.5:1 in both themes (dark and light, t118).
   Colour is never the only signal. Everything works with the keyboard.
 - **Fast and quiet.** No spinners without a reason, no new libraries for
   what CSS can do.
@@ -48,7 +48,7 @@ SessionPage, `#/me` MePage
 
 - [ ] Main action obvious within 3 seconds
 - [ ] Loading, empty, error and success states all handled
-- [ ] Looks right at 375px, 768px and 1280px (always dark)
+- [ ] Looks right at 375px, 768px and 1280px, in dark and light
 - [ ] Labels on inputs, and keyboard reachable
 - [ ] Uses the existing tokens and classes; no new dependency
 - [ ] Team colours only in their roles: gold for actions, baby blue for info and selection, never either as text on white

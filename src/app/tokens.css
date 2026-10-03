@@ -1,7 +1,10 @@
 /* Design tokens: every colour, font, size and spacing value the app uses. Change the look here.
    styles.css only reads these; components never hard-code a colour or font.
    Two places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html.
-   The site is always dark (M9): the scoreboard's world of smoked glass, gold glow and white type. */
+   Dark is the base (M9): the scoreboard's world of smoked glass, gold glow and white type. Light mode (t118) is the
+   block at the bottom: white glass on a pale page; the top bar, hero and scoreboard stay black. An inline script in
+   index.html sets data-theme on <html> before first paint (saved choice, else the phone's setting); the avatar
+   menu toggles it. */
 
 :root {
   color-scheme: dark;
@@ -136,4 +139,41 @@
   /* Buttons are flat and crisp: plain fills, a 1px lift on hover (gold adds --shadow-lift), a squeeze on press. */
   --chip-bg: rgb(255 255 255 / 0.07);  /* admin tab chips: a soft fill the gliding pill shows through */
   --pick-ring: rgb(127 214 154 / 0.5);  /* the ring that spreads when a pick turns green */
+}
+
+/* Light mode: only what differs from dark. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --blue-soft: #e3f1fc;
+  --blue-ink: #0b4a75;
+  --bg: #f4f7fa;
+  --surface: #ffffff;
+  --surface-2: #eef3f8;
+  --fg: #0f1419;
+  --muted: #56606b;
+  --line: #dbe2ea;
+  --line-strong: #8795a3;   /* input borders: 3:1 against white */
+  --link: #0b5d99;          /* gold and baby blue aren't readable as text on white */
+  --focus: #0b5d99;
+  --bar: #0f1419;
+  --bar-muted: #b4bfca;
+  --ok: #1d6b35;    --ok-soft: #dcf1e2;
+  --warn: #8a4b00;  --warn-soft: #fdebd0;
+  --error: #b3261e; --error-soft: #fbe3e0;
+  --shadow-lift: 0 6px 14px -4px rgb(201 148 0 / 0.55), 0 2px 4px rgb(15 20 25 / 0.12);
+  --bg-ambient: radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / 0.10), transparent 62%),
+    radial-gradient(800px 520px at 105% 12%, rgb(140 200 242 / 0.16), transparent 60%);
+  --pane-bg: radial-gradient(420px 240px at 0 0, rgb(245 183 0 / 0.08), transparent 70%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.94), rgb(255 255 255 / 0.80));
+  --pane-border: rgb(15 20 25 / 0.08);
+  --notice-bg: radial-gradient(420px 240px at 0 0, rgb(140 200 242 / 0.30), transparent 70%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.6), rgb(255 255 255 / 0) 120px), rgb(227 241 252 / 0.92);
+  --pane-highlight: inset 0 1px 0 rgb(255 255 255 / 0.9);
+  --pane-shadow: 0 1px 2px rgb(15 20 25 / 0.05), 0 10px 28px -14px rgb(15 20 25 / 0.22);
+  --sticky-bg: rgb(244 247 250 / 0.78);
+  --score-bg: radial-gradient(130% 90% at 0% 0%, rgb(245 183 0 / 0.16), transparent 55%),
+    linear-gradient(180deg, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0) 45%), #0f1419;
+  --score-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 16px 36px -16px rgb(15 20 25 / 0.55), 0 2px 6px rgb(15 20 25 / 0.18);
+  --chip-bg: rgb(15 20 25 / 0.06);
+  --pick-ring: rgb(29 107 53 / 0.45);
 }

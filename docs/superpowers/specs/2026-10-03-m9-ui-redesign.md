@@ -33,6 +33,7 @@ branch can be reviewed against it. How the result looks is in [DESIGN.md](../../
 | t114 | Distill: tiles = Place / Record / Points; credits shown once; auction named once; empty Games hidden; admin explainer → 4 steps; rare forms folded. **Me > Attendance kept** (user) | 5a54b9b |
 | t115 | Clarify: players see "game", not "session"; titles "Game 3 · Fall Beta" (`gameTitles`); errors and labels rewritten; DESIGN.md glossary | afeed34 |
 | t116 | Polish (Claude's call, shown after): phone boxes float as rounded panes (square bands retired); disabled buttons quiet grey instead of faded gold | 79bae23 |
+| t118 | **Light mode toggle** (user, reverses t110's no-toggle): follows the phone until Light mode / Dark mode is picked in the avatar menu (saved per device). Dark stays the base; light = the pre-t110 white glass, top bar / hero / scoreboard stay black. `data-theme` set before first paint by an inline script | (this branch) |
 
 ## Inspiration notes
 
@@ -58,8 +59,8 @@ Also: sliding thumb for the attendance toggle.
 
 ## Risks and checks before / after merge
 
-- **Dark tally in sunlight**: keepers use it outdoors. Try it on a phone in daylight before Nov 7; fallback is a
-  light theme for the tally screen only.
+- **Dark tally in sunlight**: keepers use it outdoors. Light mode (t118) is the answer now: a keeper's phone set to
+  light, or the avatar-menu toggle. Still try the light tally on a phone in daylight before Nov 7.
 - **Unseen with real data**: tally board with players, Stats with games, auction results after a run, the League
   scoreboard mid-tournament. Look on a phone at the Oct 17–18 dry run and the first game.
 - **Blur on low-end phones**: only cards, tiles, scoreboard, menu, bid header and subnav blur; scroll-test an old phone.

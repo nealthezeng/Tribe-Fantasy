@@ -24,6 +24,14 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
   const onMenuPage = path === '/me' || path.startsWith('/admin');
   const close = () => menu.current?.hidePopover();
   const initial = (name || email || '?').trim().charAt(0).toUpperCase();
+  // index.html set the theme before first paint; this flips it and remembers the choice on this device.
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? 'dark');
+  function flipTheme() {
+    const next = theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch { /* storage blocked: lasts until reload */ }
+    setTheme(next);
+  }
   return (
     <div className="account">
       <button className="account-button" popoverTarget="account-menu" aria-label="Account menu"
@@ -38,6 +46,7 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
         <NavLink to="/me" onClick={close}>Me<small>Attendance and injuries</small></NavLink>
         <NavLink to="/rules" onClick={close}>Rules<small>How scoring works</small></NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin<small>Seasons, leagues, athletes</small></NavLink>}
+        <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
       </div>
     </div>
