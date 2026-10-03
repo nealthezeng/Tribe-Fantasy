@@ -6,7 +6,7 @@ import { loadOwnedAthletes } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import {
-  loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel,
+  gameTitles, loadCurrentSeason, SESSION_COLUMNS, sessionState, sessionTitle, statLabel,
   type CurrentSeason, type SessionRow,
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
@@ -47,12 +47,7 @@ function SessionPicker({ season, keeperId, onPick }: {
       .order('held_on', { ascending: false });
     if (error) throw error;
     const rows = (data ?? []) as SessionRow[];
-    const games = rows.length
-      ? await supabase!.from('games').select('session_id, number, stages(name)').in('session_id', rows.map((s) => s.id))
-      : { data: [], error: null };
-    if (games.error) throw games.error;
-    const game = new Map(((games.data ?? []) as unknown as { session_id: string; number: number; stages: { name: string } | null }[])
-      .map((g) => [g.session_id, `Game ${g.number} · ${g.stages?.name ?? 'Tournament'}`]));
+    const game = await gameTitles(rows.map((s) => s.id));
     return rows.filter((s) => game.has(s.id) || unsaved.has(s.id)).map((s) => ({ ...s, game: game.get(s.id) ?? null }));
   }, [season.id, unsaved]);
 

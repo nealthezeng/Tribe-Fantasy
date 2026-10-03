@@ -119,7 +119,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
           than your credits.
         </p>
         <BidList open={mine.length === 0}
-          summary={<>Bid on players <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length}</span></>}>
+          summary={<>Bid on players <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} available</span></>}>
           <ul className="list">
             {athletes.filter((a) => a.opted_in).map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;

@@ -88,7 +88,8 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
       </ul>
       {stages.data?.length === 0 && <p className="muted">No tournaments yet. Add the first one below.</p>}
       {/* Used once a tournament: folded away, and opened by Edit. */}
-      <details className="section" open={form.id ? true : undefined}>
+      {/* Keyed by the tournament being edited, so Edit on another one reopens it even after a manual collapse. */}
+      <details key={form.id ?? 'new'} className="section" open={form.id ? true : undefined}>
         <summary>{form.id ? 'Edit tournament' : 'Add a tournament'}</summary>
         <form onSubmit={save} className="row">
           <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>

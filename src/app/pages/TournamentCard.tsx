@@ -90,6 +90,8 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const row = y.result.standings.find((r) => r.membershipId === membershipId);
   // Before a game starts the scorer's auto-pick is a guess, so show only the manager's own pick.
   const minePlayer = status === 'upcoming' ? mine?.picked ?? null : mine?.athleteId ?? null;
+  // A pick that won't play (injured, or moved to the bench) must not look all set up here.
+  const doomed = status === 'upcoming' && minePlayer !== null && (mine?.notice === 'injured' || mine?.notice === 'inactive');
 
   return (
     <>
@@ -103,17 +105,20 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
             <span>{y.stage.get(focus.stageId)}</span>
             {dates && <span className="chip">{formatDay(dates.starts_on)} – {formatDay(dates.ends_on)}</span>}
             <span>Game {focus.number}</span>
-            {status === 'live' && <span className="live"><span className="dot" aria-hidden="true" />Live</span>}
-            {status === 'upcoming' && <span>{them === null ? 'Bye' : 'Next up'}</span>}
-            {status === 'pending' && <span>Waiting on stats</span>}
-            {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
+            {them === null ? <span>Bye</span> : <>
+              {status === 'live' && <span className="live"><span className="dot" aria-hidden="true" />Live</span>}
+              {status === 'upcoming' && <span>Next up</span>}
+              {status === 'pending' && <span>Waiting on stats</span>}
+              {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
+            </>}
+            {doomed && <span className="pill warn">{mine?.notice === 'injured' ? 'Your pick is injured' : 'Your pick is on the bench'}</span>}
           </> : <span>{subtitle}</span>}
         </p>
       </div>
       {g && them && mine && (
         <div className="score">
           <ScoreSide label={status === 'upcoming' ? 'Your pick' : 'You played'} y={y} athleteId={minePlayer}
-            picked={status === 'upcoming' && minePlayer !== null}
+            picked={status === 'upcoming' && minePlayer !== null && !doomed}
             score={final ? mine.score : null} empty={status === 'upcoming' ? 'No pick yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
           <span className="vs">{final ? 'to' : 'vs'}</span>
           <ScoreSide label={status === 'upcoming' ? 'Their pick' : 'They played'} y={y}

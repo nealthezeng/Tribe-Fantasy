@@ -65,3 +65,21 @@ Also: sliding thumb for the attendance toggle.
 - **Blur on low-end phones**: only cards, tiles, scoreboard, menu, bid header and subnav blur; scroll-test an old phone.
 - **Merge timing**: before Oct 16 or after the Oct 17–18 dry run, never during it.
 - No migration: front-end only. Rollback point is tag `m9-t4`.
+
+## Final review (2026-10-03, opus, adfb252..7cae0ab): "With fixes" → fixed
+
+- **Critical, fixed:** the button lift/glow/squeeze rules out-ranked the tally opt-out (specificity 0,4,0 vs 0,3,1),
+  so stat tiles rose and glowed on hover and squeezed under the thumb. The tally board (`.tally-buttons`, `.tally-head`,
+  `.tally-bar`) is now inside each motion rule's own `:not()` list; `tokens.test.ts` fails if a lift/squeeze rule
+  forgets it. Measured with a real hover: tally buttons stay at `transform: none`, no glow, no transition. The tally
+  bar also keeps its own lettering and disabled look. Admin chips and segmented buttons no longer squeeze either.
+- **Important, fixed:** the League header showed an injured or benched pick in green as if set; it now drops the
+  green and says "Your pick is injured" / "Your pick is on the bench". Byes say "Bye" in every state.
+- **Important, fixed:** header tests for live (both picks revealed), final between tournaments (result + greyed
+  loser; final needs the stat lock), bye, and injured pick.
+- **Minor, fixed:** Edit on another tournament reopens the folded form (keyed details); OWNS_ATHLETE and
+  ATHLETE_IN_USE wording; Tally list uses `gameTitles()`; "· N available" on the bid list; long team names wrap;
+  letter-spacing tokens + guard; page glow moved to a fixed `body::before` (a fixed body background repaints every
+  scroll frame on phones); docs "one font" line; CreditForm indentation.
+- **Minor, left:** header vs PickGame wording for a rosterless or joined-after-pairing team; "T1 of 6" before any game;
+  `gameTitles` sends every session id in one `.in()` (fine at this volume).

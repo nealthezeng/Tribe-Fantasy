@@ -2,7 +2,9 @@
 @import './tokens.css';
 
 * { box-sizing: border-box; }
-body { margin: 0; background-color: var(--bg); background-image: var(--bg-ambient); background-attachment: fixed; color: var(--fg); font-family: var(--font-sans); font-size: var(--fs-md); line-height: 1.5; -webkit-text-size-adjust: 100%; }
+body { margin: 0; background-color: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: var(--fs-md); line-height: 1.5; -webkit-text-size-adjust: 100%; }
+/* The page glow sits on a fixed layer, not a fixed body background: that one repaints every scroll frame on phones. */
+body::before { content: ''; position: fixed; inset: 0; z-index: -1; background-image: var(--bg-ambient); pointer-events: none; }
 ::selection { background: var(--gold); color: var(--on-gold); }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 h1, h2, h3 { font-family: var(--font-heading); font-stretch: var(--heading-stretch); line-height: 1.15; text-wrap: balance; margin: 0; }
@@ -87,7 +89,7 @@ button, .button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
 /* Button lettering (tokens --font-button etc.). Text links, menu items and tally tiles keep their own lettering. */
-:is(button, .button):not(.linklike, .account-button, :where(.tally-buttons, .tally-head, .account-menu) *) {
+:is(button, .button):not(.linklike, .account-button, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
   font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
   text-transform: var(--button-case); letter-spacing: var(--button-track);
 }
@@ -95,8 +97,8 @@ button:hover:not(:disabled), .button:hover { background: var(--gold-hover); }
 button:active:not(:disabled), .button:active { background: var(--gold-press); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). A pick mid-save keeps its
-   green; tally tiles and segmented buttons keep their own disabled look. */
-:is(button, .button):disabled:not(.picked, :where(.tally-buttons, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
+   green; the whole tally board and segmented buttons keep their own disabled look. */
+:is(button, .button):disabled:not(.picked, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
 /* Secondary: a soft borderless fill; the keycap light and shadow give it its edge. */
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
 .secondary:hover:not(:disabled) { background: var(--line); }
@@ -148,7 +150,7 @@ ul.error { margin: 0; padding-left: 20px; }
 .muted { color: var(--muted); }
 .num { font-variant-numeric: tabular-nums; }
 .big { font-size: var(--fs-num); line-height: 0.9; font-variant-numeric: tabular-nums; }
-.code { font-size: var(--fs-lead); font-weight: var(--fw-semi); letter-spacing: 0.08em; }
+.code { font-size: var(--fs-lead); font-weight: var(--fw-semi); letter-spacing: var(--track-code); }
 details:is(.card, .section) { display: block; }
 details:is(.card, .section)[open] > summary { margin-bottom: var(--s3); }
 details > summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; gap: var(--s2); font-weight: var(--fw-semi); list-style: none; }
@@ -208,13 +210,13 @@ tbody tr:last-child td { border-bottom: 0; }
 /* League tab, matchup first: a big headline, a line of facts, a black scoreboard, then three number tiles. */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .matchup { display: grid; gap: var(--s2); }
-.display { font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); font-stretch: normal; font-size: var(--fs-matchup); line-height: 0.9; }
+.display { overflow-wrap: anywhere; font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); font-stretch: normal; font-size: var(--fs-matchup); line-height: 0.9; }
 .vs { font-family: var(--font-sans); font-weight: var(--fw-semi); font-size: var(--fs-sm); text-transform: lowercase; letter-spacing: normal; color: var(--muted); }
 .display .vs { vertical-align: 0.6em; padding-inline: var(--s1); }
 .strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); font-size: var(--fs-sm); color: var(--muted); }
 .strip strong { color: var(--fg); }
 .chip { border: 1px solid var(--line-strong); border-radius: var(--radius-xs); padding: 0 var(--s2); color: var(--fg); font-weight: var(--fw-semi); }
-.live { display: inline-flex; align-items: center; gap: var(--s2); color: var(--error); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: 0.06em; }
+.live { display: inline-flex; align-items: center; gap: var(--s2); color: var(--error); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: var(--track-label); }
 .dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid currentColor; opacity: 0.35; transform: scale(1.8); }
 .score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto auto auto; align-items: start; gap: var(--s1) var(--s3); padding: var(--s4); border: 1px solid var(--pane-border); border-radius: var(--radius); background: var(--score-bg); color: var(--bar-fg); box-shadow: var(--score-shadow); }
@@ -303,18 +305,20 @@ tbody tr:last-child td { border-bottom: 0; }
   /* width animates on purpose: the marker is absolutely positioned, so only it re-lays-out (scaleX would warp the pill). */
   .ink.ready { transition: transform var(--dur-slide) var(--ease-glide), width var(--dur-slide) var(--ease-glide); }
   /* Flat and crisp: buttons lift a pixel on hover (gold ones also glow) and squeeze when pressed, springing back.
-     Chips and segmented buttons stay put so they don't drift off their sliding marker. */
-  :is(button, .button):not(.linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):hover:not(:disabled) {
+     Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
+     moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
+     tokens.test.ts fails if a lift or squeeze rule forgets it. */
+  :is(button, .button):not(.linklike, .account-button, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .account-button, :where(.account-menu) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .account-button, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
-  /* A tally tap must show instantly and the tile must not move under the thumb. */
-  .tally-buttons button, .tally-buttons button:is(:hover, :active):not(:disabled) { transition: none; transform: none; box-shadow: none; }
+  /* A tally tap must show instantly: no fades either. */
+  .tally-buttons button, .tally-head button, .tally-bar button { transition: none; }
 }
 
 /* Phones: every box floats as a rounded glass pane inside the gutter, like the scoreboard (M9 polish), with a little

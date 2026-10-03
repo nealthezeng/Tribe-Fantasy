@@ -59,6 +59,8 @@
   --button-stretch: 78%;
   --button-case: uppercase;
   --button-track: 0.06em;
+  --track-label: 0.06em;  /* small caps labels like LIVE */
+  --track-code: 0.08em;   /* invite codes */
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --fw-regular: 400;
   --fw-medium: 500;

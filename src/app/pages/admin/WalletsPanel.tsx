@@ -117,7 +117,7 @@ function CreditForm({ title, help, teams, amountLabel, step, onSubmit }: {
   return (
     <details className="section">
       <summary>{title}</summary>
-        <form onSubmit={submit}>
+      <form onSubmit={submit}>
         <p className="muted">{help}</p>
         <div className="row">
           <label>Team

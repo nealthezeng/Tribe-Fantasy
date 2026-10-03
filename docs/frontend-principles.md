@@ -12,7 +12,7 @@ A clean, simple look, not a professional product. Most use is on phones, often a
 - **Consistent.** The same spacing, colours, buttons and cards everywhere. Reuse the tokens and classes in
   `src/app/styles.css` (`.card`, `.list`, `.pill`, `.notice`, `.muted`) before adding new ones. Colours, fonts and
   sizes live only in `src/app/tokens.css`. `DESIGN.md` at the repo root records the whole system.
-- **Easy to read.** One font, a few sizes, generous whitespace, and a line length that stays readable
+- **Easy to read.** Archivo for reading, Big Shoulders only for the loud bits (titles, scores), a few sizes, generous whitespace, and a line length that stays readable
   (`.shell` is 720px wide).
 - **Works on a phone first.** One column at 375px wide, no sideways scrolling, and tap targets at least 44px.
 - **Accessible basics.** Every input has a label. Text contrast is at least 4.5:1 (the site is always dark since M9).

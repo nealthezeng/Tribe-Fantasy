@@ -110,4 +110,58 @@ describe('TournamentCard', () => {
     // A void start doesn't tire anyone.
     expect(screen.getByText('Ash').parentElement?.textContent).not.toContain('Tired');
   });
+
+  describe('matchup header', () => {
+    const scoreboard = () => document.querySelector('.score');
+
+    it('shows both players once a game is live, and says scores wait for the stats', async () => {
+      const r = afterGame1();
+      await show({
+        ...r,
+        games: r.games.map((g) => (g.id === 'g2' ? { ...g, session_id: 'p2', started_at: '2026-11-07T16:00:00Z' } : g)),
+        sessions: [...r.sessions, { id: 'p2', verified_at: null }],
+        picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' },
+          { stage_id: 'S1', game_number: 2, membership_id: 'm2', athlete_id: 'b2' }],
+      });
+      expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
+      expect(screen.getByText('Live')).toBeTruthy();
+      expect(scoreboard()?.textContent).toContain('Avery');
+      expect(scoreboard()?.textContent).toContain('Quinn'); // revealed: the game has started
+      expect(scoreboard()?.textContent).toContain("Scores appear once this game's stats lock.");
+    });
+
+    it('between tournaments, shows the last final game with the result and the loser greyed', async () => {
+      const r = afterGame1();
+      await show({
+        ...r,
+        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }], // last day passed: nothing to pick
+        // Played and verified days ago, so its stats have locked (stat_lock_hours) and the game is final.
+        games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, started_at: '2026-11-03T14:00:00Z', finished_at: '2026-11-03T15:00:00Z' })),
+        pairings: r.pairings.filter((p) => p.game_id === 'g1'),
+        sessions: [{ id: 'p1', verified_at: '2026-11-03T16:00:00Z' }],
+        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 2 }, points_played: 0 },
+          { session_id: 'p1', athlete_id: 'b1', stats: { goal: 1 }, points_played: 0 }],
+      });
+      expect(document.querySelector('.strip')?.textContent).toMatch(/Won \+/);
+      expect(document.querySelector('.score-side.lost')?.textContent).toContain('Bea');
+    });
+
+    it('says Bye and shows no scoreboard when the team sits out', async () => {
+      const r = afterGame1();
+      await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g2' ? { ...p, away: null } : p)) });
+      expect(document.querySelector('.strip')?.textContent).toContain('Bye');
+      expect(scoreboard()).toBeNull();
+    });
+
+    it("doesn't show an injured pick as set", async () => {
+      const r = afterGame1();
+      await show({
+        ...r,
+        picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' }],
+        injuries: [{ athlete_id: 'a2', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+      });
+      expect(screen.getByText('Your pick is injured')).toBeTruthy();
+      expect(document.querySelector('.score-side.picked')).toBeNull();
+    });
+  });
 });
