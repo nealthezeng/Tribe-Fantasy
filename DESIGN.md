@@ -10,9 +10,12 @@ duration lives there. `src/app/styles.css` imports it and only reads the tokens.
 
 ## Colour
 
-**Always dark** (M9, the user's choice): the whole site lives in the scoreboard's world of smoked glass, a faint gold
-and blue glow, and white type. There is no light theme and no toggle; `color-scheme: dark` is set in `tokens.css`
-and `index.html`. The team's two colours are fixed by the user: gold and baby blue.
+**Dark first, light on request** (M9): dark is the base, the scoreboard's world of smoked glass, a faint gold and
+blue glow, and white type. Light mode (t118) is white glass on a pale page; the top bar, hero and scoreboard stay
+black in both. The site follows the phone's setting until someone picks Light mode / Dark mode in the avatar menu
+(remembered on that device). An inline script in `index.html` sets `data-theme` on `<html>` before first paint;
+`tokens.css` holds the dark values in `:root` and only the differences under `:root[data-theme='light']`. The
+table below lists the dark values. The team's two colours are fixed by the user: gold and baby blue.
 
 | Token | Value | Role |
 |---|---|---|

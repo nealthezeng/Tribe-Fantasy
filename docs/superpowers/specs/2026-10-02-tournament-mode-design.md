@@ -229,3 +229,10 @@ Gaps found when checking the draft against the code. They fill holes and change 
     "season" (code and DB names keep `stage`). The League tab shows standings even between tournaments. A stage
     stops being the playing stage once its `ends_on` (local date) has passed: no pick block, no Start game.
     Teams with no roster stay in the pairings (question closed). Ships after the Oct 17–18 dry run.
+16. **Games count on verify (2026-10-03, user, board t122).** Testing showed standings and records never moved
+    during a tournament: a game waited for its stats to LOCK (verify + `stat_lock_hours`, 48 h) and held every later
+    game back, so a two-day tournament showed nothing until days later. A game is now `final` as soon as its session
+    is verified; `pending` means finished but not yet verified. The lock still governs reopen (keepers) and
+    corrections (admins); reopening a verified game takes it back to `pending` until it is verified again.
+    Auto-pick history settles at verify time too. Swiss pairing was never affected (it always used provisional
+    standings from every started game). This supersedes "official points come later from locked stats" above.

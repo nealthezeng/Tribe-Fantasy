@@ -1,6 +1,8 @@
-import { useRef } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { errorMessage } from '../lib/errors';
+import { api } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { useInk } from '../lib/useInk';
 
@@ -22,6 +24,14 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
   const onMenuPage = path === '/me' || path.startsWith('/admin');
   const close = () => menu.current?.hidePopover();
   const initial = (name || email || '?').trim().charAt(0).toUpperCase();
+  // index.html set the theme before first paint; this flips it and remembers the choice on this device.
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? 'dark');
+  function flipTheme() {
+    const next = theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('theme', next); } catch { /* storage blocked: lasts until reload */ }
+    setTheme(next);
+  }
   return (
     <div className="account">
       <button className="account-button" popoverTarget="account-menu" aria-label="Account menu"
@@ -36,16 +46,47 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
         <NavLink to="/me" onClick={close}>Me<small>Attendance and injuries</small></NavLink>
         <NavLink to="/rules" onClick={close}>Rules<small>How scoring works</small></NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin<small>Seasons, leagues, athletes</small></NavLink>}
+        <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
       </div>
     </div>
   );
 }
 
+/** First sign-in: a name before anything else, so staff can find (and make keepers of) people outside any league. */
+function NameForm() {
+  const { refresh } = useAuth();
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.setDisplayName(name);
+      await refresh();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="card">
+      <h1>What's your name?</h1>
+      <p className="muted">Teammates and staff see it on the league and stats pages.</p>
+      <form onSubmit={submit}>
+        <label>Your name<input required maxLength={60} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></label>
+        <button disabled={busy}>{busy ? 'Saving…' : 'Save name'}</button>
+      </form>
+      {error && <p className="error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
 export function Layout() {
   const { session, isAdmin, isKeeper, displayName, loading, authError, clearAuthError } = useAuth();
   const path = useLocation().pathname;
-  const onHome = path === '/';
   const tabs = useInk<HTMLElement>(`${path} ${isKeeper} ${Boolean(session)}`);
   return (
     <>
@@ -72,10 +113,7 @@ export function Layout() {
             <button type="button" className="linklike" onClick={clearAuthError}>Dismiss</button>
           </p>
         )}
-        {onHome && !loading && session && !displayName && (
-          <p className="notice">Welcome! <Link to="/join">Set your name and join a league</Link>.</p>
-        )}
-        <Outlet />
+        {!loading && session && !displayName ? <NameForm /> : <Outlet />}
       </main>
     </>
   );

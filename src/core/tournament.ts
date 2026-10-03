@@ -60,7 +60,7 @@ export interface TournamentInput {
 }
 
 /**
- * upcoming: paired, not started. live: started, not finished. pending: waiting on locked stats or an earlier game.
+ * upcoming: paired, not started. live: started, not finished. pending: waiting on verified stats or an earlier game.
  * void: started but its session was deleted (scores nothing, holds nothing back).
  */
 export type GameStatus = 'upcoming' | 'live' | 'pending' | 'final' | 'void';
@@ -97,17 +97,17 @@ const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
  * Tournament mode §2: plays the league's year game by game from league-readable rows. Pure and deterministic.
- * `provisional`: a started game counts as final whatever its stats' lock or whether it has been finished yet
+ * `provisional`: a started game counts as final whether or not its stats are verified or whether it has been finished yet
  * (for pairing only, never shown).
  */
 export function scoreTournaments(input: TournamentInput, opts: { provisional?: boolean } = {}): TournamentResult {
   const s = input.settings;
   const { now } = input;
-  const lockMs = s.stat_lock_hours * 3_600_000;
   const sessions = new Map(input.sessions.map((x) => [x.id, x]));
-  const isLocked = (id: string) => {
+  // A game counts once its stats are verified; the stat lock only governs reopen/corrections (t122).
+  const isVerified = (id: string) => {
     const v = sessions.get(id)?.verifiedAt ?? null;
-    return v !== null && ms(v) + lockMs <= now;
+    return v !== null && ms(v) <= now;
   };
   // Started games in the order they were played, then the ones not started yet.
   const games = [...input.games].sort((a, b) =>
@@ -123,7 +123,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
   const injuredAt = (a: string, at: number) => input.injuries.some(
     (i) => i.athleteId === a && ms(i.confirmedAt) <= at && (i.clearedAt === null || ms(i.clearedAt) > at));
 
-  // Auto-pick history: game scores from games final on their own locked stats, by when they settled (as M6).
+  // Auto-pick history: game scores from games final on their own verified stats, by when they settled (as M6).
   const settled: { settledAt: number; scores: Record<string, number> }[] = [];
   const athletes = [...new Set(input.slots.map((x) => x.athleteId))].sort();
   const historyAsOf = (asOf: number): Record<string, number[]> => {
@@ -168,9 +168,9 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     let status: GameStatus =
       g.startedAt === null ? 'upcoming'
         : sessionGone ? 'void'
-          : isLocked(g.sessionId!) || (opts.provisional && g.startedAt !== null) ? 'final'
+          : isVerified(g.sessionId!) || (opts.provisional && g.startedAt !== null) ? 'final'
             : g.finishedAt === null ? 'live' : 'pending';
-    const ownFinal = status !== 'void' && g.sessionId !== null && isLocked(g.sessionId);
+    const ownFinal = status !== 'void' && g.sessionId !== null && isVerified(g.sessionId);
     if (status === 'final' && blocked) status = 'pending';
     if (status === 'live' || status === 'pending') blocked = true;
 
@@ -200,7 +200,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
       const lines = linesBySession.get(g.sessionId!) ?? [];
       const scores: Record<string, number> = {};
       for (const a of athletes) scores[a] = athleteWeekScore(lines.filter((l) => l.athleteId === a), s);
-      settled.push({ settledAt: ms(sessions.get(g.sessionId!)!.verifiedAt!) + lockMs, scores });
+      settled.push({ settledAt: ms(sessions.get(g.sessionId!)!.verifiedAt!), scores });
     }
 
     const matchups = pairings.map((p) => ({ home: sides.get(p.home)!, away: p.away === null ? null : sides.get(p.away)! }));

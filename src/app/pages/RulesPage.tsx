@@ -117,7 +117,7 @@ export function RulesPage() {
           <p>Game score: <strong>{n(gameScore)}</strong>. If you also started them the game before, it's{' '}
             {n(gameScore)} × {n(tired)} = {n(gameScore * tired)}. The higher score wins the matchup.</p>
         </div>
-        <p className="muted">A session's stats count {S.stat_lock_hours} hours after a stat keeper verifies them.</p>
+        <p className="muted">A game counts as soon as a stat keeper verifies its stats. They can be reopened for {S.stat_lock_hours} hours after that.</p>
       </article>
 
       <article className="card">
@@ -168,8 +168,8 @@ export function RulesPage() {
           <h3>I'm a player. Can I opt out?</h3>
           <p>Yes. Tell a captain before the next auction opens. Players who opt out aren't listed or bid on in the next auction.</p>
           <h3>What if a stat is wrong?</h3>
-          <p>Tell a stat keeper. Sessions can be reopened before they lock, and an admin can correct a locked
-            session. Scores update by themselves.</p>
+          <p>Tell a stat keeper. A game's stats can be reopened for {S.stat_lock_hours} hours after they're verified, and an admin can correct them after
+            that. Scores update by themselves.</p>
         </div>
       </article>
     </section>
