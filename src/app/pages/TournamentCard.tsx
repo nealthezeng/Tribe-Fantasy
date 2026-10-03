@@ -124,7 +124,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
           <ScoreSide label={status === 'upcoming' ? 'Their pick' : 'They played'} y={y}
             athleteId={status === 'upcoming' ? null : them.athleteId} score={final ? them.score : null}
             empty={status === 'upcoming' ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
-          {(status === 'live' || status === 'pending') && <p className="score-note">Scores appear once this game's stats lock.</p>}
+          {(status === 'live' || status === 'pending') && <p className="score-note">Scores appear once this game's stats are verified.</p>}
         </div>
       )}
       {mine && status !== 'upcoming' && <Notice y={y} side={mine} />}
@@ -314,7 +314,7 @@ function GameRow({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome; 
         </span>
       </summary>
       {g.status === 'void' && <p className="muted">This game's tally was deleted, so it doesn't count: no points, and nobody got tired.</p>}
-      {g.status === 'pending' && <p className="muted">Scores appear once this game's stats (and every earlier game's) lock.</p>}
+      {g.status === 'pending' && <p className="muted">Scores appear once this game's stats (and every earlier game's) are verified.</p>}
       {g.status !== 'void' && g.matchups.map((m) => (
         <div key={m.home.membershipId} className="stack">
           <SideDetail y={y} g={g} side={m.home} />

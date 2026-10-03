@@ -119,8 +119,13 @@ describe('scoreTournaments', () => {
     expect(scoreTournaments(live).games.map((g) => g.status)).toEqual(['final', 'live', 'pending']);
 
     const pending = base();
-    pending.sessions = pending.sessions.map((x) => (x.id === 'S1s1' ? { ...x, verifiedAt: iso(NOW - H) } : x));
+    pending.sessions = pending.sessions.map((x) => (x.id === 'S1s1' ? { ...x, verifiedAt: null } : x));
     expect(scoreTournaments(pending).games.map((g) => g.status)).toEqual(['pending', 'pending', 'pending']);
+
+    // Verified counts at once: the stat lock only governs reopen/corrections (t122).
+    const fresh = base();
+    fresh.sessions = fresh.sessions.map((x) => (x.id === 'S1s1' ? { ...x, verifiedAt: iso(NOW - H) } : x));
+    expect(scoreTournaments(fresh).games.map((g) => g.status)).toEqual(['final', 'final', 'final']);
 
     const v = scoreTournaments(base({ games: [game(1), game(2, 'S1', { sessionId: null }), game(3)] }));
     expect(v.games.map((g) => g.status)).toEqual(['final', 'void', 'final']);

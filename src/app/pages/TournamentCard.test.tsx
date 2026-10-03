@@ -127,7 +127,7 @@ describe('TournamentCard', () => {
       expect(screen.getByText('Live')).toBeTruthy();
       expect(scoreboard()?.textContent).toContain('Avery');
       expect(scoreboard()?.textContent).toContain('Quinn'); // revealed: the game has started
-      expect(scoreboard()?.textContent).toContain("Scores appear once this game's stats lock.");
+      expect(scoreboard()?.textContent).toContain("Scores appear once this game's stats are verified.");
     });
 
     it('between tournaments, shows the last final game with the result and the loser greyed', async () => {
@@ -135,7 +135,7 @@ describe('TournamentCard', () => {
       await show({
         ...r,
         stages: [{ ...r.stages[0], ends_on: '2026-11-06' }], // last day passed: nothing to pick
-        // Played and verified days ago, so its stats have locked (stat_lock_hours) and the game is final.
+        // Played and verified, so the game is final.
         games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, started_at: '2026-11-03T14:00:00Z', finished_at: '2026-11-03T15:00:00Z' })),
         pairings: r.pairings.filter((p) => p.game_id === 'g1'),
         sessions: [{ id: 'p1', verified_at: '2026-11-03T16:00:00Z' }],
