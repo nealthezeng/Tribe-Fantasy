@@ -55,7 +55,14 @@ describe('GameControls', () => {
 
   it("waits for this phone's unsaved taps before finishing", async () => {
     state.game = live;
-    render(<GameControls season={season} sessionId="p2" unsaved={3} />);
+    render(<GameControls season={season} sessionId="p2" unsaved={new Map([['p2', 3]])} />);
+    expect((await screen.findByRole('button', { name: 'Finish game 2' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('disables Finish on the session list when this phone has unsaved taps for the live game', async () => {
+    state.game = live;
+    const onOpen = vi.fn();
+    render(<GameControls season={season} onOpen={onOpen} unsaved={new Map([['p2', 2]])} />);
     expect((await screen.findByRole('button', { name: 'Finish game 2' }) as HTMLButtonElement).disabled).toBe(true);
   });
 

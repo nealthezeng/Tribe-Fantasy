@@ -12,12 +12,12 @@ type Preview = Awaited<ReturnType<typeof seasonPairings>>;
  * game's board (and on the list, so a game whose session was deleted can still be finished). Finish shows the next
  * game's pairings first: they're frozen once confirmed.
  */
-export function GameControls({ season, sessionId, unsaved = 0, onOpen }: {
+export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }: {
   season: CurrentSeason;
   /** On a board: show Finish only when this session is the live game's. */
   sessionId?: string;
-  /** Taps still on this phone: they'd be missing from the pairing, so Finish waits for them. */
-  unsaved?: number;
+  /** Unsaved taps per session: Finish waits until taps on this phone for the game's session are saved. */
+  unsaved?: Map<string, number>;
   /** On the session list: open a session's board. */
   onOpen?: (sessionId: string) => void;
 }) {
@@ -52,6 +52,7 @@ export function GameControls({ season, sessionId, unsaved = 0, onOpen }: {
   const { game, stage } = c;
   const n = game.number;
   const live = game.started_at !== null && game.finished_at === null;
+  const waiting = game.session_id ? unsaved.get(game.session_id) ?? 0 : 0;
   if (sessionId !== undefined && !(live && game.session_id === sessionId)) return messages;
 
   const start = () => {
@@ -81,13 +82,13 @@ export function GameControls({ season, sessionId, unsaved = 0, onOpen }: {
         <div className="head">
           <span>
             {game.session_id ? <>Game {n} is live.</> : <>Game {n}'s tally was deleted, so it won't count. Finish it to pair the next game.</>}
-            {unsaved > 0 && <> <small className="muted">Finish waits until your taps are saved.</small></>}
+            {waiting > 0 && <> <small className="muted">Finish waits until your taps are saved.</small></>}
           </span>
           <span className="meta">
             {sessionId === undefined && game.session_id && (
               <button className="secondary" onClick={() => onOpen?.(game.session_id!)}>Tally game {n}</button>
             )}
-            <button disabled={busy || unsaved > 0} onClick={finish}>Finish game {n}</button>
+            <button disabled={busy || waiting > 0} onClick={finish}>Finish game {n}</button>
           </span>
         </div>
       )}
@@ -101,7 +102,7 @@ export function GameControls({ season, sessionId, unsaved = 0, onOpen }: {
             </p>
           ))}
           <div className="row">
-            <button disabled={busy} onClick={() => confirm(preview)}>Finish game {n}</button>
+            <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>Finish game {n}</button>
             <button className="secondary" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
           </div>
         </div>

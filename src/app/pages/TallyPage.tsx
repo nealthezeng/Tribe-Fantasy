@@ -84,7 +84,7 @@ function SessionPicker({ season, keeperId, onPick }: {
   return (
     <section className="page">
       <h1>Tally</h1>
-      <GameControls season={season} onOpen={onPick} />
+      <GameControls season={season} onOpen={onPick} unsaved={unsaved} />
       <div className="card">
         <h2>Open sessions</h2>
         {!sessions.data && !sessions.error && <p className="muted" role="status">Loading…</p>}
@@ -298,7 +298,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
             {queue.length > 0 && !online && <span className="pill warn">Offline · {queue.length} unsaved</span>}
           </span>
         </div>
-        <GameControls season={season} sessionId={sessionId} unsaved={queue.length} />
+        <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length]])} />
       </div>
       {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {closed && !verified && <p className="notice">This session is from an earlier season, so tallying is closed here. Taps already saved on this phone still upload.</p>}
