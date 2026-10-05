@@ -2,7 +2,7 @@
 // newest played game, name games after the opponent.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { as, createUser, rpc } from './helpers';
-import { auctionFixture, bid, grant, member, openAuction, type AuctionFixture } from './auction-fixture';
+import { auctionFixture, bid, closeBids, grant, member, openAuction, runAuction, type AuctionFixture } from './auction-fixture';
 import { makeKeeper, tap } from './stats-fixture';
 
 let f: AuctionFixture;
@@ -43,6 +43,9 @@ describe('delete_stage', () => {
     await grant(f);
     await openAuction(f);
     await bid(f, alice, aliceM, f.athletes[4], 5);
+    await closeBids(f);
+    await runAuction(f); // writes a kind='bid' spending row for the winner
+    expect(await count(`public.credit_ledger where kind = 'bid'`)).toBeGreaterThan(0);
     const g1 = await open();
     const sid = await start(g1);
     await as(f.db, keeper, (tx) => rpc(tx, 'save_taps', {
@@ -50,6 +53,7 @@ describe('delete_stage', () => {
     await finish(g1);
     const before = [await balance(aliceM), await balance(bobM)];
     const ledger = await count('public.credit_ledger');
+    const slotCount = await count('public.roster_slots');
     expect(ledger).toBeGreaterThan(0);
 
     await as(f.db, f.admin, (tx) => rpc(tx, 'delete_stage', { p_stage: f.stage }));
@@ -63,8 +67,9 @@ describe('delete_stage', () => {
     expect(await count('public.bids')).toBe(0);
     expect(await count('public.credit_ledger')).toBe(ledger);
     expect(await count('public.credit_ledger where stage_id is not null')).toBe(0);
+    expect(await count(`public.credit_ledger where kind = 'bid'`)).toBeGreaterThan(0); // spending is not refunded
     expect([await balance(aliceM), await balance(bobM)]).toEqual(before);
-    expect((await audit('delete_stage'))[0].details).toMatchObject({ name: 'Fall beta', games: 2, sessions: 1, slots: 4, bids: 1 });
+    expect((await audit('delete_stage'))[0].details).toMatchObject({ name: 'Fall beta', games: 2, sessions: 1, slots: slotCount, bids: 1, ledger_rows_kept: ledger });
   });
 
   it('is admin-only and needs a real tournament', async () => {

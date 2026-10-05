@@ -101,7 +101,8 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           {form.id && <button type="button" className="secondary" onClick={() => {
             const id = form.id!;
             if (!window.confirm(`Delete ${form.name}? Its games and their stats, rosters and bids are deleted for good. `
-              + 'Credits given or refunded for it stay. Take a backup first if you might want it back.')) return;
+              + 'Credits given, spent or refunded for it stay as they are (spending is not refunded), so granting an allowance '
+              + 'again to a re-created tournament would credit everyone twice. Take a backup first if you might want it back.')) return;
             void run(async () => {
               await api.deleteStage(id);
               setForm(EMPTY);
@@ -168,7 +169,7 @@ interface FinishAudit { entity_id: string; details: { pairings: GamePairing[]; p
 function TournamentControls({ stage, current, seasonId, run }: {
   stage: StageRow; current: boolean; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
 }) {
-  const [checks, setChecks] = useState<string[] | null>(null);
+  const [checks, setChecks] = useState<{ id: string; text: string }[] | null>(null);
   const games = useLoad(async () => {
     const { data, error } = await supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id).order('number');
     if (error) throw error;
@@ -195,10 +196,11 @@ function TournamentControls({ stage, current, seasonId, run }: {
 
   const last = games.data[games.data.length - 1];
   // Undo = reset the newest started game (spec §3): its stats and the next game it created go; it can be replayed.
-  const played = games.data.filter((g) => g.started_at !== null).at(-1);
+  // A past tournament has no Start game, so there is nothing to replay: Undo only on the one that can still be played.
+  const played = current ? games.data.filter((g) => g.started_at !== null).at(-1) : undefined;
   const undo = (g: GameRow) => {
     if (!window.confirm(`Undo game ${g.number} of ${stage.name}? Its stats are deleted, the game after it is unpaired, `
-      + `and game ${g.number} can be started again.`)) return;
+      + `and game ${g.number} can be started again. Take a backup first if you might want it back.`)) return;
     void run(async () => {
       await api.resetGame(g.id);
       games.reload();
@@ -208,12 +210,14 @@ function TournamentControls({ stage, current, seasonId, run }: {
   const number = new Map(games.data.map((g) => [g.id, g.number]));
   const check = () => void run(async () => {
     const { data, error } = await supabase!.from('audit_log').select('entity_id, details')
-      .eq('action', 'finish_game').in('entity_id', games.data!.map((g) => g.id));
+      .eq('action', 'finish_game').in('entity_id', games.data!.map((g) => g.id)).order('at');
     if (error) throw error;
-    const rows = ((data ?? []) as FinishAudit[]).sort((a, b) => number.get(a.entity_id)! - number.get(b.entity_id)!);
-    setChecks(rows.map((r) => `Game ${number.get(r.entity_id)! + 1}: ${checkPairing(r.details)
+    // An undo + replay finishes a game twice: keep only the latest row per game (oldest first, so later ones overwrite).
+    const latest = [...new Map(((data ?? []) as FinishAudit[]).map((r) => [r.entity_id, r])).values()]
+      .sort((a, b) => number.get(a.entity_id)! - number.get(b.entity_id)!);
+    setChecks(latest.map((r) => ({ id: r.entity_id, text: `Game ${number.get(r.entity_id)! + 1}: ${checkPairing(r.details)
       ? 'matches a Swiss re-run of the standings it was made from.'
-      : "doesn't match a Swiss re-run. Look at this finish_game row in the audit log."}`));
+      : "doesn't match a Swiss re-run. Look at this finish_game row in the audit log."}` })));
   });
   return (
     <details className="section">
@@ -230,7 +234,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
         {checks && (
           <ul className="list">
             {checks.length === 0 && <li className="muted">No game has finished yet.</li>}
-            {checks.map((c) => <li key={c}>{c}</li>)}
+            {checks.map((c) => <li key={c.id}>{c.text}</li>)}
           </ul>
         )}
       </div>

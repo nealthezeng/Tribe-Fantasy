@@ -98,5 +98,18 @@ describe('GameControls', () => {
     await waitFor(() => expect(api.setGameOpponent).toHaveBeenCalledWith('g2', 'Duke'));
     expect(await screen.findByText(/Game 2 vs Duke is next/)).toBeTruthy();
     expect((screen.getByLabelText('Opponent') as HTMLInputElement).value).toBe('Duke');
+    expect((screen.getByRole('button', { name: 'Save opponent' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("drops an unsaved opponent draft when the game changes underneath it", async () => {
+    state.game = upcoming;
+    vi.mocked(api.startGame).mockRejectedValue({ message: 'GAME_STARTED' });
+    render(<GameControls season={season} onOpen={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText('Opponent'), { target: { value: 'Duke' } });
+    state.game = { ...upcoming, id: 'g3', number: 3, opponent: 'Pitt' }; // another keeper finished game 2
+    fireEvent.click(screen.getByRole('button', { name: 'Start game 2' })); // any action reloads the game
+    expect(await screen.findByText(/Game 3 vs Pitt is next/)).toBeTruthy();
+    expect((screen.getByLabelText('Opponent') as HTMLInputElement).value).toBe('Pitt');
+    expect((screen.getByRole('button', { name: 'Save opponent' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

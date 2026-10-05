@@ -26,7 +26,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [opponent, setOpponent] = useState<string | null>(null); // being edited; null = show the saved name
+  const [edit, setEdit] = useState<{ id: string; text: string } | null>(null); // unsaved opponent text, tied to its game
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -51,6 +51,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const c = current.data;
   if (!c) return messages;
   const { game, stage } = c;
+  const opponent = edit?.id === game.id ? edit.text : null; // null = show the saved name; a draft never carries to another game
   const n = game.number;
   const live = game.started_at !== null && game.finished_at === null;
   const title = game.opponent ? `Game ${n} vs ${game.opponent}` : `Game ${n}`;
@@ -75,7 +76,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
     e.preventDefault();
     void run(async () => {
       await api.setGameOpponent(game.id, opponent ?? '');
-      setOpponent(null);
+      setEdit(null);
     });
   };
 
@@ -105,7 +106,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
       {sessionId === undefined && !preview && (
         <form className="row" onSubmit={nameOpponent}>
           <label>Opponent<input maxLength={40} placeholder="e.g. Duke" value={opponent ?? game.opponent ?? ''}
-            onChange={(e) => setOpponent(e.target.value)} /></label>
+            onChange={(e) => setEdit({ id: game.id, text: e.target.value })} /></label>
           <button className="secondary" disabled={busy || opponent === null}>Save opponent</button>
         </form>
       )}

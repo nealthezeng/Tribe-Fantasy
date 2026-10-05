@@ -72,12 +72,14 @@ begin
 end $$;
 
 -- §2 Deleting a tournament keeps its credits: allowance, refund and adjustment rows lose their stage link instead.
+-- Deleting a tournament keeps EVERY ledger row (allowances, auction spending, refunds, adjustments) with stage_id
+-- nulled, so no balance moves: spending is not refunded.
 alter table public.credit_ledger drop constraint credit_ledger_stage_id_fkey;
 alter table public.credit_ledger add constraint credit_ledger_stage_id_fkey
   foreign key (stage_id) references public.stages (id) on delete set null;
 
 -- Admin: a tournament and everything played in it (games and their stats sessions, picks, bench swaps, bids,
--- rosters). Ledger rows stay, so no balance moves.
+-- rosters). All ledger rows stay (allowances, auction spending, refunds, adjustments), so no balance moves.
 create function public.delete_stage(p_stage uuid) returns void
 language plpgsql security definer set search_path = '' as $$
 declare st public.stages; sids uuid[]; counts jsonb;
@@ -85,6 +87,7 @@ begin
   perform private.require_admin();
   select * into st from public.stages where id = p_stage for update;
   if not found then raise exception 'NOT_FOUND'; end if;
+  perform 1 from public.games where stage_id = p_stage order by number for update; -- a concurrent start_game can't slip a session in after sids
   select coalesce(array_agg(session_id), '{}') into sids from public.games where stage_id = p_stage and session_id is not null;
   counts := jsonb_build_object(
     'games', (select count(*) from public.games where stage_id = p_stage),
@@ -108,6 +111,7 @@ begin
   select * into g from public.games where id = p_game for update;
   if not found then raise exception 'NOT_FOUND'; end if;
   if g.started_at is null then raise exception 'GAME_NOT_STARTED'; end if;
+  perform 1 from public.games where stage_id = g.stage_id order by number for update; -- lock the siblings so start_game(N+1) can't commit mid-reset
   if exists (select 1 from public.games where stage_id = g.stage_id and number > g.number and started_at is not null) then
     raise exception 'NOT_LATEST_GAME';
   end if;
