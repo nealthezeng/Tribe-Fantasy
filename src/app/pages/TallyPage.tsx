@@ -83,6 +83,7 @@ interface InjuryRow { id: string; athlete_id: string; confirmed_at: string | nul
 function TallyBoard({ season, sessionId, keeperId, onBack }: {
   season: CurrentSeason; sessionId: string; keeperId: string; onBack: () => void;
 }) {
+  const { isAdmin } = useAuth();
   const [queue, setQueue] = useState<QueuedTap[]>(() => loadQueue(keeperId, sessionId));
   // Saved batches until the reload shows them, so counts and hold-to-subtract don't skip them meanwhile.
   const [sent, setSent] = useState<QueuedTap[]>([]);
@@ -106,7 +107,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
       supabase!.from('attendance').select('athlete_id, status').eq('session_id', sessionId),
       supabase!.from('injuries').select('id, athlete_id, confirmed_at').is('cleared_at', null),
-      loadOwnedAthletes(keeperId, seasonId).catch(() => new Set<string>()), // the server still refuses taps on these (OWNS_ATHLETE)
+      // The server refuses a keeper's taps on their own players (OWNS_ATHLETE); admins may tally anyone (t120).
+      isAdmin ? new Set<string>() : loadOwnedAthletes(keeperId, seasonId).catch(() => new Set<string>()),
     ]);
     for (const r of [athletes, taps, attendance, injuries]) if (r.error) throw r.error;
     return {
@@ -117,7 +119,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       injuries: (injuries.data ?? []) as InjuryRow[],
       owned,
     };
-  }, [sessionId, keeperId]);
+  }, [sessionId, keeperId, isAdmin]);
   const reload = data.reload;
 
   useEffect(() => {

@@ -98,6 +98,16 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           <label>Event<input maxLength={60} value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
           <button>{form.id ? 'Save tournament' : 'Add tournament'}</button>
           {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
+          {form.id && <button type="button" className="secondary" onClick={() => {
+            const id = form.id!;
+            if (!window.confirm(`Delete ${form.name}? Its games and their stats, rosters and bids are deleted for good. `
+              + 'Credits given or refunded for it stay. Take a backup first if you might want it back.')) return;
+            void run(async () => {
+              await api.deleteStage(id);
+              setForm(EMPTY);
+              return `${form.name} deleted.`;
+            });
+          }}>Delete tournament</button>}
         </form>
       </details>
       {status && <p className="success" role="status">{status}</p>}
@@ -184,6 +194,17 @@ function TournamentControls({ stage, current, seasonId, run }: {
   }
 
   const last = games.data[games.data.length - 1];
+  // Undo = reset the newest started game (spec §3): its stats and the next game it created go; it can be replayed.
+  const played = games.data.filter((g) => g.started_at !== null).at(-1);
+  const undo = (g: GameRow) => {
+    if (!window.confirm(`Undo game ${g.number} of ${stage.name}? Its stats are deleted, the game after it is unpaired, `
+      + `and game ${g.number} can be started again.`)) return;
+    void run(async () => {
+      await api.resetGame(g.id);
+      games.reload();
+      return `${stage.name}: game ${g.number} undone. Keepers can start it again on the Tally tab.`;
+    });
+  };
   const number = new Map(games.data.map((g) => [g.id, g.number]));
   const check = () => void run(async () => {
     const { data, error } = await supabase!.from('audit_log').select('entity_id, details')
@@ -202,7 +223,10 @@ function TournamentControls({ stage, current, seasonId, run }: {
           Game 1 was paired when the tournament opened. Each later pairing came from the phone that finished the game
           before it. Check re-runs the Swiss step on the standings that phone sent; the audit log has those standings.
         </p>
-        <button className="secondary" onClick={check}>Check pairings</button>
+        <div className="row">
+          <button className="secondary" onClick={check}>Check pairings</button>
+          {played && <button className="secondary" onClick={() => undo(played)}>Undo game {played.number}</button>}
+        </div>
         {checks && (
           <ul className="list">
             {checks.length === 0 && <li className="muted">No game has finished yet.</li>}
