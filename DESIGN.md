@@ -113,6 +113,7 @@ Player-facing glossary (clarify pass, board t115): a **season** is the league ye
 game, "Game 3 · Fall Beta", with the date as small text; only older practice sessions fall back to date · kind.
 Buttons say the action and its object ("Save settings", "Change close time", "Reopen tally", "Delete these stats").
 Errors say what happened and what to do; an unknown error shows its code only in brackets after that.
+**Opponent**: the real team our team plays in a game; players see "vs Duke", staff see "Game 2 vs Duke"; unnamed games stay "Game 2".
 
 ## Components
 
