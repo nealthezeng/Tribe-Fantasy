@@ -8,6 +8,8 @@ import { TournamentCard } from './TournamentCard';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
+import team800 from '../assets/team-800.jpg';
+import team1600 from '../assets/team-1600.jpg';
 
 interface MembershipRow {
   id: string;
@@ -36,6 +38,11 @@ export function HomePage() {
     return (
       <section className="hero">
         <DiscMark size={168} className="hero-disc" />
+        <figure className="hero-photo">
+          <img src={team1600} srcSet={`${team800} 800w, ${team1600} 1600w`} sizes="(max-width: 600px) 100vw, 720px"
+            width={1600} height={471} alt="The team on the field after a tournament, with family, friends and alumni" />
+          <figcaption>Thank you to the families, friends and alumni who came out to cheer us on and squeezed into this photo.</figcaption>
+        </figure>
         <h1>Tribe Fantasy</h1>
         <p>A fantasy league for our team. Every dollar goes to the team fund.</p>
         <div className="row">

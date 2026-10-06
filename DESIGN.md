@@ -180,7 +180,9 @@ Errors say what happened and what to do; an unknown error shows its code only in
   collapsed `details.section`; Edit opens the tournament form.
 - **`.more`**: a secondary way on, an underlined text link with a drawn chevron that nudges right on hover.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
-  gold call to action, the large disc behind.
+  gold call to action, the large disc behind. On top, `.hero-photo` (t94): the team photo with family, friends and
+  alumni, cropped to the people (`src/app/assets/team-800.jpg` / `team-1600.jpg`, srcset), bleeding to the panel's
+  edges with its sky and grass masked into the dark, and a one-line thank-you caption under it.
 - **Tables** (`.table-wrap`): 14px tabular figures, right-aligned numbers, first column left, divider rows.
 
 ## Tally board
