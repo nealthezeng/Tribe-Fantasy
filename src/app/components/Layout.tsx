@@ -43,7 +43,7 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
           <strong>{name || 'No name yet'}</strong>
           <small>{email}</small>
         </p>
-        <NavLink to="/me" onClick={close}>Me<small>Attendance and injuries</small></NavLink>
+        <NavLink to="/me" onClick={close}>Me<small>Emails, attendance, injuries</small></NavLink>
         <NavLink to="/rules" onClick={close}>Rules<small>How scoring works</small></NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin<small>Seasons, leagues, athletes</small></NavLink>}
         <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>

@@ -11,6 +11,7 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 
 export const api = {
   setDisplayName: (name: string) => call<void>('set_display_name', { p_name: name }),
+  setNotifyEmail: (on: boolean) => call<void>('set_notify_email', { p_on: on }),
   joinLeague: (code: string, teamName: string) => call<string>('join_league', { p_code: code, p_team_name: teamName }),
   createSeason: (name: string, settings: object) => call<string>('create_season', { p_name: name, p_settings: settings }),
   updateSeasonSettings: (seasonId: string, settings: object) =>

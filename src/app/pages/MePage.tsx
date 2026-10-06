@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
+import { EmailReminders } from './EmailReminders';
 import { api } from '../lib/rpc';
 import { gameTitles, SESSION_COLUMNS, sessionState, titleOf, todayLocal, type SessionRow } from '../lib/stats';
 import { parseSettings } from '../../core/settings';
@@ -18,7 +19,7 @@ interface MeData {
   injury: { confirmed_at: string | null } | null;
 }
 
-/** A player's own page: attendance for the last week of games, and injury reports. */
+/** Your own page: email reminders for everyone; attendance and injury reports for linked players. */
 export function MePage() {
   const { session, loading } = useAuth();
   const uid = session?.user.id;
@@ -65,9 +66,12 @@ export function MePage() {
   if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) {
     return (
-      <section className="card">
+      <section className="page">
         <h1>Me</h1>
-        <p>Your account isn't linked to a player yet. Ask an admin to link it.</p>
+        <EmailReminders uid={uid!} />
+        <div className="card">
+          <p>Your account isn't linked to a player yet. Ask an admin to link it.</p>
+        </div>
       </section>
     );
   }
@@ -76,6 +80,7 @@ export function MePage() {
     <section className="page">
       <h1>{athlete.name}</h1>
       {error && <p className="error" role="alert">{error}</p>}
+      <EmailReminders uid={uid!} />
       <div className="card">
         <div className="head">
           <h2>Injury</h2>

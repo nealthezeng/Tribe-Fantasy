@@ -167,6 +167,9 @@ export function RulesPage() {
             see your credit balance. Other teams can't see your pick until the game starts.</p>
           <h3>I'm a player. Can I opt out?</h3>
           <p>Yes. Tell a captain before the next auction opens. Players who opt out aren't listed or bid on in the next auction.</p>
+          <h3>Will I get emails?</h3>
+          <p>Yes: 24 hours and 2 hours before bidding closes, and when it's time to pick your player for the next
+            game. Turn them off on the Me page.</p>
           <h3>What if a stat is wrong?</h3>
           <p>Tell a stat keeper. A game's stats can be reopened for {S.stat_lock_hours} hours after they're verified, and an admin can correct them after
             that. Scores update by themselves.</p>
