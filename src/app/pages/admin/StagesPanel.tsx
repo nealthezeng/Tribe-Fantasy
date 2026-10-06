@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Loading } from '../../components/Loading';
-import { auctionPhase, formatWhen, pickAuctionStage } from '../../lib/auction';
+import { auctionPhase, formatWhen, pickPlayingStage } from '../../lib/auction';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
-import { formatDay } from '../../lib/stats';
+import { formatDay, todayLocal } from '../../lib/stats';
 import { useLoad } from '../../lib/useLoad';
 import {
   checkPairing, describePairings, GAME_COLUMNS, seasonPairings, seasonRanks, type GameRow, type GamePairing, type LeaguePairingInput,
@@ -48,7 +48,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
     });
   }
 
-  const current = pickAuctionStage(stages.data ?? []);
+  const current = pickPlayingStage(stages.data ?? [], todayLocal());
   const set = (key: keyof typeof EMPTY) => (e: { target: { value: string } }) => setForm({ ...form, [key]: e.target.value });
 
   return (

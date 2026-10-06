@@ -33,13 +33,13 @@ afterEach(() => {
   db.games = [];
   db.audit_log = [];
 });
-const stage = (id: string, starts_on: string, bid_close_at: string) => (
-  { id, name: id, starts_on, ends_on: '2027-12-31', bid_close_at, auction_run_at: bid_close_at }
+const stage = (id: string, starts_on: string, bid_close_at: string, ends_on = '2027-12-31') => (
+  { id, name: id, starts_on, ends_on, bid_close_at, auction_run_at: bid_close_at }
 );
 
 describe('StagesPanel', () => {
   it('offers Open tournament only on the current stage', async () => {
-    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z'), stage('Spring', '2027-02-01', '2027-02-10T00:00:00Z')];
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z', '2026-09-10'), stage('Spring', '2027-02-01', '2027-02-10T00:00:00Z')];
     render(<StagesPanel seasonId="se1" />);
     const buttons = await screen.findAllByRole('button', { name: 'Open tournament' });
     expect(buttons).toHaveLength(1);
@@ -58,7 +58,7 @@ describe('StagesPanel', () => {
   });
 
   it('offers no Undo on a past tournament', async () => {
-    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z'), stage('Spring', '2027-02-01', '2027-02-10T00:00:00Z')];
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z', '2026-09-10'), stage('Spring', '2027-02-01', '2027-02-10T00:00:00Z')];
     db.games = [{ id: 'g1', stage_id: 'Fall', number: 1, session_id: null, started_at: '2026-11-07T14:00:00Z', finished_at: null, opponent: null }];
     render(<StagesPanel seasonId="se1" />);
     await screen.findAllByText('Fall');

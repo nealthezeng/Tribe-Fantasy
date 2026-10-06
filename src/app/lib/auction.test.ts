@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { auctionPhase, ownershipStages, pickAuctionStage, timeLeft, type AuctionStage } from './auction';
+import { auctionPhase, ownershipStages, pickAuctionStage, pickPlayingStage, timeLeft, type AuctionStage } from './auction';
 
 const now = Date.parse('2026-10-18T12:00:00Z');
 
@@ -37,6 +37,31 @@ describe('pickAuctionStage', () => {
   it('falls back to the latest stage before any auction opens, and to null with no stages', () => {
     expect(pickAuctionStage([stage('a', '2026-10-18', null), stage('b', '2027-02-01', null)])?.id).toBe('b');
     expect(pickAuctionStage([])).toBeNull();
+  });
+});
+
+describe('pickPlayingStage', () => {
+  const st = (id: string, starts_on: string, ends_on: string, run: boolean, bid_close_at: string | null = null) =>
+    ({ id, starts_on, ends_on, bid_close_at, auction_run_at: run ? '2026-10-01T00:00:00Z' : null });
+  const dryRun = st('dry', '2026-10-17', '2026-10-18', true, '2026-10-16T20:00:00Z');
+  const fallOpen = st('fall', '2026-11-07', '2026-11-08', false, '2026-11-03T02:00:00Z');
+
+  it('plays an auctioned stage while a later-closing auction is still taking bids (t212)', () => {
+    expect(pickAuctionStage([dryRun, fallOpen])?.id).toBe('fall');
+    expect(pickPlayingStage([dryRun, fallOpen], '2026-10-16')?.id).toBe('dry');
+    expect(pickPlayingStage([dryRun, fallOpen], '2026-10-18')?.id).toBe('dry');
+  });
+
+  it('moves to the next auctioned stage once the earlier one is over, and keeps the last one after that', () => {
+    const fallRun = { ...fallOpen, auction_run_at: '2026-11-03T03:00:00Z' };
+    expect(pickPlayingStage([fallRun, dryRun], '2026-10-18')?.id).toBe('dry');
+    expect(pickPlayingStage([fallRun, dryRun], '2026-10-19')?.id).toBe('fall');
+    expect(pickPlayingStage([fallRun, dryRun], '2026-11-20')?.id).toBe('fall');
+  });
+
+  it('is null until some auction has run', () => {
+    expect(pickPlayingStage([fallOpen], '2026-10-16')).toBeNull();
+    expect(pickPlayingStage([], '2026-10-16')).toBeNull();
   });
 });
 

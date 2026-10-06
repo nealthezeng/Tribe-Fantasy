@@ -70,9 +70,10 @@ describe('toTournamentInput', () => {
     expect(input.statLines).toEqual([{ sessionId: 'p1', athleteId: 'b1', stats: { goal: 1, block: 1 }, pointsPlayed: 0 }]);
   });
 
-  it('has no current stage while the newest auction has not run', () => {
-    const next = { ...stage, id: 'S2', starts_on: '2026-11-20', bid_close_at: '2026-11-25T00:00:00+00:00', auction_run_at: null };
-    expect(toTournamentInput({ ...rows, stages: [stage, next] }, 123).currentStageId).toBeNull();
+  it('keeps the current tournament while the next auction takes bids (t212)', () => {
+    const next = { ...stage, id: 'S2', starts_on: '2026-11-20', ends_on: '2026-11-22', bid_close_at: '2026-11-25T00:00:00+00:00', auction_run_at: null };
+    expect(toTournamentInput({ ...rows, stages: [stage, next] }, Date.parse('2026-11-07T12:00:00')).currentStageId).toBe('S1');
+    expect(toTournamentInput({ ...rows, stages: [stage, next] }, Date.parse('2026-11-16T12:00:00')).currentStageId).toBeNull();
   });
 
   it("has no current stage once the tournament's last day has passed (T4)", () => {
@@ -162,6 +163,16 @@ describe('loadCurrentGame', () => {
     mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
     expect(result).toBeNull();
+  });
+
+  it('starts an auctioned tournament while a later one is still taking bids (t212)', async () => {
+    const dry = { ...baseStage, id: 'D', starts_on: '2026-10-17', ends_on: '2026-10-18', bid_close_at: '2026-10-16T20:00:00+00:00' };
+    const open = { ...baseStage, starts_on: '2026-11-07', ends_on: '2026-11-08', auction_run_at: null };
+    mockStages = [open, dry];
+    mockGames = [{ id: 'd1', stage_id: 'D', number: 1, session_id: null, started_at: null, finished_at: null, opponent: null }];
+    const result = await loadCurrentGame('se', Date.parse('2026-10-17T12:00:00'));
+    expect(result?.stage.id).toBe('D');
+    expect(result?.game.id).toBe('d1');
   });
 
   it('returns the next game to start on the last day', async () => {

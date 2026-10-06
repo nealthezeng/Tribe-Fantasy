@@ -19,6 +19,13 @@ export function pickAuctionStage<T extends Pick<AuctionStage, 'bid_close_at' | '
   return opened[0] ?? [...stages].sort((a, b) => b.starts_on.localeCompare(a.starts_on))[0] ?? null;
 }
 
+/** The tournament being played: the earliest auctioned stage whose last day hasn't passed; else the latest auctioned
+ * one (so a game still live after the last day can be finished). Opening a later stage's auction never hides it. */
+export function pickPlayingStage<T extends Pick<AuctionStage, 'starts_on' | 'ends_on' | 'auction_run_at'>>(stages: T[], today: string): T | null {
+  const run = stages.filter((s) => s.auction_run_at).sort((a, b) => a.starts_on.localeCompare(b.starts_on));
+  return run.find((s) => s.ends_on >= today) ?? run.at(-1) ?? null;
+}
+
 export interface BidRow { membership_id: string; athlete_id: string; amount: number }
 export interface SlotRow { membership_id: string; athlete_id: string; price: number; via: 'bid' | 'fill' }
 

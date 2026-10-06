@@ -4,7 +4,7 @@ import {
   liveStatLines, pairingInputs, scoreTournaments, type TournamentInput, type TournamentResult,
 } from '../../core/tournament';
 import { rowToTap, type StatTapRow } from '../tally/queue';
-import { AUCTION_STAGE_COLUMNS, pickAuctionStage, type AuctionStage } from './auction';
+import { AUCTION_STAGE_COLUMNS, pickPlayingStage, type AuctionStage } from './auction';
 import { todayLocal } from './stats';
 import { supabase } from './supabase';
 
@@ -42,8 +42,9 @@ export interface TournamentRows {
 
 /** The stage picks and Start game are for: its auction has run and its last day hasn't passed. Else none. */
 function playingStage(stages: AuctionStage[], now: number): AuctionStage | null {
-  const s = pickAuctionStage(stages);
-  return s?.auction_run_at && todayLocal(new Date(now)) <= s.ends_on ? s : null;
+  const today = todayLocal(new Date(now));
+  const s = pickPlayingStage(stages, today);
+  return s && today <= s.ends_on ? s : null;
 }
 
 export function toTournamentInput(rows: TournamentRows, now: number): TournamentInput {
@@ -204,8 +205,9 @@ export async function seasonPairings(seasonId: string, now = Date.now()): Promis
  * stage's last day only a live game is returned, so it can still be finished; Start game is gone.
  */
 export async function loadCurrentGame(seasonId: string, now = Date.now()): Promise<{ stage: AuctionStage; game: GameRow } | null> {
-  const stage = pickAuctionStage(await rowsOf<AuctionStage>(supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)));
-  if (!stage?.auction_run_at) return null;
+  const stages = await rowsOf<AuctionStage>(supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId));
+  const stage = pickPlayingStage(stages, todayLocal(new Date(now)));
+  if (!stage) return null;
   const [game] = await rowsOf<GameRow>(supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id)
     .order('number', { ascending: false }).limit(1));
   if (!game) return null;
