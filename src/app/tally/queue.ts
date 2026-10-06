@@ -74,9 +74,12 @@ export function removeSent(queue: QueuedTap[], sent: QueuedTap[]): QueuedTap[] {
   return queue.filter((t) => !ids.has(t.id));
 }
 
+/** The server's error code, e.g. 'NOT_FOUND'. */
+export const errorCode = (err: unknown): string =>
+  (typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : String(err)).trim();
+
 export function isRejection(err: unknown): boolean {
-  const msg = typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : String(err);
-  return REJECTIONS.includes(msg.trim());
+  return REJECTIONS.includes(errorCode(err));
 }
 
 /**
@@ -88,7 +91,7 @@ export function notFoundDrop(batch: QueuedTap[], sessionExists: boolean, athlete
   { drop: QueuedTap[]; message: string | null } {
   if (!sessionExists) return { drop: batch, message: 'an admin undid or deleted this game.' };
   const drop = batch.filter((t) => !athleteIds.has(t.athlete_id));
-  return drop.length > 0 ? { drop, message: 'they were for a player an admin deleted.' } : { drop: batch, message: null };
+  return drop.length > 0 ? { drop, message: 'the player was deleted by an admin.' } : { drop: batch, message: null };
 }
 
 export const rowToTap = (r: StatTapRow): Tap => ({

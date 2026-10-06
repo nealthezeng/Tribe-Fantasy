@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { GameControls } from './GameControls';
 import {
-  BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, notFoundDrop, queuedSessions, queuedToTap, removeSent,
+  BATCH_MAX, canForgetLocally, errorCode, isRejection, lastUndoable, loadQueue, notFoundDrop, queuedSessions, queuedToTap, removeSent,
   rowToTap, storeQueue, subtractHint, unsavedTaps,
   type QueuedTap, type StatTapRow,
 } from '../tally/queue';
@@ -143,7 +143,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       if (isRejection(err)) {
         let drop = batch;
         let message = errorMessage(err);
-        if (String((err as { message?: string }).message).trim() === 'NOT_FOUND') {
+        if (errorCode(err) === 'NOT_FOUND') {
           const ids = [...new Set(batch.map((t) => t.athlete_id))];
           const [sess, found] = await Promise.all([
             supabase!.from('sessions').select('id').eq('id', sessionId),
@@ -156,7 +156,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
         }
         storeQueue(keeperId, sessionId, removeSent(loadQueue(keeperId, sessionId), drop));
         setQueue((q) => removeSent(q, drop));
-        setRejected((r) => ({ count: (r?.count ?? 0) + drop.length, message }));
+        // A different reason replaces the banner rather than adding to a count it doesn't explain.
+        setRejected((r) => ({ count: (r?.message === message ? r.count : 0) + drop.length, message }));
         reload(); // e.g. SESSION_VERIFIED: show the board as closed
       }
       // Anything else (no signal, timeout): keep the taps and retry.

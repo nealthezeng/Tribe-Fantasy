@@ -145,7 +145,7 @@ describe('notFoundDrop (t203)', () => {
   it("drops only a deleted player's taps, so the rest still save", () => {
     const r = notFoundDrop(batch, true, new Set(['a', 'b']));
     expect(r.drop.map((t) => t.id)).toEqual(['2', '4']);
-    expect(r.message).toContain('player an admin deleted');
+    expect(r.message).toContain('player was deleted by an admin');
   });
 
   it('drops the whole batch when the game itself is gone', () => {
