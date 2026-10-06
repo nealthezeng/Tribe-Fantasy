@@ -67,7 +67,7 @@ Two faces, both from Google Fonts in `index.html` (`display=swap`):
 
 Font tokens: `--font-sans` (Archivo stack), `--font-heading` (points at `--font-sans`) with `--heading-stretch`
 92% so headings and the brand use a slightly condensed cut, and `--font-mono` only for `code`, the settings
-textarea and `.code` (invite codes). Weights come from four tokens: `--fw-regular` 400 (body), `--fw-medium` 500,
+textarea and `.code` (sign-in codes). Weights come from four tokens: `--fw-regular` 400 (body), `--fw-medium` 500,
 `--fw-semi` 600 (buttons, labels, pills, row titles) and `--fw-bold` 700 (`h2`, `h3`).
 Condensed headings take no negative letter-spacing; it closes the word gaps. To swap the font, change the link in
 `index.html` and the font lines in `tokens.css`.
@@ -86,7 +86,7 @@ Condensed headings take no negative letter-spacing; it closes the word gaps. To 
 
 Body line height 1.5, headings 1.2 and balanced. Numbers that line up use `.num` or tabular figures.
 Smaller steps for single components are tokens too: `--fs-3xs` 11px (tally weights), `--fs-2xs` 12px (tally
-labels), `--fs-lead` 18px (brand, hero text, invite codes, tally player names), `--fs-count` 24px (tally counts).
+labels), `--fs-lead` 18px (brand, hero text, sign-in codes, tally player names), `--fs-count` 24px (tally counts).
 `src/app/tokens.test.ts` fails if `styles.css` gains a colour, font size, font family, radius or duration literal.
 
 ## Space and shape

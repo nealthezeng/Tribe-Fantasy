@@ -199,3 +199,13 @@ Stop all email at any time: `select cron.unschedule('notify');`. If the pick tri
 2. Deploy (merge + push): Admin → Seasons gets "Rename or delete <season>" for the season being managed. Delete
    unlocks once the season's name is typed, removes everything in the season, and is refused for a season with
    donation records. Download a backup first. Deleting the newest season moves everyone to the next newest.
+
+## Open leagues (t215, after 0018)
+
+1. SQL Editor: paste and run `supabase/migrations/0019_open_leagues.sql`. It adds `leagues.created_by`, a private
+   password table and six RPCs (`list_leagues`, `create_my_league`, `join_open_league`, `rename_league`,
+   `set_league_password`, `delete_league`); the old invite-code functions stay. Paste it BEFORE the deploy: the new
+   build calls `list_leagues` on Home.
+2. Deploy (merge + push): Home offers Join a league (`/leagues`, searchable, "N of M teams") and Create a league
+   (`/leagues/new`, public or password). One created league per person per season (admins exempt). The creator
+   manages it from Home; Admin → Leagues lists every league with Delete (refused when it has donation records).

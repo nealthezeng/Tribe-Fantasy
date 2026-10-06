@@ -64,7 +64,7 @@
   --button-case: uppercase;
   --button-track: 0.06em;
   --track-label: 0.06em;  /* small caps labels like LIVE */
-  --track-code: 0.08em;   /* invite codes */
+  --track-code: 0.08em;   /* sign-in codes */
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --fw-regular: 400;
   --fw-medium: 500;
@@ -77,7 +77,7 @@
   --fs-xs: 13px;
   --fs-sm: 14px;
   --fs-md: 16px;
-  --fs-lead: 18px;  /* brand, hero text, invite codes, tally player names */
+  --fs-lead: 18px;  /* brand, hero text, sign-in codes, tally player names */
   --fs-lg: 20px;
   --fs-count: 24px; /* tally counts */
   --fs-brand: 24px;   /* display face */

@@ -11,7 +11,7 @@ web
 - **Managers**: members of the college ultimate team who buy credits, bid on teammates ("athletes") in a tournament auction, and manage a fantasy roster across the season.
 - **Athletes**: team members who opt in to be draftable; their tournament game stats drive fantasy scoring.
 - **Stat keepers / coaches**: tap in live stats (goals, assists, blocks, callahans, turnovers) during tournament games via a big-button tally screen; cannot record or verify their own athletes.
-- **Admins**: run seasons/tournaments, settings, invite codes, leagues, and confirmed-donation bookkeeping (treasurer role).
+- **Admins**: run seasons/tournaments, settings, deleting leagues, and confirmed-donation bookkeeping (treasurer role).
 - **League viewers**: see stat lines once verified and league standings.
 
 ## Product Purpose

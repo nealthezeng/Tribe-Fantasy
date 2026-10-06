@@ -1,6 +1,6 @@
 # Open leagues — design
 
-Date: 2026-10-06 · Status: AWAITING USER REVIEW · Board: t215+ · Migration: 0019 · Tag: m11-leagues
+Date: 2026-10-06 · Status: APPROVED 2026-10-06 · Board: t215+ · Migration: 0019 · Tag: m11-leagues
 
 ## 1. Goal
 
@@ -112,3 +112,19 @@ Rules:
 User pastes 0019 into tribe-dev FIRST (the new build calls `list_leagues`), anon probe (42501 on
 the new RPCs), then merge + push with OK, tag `m11-leagues`, board tasks done, graph refresh,
 remove worktree `Tribe-Fantasy-leagues`.
+
+## 8. Amendments (planning, 2026-10-06)
+
+1. **Admins also get Manage league on Home** for any league they're in, not only creators: leagues made before
+   0019 (the live League A) have no creator and would otherwise be public with no way to add a password. An admin
+   sees "Delete it from Admin → Leagues." instead of the creator's delete rule.
+2. **Delete confirms with `window.confirm`** (like tournaments and athletes), not a typed name.
+3. **Admin → Leagues shows creator and teams, not Public/Password**: admins can't read `private.league_passwords`
+   and `list_leagues` covers only the current season; the panel works for any selected season.
+4. **Home's Create a league link** hides once `list_leagues` shows you created one (admins always see it). The
+   Get started card is plain links and has no unit test.
+5. **Removed**: `JoinPage.tsx`, `lib/codes.ts`, the invite-code error messages (`INVALID_INVITE`,
+   `INVALID_INVITE_SETTINGS`, `INVALID_CODE`, `CODE_TAKEN`); `/join` redirects to `/leagues`.
+6. **Locked leagues show a "Password" pill**, no lock icon (text is clearer and needs no new asset).
+7. **Tests**: PGlite loads `@electric-sql/pglite/contrib/pgcrypto`; the shim creates schema `extensions`.
+   `list_leagues` is in the gate's read-only list (it writes nothing).

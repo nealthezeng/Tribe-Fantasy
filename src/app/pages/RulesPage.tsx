@@ -50,6 +50,8 @@ export function RulesPage() {
         <ul>
           <li>The league runs all season, and the season is split into <strong>tournaments</strong>, the events our
             team plays.</li>
+          <li>Anyone can create a league, open to all or with a password, or join one from the list. You can create one
+            league a season.</li>
           <li>Each league has up to {S.max_members} teams. Every game our team plays at a tournament, every fantasy
             team plays one head-to-head matchup. Standings never reset between tournaments.</li>
           <li>Rosters are rebuilt for every tournament in a fresh auction. Each roster holds {S.roster_size} players:{' '}
