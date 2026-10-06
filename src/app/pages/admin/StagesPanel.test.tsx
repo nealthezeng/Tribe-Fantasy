@@ -34,7 +34,7 @@ afterEach(() => {
   db.audit_log = [];
 });
 const stage = (id: string, starts_on: string, bid_close_at: string) => (
-  { id, name: id, starts_on, ends_on: '2027-12-31', tournament: null, bid_close_at, auction_run_at: bid_close_at }
+  { id, name: id, starts_on, ends_on: '2027-12-31', bid_close_at, auction_run_at: bid_close_at }
 );
 
 describe('StagesPanel', () => {

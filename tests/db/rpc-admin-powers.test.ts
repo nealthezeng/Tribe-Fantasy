@@ -86,8 +86,8 @@ describe('delete_stage', () => {
     expect(await balance(aliceM)).toBe(before + 20);
   });
 
-  it('refunds nothing when no one bought a player (t125)', async () => {
-    await f.db.query('delete from public.roster_slots');
+  it('refunds nothing, and still deletes, when every player was a free fill (t125)', async () => {
+    await f.db.query(`update public.roster_slots set price = 0, via = 'fill'`);
     const ledger = await count('public.credit_ledger');
     await as(f.db, f.admin, (tx) => rpc(tx, 'delete_stage', { p_stage: f.stage }));
     expect(await count('public.credit_ledger')).toBe(ledger);
