@@ -201,3 +201,19 @@ in SQL: `https://nealthezeng.github.io/Tribe-Fantasy/`.
 
 SMS, phone push, a team-chat bot, per-kind preferences, one-click unsubscribe tokens (team-internal, far below
 Gmail's bulk-sender threshold), HTML email, and notifying staff (keepers) about games.
+
+## 12. Amendments from the verified build (2026-10-05, draft branch `m10-notify-verified-draft`)
+
+1. **Bid subject says "closes within 24 hours" / "within 2 hours"**, not "in": a close set 10 hours out still sends
+   the 24 h reminder at once, and "within" stays true. The body gives the exact time.
+2. **The claim also drops a pick notice if the manager has picked since it was queued** (they may pick in the
+   minute before the sender runs).
+3. **Outbox kind `test`** for the go-live smoke test (§9 step 5): claimable with no bid/game checks.
+4. **`set_notify_email` updates, it doesn't upsert:** a profile row needs a display name, and every signed-in user
+   has one (the name screen comes first). No profile → `NOT_FOUND`; null → `INVALID_INPUT`.
+5. **The Emails switch shows for every signed-in user**, including managers not linked to a player (the Me page
+   used to show only "not linked yet" for them). The avatar menu's Me line becomes "Emails, attendance, injuries".
+6. **`skip locked` isn't testable on PGlite** (one connection). The test pins the limit instead: two claims never
+   hand out the same row.
+7. **The pick email's fallback line matches the Rules page:** "or we'll start your most rested healthy player for
+   you."
