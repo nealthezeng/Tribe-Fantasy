@@ -8,6 +8,7 @@ export function useInk<T extends HTMLElement>(active: unknown) {
     const nav = ref.current;
     if (!nav) return;
     const place = () => {
+      if (!nav.offsetWidth) return; // hidden (the phone dock on the tally board): keep the last spot, it measures as 0
       const on = nav.querySelector<HTMLElement>('[aria-current="page"], [aria-pressed="true"]');
       if (on) nav.style.setProperty('--ink-x', `${on.offsetLeft}px`); // none current (Me, Admin): shrink in place
       nav.style.setProperty('--ink-w', `${on?.offsetWidth ?? 0}px`);
