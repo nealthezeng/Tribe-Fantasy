@@ -76,6 +76,8 @@ export const api = {
   setGameOpponent: (gameId: string, name: string) => call<void>('set_game_opponent', { p_game: gameId, p_name: name }),
   resetGame: (gameId: string) => call<void>('reset_game', { p_game: gameId }),
   deleteStage: (stageId: string) => call<void>('delete_stage', { p_stage: stageId }),
+  renameSeason: (seasonId: string, name: string) => call<void>('rename_season', { p_season: seasonId, p_name: name }),
+  deleteSeason: (seasonId: string) => call<void>('delete_season', { p_season: seasonId }),
   setGamePick: (membershipId: string, stageId: string, number: number, athleteId: string | null) =>
     call<void>('set_game_pick', { p_membership: membershipId, p_stage: stageId, p_number: number, p_athlete: athleteId }),
   setBench: (membershipId: string, stageId: string, athleteIds: string[]) =>

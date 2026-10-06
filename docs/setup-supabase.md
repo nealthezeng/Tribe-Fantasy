@@ -191,3 +191,11 @@ Stop all email at any time: `select cron.unschedule('notify');`. If the pick tri
    sentence from pick emails.
 2. Deploy (merge + push): the Finish panel gets "That was the last game"; after it the tally list says the tournament
    is over, with "Add game N+1" to undo a wrong tap.
+
+## Rename or delete a season (t213, after 0017)
+
+1. SQL Editor: paste and run `supabase/migrations/0018_season_admin.sql`. It only adds `rename_season` and
+   `delete_season`, so it's safe any time before the deploy.
+2. Deploy (merge + push): Admin → Seasons gets "Rename or delete <season>" for the season being managed. Delete
+   unlocks once the season's name is typed, removes everything in the season, and is refused for a season with
+   donation records. Download a backup first. Deleting the newest season moves everyone to the next newest.

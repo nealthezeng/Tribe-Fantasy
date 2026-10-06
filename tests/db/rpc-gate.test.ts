@@ -109,6 +109,9 @@ describe('RPC gate', () => {
       ['set_game_opponent', keeper, () => ({ p_game: c.game, p_name: 'Duke' })],
       ['reset_game', admin, () => ({ p_game: c.game })],
       ['delete_stage', admin, () => ({ p_stage: c.stage })],
+      ['rename_season', admin, () => ({ p_season: c.season, p_name: 'Gate season' })],
+      // c.season has a donation (refused), so delete a fresh one.
+      ['delete_season', admin, () => ({ p_season: c.spareSeason })],
     ];
 
     const covered = new Set(steps.map(([name]) => name));
@@ -138,6 +141,9 @@ describe('RPC gate', () => {
             values ($1, $2, $3, $4, 0, 'fill', $5)`, [c.stage, c.membership, c.league, c[key], bench]);
         }
         await db.query('insert into public.injuries (athlete_id, confirmed_at) values ($1, now())', [c.hurt]);
+      }
+      if (name === 'delete_season') {
+        c.spareSeason = (await as(db, admin, (tx) => rpc(tx, 'create_season', { p_name: 'Spare', p_settings: {} }))) as string;
       }
       if (name === 'run_auction') {
         await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);

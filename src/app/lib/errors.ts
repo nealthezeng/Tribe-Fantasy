@@ -36,6 +36,7 @@ const MESSAGES: Record<string, string> = {
   INVALID_DATES: 'The end date must be on or after the start date.',
   STAGE_OVERLAP: 'Those dates overlap another tournament.',
   STAGE_EXISTS: 'A tournament with that name already exists this season.',
+  SEASON_HAS_DONATIONS: "This season has donation records, so it can't be deleted. You can still rename it.",
   LEAGUE_FULL: 'This league is full.',
   DONATIONS_DISABLED: 'Recording donations to the team is turned off for this season.',
   INVALID_AMOUNT: "That amount isn't valid.",
