@@ -110,6 +110,27 @@ describe('CreateLeaguePage (t215)', () => {
   });
 });
 
+describe('a password of only spaces (review fix)', () => {
+  it('is refused on Create instead of quietly making a public league', async () => {
+    at('/leagues/new');
+    fireEvent.change(screen.getByLabelText('League name'), { target: { value: 'Locked' } });
+    fireEvent.change(screen.getByLabelText('Your team name'), { target: { value: 'Zips' } });
+    fireEvent.click(screen.getByLabelText('Needs a password to join'));
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: '      ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create league' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/4–40 characters/);
+    expect(api.createMyLeague).not.toHaveBeenCalled();
+  });
+
+  it('is refused on Change password instead of quietly removing the password', async () => {
+    render(<ManageLeague league={league({ has_password: true, is_creator: true })} onChanged={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: '      ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Change password', hidden: true }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/4–40 characters/);
+    expect(api.setLeaguePassword).not.toHaveBeenCalled();
+  });
+});
+
 describe('ManageLeague (t215)', () => {
   it('deletes only while yours is the only team, after a confirm', async () => {
     const onChanged = vi.fn();

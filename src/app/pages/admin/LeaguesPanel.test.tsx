@@ -22,9 +22,12 @@ vi.mock('../../lib/supabase', () => ({
     },
   },
 }));
-vi.mock('../../lib/rpc', () => ({ api: { deleteLeague: vi.fn(() => Promise.resolve()) } }));
+vi.mock('../../lib/rpc', () => ({ api: {
+  deleteLeague: vi.fn(() => Promise.resolve()),
+  setLeaguePassword: vi.fn(() => Promise.resolve()),
+} }));
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
 describe('LeaguesPanel (t215)', () => {
   it('lists every league with its creator and teams, and no invite codes', async () => {
@@ -33,6 +36,24 @@ describe('LeaguesPanel (t215)', () => {
     expect(screen.getByText('by An admin · 0 teams')).toBeTruthy();
     expect(screen.getByText('Zips, Hucks')).toBeTruthy();
     expect(screen.queryByText(/invite/i)).toBeNull();
+  });
+
+  it("sets or removes any league's password, so admins can lock a league they aren't in (review fix)", async () => {
+    render(<LeaguesPanel seasonId="s1" />);
+    fireEvent.change(await screen.findByLabelText('New password for League A'), { target: { value: ' secret1 ' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Set password' })[1]);
+    await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l2', ' secret1 '));
+    expect(await screen.findByText('League A now needs a password.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Make League A public' }));
+    await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l2', null));
+  });
+
+  it('refuses a password of only spaces', async () => {
+    render(<LeaguesPanel seasonId="s1" />);
+    fireEvent.change(await screen.findByLabelText('New password for League A'), { target: { value: '     ' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Set password' })[1]);
+    expect((await screen.findByRole('alert')).textContent).toMatch(/4–40 characters/);
+    expect(api.setLeaguePassword).not.toHaveBeenCalled();
   });
 
   it('deletes a league only after the confirm', async () => {

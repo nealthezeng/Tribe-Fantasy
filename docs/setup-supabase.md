@@ -209,3 +209,6 @@ Stop all email at any time: `select cron.unschedule('notify');`. If the pick tri
 2. Deploy (merge + push): Home offers Join a league (`/leagues`, searchable, "N of M teams") and Create a league
    (`/leagues/new`, public or password). One created league per person per season (admins exempt). The creator
    manages it from Home; Admin → Leagues lists every league with Delete (refused when it has donation records).
+3. Right after the deploy: leagues made before 0019 (e.g. League A) have no creator and no password, so ANYONE
+   signed in can join them until they're full. If that's not wanted, an admin sets a password in Admin → Leagues
+   (works for any league, member or not) or from Home → Manage <league>.

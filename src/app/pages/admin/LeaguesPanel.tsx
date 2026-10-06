@@ -4,6 +4,7 @@ import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
+import { passwordProblem } from '../LeaguesPage';
 
 interface LeagueRow {
   id: string;
@@ -62,10 +63,47 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
             </span>
             <button className="secondary" aria-label={`Delete ${l.name}`} onClick={() => void remove(l)}>Delete</button>
             {l.memberships.length > 0 && <small className="muted">{l.memberships.map((m) => m.team_name).join(', ')}</small>}
+            <PasswordForm league={l} />
           </li>
         ))}
       </ul>
       {(error || leagues.error) && <p className="error" role="alert">{error ?? leagues.error}</p>}
     </div>
+  );
+}
+
+/** Admins lock or open any league, including ones they aren't in (older leagues have no creator to do it). */
+function PasswordForm({ league }: { league: LeagueRow }) {
+  const [password, setPassword] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save(next: string | null, done: string) {
+    setMsg(null);
+    setError(null);
+    if (next !== null && passwordProblem(next)) { setError(passwordProblem(next)); return; }
+    setBusy(true);
+    try {
+      await api.setLeaguePassword(league.id, next);
+      setPassword('');
+      setMsg(done);
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="row" onSubmit={(e) => { e.preventDefault(); void save(password, `${league.name} now needs a password.`); }}>
+      <input aria-label={`New password for ${league.name}`} placeholder="New password" maxLength={40} autoComplete="off"
+        value={password} onChange={(e) => setPassword(e.target.value)} />
+      <button className="secondary" disabled={busy}>Set password</button>
+      <button type="button" className="secondary" disabled={busy} aria-label={`Make ${league.name} public`}
+        onClick={() => void save(null, `Anyone can join ${league.name} now.`)}>Make public</button>
+      {msg && <p className="muted" role="status">{msg}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+    </form>
   );
 }

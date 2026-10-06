@@ -6,6 +6,10 @@ import { errorMessage } from '../lib/errors';
 import { api, type LeagueListing } from '../lib/rpc';
 import { useLoad } from '../lib/useLoad';
 
+/** The server reads a blank password as "public", so a password of only spaces must be refused here, not saved. */
+export const passwordProblem = (password: string) =>
+  password.trim().length < 4 ? errorMessage({ message: 'INVALID_PASSWORD' }) : null;
+
 /** /leagues (t215): the current season's leagues, searchable by name; tap Join for a team name (+ password). */
 export function LeaguesPage() {
   const { session, loading } = useAuth();
@@ -102,6 +106,8 @@ export function CreateLeaguePage() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const bad = locked && passwordProblem(password);
+    if (bad) { setError(bad); return; }
     setBusy(true);
     setError(null);
     try {
@@ -172,6 +178,8 @@ export function ManageLeague({ league, onChanged }: { league: LeagueListing; onC
       </form>
       <form className="row section" onSubmit={(e) => {
         e.preventDefault();
+        const bad = passwordProblem(password);
+        if (bad) { setMsg(null); setError(bad); return; }
         void act(async () => { await api.setLeaguePassword(league.id, password); setPassword(''); }, 'Password saved.');
       }}>
         <label>{league.has_password ? 'New password' : 'Password'}

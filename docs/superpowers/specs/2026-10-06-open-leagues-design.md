@@ -128,3 +128,7 @@ remove worktree `Tribe-Fantasy-leagues`.
 6. **Locked leagues show a "Password" pill**, no lock icon (text is clearer and needs no new asset).
 7. **Tests**: PGlite loads `@electric-sql/pglite/contrib/pgcrypto`; the shim creates schema `extensions`.
    `list_leagues` is in the gate's read-only list (it writes nothing).
+8. **Final review fixes**: Admin → Leagues also sets a password or makes any league public (an admin may not be
+   in League A); the client refuses a password of only spaces on Create, Manage and Admin (the server would read it
+   as "public"). Create uses a "Needs a password to join" checkbox, not a Public/Password radio; the DB test file is
+   `tests/db/rpc-open-leagues.test.ts`.
