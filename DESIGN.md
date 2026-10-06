@@ -52,7 +52,7 @@ Status, each with a soft background for pills:
 
 `DiscMark` in `Layout.tsx`: a disc seen from above. Gold circle, darker gold ring (#c99400), baby blue centre.
 The same drawing is the favicon in `index.html`; change both together. It sits at 24px beside "Tribe Fantasy"
-in the black top bar, and at 168px, cropped off the corner, behind the signed-out hero.
+in the black top bar. The signed-out hero shows the team's crest instead (below).
 
 ## Type
 
@@ -180,7 +180,8 @@ Errors say what happened and what to do; an unknown error shows its code only in
   collapsed `details.section`; Edit opens the tournament form.
 - **`.more`**: a secondary way on, an underlined text link with a drawn chevron that nudges right on hover.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
-  gold call to action, the large disc behind. On top, `.hero-photo` (t94): the team photo with family, friends and
+  gold call to action, and the team crest ("A Tribe Called Tech", white + gold version for dark, `team-logo.png`, t131)
+  whole in the bottom-right corner; on a phone it takes its own row under the buttons. On top, `.hero-photo` (t94): the team photo with family, friends and
   alumni, cropped to the people (`src/app/assets/team-800.jpg` / `team-1600.jpg`, srcset), bleeding to the panel's
   edges with its sky and grass masked into the dark, and a one-line thank-you caption under it.
 - **Tables** (`.table-wrap`): 14px tabular figures, right-aligned numbers, first column left, divider rows.

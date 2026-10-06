@@ -61,7 +61,9 @@ until verified and taps are staff-only, so a front-end ticker has no live scores
 Live marker covers "a game is on") and t100 traced border (the task said pick one of t95/t100; t95 pulse is live).
 **Parked** t94 team photo (blocked until there's a photo everyone in it OKs; a one-file change later); BUILT
 2026-10-06 once the user sent the photo: it heads the signed-out hero, sky and grass faded into the dark, with a
-thank-you caption to the families, friends and alumni in it (user asked for the blurb). The
+thank-you caption to the families, friends and alumni in it (user asked for the blurb). t131 (same day): the user
+sent the team crest; it replaces the cropped disc in the hero corner, shown whole (top bar and favicon keep the disc:
+the crest is unreadable at 24px). The
 attendance-toggle sliding thumb is left out: it lives on `MePage.tsx`, which M10 edits.
 
 **No-clash rule.** This branch never touches SQL/migrations, `supabase/`, `src/app/lib/rpc.ts`,

@@ -195,7 +195,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .hero-photo { justify-self: stretch; margin: calc(-1 * var(--s6)) calc(-1 * var(--hero-x)) 0; display: grid; gap: var(--s2); }
 .hero-photo img { display: block; width: 100%; height: auto; mask-image: linear-gradient(to bottom, transparent, black 16%, black 76%, transparent); }
 .hero-photo figcaption { padding-inline: var(--hero-x); color: var(--bar-muted); font-size: var(--fs-sm); max-width: 60ch; }
-.hero-disc { position: absolute; z-index: -1; right: -60px; bottom: -60px; width: 168px; height: 168px; }
+/* The team crest, whole, in the corner beside the tagline and buttons; on a phone it takes its own row under them. */
+.hero-logo { position: absolute; right: var(--hero-x); bottom: var(--s6); width: 168px; height: auto; }
 .disc-body { fill: var(--gold); }
 .disc-ring { fill: none; stroke: var(--gold-deep); }
 .disc-hub { fill: var(--blue); }
@@ -404,4 +405,5 @@ tbody tr:last-child td { border-bottom: 0; }
   .bid { grid-template-columns: 4rem 3.5rem var(--tap); }
   .hero { margin-inline: calc(-1 * var(--gutter)); border-radius: 0; border-inline: 0; --hero-x: var(--gutter); }
   .shell > .hero:first-child { margin-top: calc(-1 * var(--s5)); border-top: 0; } /* one black block with the top bar */
+  .hero-logo { position: static; justify-self: end; width: 120px; }
 }

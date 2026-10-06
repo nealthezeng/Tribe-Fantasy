@@ -7,9 +7,9 @@ import { supabase } from '../lib/supabase';
 import { useInk } from '../lib/useInk';
 
 /** A disc seen from above, in team gold. Colours come from tokens.css; the favicon in index.html repeats them. */
-export function DiscMark({ size = 24, className }: { size?: number; className?: string }) {
+function DiscMark() {
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
       <circle className="disc-body" cx="12" cy="12" r="11" />
       <circle className="disc-ring" cx="12" cy="12" r="7.5" strokeWidth="1.5" />
       <circle className="disc-hub" cx="12" cy="12" r="3" />
