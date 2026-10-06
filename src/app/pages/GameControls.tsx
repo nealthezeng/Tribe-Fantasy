@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import type { CurrentSeason } from '../lib/stats';
@@ -26,6 +26,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [edit, setEdit] = useState<{ id: string; text: string } | null>(null); // unsaved opponent text, tied to its game
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -50,8 +51,10 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const c = current.data;
   if (!c) return messages;
   const { game, stage } = c;
+  const opponent = edit?.id === game.id ? edit.text : null; // null = show the saved name; a draft never carries to another game
   const n = game.number;
   const live = game.started_at !== null && game.finished_at === null;
+  const title = game.opponent ? `Game ${n} vs ${game.opponent}` : `Game ${n}`;
   const waiting = game.session_id ? unsaved.get(game.session_id) ?? 0 : 0;
   if (sessionId !== undefined && !(live && game.session_id === sessionId)) return messages;
 
@@ -66,22 +69,30 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const confirm = (p: Preview) => void run(async () => {
     await api.finishGame(game.id, p.pairings, p.provisional);
     setPreview(null);
-    setStatus(`Game ${n} finished. Game ${n + 1} is paired.`);
+    setStatus(`${title} finished. Game ${n + 1} is paired.`);
   });
+
+  const nameOpponent = (e: FormEvent) => {
+    e.preventDefault();
+    void run(async () => {
+      await api.setGameOpponent(game.id, opponent ?? '');
+      setEdit(null);
+    });
+  };
 
   return (
     <div className={sessionId === undefined ? 'card' : 'stack'} aria-label="Tournament game">
       {sessionId === undefined && <h2>{stage.name} tournament</h2>}
       {!live && sessionId === undefined && (
         <div className="head">
-          <span>Game {n} is next. Starting it locks every team's pick.</span>
+          <span>{title} is next. Starting it locks every team's pick.</span>
           <button disabled={busy} onClick={start}>Start game {n}</button>
         </div>
       )}
       {live && !preview && (
         <div className="head">
           <span>
-            {game.session_id ? <>Game {n} is live.</> : <>Game {n}'s tally was deleted, so it won't count. Finish it to pair the next game.</>}
+            {game.session_id ? <>{title} is live.</> : <>{title}: its tally was deleted, so it won't count. Finish it to pair the next game.</>}
             {waiting > 0 && <> <small className="muted">Finish waits until your taps are saved.</small></>}
           </span>
           <span className="meta">
@@ -91,6 +102,13 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
             <button disabled={busy || waiting > 0} onClick={finish}>Finish game {n}</button>
           </span>
         </div>
+      )}
+      {sessionId === undefined && !preview && (
+        <form className="row" onSubmit={nameOpponent}>
+          <label>Opponent<input maxLength={40} placeholder="e.g. Duke" value={opponent ?? game.opponent ?? ''}
+            onChange={(e) => setEdit({ id: game.id, text: e.target.value })} /></label>
+          <button className="secondary" disabled={busy || opponent === null}>Save opponent</button>
+        </form>
       )}
       {preview && (
         <div className="stack" role="group" aria-label={`Finish game ${n}`}>

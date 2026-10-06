@@ -61,7 +61,8 @@ export function SessionPage() {
   const state = sessionState(session, settings.stat_lock_hours);
   const stats = Object.keys(settings.stat_weights);
   const name = (athleteId: string) => names.get(athleteId) ?? 'Unknown';
-  const iTapped = taps.some((t) => t.keeperId === auth?.user.id);
+  // Keepers can't verify a game they tallied (VERIFIER_TAPPED); admins can (t120).
+  const iTapped = !isAdmin && taps.some((t) => t.keeperId === auth?.user.id);
   const keepers = [...new Set(taps.map((t) => t.keeperId))];
 
   async function run(action: () => Promise<unknown>) {

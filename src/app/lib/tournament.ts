@@ -10,8 +10,9 @@ import { supabase } from './supabase';
 
 export interface GameRow {
   id: string; stage_id: string; number: number; session_id: string | null; started_at: string | null; finished_at: string | null;
+  opponent: string | null;
 }
-export const GAME_COLUMNS = 'id, stage_id, number, session_id, started_at, finished_at';
+export const GAME_COLUMNS = 'id, stage_id, number, session_id, started_at, finished_at, opponent';
 /** One pairing as open_tournament / finish_game take it. */
 export interface GamePairing { league_id: string; home: string; away: string | null }
 /** What one league's pairing was computed from (saved in the finish_game audit row). */
@@ -55,7 +56,7 @@ export function toTournamentInput(rows: TournamentRows, now: number): Tournament
     settings,
     now,
     games: rows.games.map((g) => ({
-      id: g.id, stageId: g.stage_id, number: g.number, sessionId: g.session_id, startedAt: g.started_at, finishedAt: g.finished_at,
+      id: g.id, stageId: g.stage_id, number: g.number, sessionId: g.session_id, startedAt: g.started_at, finishedAt: g.finished_at, opponent: g.opponent,
     })),
     pairings: rows.pairings.map((p) => ({ gameId: p.game_id, home: p.home, away: p.away })),
     members: rows.members.map((m) => ({ id: m.id, createdAt: m.created_at })),

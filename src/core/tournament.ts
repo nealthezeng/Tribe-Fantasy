@@ -34,6 +34,8 @@ export interface TournamentGame {
   sessionId: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  /** The real team our team played ("Duke"); display only, scoring ignores it. */
+  opponent?: string | null;
 }
 export interface TournamentPairing { gameId: string; home: string; away: string | null }
 export interface TournamentSlot { stageId: string; membershipId: string; athleteId: string; price: number; bench: boolean }

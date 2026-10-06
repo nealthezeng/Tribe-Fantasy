@@ -28,6 +28,7 @@
   --line: #232c36;
   --line-strong: #66737f;   /* input borders: 3:1 against the panes */
   --link: #8cc8f2;
+  --check: var(--gold);     /* checkbox fill */
   --focus: #8cc8f2;
 
   /* Top bar */
@@ -154,6 +155,7 @@
   --line: #dbe2ea;
   --line-strong: #8795a3;   /* input borders: 3:1 against white */
   --link: #0b5d99;          /* gold and baby blue aren't readable as text on white */
+  --check: #0b5d99;         /* gold is ~1.7:1 on a white pane */
   --focus: #0b5d99;
   --bar: #0f1419;
   --bar-muted: #b4bfca;

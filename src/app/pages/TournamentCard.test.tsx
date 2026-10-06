@@ -35,8 +35,8 @@ const base = (): TournamentRows => ({
 /** Game 1 played (finished, stats not verified): m1 started a1, m2 b1. Game 2 is paired and not started. */
 const afterGame1 = (): TournamentRows => ({
   ...base(),
-  games: [{ id: 'g1', stage_id: 'S1', number: 1, session_id: 'p1', started_at: '2026-11-07T14:00:00Z', finished_at: '2026-11-07T15:00:00Z' },
-    { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }],
+  games: [{ id: 'g1', stage_id: 'S1', number: 1, session_id: 'p1', started_at: '2026-11-07T14:00:00Z', finished_at: '2026-11-07T15:00:00Z',
+    opponent: null }, { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }],
   pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
   // RLS: the league sees game 1's picks (started); m2's game 2 pick, if any, is sealed and never arrives.
   picks: [{ stage_id: 'S1', game_number: 1, membership_id: 'm1', athlete_id: 'a1' },
@@ -60,6 +60,14 @@ const show = async (r: TournamentRows) => {
 };
 
 describe('TournamentCard', () => {
+  it('names games after the real opponent once a keeper sets it (t123)', async () => {
+    const r = afterGame1();
+    r.games = r.games.map((g) => (g.id === 'g1' ? { ...g, opponent: 'UNC' } : { ...g, opponent: 'Duke' }));
+    await show(r);
+    expect(screen.getByRole('heading', { name: 'vs Duke · Fall beta' })).toBeTruthy();
+    expect(screen.getByText(/vs UNC · Fall beta/)).toBeTruthy();
+  });
+
   it('lets a manager pre-select game 1 and choose the bench before the tournament opens', async () => {
     await show(base());
     expect(screen.getByText(/Your opponent is set when the tournament opens/)).toBeTruthy();

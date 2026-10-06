@@ -236,3 +236,6 @@ Gaps found when checking the draft against the code. They fill holes and change 
     corrections (admins); reopening a verified game takes it back to `pending` until it is verified again.
     Auto-pick history settles at verify time too. Swiss pairing was never affected (it always used provisional
     standings from every started game). This supersedes "official points come later from locked stats" above.
+    Because history settles at verify time, if game N is reopened and re-verified after game N+1 started, N drops out
+    of N+1's (and later games') auto-pick history and a missed pick can resolve differently; accepted as rare (reopen
+    window 48 h, tournament days verify promptly) to keep auto-picks fixed at each game's start.

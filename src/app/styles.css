@@ -111,7 +111,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .linklike:hover:not(:disabled) { text-decoration-thickness: 2px; }
 label.check { display: flex; gap: var(--s3); align-items: center; font-weight: var(--fw-medium); min-height: var(--tap); }
-label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(--gold); }
+label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(--check); }
 .row { display: flex; gap: var(--s2) var(--s3); flex-wrap: wrap; align-items: end; }
 .row > * { flex: 1 1 160px; }
 .row > :is(button, .button) { flex: 0 0 auto; }

@@ -3,7 +3,7 @@ import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { formatDay, statLabel } from '../lib/stats';
+import { formatDay, gameLabel, statLabel } from '../lib/stats';
 import { loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 
@@ -60,6 +60,10 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
   );
 }
 
+/** "vs Duke" once a keeper names game `number`'s real opponent, else "Game 3". */
+const labelOf = (y: LeagueTournament, stageId: string, number: number) =>
+  gameLabel(number, y.result.games.find((g) => g.game.stageId === stageId && g.game.number === number)?.game.opponent);
+
 /** The game that matters now: the live one, else the next one, else the last one played. */
 function focusGame(y: LeagueTournament, membershipId: string) {
   const { games, next } = y.result;
@@ -104,7 +108,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
           {focus ? <>
             <span>{y.stage.get(focus.stageId)}</span>
             {dates && <span className="chip">{formatDay(dates.starts_on)} – {formatDay(dates.ends_on)}</span>}
-            <span>Game {focus.number}</span>
+            <span>{labelOf(y, focus.stageId, focus.number)}</span>
             {them === null ? <span>Bye</span> : <>
               {status === 'live' && <span className="live"><span className="dot" aria-hidden="true" />Live</span>}
               {status === 'upcoming' && <span>Next up</span>}
@@ -158,7 +162,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const [error, setError] = useState<string | null>(null);
   const name = (id: string | null) => athleteName(y, id);
   const mine = next.sides.find((x) => x.membershipId === membershipId);
-  const title = `Game ${next.number} · ${y.stage.get(next.stageId) ?? ''}`;
+  const title = `${labelOf(y, next.stageId, next.number)} · ${y.stage.get(next.stageId) ?? ''}`;
   if (!mine) {
     return <div className="stack"><h3>{title}</h3><p className="muted">You have no players this tournament, so you forfeit each game you're paired in.</p></div>;
   }
@@ -308,7 +312,7 @@ function GameRow({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome; 
     <details className="section">
       <summary>
         <span className="meta">
-          Game {g.game.number} · {y.stage.get(g.game.stageId) ?? ''}
+          {gameLabel(g.game.number, g.game.opponent)} · {y.stage.get(g.game.stageId) ?? ''}
           <span className={cls}>{label}</span>
           {mine?.delta != null && <strong className="num">{mine.result === null ? 'Bye' : `${mine.result} ${signed(mine.delta)}`}</strong>}
         </span>

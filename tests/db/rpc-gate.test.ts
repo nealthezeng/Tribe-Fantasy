@@ -14,8 +14,8 @@ const MEMBER_CALLABLE = [
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
-  'confirm_injury', 'create_session', 'delete_session', 'finish_game', 'reopen_session', 'save_taps', 'start_game',
-  'verify_session',
+  'confirm_injury', 'create_session', 'delete_session', 'finish_game', 'reopen_session', 'save_taps', 'set_game_opponent',
+  'start_game', 'verify_session',
 ];
 
 let db: PGlite;
@@ -103,6 +103,9 @@ describe('RPC gate', () => {
       ['swap_bench', player, () => ({ p_membership: c.membership, p_stage: c.stage, p_out: c.hurt, p_in: c.sub })],
       ['finish_game', keeper, () => ({ p_game: c.game, p_pairings: [{ league_id: c.league, home: c.membership, away: null }],
         p_provisional: {} })],
+      ['set_game_opponent', keeper, () => ({ p_game: c.game, p_name: 'Duke' })],
+      ['reset_game', admin, () => ({ p_game: c.game })],
+      ['delete_stage', admin, () => ({ p_stage: c.stage })],
     ];
 
     const covered = new Set(steps.map(([name]) => name));

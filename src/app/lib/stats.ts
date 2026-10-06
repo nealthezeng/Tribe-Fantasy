@@ -56,13 +56,16 @@ export const kindLabel = (kind: SessionRow['kind']) => (kind === 'tournament' ? 
 /** A session's title everywhere it's listed: 'Fri, Sep 25 · Practice'. */
 export const sessionTitle = (s: Pick<SessionRow, 'held_on' | 'kind'>) => `${formatDay(s.held_on)} · ${kindLabel(s.kind)}`;
 
-/** "Game 3 · Fall Beta" for each session that is a tournament game. Same-day games looked identical by date. */
+/** A game's name everywhere it's shown: the real opponent once a keeper names it ("vs Duke"), else "Game 3". */
+export const gameLabel = (number: number, opponent?: string | null) => (opponent ? `vs ${opponent}` : `Game ${number}`);
+
+/** "vs Duke · Fall Beta" (or "Game 3 · Fall Beta") for each session that is a tournament game. */
 export async function gameTitles(sessionIds: string[]): Promise<Map<string, string>> {
   if (sessionIds.length === 0) return new Map();
-  const { data, error } = await supabase!.from('games').select('session_id, number, stages(name)').in('session_id', sessionIds);
+  const { data, error } = await supabase!.from('games').select('session_id, number, opponent, stages(name)').in('session_id', sessionIds);
   if (error) throw error;
-  const rows = (data ?? []) as unknown as { session_id: string; number: number; stages: { name: string } | null }[];
-  return new Map(rows.map((g) => [g.session_id, `Game ${g.number} · ${g.stages?.name ?? 'Tournament'}`]));
+  const rows = (data ?? []) as unknown as { session_id: string; number: number; opponent: string | null; stages: { name: string } | null }[];
+  return new Map(rows.map((g) => [g.session_id, `${gameLabel(g.number, g.opponent)} · ${g.stages?.name ?? 'Tournament'}`]));
 }
 
 /** A session's title: the game it was, else its date and kind (older practice sessions). */

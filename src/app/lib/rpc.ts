@@ -66,6 +66,9 @@ export const api = {
   startGame: (gameId: string) => call<string>('start_game', { p_game: gameId }),
   finishGame: (gameId: string, pairings: GamePairing[], provisional: LeaguePairingInput[]) =>
     call<string>('finish_game', { p_game: gameId, p_pairings: pairings, p_provisional: provisional }),
+  setGameOpponent: (gameId: string, name: string) => call<void>('set_game_opponent', { p_game: gameId, p_name: name }),
+  resetGame: (gameId: string) => call<void>('reset_game', { p_game: gameId }),
+  deleteStage: (stageId: string) => call<void>('delete_stage', { p_stage: stageId }),
   setGamePick: (membershipId: string, stageId: string, number: number, athleteId: string | null) =>
     call<void>('set_game_pick', { p_membership: membershipId, p_stage: stageId, p_number: number, p_athlete: athleteId }),
   setBench: (membershipId: string, stageId: string, athleteIds: string[]) =>

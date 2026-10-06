@@ -66,15 +66,22 @@ describe('owner gates', () => {
     await as(f.db, f.k2, (tx) => rpc(tx, 'reopen_session', { p_session: f.session }));
   });
 
-  it('correct_stat_line refuses an admin who owns the athlete', async () => {
-    await own(f.admin, f.ali);
-    await save(f.k2, f.sam);
-    await verify(f.k3, f.sam);
+  it('an admin is never an owner: tallies, verifies their own tally, reopens and corrects their own athlete (t120)', async () => {
+    await own(f.admin, f.sam);
+    await save(f.admin, f.sam);
+    await verify(f.admin, f.sam); // no OWNS_ATHLETE, no VERIFIER_TAPPED
+    await as(f.db, f.admin, (tx) => rpc(tx, 'reopen_session', { p_session: f.session }));
+    await verify(f.admin, f.sam);
     await backdateVerify(f.db, f.session, 49);
-    const correct = (athlete: string) =>
-      as(f.db, f.admin, (tx) => rpc(tx, 'correct_stat_line', { p_session: f.session, p_athlete: athlete, p_stats: { goal: 2 } }));
-    await expect(correct(f.ali)).rejects.toThrow('OWNS_ATHLETE');
-    await correct(f.sam);
+    await as(f.db, f.admin, (tx) => rpc(tx, 'correct_stat_line', { p_session: f.session, p_athlete: f.sam, p_stats: { goal: 2 } }));
+    const iid = (await as(f.db, f.admin, (tx) => rpc(tx, 'report_injury', { p_athlete: f.sam }))) as string;
+    const row = await f.db.query<{ confirmed_at: string | null }>(`select confirmed_at from public.injuries where id = $1`, [iid]);
+    expect(row.rows[0].confirmed_at).not.toBeNull(); // auto-confirmed, as for any non-owner keeper
+  });
+
+  it('a keeper who tallied still cannot verify (VERIFIER_TAPPED is lifted for admins only)', async () => {
+    await save(f.k1, f.sam);
+    await expect(verify(f.k1, f.sam)).rejects.toThrow('VERIFIER_TAPPED');
   });
 
   it('set_attendance refuses a keeper who owns the athlete, but not a player marking themselves', async () => {

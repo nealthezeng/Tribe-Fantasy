@@ -29,8 +29,8 @@ const stage = { id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '
 const rows: TournamentRows = {
   settings: {},
   stages: [stage],
-  games: [{ id: 'g1', stage_id: 'S1', number: 1, session_id: 'p1', started_at: T, finished_at: '2026-11-07T15:00:00+00:00' },
-    { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }],
+  games: [{ id: 'g1', stage_id: 'S1', number: 1, session_id: 'p1', started_at: T, finished_at: '2026-11-07T15:00:00+00:00', opponent: null },
+    { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }],
   pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
   members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00+00:00' },
     { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00+00:00' }],
@@ -54,7 +54,7 @@ describe('toTournamentInput', () => {
     const input = toTournamentInput(rows, 123);
     expect(input.now).toBe(123);
     expect(input.games[0]).toEqual({ id: 'g1', stageId: 'S1', number: 1, sessionId: 'p1', startedAt: T,
-      finishedAt: '2026-11-07T15:00:00+00:00' });
+      finishedAt: '2026-11-07T15:00:00+00:00', opponent: null });
     expect(input.picks).toEqual([{ stageId: 'S1', number: 1, membershipId: 'm1', athleteId: 'a1' }]);
     expect(input.slots[0]).toEqual({ stageId: 'S1', membershipId: 'm1', athleteId: 'a1', price: 10, bench: false });
     expect(input.statLines).toEqual([{ sessionId: 'p1', athleteId: 'a1', stats: { goal: 1 }, pointsPlayed: 7 }]);
@@ -152,21 +152,21 @@ describe('loadCurrentGame', () => {
 
   it("still returns a live game after the tournament's last day, so it can be finished", async () => {
     mockStages = [baseStage];
-    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: '2026-11-15T14:00:00+00:00', finished_at: null }];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: '2026-11-15T14:00:00+00:00', finished_at: null, opponent: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
     expect(result?.game.id).toBe('g2');
   });
 
   it("has no game to start after the tournament's last day", async () => {
     mockStages = [baseStage];
-    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-16T12:00:00'));
     expect(result).toBeNull();
   });
 
   it('returns the next game to start on the last day', async () => {
     mockStages = [baseStage];
-    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null }];
+    mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-15T12:00:00'));
     expect(result?.game.id).toBe('g2');
   });

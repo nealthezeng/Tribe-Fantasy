@@ -124,3 +124,12 @@
    ```sql
    update public.seasons set settings = settings - array['pick_lock_day','pick_lock_time','usage_reset'];
    ```
+
+## Admin powers (after 0001–0013)
+
+1. SQL Editor: paste and run `supabase/migrations/0014_admin_powers.sql` **before** deploying the build. It is
+   additive: admins skip the owner and tallied-it-yourself checks, `delete_stage`, `reset_game` and
+   `set_game_opponent` appear, games get an `opponent` column, and deleting a tournament keeps its credit rows.
+   The old site keeps working on it.
+2. Deploy (merge + push). Hard-reload open admin and keeper tabs.
+3. Before deleting a tournament for real, **Admin → Backup** → download a Backup JSON: deletes can't be undone.
