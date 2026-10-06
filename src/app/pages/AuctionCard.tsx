@@ -25,7 +25,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
   /** Credit history, shown inside the combined block while bidding is open. */
   wallet: ReactNode;
 }) {
-  const [error, setError] = useState<string | null>(null);
+  // A refused bid's message shows on that player's row.
+  const [error, setError] = useState<{ athleteId: string; text: string } | null>(null);
   const { data, error: loadError, reload } = useLoad(async () => {
     const st = await supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId);
     if (st.error) throw st.error;
@@ -87,13 +88,13 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);
 
-  async function act(action: () => Promise<void>) {
+  async function act(athleteId: string, action: () => Promise<void>) {
     setError(null);
     try {
       await action();
     } catch (err) {
       if ((err as { message?: string } | null)?.message === 'INSUFFICIENT_CREDITS') overBudget();
-      setError(errorMessage(err));
+      setError({ athleteId, text: errorMessage(err) });
     }
     reload();
   }
@@ -110,7 +111,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             <p><strong className="big">{mine.length}</strong> <span>{mine.length === 1 ? 'player' : 'players'} bid on · roster {rosterSize}</span></p>
             <p>
               <strong key={flash} className={flash ? 'big flash-bad' : 'big'}>{balance - total}</strong>{' '}
-              <span>credits left of {balance}</span>
+              <span>{balance - total === 1 ? 'credit' : 'credits'} left of {balance}</span>
             </p>
           </div>
         </div>
@@ -118,6 +119,12 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
           Sealed until {formatWhen(stage.bid_close_at!)}. Highest bid wins each player; your bids can't add up to more
           than your credits.
         </p>
+        {total > balance && (
+          <p className="notice" role="alert">
+            Your bids add up to {credits(total - balance)} more than your balance (it was lowered after you bid).
+            Lower or remove bids until they fit.
+          </p>
+        )}
         <BidList open={mine.length === 0}
           summary={<>Bid on players <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} available</span></>}>
           <ul className="list">
@@ -132,8 +139,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
                   {a.user_id === userId ? <span className="muted">That's you</span> : (
                     <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}
                       available={balance - total + (bid ?? 0)} onOverBudget={overBudget}
-                      onSave={(amount) => act(() => api.placeBid(stage.id, membershipId, a.id, amount))}
-                      onRemove={() => act(() => api.deleteBid(stage.id, membershipId, a.id))} />
+                      error={error?.athleteId === a.id ? error.text : null}
+                      onSave={(amount) => act(a.id, () => api.placeBid(stage.id, membershipId, a.id, amount))}
+                      onRemove={() => act(a.id, () => api.deleteBid(stage.id, membershipId, a.id))} />
                   )}
                 </li>
               );
@@ -141,7 +149,6 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
           </ul>
         </BidList>
         {wallet}
-        {error && <p className="error" role="alert">{error}</p>}
       </article>
     );
   }
@@ -202,7 +209,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
           </div>
         )}
 
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && <p className="error" role="alert">{error.text}</p>}
       </details>
     </>
   );
@@ -219,10 +226,12 @@ function BidList({ open, summary, children }: { open: boolean; summary: ReactNod
   );
 }
 
-export function BidControl({ athlete, bid, minBid, available, onOverBudget, onSave, onRemove }: {
+export function BidControl({ athlete, bid, minBid, available, error = null, onOverBudget, onSave, onRemove }: {
   athlete: Athlete; bid: number | null; minBid: number;
   /** Most this bid may be: your balance minus your other bids. */
   available: number;
+  /** The server's refusal of this row's last save or remove. */
+  error?: string | null;
   onOverBudget: () => void; onSave: (amount: number) => Promise<void>; onRemove: () => Promise<void>;
 }) {
   const [value, setValue] = useState(bid === null ? '' : String(bid));
@@ -258,7 +267,13 @@ export function BidControl({ athlete, bid, minBid, available, onOverBudget, onSa
         </button>
       )}
       {entered && !valid && <small className="error">Bid at least {minBid}, in whole credits.</small>}
-      {over && <small className="error" role="alert">Not enough credits: you have {credits(available)} left.</small>}
+      {over && (
+        <small className="error" role="alert">
+          {available >= 0 ? `Not enough credits: you have ${credits(available)} left.`
+            : 'Not enough credits: your other bids already add up to more than your balance.'}
+        </small>
+      )}
+      {error && !over && <small className="error" role="alert">{error}</small>}
     </form>
   );
 }

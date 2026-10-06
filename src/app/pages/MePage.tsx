@@ -62,7 +62,15 @@ export function MePage() {
 
   if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!session) return <Navigate to="/login" replace />;
-  if (data.error) return <p className="error" role="alert">{data.error}</p>;
+  if (data.error) {
+    return (
+      <section className="page">
+        <h1>Me</h1>
+        <EmailReminders uid={uid!} />
+        <p className="error" role="alert">{data.error}</p>
+      </section>
+    );
+  }
   if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) {
     return (

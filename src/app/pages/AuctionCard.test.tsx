@@ -138,6 +138,24 @@ describe('AuctionCard', () => {
     await waitFor(() => expect(document.body.textContent).toContain('165 credits left of 165'));
   });
 
+  it("shows a refused bid's error on that player's row, and explains a balance lowered below your bids", async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Alice') as unknown as Row, athlete('b', 'Bob') as unknown as Row];
+    db.bids = [{ membership_id: 'm1', athlete_id: 'a', amount: 100 } satisfies BidRow as unknown as Row];
+    db.credit_ledger = [{ amount: 101 }];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(document.body.textContent).toContain('1 credit left of 101');
+
+    db.credit_ledger = [{ amount: 90 }]; // an admin cut the balance while the tab was open
+    vi.mocked(api.placeBid).mockRejectedValueOnce(new Error('INSUFFICIENT_CREDITS'));
+    fireEvent.change(screen.getByLabelText('Your bid on Alice, in credits'), { target: { value: '95' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const msg = await screen.findByText('Not enough credits for that bid.');
+    expect(msg.closest('li')!.textContent).toContain('Alice');
+    await screen.findByText(/Your bids add up to 10 credits more than your balance/);
+  });
+
   it('shows the team card plus a collapsed auction card before bidding opens', async () => {
     db.stages = [{ id: 's1', name: 'Fall', starts_on: '2026-10-18', bid_close_at: null, auction_seed: null, auction_run_at: null } as Row];
     renderCard();
