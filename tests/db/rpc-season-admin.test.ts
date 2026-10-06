@@ -51,14 +51,16 @@ describe('delete_season', () => {
     const sid = (await as(f.db, keeper, (tx) => rpc(tx, 'start_game', { p_game: game }))) as string;
     const now = new Date().toISOString();
     await as(f.db, keeper, (tx) => rpc(tx, 'save_taps', { p_session: sid, p_client_now: now, p_taps: [tap(f.athletes[0], 'goal', now)] }));
+    await f.db.query(`insert into private.outbox (membership_id, kind, ref, subject, body) values ($1, 'test', 'x', 's', 'b')`, [aliceM]);
     const ledger = await count('public.credit_ledger');
     expect(ledger).toBeGreaterThan(0);
 
     await del(f.season);
 
-    for (const t of ['stages', 'leagues', 'memberships', 'credit_ledger', 'bids', 'roster_slots', 'games', 'game_pairings',
-      'sessions', 'stat_taps', 'invites']) {
-      expect(await count(`public.${t}`), t).toBe(0);
+    for (const t of ['public.stages', 'public.leagues', 'public.memberships', 'public.credit_ledger', 'public.bids',
+      'public.roster_slots', 'public.games', 'public.game_pairings', 'public.game_picks', 'public.bench_swaps', 'public.sessions',
+      'public.stat_taps', 'public.stat_lines', 'public.attendance', 'public.injuries', 'public.invites', 'private.outbox']) {
+      expect(await count(t), t).toBe(0);
     }
     expect(await count('public.seasons')).toBe(1);
     expect(await count('public.athletes where season_id = $1', [other])).toBe(1);

@@ -23,6 +23,9 @@ language plpgsql security definer set search_path = '' as $$
 declare s public.seasons; counts jsonb;
 begin
   perform private.require_admin();
+  -- ponytail: blocks every ledger insert while the delete runs, so a donation can't land between the check and the
+  -- cascade (record_donation doesn't lock the season). Cheap: deletes are rare and fast.
+  lock table public.credit_ledger in share mode;
   select * into s from public.seasons where id = p_season for update;
   if not found then raise exception 'NOT_FOUND'; end if;
   if exists (select 1 from public.credit_ledger c join public.memberships m on m.id = c.membership_id

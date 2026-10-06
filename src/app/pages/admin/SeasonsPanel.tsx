@@ -17,9 +17,13 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
     return (data ?? []) as SeasonRow[];
   }, []);
 
+  // A deleted season stays out of the list while the reload is in flight, so it can't be auto-selected again.
+  const [gone, setGone] = useState<string>();
+  const list = seasons.data?.filter((s) => s.id !== gone);
+
   // Open on the newest season: nearly every visit manages the current one.
-  const newest = seasons.data?.[0]?.id;
-  const current = seasons.data?.find((s) => s.id === selected);
+  const newest = list?.[0]?.id;
+  const current = list?.find((s) => s.id === selected);
   useEffect(() => { if (!selected && newest) onSelect(newest); }, [selected, newest, onSelect]);
 
   async function create(e: FormEvent) {
@@ -39,9 +43,9 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
     <div className="card">
       <h2>Seasons</h2>
       {!seasons.data && !seasons.error && <Loading />}
-      {seasons.data?.length === 0 && <p className="muted">No seasons yet. Create the first one below.</p>}
+      {list?.length === 0 && <p className="muted">No seasons yet. Create the first one below.</p>}
       <ul className="list">
-        {seasons.data?.map((s) => (
+        {list?.map((s) => (
           <li key={s.id}>
             <span className="meta"><span className="title">{s.name}</span><span className="pill">{s.status}</span></span>
             {selected === s.id
@@ -50,11 +54,11 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
           </li>
         ))}
       </ul>
-      {current && seasons.data && (
-        <SeasonEdit key={current.id} season={current} seasons={seasons.data} onRenamed={seasons.reload}
-          onDeleted={() => { onSelect(null); seasons.reload(); }} />
+      {current && list && (
+        <SeasonEdit key={current.id} season={current} seasons={list} onRenamed={seasons.reload}
+          onDeleted={() => { setGone(current.id); onSelect(null); seasons.reload(); }} />
       )}
-      <details className="section" open={seasons.data?.length === 0}>
+      <details className="section" open={list?.length === 0}>
         <summary>New season</summary>
         <form onSubmit={create} className="row">
           <label>Name<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spring 2027" /></label>
@@ -74,6 +78,7 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
   const [typed, setTyped] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   // The app shows everyone the newest season, so deleting it moves everyone to the next one.
   const after = seasons[0]?.id !== season.id ? null : seasons[1]
     ? `Everyone will see ${seasons[1].name} as the current season.`
@@ -82,7 +87,8 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
   async function act(fn: () => Promise<void>) {
     setError(null);
     setMsg(null);
-    try { await fn(); } catch (err) { setError(errorMessage(err)); }
+    setBusy(true);
+    try { await fn(); } catch (err) { setError(errorMessage(err)); } finally { setBusy(false); }
   }
 
   return (
@@ -94,7 +100,7 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
         onRenamed();
       }); }}>
         <label>Name<input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>
-        <button className="secondary" disabled={name.trim() === season.name}>Rename season</button>
+        <button className="secondary" disabled={busy || name.trim() === season.name}>Rename season</button>
       </form>
       <form onSubmit={(e) => { e.preventDefault(); void act(async () => {
         await api.deleteSeason(season.id);
@@ -106,7 +112,7 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
         </p>
         <div className="row">
           <label>Type {season.name} to confirm<input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" /></label>
-          <button className="secondary" disabled={typed !== season.name}>Delete season</button>
+          <button className="secondary" disabled={busy || typed !== season.name}>Delete season</button>
         </div>
       </form>
       {msg && <p className="muted" role="status">{msg}</p>}
