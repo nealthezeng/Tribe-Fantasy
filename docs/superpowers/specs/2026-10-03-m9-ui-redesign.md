@@ -68,44 +68,49 @@ attendance-toggle sliding thumb is left out: it lives on `MePage.tsx`, which M10
 conflict is at most a few appended lines.
 
 ### t92 Phone bottom tab bar
-- Same `nav.tabs` markup, moved by CSS: below the phone breakpoint (where the tabs are a second row today) it is a
-  fixed bottom dock: frosted glass like other panes, `padding-bottom: env(safe-area-inset-bottom)`, targets
-  `--tap-lg` (48px), the gold `.ink` marker on its **top** edge. The top bar keeps brand + avatar only.
-- `.shell` gets bottom padding = dock height + safe area so the last card isn't covered.
-- The dock is **hidden on the tally board** (`/stats/:id`, SessionPage): `Layout.tsx` adds a class when the route
-  matches; the brand link and the board's own controls get keepers out. Tally markup and CSS are not touched.
+- Same `nav.tabs` markup, moved by CSS only (no `Layout.tsx` change): under 640px (where the tabs are a second row
+  today) it is a fixed bottom dock: frosted `--sticky-bg` + `--pane-blur`, `padding-bottom:
+  env(safe-area-inset-bottom)`, 48px (`--tap-lg`) tabs, the gold `.ink` marker on its **top** edge, theme-aware
+  link colours (`--muted` / `--fg`, since the dock isn't on the black bar). The top bar keeps brand + avatar only.
+- `.shell` gets bottom padding = 48px + `--dock-height` (49px) + safe area so the last card isn't covered.
+- The dock is **hidden while the tally board is on screen**: `body:has(.tally-bar) .tabs { display: none }`.
+  (Amended 2026-10-05: the tally board is TallyPage's `TallyBoard` on `/tally` with its sticky `.tally-bar`, not
+  `/stats/:id`, which is the stats/verify page; a CSS `:has()` follows the board without any route logic.) Tally
+  markup and its CSS are not touched.
 - Desktop unchanged. Signed out: no tabs, no dock.
 
 ### t93 Game cards, t97 card lift, t90 by-line (all in `TournamentCard.tsx`)
-- The Tournament card's **Games** list becomes a grid of game cards: 1 column on phones, 2 from the desktop
-  breakpoint. Each card is still a `<details>`: the summary is a **mini scoreboard** of the viewer's matchup on top
-  (`Test Zeal 18.5 – 12 Money`; before scores: team names with "Playing" / "Waiting on stats"; "Bye"; "Not playing"
-  when the team isn't in that game) and the **caption below** it: `Game 2 · vs Duke · Fall Beta`, status pill, and
-  the viewer's `W +3.5`. Opening shows every matchup as today; an open card spans the full grid width.
-- t97: on `(hover: hover)` devices only, a game card lifts `translateY(-4px) scale(1.02)` with a softer shadow over
-  `--dur`; none with reduced motion. Games only (no lift on other cards).
-- t90: inside an open game, each side reads `Christopher Mao by (T) Test Zeal` (round initial avatar like the
-  account button's, team name); forfeit reads `Forfeit by (T) Test Zeal`. Header scoreboard and auction unchanged
+- **Games** move out of the Tournament card into their own page-level section (`<section aria-label="Games">` with
+  an h2) right after it, so the cards aren't boxes inside a box (DESIGN.md: never a box inside a box). It lists the
+  same games as today (pending, final, void; a live game is in the header). Each game is a `details.game`: the
+  summary is a **small black scoreboard** of the viewer's matchup (`.game-score`: both team names, scores once
+  final, the loser muted, `to` when final else `vs`; "Bye"; "Not playing" when the team isn't in that game) with the
+  **caption below** it: `Game 2 · Fall Beta` (or `vs Duke · Fall Beta`), the status pill and the viewer's `W +3.5`.
+  Grid: 1 column on phones, 2 from 640px; an opened game spans the full row and shows every matchup in a `.card`.
+- t97: on `(hover: hover)` devices without reduced motion, a game's scoreboard lifts `translateY(-4px)
+  scale(1.02)` over `--dur`. Games only (no lift on other cards).
+- t90: inside an open game, each side reads `Christopher Mao by (T) Test Zeal` (22px `.avatar.sm` with the team's
+  initial, team name); a forfeit reads `Forfeit by (T) Test Zeal`. Header scoreboard and auction unchanged
   (auction "Every team" already groups rosters by team).
 
 ### t98 Menus slide in, t99 loading skeletons
-- t98: the account menu popover drops 8px and fades in (~200ms ease-out) via `transition` +
-  `@starting-style` on `:popover-open` (no JS; browsers without `@starting-style` just show it). Opening a
-  `<details>` fades/drops its content in (keyframe on `details[open] > :not(summary)`); closing is instant.
-- t99: a `Loading` component (`src/app/components/Loading.tsx`) renders a resting skeleton (a card-shaped block
-  with a title bar and 3 lines) plus `<span class="sr-only">Loading…</span>` inside `role="status"`. It replaces the
-  bare `<p className="muted" role="status">Loading…</p>` lines **except** in `MePage.tsx` (M10) and the tally pages
-  (`TallyPage.tsx`, `SessionPage.tsx`: nothing visual ships to tally before tournaments). TournamentCard's
-  "Loading games…" uses it too. Loaded content fades in (~0.3s) where a skeleton stood. Reduced motion: static
-  skeleton, no shimmer, no fade.
+- t98: the account menu popover and the content of an opened `<details>` drop 8px in and fade (`--dur-menu`
+  200ms): one `drop-in` keyframe on `.account-menu:popover-open` and `details[open] > :not(summary)` (amended: a
+  keyframe instead of `transition` + `@starting-style`: same look, works in every browser, no closing animation
+  needed). Closing is instant.
+- t99: a `Loading` component (`src/app/components/Loading.tsx`) renders a `.skeleton` pane (a title bar and two
+  lines) plus `<span class="sr-only">Loading…</span>` inside `role="status"`. It replaces the bare
+  `<p className="muted" role="status">Loading…</p>` lines **except** in `MePage.tsx` (M10) and the tally pages
+  (`TallyPage.tsx`, `SessionPage.tsx`). TournamentCard's "Loading games…" uses it too. Page content fades in
+  (`--dur-fade` 300ms) as it arrives: `.page:not(:has(.tally-bar)) > *`, so never on the tally board. Skeleton bars
+  breathe (`--dur-rest`). Reduced motion: static skeleton, no fade.
 
 ### Tests and checks
-- App tests: dock hidden on `/stats/:id` and shown on `/`; game card summary/caption for final / live / bye /
-  not-playing; by-line text; `Loading` has `role="status"` + "Loading…" text (existing tests that wait for
-  "Loading…" keep working).
-- `tokens.test.ts` guards pass (new values are tokens; motion rules keep the tally `:not()` list).
-- Sweep every route at 375px in dark and light (dock never covers content or the sticky bid header; tally board
-  has no dock); desktop check of card lift.
+- App tests: game card scoreboard + caption for a final game, Bye, Not playing; by-lines in an opened game;
+  `Loading` announces "Loading…". `tokens.test.ts` gains two guards: the dock is hidden under `:has(.tally-bar)`, and
+  every fade-in rule carries `:not(:has(.tally-bar))`. Existing guards pass (new values are tokens).
+- Sweep every route at 375px in dark and light, signed in (dock never covers content or the sticky bid header;
+  the tally board has no dock); desktop check of the card lift.
 - Final opus review of `main..m9-wrapup` before merge. Ship **before Oct 16** (never Oct 17–18 / Nov 7–8). Tag
   `m9-wrapup`; rollback = tag `m10-admin`. No migration.
 
