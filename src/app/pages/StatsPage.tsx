@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
@@ -68,7 +69,7 @@ export function StatsPage() {
   }
 
   if (data.error) return <p className="error" role="alert">{data.error}</p>;
-  if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
+  if (data.data === undefined) return <Loading />;
   if (data.data === null) return <p>No season yet.</p>;
   const { season, sessions, games } = data.data;
   return (

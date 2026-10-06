@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Loading } from '../../components/Loading';
 import { auctionPhase, formatWhen, pickAuctionStage } from '../../lib/auction';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
@@ -54,7 +55,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
   return (
     <div className="card">
       <h2>Tournaments</h2>
-      {!stages.data && !stages.error && <p className="muted" role="status">Loading…</p>}
+      {!stages.data && !stages.error && <Loading />}
       {/* The real order of a tournament; game 1 is paired by the standings, and keepers run games from Tally. */}
       <ol className="steps" aria-label="Each tournament, in order">
         <li>Grant allowance</li><li>Open auction</li><li>Run auction</li><li>Open tournament</li>

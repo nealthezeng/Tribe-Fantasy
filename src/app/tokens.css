@@ -115,6 +115,10 @@
   --dur-release: 340ms; /* a pressed button springs back */
   --dur-pop: 420ms;     /* a pick turning green */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoots a little, then settles */
+  --dur-menu: 200ms;    /* the account menu and opened sections drop in */
+  --dur-fade: 300ms;    /* loaded content fades in where the skeleton stood */
+  --dur-rest: 1.6s;     /* a loading skeleton breathing, looping */
+  --dock-height: 49px;  /* the phone bottom tab bar: --tap-lg + its 1px top line */
   --shadow-lift: 0 6px 16px -6px rgb(245 183 0 / 0.55); /* gold button hover glow */
 
   /* Depth: the scoreboard's language on every box. Panes (cards, tiles, page-level rows, the account menu, sticky

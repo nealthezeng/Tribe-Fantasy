@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Loading } from '../../components/Loading';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
@@ -33,7 +34,7 @@ export function StaffPanel() {
   return (
     <div className="card">
       <h2>Stat keepers</h2>
-      {!people.data && !people.error && <p className="muted" role="status">Loading…</p>}
+      {!people.data && !people.error && <Loading />}
       <p className="muted">People appear here after they first sign in.</p>
       <ul className="list">
         {people.data?.map((p) => (

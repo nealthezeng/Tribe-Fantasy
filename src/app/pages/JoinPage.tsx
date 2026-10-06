@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Loading } from '../components/Loading';
 import { Navigate, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
@@ -12,7 +13,7 @@ export function JoinPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return <p className="muted" role="status">Loading…</p>;
+  if (loading) return <Loading />;
   if (!session) return <Navigate to="/login" replace />;
 
   async function submit(e: FormEvent) {

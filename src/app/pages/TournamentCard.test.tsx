@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
 import { buildLeagueTournament, type TournamentRows } from '../lib/tournament';
@@ -58,6 +58,8 @@ const show = async (r: TournamentRows) => {
   render(<TournamentCard membershipId="m1" leagueId="L" seasonId="se" teamName="Zeal" subtitle="League A" />);
   await screen.findByRole('heading', { name: 'Tournament' });
 };
+/** The pick list in the Tournament card (game cards below repeat players' names). */
+const picks = () => within(screen.getByRole('article', { name: 'Tournament' }));
 
 describe('TournamentCard', () => {
   it('names games after the real opponent once a keeper sets it (t123)', async () => {
@@ -82,7 +84,7 @@ describe('TournamentCard', () => {
     await show(afterGame1());
     expect(screen.getByRole('heading', { name: 'Game 2 · Fall beta' })).toBeTruthy();
     expect(screen.getByText(/Their pick stays hidden until the game starts/).textContent).toContain('Flow');
-    expect(screen.getByText('Ash').parentElement?.textContent).toContain('Tired ×0.5');
+    expect(picks().getByText('Ash').parentElement?.textContent).toContain('Tired ×0.5');
     // The header leads with the next matchup; neither side's pick is set, and theirs reads as hidden.
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
     expect(screen.getByText('No pick yet')).toBeTruthy();
@@ -109,6 +111,50 @@ describe('TournamentCard', () => {
     expect(screen.queryByRole('button', { name: /^Pick / })).toBeNull();
   });
 
+  describe('game cards (t93, t90)', () => {
+    /** Game 1 played and verified, so final: Ash (2 goals) beat Bea (1 goal). The stage is over: nothing to pick. */
+    const finalGame1 = (): TournamentRows => {
+      const r = afterGame1();
+      return {
+        ...r,
+        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
+        games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, started_at: '2026-11-03T14:00:00Z', finished_at: '2026-11-03T15:00:00Z' })),
+        pairings: r.pairings.filter((p) => p.game_id === 'g1'),
+        sessions: [{ id: 'p1', verified_at: '2026-11-03T16:00:00Z' }],
+        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 2 }, points_played: 0 },
+          { session_id: 'p1', athlete_id: 'b1', stats: { goal: 1 }, points_played: 0 }],
+      };
+    };
+    const card = () => document.querySelector('.game')!;
+
+    it('shows a final game as a small scoreboard with the caption below it', async () => {
+      await show(finalGame1());
+      expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy();
+      expect(card().querySelector('.game-score')?.textContent).toMatch(/^Zeal[\d.]+toFlow[\d.]+$/);
+      expect(card().querySelector('.game-side.lost')?.textContent).toContain('Flow');
+      expect(card().querySelector('summary > .meta')?.textContent).toMatch(/^Game 1 · Fall beta\s*Final\s*W \+/);
+    });
+
+    it('says who played for whom inside an opened game', async () => {
+      await show(finalGame1());
+      fireEvent.click(screen.getByText(/Game 1 · Fall beta/));
+      const byLines = [...card().querySelectorAll('.by')].map((el) => el.textContent);
+      expect(byLines).toEqual(['Ash by Z Zeal', 'Bea by F Flow']);
+    });
+
+    it('says Bye on the card when the team sat out', async () => {
+      const r = afterGame1();
+      await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g1' ? { ...p, away: null } : p)) });
+      expect(card().querySelector('.game-score')?.textContent).toBe('Bye');
+    });
+
+    it("says Not playing on the card when the team wasn't paired in that game", async () => {
+      const r = afterGame1();
+      await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g1' ? { ...p, home: 'm2', away: null } : p)) });
+      expect(card().querySelector('.game-score')?.textContent).toBe('Not playing');
+    });
+  });
+
   it('marks a game whose tally was deleted as void', async () => {
     const r = afterGame1();
     await show({ ...r, games: r.games.map((g) => (g.id === 'g1' ? { ...g, session_id: null } : g)), sessions: [] });
@@ -116,7 +162,7 @@ describe('TournamentCard', () => {
     expect(screen.getByText('Void')).toBeTruthy();
     expect(screen.getByText(/tally was deleted/)).toBeTruthy();
     // A void start doesn't tire anyone.
-    expect(screen.getByText('Ash').parentElement?.textContent).not.toContain('Tired');
+    expect(picks().getByText('Ash').parentElement?.textContent).not.toContain('Tired');
   });
 
   describe('matchup header', () => {

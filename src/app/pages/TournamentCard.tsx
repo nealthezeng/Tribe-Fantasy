@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
+import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
@@ -20,7 +21,8 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 
 /**
  * One team on the League tab, matchup first: the game that matters now as a big headline with both picks, the
- * team's place, record and points, then `children` (the auction and credits), then the next pick, standings and games.
+ * team's place, record and points, then `children` (the auction and credits), then the next pick and standings, then
+ * the games played as cards.
  * Standings show all season, between tournaments too.
  */
 export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, children }: {
@@ -33,7 +35,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
       <>
         <div className="matchup"><h2 className="display">{teamName}</h2><p className="strip">{subtitle}</p></div>
         {children}
-        {error ? <p className="error" role="alert">{error}</p> : <p className="muted" role="status">Loading games…</p>}
+        {error ? <p className="error" role="alert">{error}</p> : <Loading />}
       </>
     );
   }
@@ -49,13 +51,15 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
         {error && <p className="error" role="alert">{error}</p>}
         {next && <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />}
         <Standings y={data} membershipId={membershipId} />
-        {played.length > 0 && (
-          <div className="section">
-            <h3>Games</h3>
-            {played.map((g) => <GameRow key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
-          </div>
-        )}
       </article>
+      {played.length > 0 && (
+        <section className="stack" aria-label="Games">
+          <h2>Games</h2>
+          <div className="games">
+            {played.map((g) => <GameCard key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
+          </div>
+        </section>
+      )}
     </>
   );
 }
@@ -305,27 +309,60 @@ const STATUS: Record<GameOutcome['status'], [string, string]> = {
   void: ['Void', 'pill'],
 };
 
-function GameRow({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome; membershipId: string }) {
+/** A played game as a card: your matchup as a small scoreboard with the caption below it; opens to every matchup. */
+function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome; membershipId: string }) {
   const mine = sides(g).find((x) => x?.membershipId === membershipId);
+  const them = opponentIn(g, membershipId); // undefined = not in this game, null = bye
   const [label, cls] = STATUS[g.status];
   return (
-    <details className="section">
+    <details className="game">
       <summary>
+        <span className="game-score">
+          {!mine || them === undefined ? <span className="game-team">Not playing</span>
+            : them === null ? <span className="game-team">Bye</span>
+              : <>
+                <GameSide y={y} side={mine} lost={mine.result === 'L'} />
+                <span className="vs">{g.status === 'final' ? 'to' : 'vs'}</span>
+                <GameSide y={y} side={them} lost={mine.result === 'W'} />
+              </>}
+        </span>
         <span className="meta">
           {gameLabel(g.game.number, g.game.opponent)} · {y.stage.get(g.game.stageId) ?? ''}
           <span className={cls}>{label}</span>
           {mine?.delta != null && <strong className="num">{mine.result === null ? 'Bye' : `${mine.result} ${signed(mine.delta)}`}</strong>}
         </span>
       </summary>
-      {g.status === 'void' && <p className="muted">This game's tally was deleted, so it doesn't count: no points, and nobody got tired.</p>}
-      {g.status === 'pending' && <p className="muted">Scores appear once this game's stats (and every earlier game's) are verified.</p>}
-      {g.status !== 'void' && g.matchups.map((m) => (
-        <div key={m.home.membershipId} className="stack">
-          <SideDetail y={y} g={g} side={m.home} />
-          {m.away ? <SideDetail y={y} g={g} side={m.away} /> : <p className="muted">Bye</p>}
-        </div>
-      ))}
+      <div className="card">
+        {g.status === 'void' && <p className="muted">This game's tally was deleted, so it doesn't count: no points, and nobody got tired.</p>}
+        {g.status === 'pending' && <p className="muted">Scores appear once this game's stats (and every earlier game's) are verified.</p>}
+        {g.status !== 'void' && g.matchups.map((m) => (
+          <div key={m.home.membershipId} className="stack">
+            <SideDetail y={y} g={g} side={m.home} />
+            {m.away ? <SideDetail y={y} g={g} side={m.away} /> : <p className="muted">Bye</p>}
+          </div>
+        ))}
+      </div>
     </details>
+  );
+}
+
+/** One team on a game card's scoreboard: its name, and its score once the game is final. */
+function GameSide({ y, side, lost }: { y: LeagueTournament; side: TournamentSide; lost: boolean }) {
+  return (
+    <span className={lost ? 'game-side lost' : 'game-side'}>
+      <span className="game-team">{y.team.get(side.membershipId)}</span>
+      {side.score !== null && <span className="pts">{fmt(side.score)}</span>}
+    </span>
+  );
+}
+
+/** "Christopher Mao by (T) Test Zeal": who played, and for whose team. */
+function ByLine({ player, team }: { player: string; team: string }) {
+  return (
+    <span className="by">
+      {player} <small>by</small> <span className="avatar sm" aria-hidden="true">{team.trim().charAt(0).toUpperCase()}</span>{' '}
+      <strong>{team}</strong>
+    </span>
   );
 }
 
@@ -343,7 +380,7 @@ function SideDetail({ y, g, side }: { y: LeagueTournament; g: GameOutcome; side:
   return (
     <div className="stack">
       <p className="head">
-        <span><strong>{y.team.get(side.membershipId)}</strong> · {side.athleteId ? y.athlete.get(side.athleteId) : 'forfeit'}</span>
+        <ByLine player={side.athleteId ? y.athlete.get(side.athleteId) ?? 'A player' : 'Forfeit'} team={y.team.get(side.membershipId) ?? 'A team'} />
         {side.score !== null && <span className="num">{fmt(side.score)} {side.delta !== null && <>({signed(side.delta)})</>}</span>}
       </p>
       <Notice y={y} side={side} />
