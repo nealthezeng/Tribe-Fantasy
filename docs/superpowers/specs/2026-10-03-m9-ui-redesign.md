@@ -1,6 +1,7 @@
 # M9: UI/UX redesign (decision record)
 
-Status: built on branch `m9-ui` (off main `adfb252`), not merged. Board phase p13, tasks t85–t117.
+Status: t85–t117 live (tag `m9-ui`); t118–t119 live (tag `m10-admin`); wrap-up below on branch `m9-wrapup`.
+Board phase p13.
 Written after the fact (2026-10-03): M9 has no fixed scope, so it ran request by request with the user instead of a
 spec and plan up front. This file records what was decided, what was rejected, and what is still open, so the
 branch can be reviewed against it. How the result looks is in [DESIGN.md](../../../DESIGN.md).
@@ -50,12 +51,63 @@ branch can be reviewed against it. How the result looks is in [DESIGN.md](../../
 - Every tap target ≥ 44px; motion only without `prefers-reduced-motion`; colour never the only signal.
 - One loud thing per screen in the display face; gold means act.
 
-## Open backlog (board, todo)
+## Wrap-up (2026-10-05, branch `m9-wrapup` off main 2b2d690): closes M9
 
-t90 "athlete by manager" lines · t92 phone bottom tab bar (biggest, touches every screen) · t93 game cards with
-caption below · t94 team photo hero (needs a photo everyone in it OKs) · t96 live score ticker · t97 card lift ·
-t98 menu slide-in · t99 load skeletons · t100 traced border (pick one of t95/t100 for "live"; t95 pulse is built).
-Also: sliding thumb for the attendance toggle.
+The user asked to finish the backlog, **front end only**, so M9 can run in parallel with M10 (notifications,
+worktree `Tribe-Fantasy-m10`) without clashing.
+
+**Triage (user):** build t90, t92, t93, t97, t98, t99. **Dropped** t96 live score ticker (game scores are hidden
+until verified and taps are staff-only, so a front-end ticker has no live scores; the League headline's pulsing
+Live marker covers "a game is on") and t100 traced border (the task said pick one of t95/t100; t95 pulse is live).
+**Parked** t94 team photo (blocked until there's a photo everyone in it OKs; a one-file change later). The
+attendance-toggle sliding thumb is left out: it lives on `MePage.tsx`, which M10 edits.
+
+**No-clash rule.** This branch never touches SQL/migrations, `supabase/`, `src/app/lib/rpc.ts`,
+`src/app/lib/errors.ts`, `MePage.tsx`, `RulesPage.tsx` or `docs/setup-supabase.md` (M10's files). New CSS goes in
+`tokens.css` (values) and `styles.css` (rules) keeping the phone `@media` last. If M10 also adds CSS, the merge
+conflict is at most a few appended lines.
+
+### t92 Phone bottom tab bar
+- Same `nav.tabs` markup, moved by CSS: below the phone breakpoint (where the tabs are a second row today) it is a
+  fixed bottom dock: frosted glass like other panes, `padding-bottom: env(safe-area-inset-bottom)`, targets
+  `--tap-lg` (48px), the gold `.ink` marker on its **top** edge. The top bar keeps brand + avatar only.
+- `.shell` gets bottom padding = dock height + safe area so the last card isn't covered.
+- The dock is **hidden on the tally board** (`/stats/:id`, SessionPage): `Layout.tsx` adds a class when the route
+  matches; the brand link and the board's own controls get keepers out. Tally markup and CSS are not touched.
+- Desktop unchanged. Signed out: no tabs, no dock.
+
+### t93 Game cards, t97 card lift, t90 by-line (all in `TournamentCard.tsx`)
+- The Tournament card's **Games** list becomes a grid of game cards: 1 column on phones, 2 from the desktop
+  breakpoint. Each card is still a `<details>`: the summary is a **mini scoreboard** of the viewer's matchup on top
+  (`Test Zeal 18.5 – 12 Money`; before scores: team names with "Playing" / "Waiting on stats"; "Bye"; "Not playing"
+  when the team isn't in that game) and the **caption below** it: `Game 2 · vs Duke · Fall Beta`, status pill, and
+  the viewer's `W +3.5`. Opening shows every matchup as today; an open card spans the full grid width.
+- t97: on `(hover: hover)` devices only, a game card lifts `translateY(-4px) scale(1.02)` with a softer shadow over
+  `--dur`; none with reduced motion. Games only (no lift on other cards).
+- t90: inside an open game, each side reads `Christopher Mao by (T) Test Zeal` (round initial avatar like the
+  account button's, team name); forfeit reads `Forfeit by (T) Test Zeal`. Header scoreboard and auction unchanged
+  (auction "Every team" already groups rosters by team).
+
+### t98 Menus slide in, t99 loading skeletons
+- t98: the account menu popover drops 8px and fades in (~200ms ease-out) via `transition` +
+  `@starting-style` on `:popover-open` (no JS; browsers without `@starting-style` just show it). Opening a
+  `<details>` fades/drops its content in (keyframe on `details[open] > :not(summary)`); closing is instant.
+- t99: a `Loading` component (`src/app/components/Loading.tsx`) renders a resting skeleton (a card-shaped block
+  with a title bar and 3 lines) plus `<span class="sr-only">Loading…</span>` inside `role="status"`. It replaces the
+  bare `<p className="muted" role="status">Loading…</p>` lines **except** in `MePage.tsx` (M10) and the tally pages
+  (`TallyPage.tsx`, `SessionPage.tsx`: nothing visual ships to tally before tournaments). TournamentCard's
+  "Loading games…" uses it too. Loaded content fades in (~0.3s) where a skeleton stood. Reduced motion: static
+  skeleton, no shimmer, no fade.
+
+### Tests and checks
+- App tests: dock hidden on `/stats/:id` and shown on `/`; game card summary/caption for final / live / bye /
+  not-playing; by-line text; `Loading` has `role="status"` + "Loading…" text (existing tests that wait for
+  "Loading…" keep working).
+- `tokens.test.ts` guards pass (new values are tokens; motion rules keep the tally `:not()` list).
+- Sweep every route at 375px in dark and light (dock never covers content or the sticky bid header; tally board
+  has no dock); desktop check of card lift.
+- Final opus review of `main..m9-wrapup` before merge. Ship **before Oct 16** (never Oct 17–18 / Nov 7–8). Tag
+  `m9-wrapup`; rollback = tag `m10-admin`. No migration.
 
 ## Risks and checks before / after merge
 
