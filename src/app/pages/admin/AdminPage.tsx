@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { Loading } from '../../components/Loading';
 import { Navigate } from 'react-router';
 import { useAuth } from '../../auth/AuthProvider';
 import { useInk } from '../../lib/useInk';
@@ -23,7 +24,7 @@ export function AdminPage() {
   const [seasonId, setSeasonId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('stages');
   const subnav = useInk<HTMLElement>(`${tab} ${loading} ${isAdmin}`);
-  if (loading) return <p className="muted" role="status">Loading…</p>;
+  if (loading) return <Loading />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return (
     <section className="page">

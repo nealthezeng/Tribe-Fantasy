@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
+import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
@@ -33,7 +34,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
       <>
         <div className="matchup"><h2 className="display">{teamName}</h2><p className="strip">{subtitle}</p></div>
         {children}
-        {error ? <p className="error" role="alert">{error}</p> : <p className="muted" role="status">Loading games…</p>}
+        {error ? <p className="error" role="alert">{error}</p> : <Loading />}
       </>
     );
   }

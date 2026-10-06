@@ -321,6 +321,20 @@ tbody tr:last-child td { border-bottom: 0; }
   .tally-buttons button, .tally-head button, .tally-bar button { transition: none; }
 }
 
+/* Loading (t99): a resting card-shaped skeleton; it breathes slowly unless motion is reduced. */
+.skeleton { display: grid; gap: var(--s3); padding: var(--s4); border: 1px solid var(--pane-border); border-radius: var(--radius); background: var(--pane-bg); }
+.skeleton > [aria-hidden] { height: 12px; width: 90%; border-radius: var(--radius-pill); background: var(--surface-2); }
+.skeleton > [aria-hidden]:nth-child(2) { height: 20px; width: 40%; }
+.skeleton > [aria-hidden]:last-child { width: 65%; }
+@keyframes drop-in { from { opacity: 0; transform: translateY(-8px); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes rest { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: no-preference) {
+  /* t99: page content fades in as it arrives (never on the tally board). */
+  .page:not(:has(.tally-bar)) > * { animation: fade-in var(--dur-fade) var(--ease); }
+  .skeleton > [aria-hidden] { animation: rest var(--dur-rest) ease-in-out infinite; }
+}
+
 /* Phones: every box floats as a rounded glass pane inside the gutter, like the scoreboard (M9 polish), with a little
    less padding and slimmer bid columns so names keep their room. Only the signed-out hero runs edge to edge.
    Kept last so it wins over each component's own rules. */

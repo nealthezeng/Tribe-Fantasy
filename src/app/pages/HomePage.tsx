@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react';
+import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscMark } from '../components/Layout';
@@ -30,7 +31,7 @@ export function HomePage() {
     return (data ?? []) as unknown as MembershipRow[];
   }, [uid]);
 
-  if (loading) return <p className="muted" role="status">Loading…</p>;
+  if (loading) return <Loading />;
   if (!session) {
     return (
       <section className="hero">
@@ -49,7 +50,7 @@ export function HomePage() {
       {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
       <h1 className={data?.length ? 'sr-only' : undefined}>Your teams</h1>
       {error && <p className="error" role="alert">{error}</p>}
-      {!data && !error && <p className="muted" role="status">Loading…</p>}
+      {!data && !error && <Loading />}
       {data && data.length === 0 && (
         <div className="card">
           <p>You're not in a league yet. Ask your league admin for an invite code.</p>

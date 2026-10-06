@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Loading } from '../../components/Loading';
 import { DEFAULT_SETTINGS } from '../../../core/settings';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
@@ -52,7 +53,7 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
   return (
     <div className="card">
       <h2>Wallets</h2>
-      {!data.data && !data.error && <p className="muted" role="status">Loading…</p>}
+      {!data.data && !data.error && <Loading />}
       {data.data?.leagues.map((l) => (
         <div key={l.id} className="stack">
           <h3>{l.name}</h3>

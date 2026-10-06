@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Loading } from '../../components/Loading';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
@@ -67,7 +68,7 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
   return (
     <div className="card">
       <h2>Athletes <small>{count} opted in</small></h2>
-      {!athletes.data && !athletes.error && <p className="muted" role="status">Loading…</p>}
+      {!athletes.data && !athletes.error && <Loading />}
       {athletes.data?.list.length === 0 && <p className="muted">No athletes yet. Add them below.</p>}
       <ul className="list">
         {athletes.data?.list.map((a) => (

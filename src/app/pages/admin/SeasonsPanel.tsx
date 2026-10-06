@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Loading } from '../../components/Loading';
 import { DEFAULT_SETTINGS } from '../../../core/settings';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
@@ -36,7 +37,7 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
   return (
     <div className="card">
       <h2>Seasons</h2>
-      {!seasons.data && !seasons.error && <p className="muted" role="status">Loading…</p>}
+      {!seasons.data && !seasons.error && <Loading />}
       {seasons.data?.length === 0 && <p className="muted">No seasons yet. Create the first one below.</p>}
       <ul className="list">
         {seasons.data?.map((s) => (

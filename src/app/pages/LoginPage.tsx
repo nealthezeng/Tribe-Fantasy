@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Loading } from '../components/Loading';
 import { Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
@@ -11,7 +12,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (loading) return <p className="muted" role="status">Loading…</p>;
+  if (loading) return <Loading />;
   if (session) return <Navigate to="/" replace />;
 
   async function sendEmail(e: FormEvent) {

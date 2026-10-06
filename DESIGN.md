@@ -98,7 +98,9 @@ Radii: `--radius` 14px for cards and the hero, `--radius-sm` 10px for buttons, i
 system (`--pane-shadow`, `--score-shadow`, see Depth) plus the gold hover glow `--shadow-lift`.
 
 Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 76px stat buttons. Motion:
-`--dur` 150ms with `--ease`, and `--dur-flash` 400ms for the over-budget flash.
+`--dur` 150ms with `--ease`, and `--dur-flash` 400ms for the over-budget flash; `--dur-menu` 200ms for menus and
+opened sections dropping in, `--dur-fade` 300ms for loaded content fading in, `--dur-rest` 1.6s for a loading
+skeleton's slow breathing.
 
 Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 16px side padding, 24px top).
 
@@ -141,7 +143,10 @@ Errors say what happened and what to do; an unknown error shows its code only in
   `.warn`, `.bad`.
 - **`.notice`**: an info pane, the same glass as every box but glowing blue (`--notice-bg`), for information and next steps ("Set your name and join a league").
 - **`.success`**: green text with `role="status"` for a confirmed result. **`.error`**: red text with
-  `role="alert"` for a failure, saying what to do next. Loading is `.muted` text with `role="status"`.
+  `role="alert"` for a failure, saying what to do next. **Loading** is the `Loading` component
+  (`src/app/components/Loading.tsx`): a `.skeleton` pane in a card's shape (a title bar and two lines) with
+  `role="status"` and a hidden "Loading…" for screen readers (M9 t99). Me and the tally pages still show plain
+  `.muted` "Loading…" text.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
   as background). Used for attendance.
 - **`.subnav`**: admin's sticky, sideways-scrolling row of rounded tabs (`aria-pressed`). Admin shows one section

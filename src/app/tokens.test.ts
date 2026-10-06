@@ -16,6 +16,15 @@ describe('styles.css reads every design value from tokens.css', () => {
   });
 });
 
+describe('the page fade stays off the tally board (t99)', () => {
+  it('every fade-in rule skips the tally board', () => {
+    // [^{}] keeps the match inside one rule, not from an @media header down into its first rule.
+    const fades = [...styles.matchAll(/([^{}]+)\{[^{}]*animation: fade-in/g)].map((m) => m[1].trim());
+    expect(fades.length).toBeGreaterThan(0);
+    for (const selector of fades) expect(selector).toContain(':not(:has(.tally-bar))');
+  });
+});
+
 describe('the tally board never moves', () => {
   it('every button lift or squeeze rule excludes the tally board', () => {
     // Selectors of rules that move a button: a hover lift or a press squeeze.
