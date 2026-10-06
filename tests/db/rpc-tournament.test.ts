@@ -137,6 +137,9 @@ describe('start_game / finish_game', () => {
     await finishLast(g1);
     await expect(addNext(g1, pairings(), alice)).rejects.toThrow('FORBIDDEN');
     await expect(addNext(g1, [{ league_id: f.league, home: aliceM, away: bobM }])).rejects.toThrow('PAIRINGS_INVALID');
+    await f.db.query(`update public.stages set starts_on = current_date - 2, ends_on = current_date - 1 where id = $1`, [f.stage]);
+    await expect(addNext(g1)).rejects.toThrow('TOURNAMENT_ENDED');
+    await f.db.query(`update public.stages set ends_on = current_date + 30 where id = $1`, [f.stage]);
     const g2 = await addNext(g1);
     expect(await game(2)).toMatchObject({ id: g2, started: false });
     expect((await f.db.query('select 1 from public.game_pairings where game_id = $1', [g2])).rows).toHaveLength(2);

@@ -61,8 +61,7 @@ describe('GameControls', () => {
   it("ends the tournament after a confirm: 'That was the last game' finishes without pairing (t202)", async () => {
     state.game = live;
     render(<GameControls season={season} sessionId="p2" />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Finish game 2' }));
-    const end = await screen.findByRole('button', { name: 'That was the last game' });
+    const end = await screen.findByRole('button', { name: 'That was the last game' }); // no pairing preview needed
     confirm.mockReturnValueOnce(false);
     fireEvent.click(end);
     expect(api.finishLastGame).not.toHaveBeenCalled();

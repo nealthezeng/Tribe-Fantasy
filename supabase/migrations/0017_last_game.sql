@@ -25,7 +25,8 @@ begin
   return gid;
 end $$;
 
--- After a last-game finish: pair game N+1 after all (keepers, like Finish). The pairing trigger sends its pick emails.
+-- After a last-game finish: pair game N+1 after all (keepers, like Finish), while the tournament's dates last (the
+-- app's rule for Start game). The pairing trigger sends its pick emails.
 create function public.add_next_game(p_game uuid, p_pairings jsonb, p_provisional jsonb) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare g public.games; gid uuid;
@@ -36,6 +37,9 @@ begin
   if g.finished_at is null then raise exception 'GAME_NOT_FINISHED'; end if;
   if exists (select 1 from public.games where stage_id = g.stage_id and number > g.number) then
     raise exception 'NEXT_GAME_EXISTS';
+  end if;
+  if (select ends_on from public.stages where id = g.stage_id) < (now() at time zone 'America/New_York')::date then
+    raise exception 'TOURNAMENT_ENDED';
   end if;
   perform private.check_pairings(g.stage_id, p_pairings);
   insert into public.games (stage_id, number) values (g.stage_id, g.number + 1) returning id into gid;

@@ -78,8 +78,8 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
     if (!window.confirm(`End ${stage.name} after game ${n}? No game ${n + 1} will be paired.`)) return;
     void run(async () => {
       await api.finishLastGame(game.id);
-      setPreview(null);
-      setStatus(`${title} finished. ${stage.name} is over.`);
+      // On the list the card itself now says the tournament is over; the board only shows this message.
+      setStatus(sessionId === undefined ? null : `${title} finished. ${stage.name} is over.`);
     });
   };
 
@@ -116,6 +116,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
             {sessionId === undefined && game.session_id && (
               <button className="secondary" onClick={() => onOpen?.(game.session_id!)}>Tally game {n}</button>
             )}
+            <button className="secondary" disabled={busy || waiting > 0} onClick={finishLast}>That was the last game</button>
             <button disabled={busy || waiting > 0} onClick={finish}>Finish game {n}</button>
           </span>
         </div>
@@ -142,7 +143,6 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
           {waiting > 0 && <p className="muted"><small>Finish waits until your taps are saved.</small></p>}
           <div className="row">
             <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>{over ? `Pair game ${n + 1}` : `Finish game ${n}`}</button>
-            {!over && <button className="secondary" disabled={busy || waiting > 0} onClick={finishLast}>That was the last game</button>}
             <button className="secondary" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
           </div>
         </div>
