@@ -2,7 +2,7 @@
 
 Board phase p15 (M10), tasks t200 (bidding closes soon) and t201 (pick for the next game). M10's scope grows as
 the user adds tasks; this spec covers notifications only. Branch `m10-notify` (worktree `Tribe-Fantasy-m10`), cut
-from local `main` at 2b2d690 (includes admin-powers / 0014). Go-live tag `m10-notify`.
+from `main` at 2b2d690 (admin-powers / 0014, live as tag m10-admin). Go-live tag `m10-notify`.
 
 ## 1. What the user decided (2026-10-05)
 
@@ -29,16 +29,16 @@ game_pairings AFTER INSERT trigger ------> private.outbox   (pick notices, queue
                                                              open_tournament / finish_game)
 ```
 
-- **All "who gets what" logic is SQL** in migration `0015_notify.sql`, so it is covered by the PGlite DB tests.
+- **All "who gets what" logic is SQL** in migration `0016_notify.sql`, so it is covered by the PGlite DB tests.
   The Edge Function is a thin sender with no decisions in it.
 - **No new public RPC for the sender.** The function talks to Postgres directly with the `SUPABASE_DB_URL`
   secret every Edge Function already gets, so `claim_outbox` / `mark_outbox` stay in the `private` schema and are
   never exposed through PostgREST.
 - **`finish_game` and `open_tournament` are not redefined.** Pick notices come from a trigger on
-  `game_pairings`, which both RPCs already insert into. That keeps 0015 clear of any SQL other branches touch.
+  `game_pairings`, which both RPCs already insert into. That keeps 0016 clear of any SQL other branches touch.
 - Every minute is about 43k function calls a month, inside the free tier's 500k.
 
-## 3. Data (migration 0015)
+## 3. Data (migration 0016)
 
 ```sql
 alter table public.profiles add column notify_email boolean not null default true;
@@ -170,7 +170,7 @@ in SQL: `https://nealthezeng.github.io/Tribe-Fantasy/`.
 
 ## 9. Go-live (user-side, in this order)
 
-1. **SQL Editor:** paste `0015_notify.sql`. It's additive: the old site ignores the new column, table and
+1. **SQL Editor:** paste `0016_notify.sql`. It's additive: the old site ignores the new column, table and
    trigger. Pick notices start queuing right away but sit unsent until step 4, and expire after 30 minutes.
 2. **Database → Extensions:** enable `pg_cron` and `pg_net`.
 3. **Edge Functions → Deploy a new function → `notify`:**
@@ -187,10 +187,12 @@ in SQL: `https://nealthezeng.github.io/Tribe-Fantasy/`.
 
 ## 10. Coordination with other branches
 
-- **Migration 0014** (admin-powers) is already merged on local `main`. This branch is cut after it, so the
-  number is `0015`.
-- **No SQL this branch touches is redefined by 0014.** The trigger approach avoids `finish_game` /
-  `open_tournament`.
+- **Migration 0014** (admin-powers) is live (tag `m10-admin`, pushed). **0015 is reserved for board t125**
+  (refund auction spending when a tournament is deleted; other session, small, likely ships first), so this
+  branch uses `0016`. If t125 is dropped or ships later, keep 0016 anyway: gaps in the numbering are harmless.
+- **No SQL this branch touches is redefined by 0014 or t125.** The trigger approach avoids `finish_game` /
+  `open_tournament`, and t125 only changes `delete_stage`. Before merging, rebase on `main` and re-run the DB
+  tests with 0015 present.
 - **App overlap is MePage.tsx, RulesPage.tsx and docs/setup-supabase.md.** Small additions; rebase on `main`
   before merging if M9 has touched them.
 - **Board ids for M10 start at t200**, so they never collide with M9 / admin-powers ids (t124+).
