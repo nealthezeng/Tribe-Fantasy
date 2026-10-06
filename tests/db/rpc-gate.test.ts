@@ -10,7 +10,7 @@ const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
   'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
-  'set_bench', 'set_game_pick', 'swap_bench',
+  'set_bench', 'set_game_pick', 'set_notify_email', 'swap_bench',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
@@ -57,6 +57,7 @@ describe('RPC gate', () => {
     const c: Record<string, string> = {};
     const steps: [string, string, () => Record<string, unknown>, ((r: unknown) => void)?][] = [
       ['set_display_name', player, () => ({ p_name: 'Pat' })],
+      ['set_notify_email', player, () => ({ p_on: false })],
       ['create_season', admin, () => ({ p_name: 'Gate', p_settings: {} }), (r) => (c.season = r as string)],
       ['update_season_settings', admin, () => ({ p_season: c.season, p_settings: { donations_enabled: true, roster_size: 1, allow_self_ownership: true } })],
       ['create_league', admin, () => ({ p_season: c.season, p_name: 'L' }), (r) => (c.league = r as string)],
