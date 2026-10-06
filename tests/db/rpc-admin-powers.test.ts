@@ -39,7 +39,7 @@ beforeEach(async () => {
 });
 
 describe('delete_stage', () => {
-  it('deletes the tournament, its games, stats sessions, rosters and bids, but keeps every credit (t121)', async () => {
+  it('deletes the tournament, its games, stats sessions, rosters and bids; keeps every credit row and refunds auction spending (t121, t125)', async () => {
     await grant(f);
     await openAuction(f);
     await bid(f, alice, aliceM, f.athletes[4], 5);
@@ -65,11 +65,33 @@ describe('delete_stage', () => {
     expect(await count('public.stat_taps')).toBe(0);
     expect(await count('public.roster_slots')).toBe(0);
     expect(await count('public.bids')).toBe(0);
-    expect(await count('public.credit_ledger')).toBe(ledger);
+    expect(await count('public.credit_ledger')).toBe(ledger + 2); // one refund row per team
     expect(await count('public.credit_ledger where stage_id is not null')).toBe(0);
-    expect(await count(`public.credit_ledger where kind = 'bid'`)).toBeGreaterThan(0); // spending is not refunded
-    expect([await balance(aliceM), await balance(bobM)]).toEqual(before);
-    expect((await audit('delete_stage'))[0].details).toMatchObject({ name: 'Fall beta', games: 2, sessions: 1, slots: slotCount, bids: 1, ledger_rows_kept: ledger });
+    expect(await count(`public.credit_ledger where kind = 'bid'`)).toBeGreaterThan(0); // spending rows stay
+    // Refund = every priced roster slot: alice 10 + 10 + the 5 she won, bob 10 + 10.
+    const refunds = (await f.db.query<{ membership_id: string; amount: number; note: string }>(
+      `select membership_id, amount, note from public.credit_ledger where kind = 'adjustment' order by amount desc`)).rows;
+    expect(refunds).toEqual([
+      { membership_id: aliceM, amount: 25, note: 'Refund: Fall beta deleted' },
+      { membership_id: bobM, amount: 20, note: 'Refund: Fall beta deleted' },
+    ]);
+    expect([await balance(aliceM), await balance(bobM)]).toEqual([before[0] + 25, before[1] + 20]);
+    expect((await audit('delete_stage'))[0].details).toMatchObject({ name: 'Fall beta', games: 2, sessions: 1, slots: slotCount, bids: 1, ledger_rows_kept: ledger, refunded: 45 });
+  });
+
+  it('never refunds a force-deleted player twice (t125)', async () => {
+    const before = await balance(aliceM);
+    await as(f.db, f.admin, (tx) => rpc(tx, 'delete_athlete', { p_athlete: f.athletes[0], p_force: true })); // refunds 10 now
+    await as(f.db, f.admin, (tx) => rpc(tx, 'delete_stage', { p_stage: f.stage })); // refunds the other 10
+    expect(await balance(aliceM)).toBe(before + 20);
+  });
+
+  it('refunds nothing when no one bought a player (t125)', async () => {
+    await f.db.query('delete from public.roster_slots');
+    const ledger = await count('public.credit_ledger');
+    await as(f.db, f.admin, (tx) => rpc(tx, 'delete_stage', { p_stage: f.stage }));
+    expect(await count('public.credit_ledger')).toBe(ledger);
+    expect((await audit('delete_stage'))[0].details).toMatchObject({ refunded: 0 });
   });
 
   it('is admin-only and needs a real tournament', async () => {

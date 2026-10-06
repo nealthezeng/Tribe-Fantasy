@@ -100,8 +100,8 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           {form.id && <button type="button" className="secondary" onClick={() => {
             const id = form.id!;
             if (!window.confirm(`Delete ${form.name}? Its games and their stats, rosters and bids are deleted for good. `
-              + 'Credits given, spent or refunded for it stay as they are (spending is not refunded), so granting an allowance '
-              + 'again to a re-created tournament would credit everyone twice. Take a backup first if you might want it back.')) return;
+              + 'Credits spent in its auction go back to the teams; allowances stay, so granting an allowance again to a '
+              + 're-created tournament would credit everyone twice. Take a backup first if you might want it back.')) return;
             void run(async () => {
               await api.deleteStage(id);
               setForm(EMPTY);

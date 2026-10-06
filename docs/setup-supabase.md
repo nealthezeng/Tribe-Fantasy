@@ -134,6 +134,13 @@
 2. Deploy (merge + push). Hard-reload open admin and keeper tabs.
 3. Before deleting a tournament for real, **Admin → Backup** → download a Backup JSON: deletes can't be undone.
 
+## Refund on tournament delete (after 0001–0014)
+
+1. SQL Editor: paste and run `supabase/migrations/0015_refund_on_delete.sql`. It only replaces `delete_stage`, so it
+   is safe any time: deleting a tournament now gives each team back what it paid for the players still on its
+   roster (one `Refund: <tournament> deleted` row per team). Allowances stay.
+2. Deploy (merge + push): the delete confirmation says so.
+
 ## M10 email notifications (after 0001–0014; 0015 is independent)
 
 Bid reminders (24 h and 2 h before bidding closes) and next-game pick notices, sent from the Gmail account already

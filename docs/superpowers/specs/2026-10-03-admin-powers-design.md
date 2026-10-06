@@ -118,3 +118,11 @@ the middle of a tournament. Renaming a tournament (`update_stage` already does i
    rules, so those two get no UI tests. StagesPanel gets tests for Undo (picks the newest STARTED game) and Delete.
 4. **Undoing game 1 reopens bench choices** (`set_bench` only refuses once a game has started); pinned in a DB test.
 5. **Branch base:** `admin-powers` is cut from `m9-fixes` (unmerged at plan time), so merging it ships m9-fixes too.
+
+## Amendment (2026-10-06, board t125): deleting a tournament refunds auction spending
+
+User reversed the "spending is not refunded" ruling. Migration `0015_refund_on_delete.sql` redefines `delete_stage`:
+before deleting, each team gets one `adjustment` row `Refund: <tournament> deleted` equal to the prices of its priced
+roster slots still in the tournament (not the `bid` ledger rows, so a force-deleted athlete already refunded by
+`delete_athlete` is never paid twice). Allowances are not taken back; every existing ledger row is still kept. The
+audit row gains `refunded`.
