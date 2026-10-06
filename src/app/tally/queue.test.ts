@@ -2,7 +2,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { Tap } from '../../core/taps';
 import {
-  canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, removeSent, storeQueue, subtractHint, unsavedTaps,
+  canForgetLocally, isRejection, lastUndoable, loadQueue, notFoundDrop, queuedSessions, removeSent, storeQueue, subtractHint,
+  unsavedTaps,
   type QueuedTap,
 } from './queue';
 
@@ -134,5 +135,26 @@ describe('saved taps still in a reopened queue', () => {
   it('are not counted twice', () => {
     expect(unsavedTaps([q('s')], [q('a'), q('b')], new Set(['a', 's'])).map((t) => t.id)).toEqual(['b']);
     expect(unsavedTaps([q('s')], [q('a')], new Set()).map((t) => t.id)).toEqual(['s', 'a']);
+  });
+});
+
+describe('notFoundDrop (t203)', () => {
+  const tap = (id: string, athlete: string): QueuedTap => ({ id, athlete_id: athlete, stat: 'goal', tapped_at: '', undoes: null });
+  const batch = [tap('1', 'a'), tap('2', 'gone'), tap('3', 'b'), tap('4', 'gone')];
+
+  it("drops only a deleted player's taps, so the rest still save", () => {
+    const r = notFoundDrop(batch, true, new Set(['a', 'b']));
+    expect(r.drop.map((t) => t.id)).toEqual(['2', '4']);
+    expect(r.message).toContain('player an admin deleted');
+  });
+
+  it('drops the whole batch when the game itself is gone', () => {
+    const r = notFoundDrop(batch, false, new Set(['a', 'b']));
+    expect(r.drop).toBe(batch);
+    expect(r.message).toContain('undid or deleted this game');
+  });
+
+  it("drops the whole batch with the server's message when nothing is missing", () => {
+    expect(notFoundDrop(batch, true, new Set(['a', 'b', 'gone']))).toEqual({ drop: batch, message: null });
   });
 });

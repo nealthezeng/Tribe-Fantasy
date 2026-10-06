@@ -79,6 +79,18 @@ export function isRejection(err: unknown): boolean {
   return REJECTIONS.includes(msg.trim());
 }
 
+/**
+ * A batch came back NOT_FOUND (t203): which taps to drop, and why. The game gone (admin Undo game / delete) drops
+ * them all; otherwise only taps for players that no longer exist (admin force-delete), so the rest still save.
+ * `message` null: no cause found, drop the batch with the server's message.
+ */
+export function notFoundDrop(batch: QueuedTap[], sessionExists: boolean, athleteIds: ReadonlySet<string>):
+  { drop: QueuedTap[]; message: string | null } {
+  if (!sessionExists) return { drop: batch, message: 'an admin undid or deleted this game.' };
+  const drop = batch.filter((t) => !athleteIds.has(t.athlete_id));
+  return drop.length > 0 ? { drop, message: 'they were for a player an admin deleted.' } : { drop: batch, message: null };
+}
+
 export const rowToTap = (r: StatTapRow): Tap => ({
   id: r.id,
   athleteId: r.athlete_id,

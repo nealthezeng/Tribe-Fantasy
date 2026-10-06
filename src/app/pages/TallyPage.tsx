@@ -13,8 +13,8 @@ import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { GameControls } from './GameControls';
 import {
-  BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, queuedSessions, queuedToTap, removeSent, rowToTap,
-  storeQueue, subtractHint, unsavedTaps,
+  BATCH_MAX, canForgetLocally, isRejection, lastUndoable, loadQueue, notFoundDrop, queuedSessions, queuedToTap, removeSent,
+  rowToTap, storeQueue, subtractHint, unsavedTaps,
   type QueuedTap, type StatTapRow,
 } from '../tally/queue';
 
@@ -141,8 +141,22 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       reload();
     } catch (err) {
       if (isRejection(err)) {
-        setQueue((q) => removeSent(q, batch));
-        setRejected((r) => ({ count: (r?.count ?? 0) + batch.length, message: errorMessage(err) }));
+        let drop = batch;
+        let message = errorMessage(err);
+        if (String((err as { message?: string }).message).trim() === 'NOT_FOUND') {
+          const ids = [...new Set(batch.map((t) => t.athlete_id))];
+          const [sess, found] = await Promise.all([
+            supabase!.from('sessions').select('id').eq('id', sessionId),
+            supabase!.from('athletes').select('id').in('id', ids),
+          ]);
+          if (sess.error || found.error) return; // can't tell what's gone yet: keep the taps and retry
+          const why = notFoundDrop(batch, (sess.data ?? []).length > 0, new Set((found.data ?? []).map((a) => a.id as string)));
+          drop = why.drop;
+          message = why.message ?? message;
+        }
+        storeQueue(keeperId, sessionId, removeSent(loadQueue(keeperId, sessionId), drop));
+        setQueue((q) => removeSent(q, drop));
+        setRejected((r) => ({ count: (r?.count ?? 0) + drop.length, message }));
         reload(); // e.g. SESSION_VERIFIED: show the board as closed
       }
       // Anything else (no signal, timeout): keep the taps and retry.
@@ -250,7 +264,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {closed && !verified && <p className="notice">This session is from an earlier season, so tallying is closed here. Taps already saved on this phone still upload.</p>}
       {!stored && <p className="error" role="alert">This phone won't store taps. Keep this page open until it says Saved.</p>}
-      {rejected && <p className="error" role="alert">{rejected.count} taps not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
+      {rejected && <p className="error" role="alert">{rejected.count} {rejected.count === 1 ? 'tap' : 'taps'} not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
       {error && <p className="error" role="alert">{error}</p>}
       {data.error && <p className="error" role="alert">Couldn't refresh: {data.error}</p>}
       <input type="search" aria-label="Find a player" placeholder="Find a player" value={search} onChange={(e) => setSearch(e.target.value)} />
