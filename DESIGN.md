@@ -120,9 +120,12 @@ Errors say what happened and what to do; an unknown error shows its code only in
 ## Components
 
 - **Top bar** (`.topbar`): black. Brand on the left, the account avatar on the right, and tabs: League, Stats,
-  Tally (keepers), Admin (admins). On phones the tabs are a second full-width row of equal tabs; from 640px it's
-  one row. Tabs are muted until hovered; the current tab is white, and one 3px gold `.ink` marker glides under it
-  when you switch (`useInk` in `src/app/lib/useInk.ts` measures the current tab).
+  Tally (keepers). From 640px the tabs sit in the bar; tabs are muted until hovered, the current tab is white, and
+  one 3px gold `.ink` marker glides under it when you switch (`useInk` in `src/app/lib/useInk.ts` measures the
+  current tab). **On phones (under 640px) the same tabs dock at the bottom** within thumb reach (M9 t92): a frosted
+  `--sticky-bg` bar of equal 48px tabs above the home-bar inset, the gold marker on its top edge, and the page padded
+  by `--dock-height` so nothing hides under it (focused inputs scroll clear of it too). The dock is hidden while the
+  tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that.
 - **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
   and *Sign out*. The avatar gets a baby blue ring while you're on Me.
 - **`.page`**: a page's outer stack (16px gaps, a little extra space under the heading).
@@ -212,6 +215,8 @@ Errors say what happened and what to do; an unknown error shows its code only in
   drawn check and a one-time pop.
 - **Motion is small and physical**, and only when the user has not asked for reduced motion: 150ms colour fades
   (`--dur`), every button squeezes to 95% while pressed (`--dur-press`), gold buttons rise 1px with a gold
-  `--shadow-lift` on hover, and tab markers glide (`--dur-slide`, `--ease-glide`). The tally board never moves:
-  no transitions, no press scale, no lift.
+  `--shadow-lift` on hover, and tab markers glide (`--dur-slide`, `--ease-glide`). The account menu and every opened
+  `details` drop 8px in and fade (`--dur-menu`; closing is instant), page content fades in as it arrives
+  (`--dur-fade`), and loading skeletons breathe (`--dur-rest`). The tally board never moves: no transitions, no press
+  scale, no lift, no fade-in (`tokens.test.ts` guards the fade).
 - **Focus is always visible**: a 3px ring in `--focus`, offset 2px.

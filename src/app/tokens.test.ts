@@ -16,7 +16,11 @@ describe('styles.css reads every design value from tokens.css', () => {
   });
 });
 
-describe('the page fade stays off the tally board (t99)', () => {
+describe('the phone dock and the page fade stay off the tally board (t92, t99)', () => {
+  it('hides the bottom tab bar while the tally board is up', () => {
+    expect(styles).toMatch(/body:has\(\.tally-bar\) \.tabs \{ display: none; \}/);
+  });
+
   it('every fade-in rule skips the tally board', () => {
     // [^{}] keeps the match inside one rule, not from an @media header down into its first rule.
     const fades = [...styles.matchAll(/([^{}]+)\{[^{}]*animation: fade-in/g)].map((m) => m[1].trim());
