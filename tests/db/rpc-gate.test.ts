@@ -6,11 +6,13 @@ import { as, createUser, freshDb, makeAdmin, rpc } from './helpers';
 import { makeKeeper, tap } from './stats-fixture';
 
 /** Read-only helpers used by RLS policies; they write nothing, so no audit row. */
-const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete'];
+const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues'];
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
   'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
   'set_bench', 'set_game_pick', 'set_notify_email', 'swap_bench',
+  // Open leagues (t215): owner/admin checks happen inside.
+  'create_my_league', 'delete_league', 'join_open_league', 'rename_league', 'set_league_password',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
@@ -112,6 +114,12 @@ describe('RPC gate', () => {
       ['rename_season', admin, () => ({ p_season: c.season, p_name: 'Gate season' })],
       // c.season has a donation (refused), so delete a fresh one.
       ['delete_season', admin, () => ({ p_season: c.spareSeason })],
+      // Open leagues (t215), in the gate season again now that the spare one is gone.
+      ['create_my_league', player, () => ({ p_name: 'Open', p_password: 'gate1', p_team_name: 'Pats' }), (r) => (c.open = r as string)],
+      ['join_open_league', keeper, () => ({ p_league: c.open, p_password: 'gate1', p_team_name: 'Keeps' })],
+      ['rename_league', player, () => ({ p_league: c.open, p_name: 'Open gate' })],
+      ['set_league_password', player, () => ({ p_league: c.open, p_password: null })],
+      ['delete_league', admin, () => ({ p_league: c.open })],
     ];
 
     const covered = new Set(steps.map(([name]) => name));
@@ -144,6 +152,9 @@ describe('RPC gate', () => {
       }
       if (name === 'delete_season') {
         c.spareSeason = (await as(db, admin, (tx) => rpc(tx, 'create_season', { p_name: 'Spare', p_settings: {} }))) as string;
+      }
+      if (name === 'join_open_league') {
+        await as(db, keeper, (tx) => rpc(tx, 'set_display_name', { p_name: 'Kim' }));
       }
       if (name === 'run_auction') {
         await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);

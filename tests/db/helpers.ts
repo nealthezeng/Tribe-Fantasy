@@ -1,4 +1,5 @@
 import { PGlite, type Transaction } from '@electric-sql/pglite';
+import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -7,7 +8,7 @@ const read = (rel: string) => readFileSync(root + rel, 'utf8');
 
 /** A database with every migration applied, or only those sorting before `stopBefore` (e.g. '0006'). */
 export async function freshDb(stopBefore?: string): Promise<PGlite> {
-  const db = new PGlite();
+  const db = new PGlite({ extensions: { pgcrypto } });
   await db.exec(read('tests/db/shim.sql'));
   const files = readdirSync(root + 'supabase/migrations').filter((f) => f.endsWith('.sql')).sort();
   for (const f of files) {
