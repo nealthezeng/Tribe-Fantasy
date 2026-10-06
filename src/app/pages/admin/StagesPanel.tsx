@@ -11,10 +11,10 @@ import {
 } from '../../lib/tournament';
 
 interface StageRow {
-  id: string; name: string; starts_on: string; ends_on: string; tournament: string | null;
+  id: string; name: string; starts_on: string; ends_on: string;
   bid_close_at: string | null; auction_run_at: string | null;
 }
-const EMPTY = { id: null as string | null, name: '', starts_on: '', ends_on: '', tournament: '' };
+const EMPTY = { id: null as string | null, name: '', starts_on: '', ends_on: '' };
 
 export function StagesPanel({ seasonId }: { seasonId: string }) {
   const [form, setForm] = useState(EMPTY);
@@ -22,7 +22,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
   const [error, setError] = useState<string | null>(null);
   const stages = useLoad(async () => {
     const { data, error } = await supabase!
-      .from('stages').select('id, name, starts_on, ends_on, tournament, bid_close_at, auction_run_at').eq('season_id', seasonId).order('starts_on');
+      .from('stages').select('id, name, starts_on, ends_on, bid_close_at, auction_run_at').eq('season_id', seasonId).order('starts_on');
     if (error) throw error;
     return (data ?? []) as StageRow[];
   }, [seasonId]);
@@ -42,9 +42,8 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
   function save(e: FormEvent) {
     e.preventDefault();
     void run(async () => {
-      const t = form.tournament.trim() || null;
-      if (form.id) await api.updateStage(form.id, form.name, form.starts_on, form.ends_on, t);
-      else await api.createStage(seasonId, form.name, form.starts_on, form.ends_on, t);
+      if (form.id) await api.updateStage(form.id, form.name, form.starts_on, form.ends_on);
+      else await api.createStage(seasonId, form.name, form.starts_on, form.ends_on);
       setForm(EMPTY);
     });
   }
@@ -65,12 +64,12 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           <li key={s.id}>
             <span>
               <span className="title">{s.name}</span><br />
-              <small>{formatDay(s.starts_on)} – {formatDay(s.ends_on)}{s.tournament ? ` · at ${s.tournament}` : ''}</small><br />
+              <small>{formatDay(s.starts_on)} – {formatDay(s.ends_on)}</small><br />
               <small>{auctionStatus(s)}</small>
             </span>
             <span className="meta">
               <button className="secondary" onClick={() => setForm({
-                id: s.id, name: s.name, starts_on: s.starts_on, ends_on: s.ends_on, tournament: s.tournament ?? '',
+                id: s.id, name: s.name, starts_on: s.starts_on, ends_on: s.ends_on,
               })}>Edit</button>
               <button onClick={() => void run(async () => {
                 const { ranks, unsettled } = await seasonRanks(seasonId, s.id);
@@ -96,7 +95,6 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
           <label>Starts<input type="date" required value={form.starts_on} onChange={set('starts_on')} /></label>
           <label>Ends<input type="date" required value={form.ends_on} onChange={set('ends_on')} /></label>
-          <label>Event<input maxLength={60} value={form.tournament} onChange={set('tournament')} placeholder="optional" /></label>
           <button>{form.id ? 'Save tournament' : 'Add tournament'}</button>
           {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
           {form.id && <button type="button" className="secondary" onClick={() => {

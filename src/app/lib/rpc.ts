@@ -41,13 +41,13 @@ export const api = {
   reportInjury: (athleteId: string) => call<string>('report_injury', { p_athlete: athleteId }),
   confirmInjury: (injuryId: string) => call<void>('confirm_injury', { p_injury: injuryId }),
   clearInjury: (athleteId: string) => call<void>('clear_injury', { p_athlete: athleteId }),
-  createStage: (seasonId: string, name: string, startsOn: string, endsOn: string, tournament: string | null) =>
+  createStage: (seasonId: string, name: string, startsOn: string, endsOn: string) =>
     call<string>('create_stage', {
-      p_season: seasonId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: tournament,
+      p_season: seasonId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: null,
     }),
-  updateStage: (stageId: string, name: string, startsOn: string, endsOn: string, tournament: string | null) =>
+  updateStage: (stageId: string, name: string, startsOn: string, endsOn: string) =>
     call<void>('update_stage', {
-      p_stage: stageId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: tournament,
+      p_stage: stageId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: null,
     }),
   grantStageAllowance: (stageId: string, ranks: Record<string, number>) =>
     call<number>('grant_stage_allowance', { p_stage: stageId, p_ranks: ranks }),

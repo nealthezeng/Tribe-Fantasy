@@ -84,6 +84,7 @@ describe('StagesPanel', () => {
     window.confirm = () => true;
     render(<StagesPanel seasonId="se1" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    expect(screen.queryByLabelText('Event')).toBeNull(); // t124: Name names the tournament
     fireEvent.click(screen.getByRole('button', { name: 'Delete tournament' }));
     await waitFor(() => expect(api.deleteStage).toHaveBeenCalledWith('Fall'));
   });
