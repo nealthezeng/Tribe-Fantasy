@@ -133,3 +133,37 @@
    The old site keeps working on it.
 2. Deploy (merge + push). Hard-reload open admin and keeper tabs.
 3. Before deleting a tournament for real, **Admin → Backup** → download a Backup JSON: deletes can't be undone.
+
+## M10 email notifications (after 0001–0015)
+
+Bid reminders (24 h and 2 h before bidding closes) and next-game pick notices, sent from the Gmail account already
+used for sign-in mail. SQL queues them; the Edge Function `notify` sends them; `pg_cron` runs it every minute.
+
+1. SQL Editor: paste and run `supabase/migrations/0016_notify.sql`. It's additive and safe before the deploy: pick
+   notices start queuing at once, but nothing is sent until step 4, and anything unsent for 30 minutes expires.
+2. **Database → Extensions**: enable `pg_cron` and `pg_net`.
+3. **Edge Functions → Deploy a new function → Via editor**, name it `notify`:
+   - paste `supabase/functions/notify/index.ts`, and turn **Verify JWT** OFF (the function checks its own secret);
+   - **Edge Functions → Secrets**: add `GMAIL_USER` (the Gmail address), `GMAIL_APP_PASSWORD` (the same app
+     password as Auth → SMTP), and `CRON_SECRET` (any long random string; make one with
+     `select md5(random()::text) || md5(random()::text);`).
+4. SQL Editor, with your `CRON_SECRET` pasted in:
+   ```sql
+   select cron.schedule('notify', '* * * * *', $$
+     select net.http_post(
+       url := 'https://effyjptuoztyduydwcwh.supabase.co/functions/v1/notify',
+       headers := '{"x-cron-secret": "PASTE-CRON-SECRET-HERE"}'::jsonb
+     )
+   $$);
+   ```
+5. Smoke test, in the SQL Editor (sends one email to every membership you own):
+   ```sql
+   insert into private.outbox (membership_id, kind, ref, subject, body)
+   select m.id, 'test', now()::text, 'Tribe Fantasy test email', 'If you can read this, notifications work.'
+   from public.memberships m join auth.users u on u.id = m.user_id where u.email = 'YOUR-EMAIL-HERE';
+   ```
+   Within a minute the email arrives. Check: `select kind, tries, sent_at, error from private.outbox order by id desc limit 5;`
+   (`error` says what went wrong; the function's **Logs** tab shows each run's `{queued, sent, failed}`).
+6. Deploy (merge + push): the Me page gets the Emails switch, the Rules page a line about emails.
+
+Stop all email at any time: `select cron.unschedule('notify');`. Gmail allows about 500 emails a day.
