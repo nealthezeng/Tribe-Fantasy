@@ -181,7 +181,7 @@ Errors say what happened and what to do; an unknown error shows its code only in
 - **`.more`**: a secondary way on, an underlined text link with a drawn chevron that nudges right on hover.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
   gold call to action, and the team crest ("A Tribe Called Tech", white + gold version for dark, `team-logo.png`, t131)
-  whole in the bottom-right corner; on a phone it takes its own row under the buttons. On top, `.hero-photo` (t94): the team photo with family, friends and
+  whole in a second grid column beside the tagline and buttons; on a phone, smaller, beside the tagline only (t132). On top, `.hero-photo` (t94): the team photo with family, friends and
   alumni, cropped to the people (`src/app/assets/team-800.jpg` / `team-1600.jpg`, srcset), bleeding to the panel's
   edges with its sky and grass masked into the dark, and a one-line thank-you caption under it.
 - **Tables** (`.table-wrap`): 14px tabular figures, right-aligned numbers, first column left, divider rows.

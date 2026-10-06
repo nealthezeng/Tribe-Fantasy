@@ -188,15 +188,17 @@ tbody tr:last-child td { border-bottom: 0; }
 .tally-buttons button:active:not(:disabled) .tally-w { color: inherit; }
 
 /* Signed-out landing: the one page that has to sell, so it gets the team colours at full strength. */
-.hero { border: 1px solid var(--pane-border); position: relative; overflow: hidden; isolation: isolate; background: var(--score-bg); box-shadow: var(--score-shadow); color: var(--bar-fg); border-radius: var(--radius); --hero-x: var(--s5); padding: var(--s6) var(--hero-x); display: grid; gap: var(--s4); justify-items: start; }
+.hero { border: 1px solid var(--pane-border); position: relative; overflow: hidden; isolation: isolate; background: var(--score-bg); box-shadow: var(--score-shadow); color: var(--bar-fg); border-radius: var(--radius); --hero-x: var(--s5); padding: var(--s6) var(--hero-x); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s4); justify-items: start; }
+.hero > * { grid-column: 1 / -1; }
+.hero > p, .hero > .row { grid-column: 1; }
 .hero h1 { font-size: var(--fs-hero); line-height: 0.88; }
 .hero p { color: var(--bar-muted); font-size: var(--fs-lead); max-width: 22ch; }
 /* The team photo bleeds to the hero's edges; its sky and grass fade into the dark glass; the thank-you sits under it. */
 .hero-photo { justify-self: stretch; margin: calc(-1 * var(--s6)) calc(-1 * var(--hero-x)) 0; display: grid; gap: var(--s2); }
 .hero-photo img { display: block; width: 100%; height: auto; mask-image: linear-gradient(to bottom, transparent, black 16%, black 76%, transparent); }
 .hero-photo figcaption { padding-inline: var(--hero-x); color: var(--bar-muted); font-size: var(--fs-sm); max-width: 60ch; }
-/* The team crest, whole, in the corner beside the tagline and buttons; on a phone it takes its own row under them. */
-.hero-logo { position: absolute; right: var(--hero-x); bottom: var(--s6); width: 168px; height: auto; }
+/* The team crest, whole, in a second column: beside the tagline and buttons, or on a phone beside the tagline only. */
+.hero > .hero-logo { grid-column: 2; grid-row: 3 / span 2; align-self: end; width: 168px; height: auto; }
 .disc-body { fill: var(--gold); }
 .disc-ring { fill: none; stroke: var(--gold-deep); }
 .disc-hub { fill: var(--blue); }
@@ -405,5 +407,6 @@ tbody tr:last-child td { border-bottom: 0; }
   .bid { grid-template-columns: 4rem 3.5rem var(--tap); }
   .hero { margin-inline: calc(-1 * var(--gutter)); border-radius: 0; border-inline: 0; --hero-x: var(--gutter); }
   .shell > .hero:first-child { margin-top: calc(-1 * var(--s5)); border-top: 0; } /* one black block with the top bar */
-  .hero-logo { position: static; justify-self: end; width: 120px; }
+  .hero > .row { grid-column: 1 / -1; }
+  .hero > .hero-logo { grid-row: 3; align-self: center; width: clamp(80px, 26vw, 112px); }
 }
