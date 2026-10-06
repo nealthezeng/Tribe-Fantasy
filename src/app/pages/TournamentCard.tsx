@@ -53,7 +53,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
         <Standings y={data} membershipId={membershipId} />
       </article>
       {played.length > 0 && (
-        <section className="stack" aria-label="Games">
+        <section className="stack" aria-label={`${teamName} games`}>
           <h2>Games</h2>
           <div className="games">
             {played.map((g) => <GameCard key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
