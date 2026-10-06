@@ -2,6 +2,17 @@ import type { QueuedTap } from '../tally/queue';
 import { supabase } from './supabase';
 import type { GamePairing, LeaguePairingInput } from './tournament';
 
+/** A row of list_leagues(): the current season's leagues, as anyone signed in sees them (t215). */
+export interface LeagueListing {
+  id: string;
+  name: string;
+  teams: number;
+  max_teams: number;
+  has_password: boolean;
+  is_member: boolean;
+  is_creator: boolean;
+}
+
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('NOT_CONFIGURED');
   const { data, error } = await supabase.rpc(fn, args);
@@ -12,13 +23,20 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 export const api = {
   setDisplayName: (name: string) => call<void>('set_display_name', { p_name: name }),
   setNotifyEmail: (on: boolean) => call<void>('set_notify_email', { p_on: on }),
-  joinLeague: (code: string, teamName: string) => call<string>('join_league', { p_code: code, p_team_name: teamName }),
+  listLeagues: () => call<LeagueListing[]>('list_leagues', {}),
+  /** `password` null = a public league. */
+  createMyLeague: (name: string, password: string | null, teamName: string) =>
+    call<string>('create_my_league', { p_name: name, p_password: password, p_team_name: teamName }),
+  joinOpenLeague: (leagueId: string, password: string | null, teamName: string) =>
+    call<string>('join_open_league', { p_league: leagueId, p_password: password, p_team_name: teamName }),
+  renameLeague: (leagueId: string, name: string) => call<void>('rename_league', { p_league: leagueId, p_name: name }),
+  /** `password` null = make the league public. */
+  setLeaguePassword: (leagueId: string, password: string | null) =>
+    call<void>('set_league_password', { p_league: leagueId, p_password: password }),
+  deleteLeague: (leagueId: string) => call<void>('delete_league', { p_league: leagueId }),
   createSeason: (name: string, settings: object) => call<string>('create_season', { p_name: name, p_settings: settings }),
   updateSeasonSettings: (seasonId: string, settings: object) =>
     call<void>('update_season_settings', { p_season: seasonId, p_settings: settings }),
-  createLeague: (seasonId: string, name: string) => call<string>('create_league', { p_season: seasonId, p_name: name }),
-  createInvite: (leagueId: string, code: string, maxUses: number, expiresAt: string | null) =>
-    call<string>('create_invite', { p_league: leagueId, p_code: code, p_max_uses: maxUses, p_expires_at: expiresAt }),
   addAthlete: (seasonId: string, name: string) => call<string>('add_athlete', { p_season: seasonId, p_name: name, p_user: null }),
   setAthleteOptIn: (athleteId: string, optedIn: boolean) =>
     call<void>('set_athlete_opt_in', { p_athlete: athleteId, p_opted_in: optedIn }),

@@ -3,11 +3,15 @@ import { errorMessage } from './errors';
 
 describe('errorMessage', () => {
   it('maps RPC codes to plain language', () => {
-    expect(errorMessage({ message: 'INVALID_INVITE' })).toMatch(/invalid, expired, or used up/);
+    expect(errorMessage({ message: 'ALREADY_MEMBER' })).toMatch(/already in this league/);
     expect(errorMessage(new Error('FORBIDDEN'))).toMatch(/permission/);
   });
-  it('maps INVALID_INVITE_SETTINGS to plain language', () => {
-    expect(errorMessage({ message: 'INVALID_INVITE_SETTINGS' })).toMatch(/max uses must be at least 1/);
+  it('maps the open-league codes (t215)', () => {
+    for (const code of ['NO_SEASON', 'INVALID_PASSWORD', 'WRONG_PASSWORD', 'CREATE_LIMIT', 'NOT_LEAGUE_OWNER',
+      'LEAGUE_HAS_TEAMS', 'LEAGUE_HAS_DONATIONS']) {
+      expect(errorMessage({ message: code }), code).not.toMatch(/Something went wrong/);
+    }
+    expect(errorMessage({ message: 'WRONG_PASSWORD' })).toMatch(/Ask the league's creator/);
   });
   it('maps the M3 stats codes', () => {
     expect(errorMessage({ message: 'VERIFIER_TAPPED' })).toMatch(/another keeper has to verify/);
