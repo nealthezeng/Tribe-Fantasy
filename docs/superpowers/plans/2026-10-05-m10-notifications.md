@@ -12,7 +12,7 @@
 
 **Where:** worktree `C:\Users\19195\Documents\Tribe-Fantasy-m10`, branch `m10-notify`. **Never touch `C:\Users\19195\Documents\Tribe-Fantasy`**: another session works there.
 
-**Verified draft:** branch `m10-notify-verified-draft` (head 2565f50) holds the full implementation: 409 tests + the two-league test, tsc, lint and build all green. Every code block below is copied from it. An executor may run `git checkout m10-notify-verified-draft -- <path>` instead of retyping, then diff against this plan.
+**Verified draft:** branch `m10-notify-verified-draft` (head 0f1ab86, rebased on main 74e9c26 = M9 wrap-up) holds the full implementation: 419 tests, tsc, lint and build all green. Every code block below is copied from it. An executor may run `git checkout m10-notify-verified-draft -- <path>` instead of retyping, then diff against this plan.
 
 ## Global Constraints
 
@@ -893,10 +893,10 @@ git commit -m "Me page Emails switch, menu line, Rules entry (t200 t201)"
 ### Controller wrap-up (not a subagent task)
 
 - [ ] **Step 1: Full check, branch vs draft.**
-  - Run: `npx vitest run && npx tsc && npx eslint . && npm run build`. Expected: all green (≈410 tests).
+  - Run: `npx vitest run && npx tsc && npx eslint . && npm run build`. Expected: all green (≈419 tests).
   - Then `git diff m10-notify-verified-draft -- supabase src tests`. Expected: empty, or only differences you
     can justify.
-- [ ] **Step 2: Final review.** One opus reviewer on `fa655fe..HEAD`, with the spec. Focus: the Review Focus list,
+- [ ] **Step 2: Final review.** One opus reviewer on `origin/main..HEAD`, with the spec. Focus: the Review Focus list,
   outbox races, and private-schema exposure. Fix any findings, then re-run Step 1.
 - [ ] **Step 3: Rebase on `main` if it moved** (t125's 0015, M9 edits to MePage/RulesPage/setup-supabase.md).
   Re-run Step 1 with 0015 present.
