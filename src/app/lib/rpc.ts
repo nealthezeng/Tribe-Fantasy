@@ -67,6 +67,12 @@ export const api = {
   startGame: (gameId: string) => call<string>('start_game', { p_game: gameId }),
   finishGame: (gameId: string, pairings: GamePairing[], provisional: LeaguePairingInput[]) =>
     call<string>('finish_game', { p_game: gameId, p_pairings: pairings, p_provisional: provisional }),
+  /** The tournament's last game (t202): finished, with no game N+1 paired. */
+  finishLastGame: (gameId: string) =>
+    call<null>('finish_game', { p_game: gameId, p_pairings: [], p_provisional: [], p_last: true }),
+  /** Pairs game N+1 after all, after a last-game finish. */
+  addNextGame: (gameId: string, pairings: GamePairing[], provisional: LeaguePairingInput[]) =>
+    call<string>('add_next_game', { p_game: gameId, p_pairings: pairings, p_provisional: provisional }),
   setGameOpponent: (gameId: string, name: string) => call<void>('set_game_opponent', { p_game: gameId, p_name: name }),
   resetGame: (gameId: string) => call<void>('reset_game', { p_game: gameId }),
   deleteStage: (stageId: string) => call<void>('delete_stage', { p_stage: stageId }),

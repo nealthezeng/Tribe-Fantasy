@@ -199,7 +199,9 @@ describe('scoreTournaments', () => {
   });
 
   it('describes the next game of the current stage, with pre-selected picks and tiredness', () => {
-    const r = scoreTournaments(base({ currentStageId: 'S1', picks: [...base().picks, pick(4, 'm1', 'a3')] }));
+    // Finishing game 3 created game 4, unstarted.
+    const games = [game(1), game(2), game(3), game(4, 'S1', { sessionId: null, startedAt: null, finishedAt: null })];
+    const r = scoreTournaments(base({ games, currentStageId: 'S1', picks: [...base().picks, pick(4, 'm1', 'a3')] }));
     expect(r.next).toMatchObject({ stageId: 'S1', number: 4 });
     expect(r.next!.sides.find((x) => x.membershipId === 'm1')).toMatchObject({
       picked: 'a3', athleteId: 'a3', tired: 0.5, rest: { a1: 1, a2: 0.75, a3: 0.5 }, bench: ['a4'],
@@ -207,6 +209,12 @@ describe('scoreTournaments', () => {
     const before = scoreTournaments(base({ games: [], pairings: [], currentStageId: 'S1' }));
     expect(before.next).toMatchObject({ number: 1 });
     expect(before.next!.sides.map((x) => x.membershipId)).toEqual(['m1', 'm2']);
+  });
+
+  it('has no next game once every game of the tournament is finished: game 3 was the last (t202)', () => {
+    expect(scoreTournaments(base({ currentStageId: 'S1' })).next).toBeNull();
+    const live = [game(1), game(2), game(3, 'S1', { finishedAt: null })];
+    expect(scoreTournaments(base({ games: live, currentStageId: 'S1' })).next).toMatchObject({ number: 4 });
   });
 });
 

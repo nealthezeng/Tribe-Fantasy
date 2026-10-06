@@ -17,6 +17,10 @@ const open = (p: unknown = pairings(), who = f.admin) =>
 const start = (game: string, who = keeper) => as(f.db, who, (tx) => rpc(tx, 'start_game', { p_game: game })) as Promise<string>;
 const finish = (game: string, p: unknown = pairings(), who = keeper) =>
   as(f.db, who, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: p, p_provisional: { standings: 'x' } })) as Promise<string>;
+const finishLast = (game: string, who = keeper) =>
+  as(f.db, who, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: [], p_provisional: {}, p_last: true })) as Promise<string | null>;
+const addNext = (game: string, p: unknown = pairings(), who = keeper) =>
+  as(f.db, who, (tx) => rpc(tx, 'add_next_game', { p_game: game, p_pairings: p, p_provisional: { standings: 'y' } })) as Promise<string>;
 const setPick = (uid: string, mid: string, number: number, athlete: string | null) =>
   as(f.db, uid, (tx) => rpc(tx, 'set_game_pick', { p_membership: mid, p_stage: f.stage, p_number: number, p_athlete: athlete }));
 const setBench = (uid: string, mid: string, athletes: string[]) =>
@@ -114,6 +118,30 @@ describe('start_game / finish_game', () => {
     expect((await audit('finish_game'))[0].details).toMatchObject({ next_game_id: g2, provisional: { standings: 'x' } });
     await expect(finish(g1)).rejects.toThrow('GAME_NOT_LIVE');
     await expect(finish(g2, pairings(), alice)).rejects.toThrow('FORBIDDEN');
+  });
+
+  it('finishes the last game without a next game or pairings (t202)', async () => {
+    const g1 = await open();
+    await start(g1);
+    expect(await finishLast(g1)).toBeNull();
+    expect(await game(1)).toMatchObject({ finished: true });
+    expect(await game(2)).toBeUndefined();
+    expect((await audit('finish_game'))[0].details).toMatchObject({ last: true, next_game_id: null });
+    await expect(finishLast(g1)).rejects.toThrow('GAME_NOT_LIVE');
+  });
+
+  it('adds game N+1 after a last-game finish, once, for keepers only (t202)', async () => {
+    const g1 = await open();
+    await start(g1);
+    await expect(addNext(g1)).rejects.toThrow('GAME_NOT_FINISHED');
+    await finishLast(g1);
+    await expect(addNext(g1, pairings(), alice)).rejects.toThrow('FORBIDDEN');
+    await expect(addNext(g1, [{ league_id: f.league, home: aliceM, away: bobM }])).rejects.toThrow('PAIRINGS_INVALID');
+    const g2 = await addNext(g1);
+    expect(await game(2)).toMatchObject({ id: g2, started: false });
+    expect((await f.db.query('select 1 from public.game_pairings where game_id = $1', [g2])).rows).toHaveLength(2);
+    expect((await audit('add_next_game'))[0].details).toMatchObject({ number: 2, next_game_id: g2, provisional: { standings: 'y' } });
+    await expect(addNext(g1)).rejects.toThrow('NEXT_GAME_EXISTS');
   });
 
   it('refuses to start a game while an earlier one is live', async () => {

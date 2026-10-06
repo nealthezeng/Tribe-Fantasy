@@ -183,3 +183,11 @@ used for sign-in mail. SQL queues them; the Edge Function `notify` sends them; `
 6. Deploy (merge + push): the Me page gets the Emails switch, the Rules page a line about emails.
 
 Stop all email at any time: `select cron.unschedule('notify');`. If the pick trigger ever gets in the way of a tournament (it runs inside Finish / Open tournament), remove it with `drop trigger game_pairings_pick_notice on public.game_pairings;`. Gmail allows about 500 emails a day.
+
+## "That was the last game" (t202, after 0016)
+
+1. SQL Editor: paste and run `supabase/migrations/0017_last_game.sql` BEFORE the deploy. It replaces `finish_game`
+   (new optional `p_last`; the old site's calls still work), adds `add_next_game`, and drops the "ignore this email"
+   sentence from pick emails.
+2. Deploy (merge + push): the Finish panel gets "That was the last game"; after it the tally list says the tournament
+   is over, with "Add game N+1" to undo a wrong tap.

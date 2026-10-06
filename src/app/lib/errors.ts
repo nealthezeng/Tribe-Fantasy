@@ -56,6 +56,8 @@ const MESSAGES: Record<string, string> = {
   GAME_STARTED: 'Another keeper already started this game.',
   GAME_NOT_LIVE: "This game isn't being played right now: it's finished or hasn't started.",
   PREVIOUS_GAME_LIVE: 'Finish the game before this one first.',
+  GAME_NOT_FINISHED: "This game hasn't finished yet. Finish it to pair the next game.",
+  NEXT_GAME_EXISTS: 'The next game is already paired.',
   GAME_NOT_STARTED: "This game hasn't started, so there's nothing to undo.",
   NOT_LATEST_GAME: 'Undo the newest game first: only the latest played game can be undone.',
   PAIRINGS_INVALID: "Those pairings don't include every team exactly once. Reload and try again.",

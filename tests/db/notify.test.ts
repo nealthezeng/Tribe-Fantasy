@@ -119,7 +119,7 @@ describe('pick notices', () => {
     expect(rows[0].subject).toBe('Pick your player for game 1');
     expect(rows[0].body).toMatch(/^alice: game 1 of Fall beta is next\. You play bob\. Pick your player on the League page/);
     expect(rows[1].body).toContain('You play alice.');
-    expect(rows[0].body).toContain("If that was the tournament's last game, ignore this email.");
+    expect(rows[0].body).not.toContain('ignore this email'); // t202: a last game pairs nothing, so no stray notice
   });
 
   it('finishing game N tells only the managers with no pick yet for game N+1', async () => {
@@ -130,6 +130,16 @@ describe('pick notices', () => {
     await as(f.db, alice, (tx) => rpc(tx, 'set_game_pick', { p_membership: aliceM, p_stage: f.stage, p_number: 2, p_athlete: f.athletes[0] }));
     const g2 = await finish(g1);
     expect((await outbox()).filter((r) => r.ref === g2).map((r) => r.membership_id)).toEqual([bobM]);
+  });
+
+  it('a last-game finish tells nobody; adding game N+1 afterwards tells both sides (t202)', async () => {
+    const g1 = await open();
+    await start(g1);
+    const before = (await outbox()).length;
+    await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: [], p_provisional: {}, p_last: true }));
+    expect(await outbox()).toHaveLength(before);
+    const g2 = await as(f.db, keeper, (tx) => rpc(tx, 'add_next_game', { p_game: g1, p_pairings: pairings(), p_provisional: {} }));
+    expect((await outbox()).filter((r) => r.ref === g2)).toHaveLength(2);
   });
 
   it('skips managers who turned emails off', async () => {

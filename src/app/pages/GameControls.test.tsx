@@ -16,16 +16,21 @@ vi.mock('../lib/tournament', async (orig) => ({
     pairings, provisional, league: new Map([['L', 'League A']]), team: new Map([['m1', 'Zeal'], ['m2', 'Flow'], ['m3', 'Money']]),
   }),
 }));
-vi.mock('../lib/rpc', () => ({ api: { startGame: vi.fn(), finishGame: vi.fn(), setGameOpponent: vi.fn() } }));
+vi.mock('../lib/rpc', () => ({
+  api: { startGame: vi.fn(), finishGame: vi.fn(), finishLastGame: vi.fn(), addNextGame: vi.fn(), setGameOpponent: vi.fn() },
+}));
 
 const season = { id: 'se', name: 'Fall', settings: parseSettings({}) };
 const upcoming: GameRow = { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null };
 const live: GameRow = { ...upcoming, session_id: 'p2', started_at: '2026-11-07T16:00:00Z' };
+const last: GameRow = { ...live, finished_at: '2026-11-07T17:00:00Z' }; // finished with no game 3: the tournament is over
 const confirm = vi.fn();
 afterEach(cleanup);
 beforeEach(() => {
   vi.mocked(api.startGame).mockReset().mockResolvedValue('p2');
   vi.mocked(api.finishGame).mockReset().mockResolvedValue('g3');
+  vi.mocked(api.finishLastGame).mockReset().mockResolvedValue(null);
+  vi.mocked(api.addNextGame).mockReset().mockResolvedValue('g3');
   confirm.mockReset().mockReturnValue(true);
   window.confirm = confirm;
 });
@@ -51,6 +56,34 @@ describe('GameControls', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Finish game 2' }).at(-1)!);
     await waitFor(() => expect(api.finishGame).toHaveBeenCalledWith('g2', pairings, provisional));
     expect(await screen.findByText('Game 2 finished. Game 3 is paired.')).toBeTruthy();
+  });
+
+  it("ends the tournament after a confirm: 'That was the last game' finishes without pairing (t202)", async () => {
+    state.game = live;
+    render(<GameControls season={season} sessionId="p2" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish game 2' }));
+    const end = await screen.findByRole('button', { name: 'That was the last game' });
+    confirm.mockReturnValueOnce(false);
+    fireEvent.click(end);
+    expect(api.finishLastGame).not.toHaveBeenCalled();
+    fireEvent.click(end);
+    expect(confirm.mock.calls[1][0]).toMatch(/End Fall beta after game 2\? No game 3/);
+    await waitFor(() => expect(api.finishLastGame).toHaveBeenCalledWith('g2'));
+    expect(api.finishGame).not.toHaveBeenCalled();
+    expect(await screen.findByText('Game 2 finished. Fall beta is over.')).toBeTruthy();
+  });
+
+  it('shows a finished tournament as over, with Add game N+1 to undo a wrong last-game tap (t202)', async () => {
+    state.game = last;
+    render(<GameControls season={season} onOpen={vi.fn()} />);
+    expect(await screen.findByText(/Fall beta is over after game 2/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Start game/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Add game 3' }));
+    const panel = await screen.findByRole('group', { name: 'Add game 3' });
+    expect(panel.textContent).toContain('Zeal vs Flow · Money has a bye');
+    fireEvent.click(screen.getByRole('button', { name: 'Pair game 3' }));
+    await waitFor(() => expect(api.addNextGame).toHaveBeenCalledWith('g2', pairings, provisional));
+    expect(await screen.findByText('Game 3 is paired.')).toBeTruthy();
   });
 
   it("waits for this phone's unsaved taps before finishing", async () => {

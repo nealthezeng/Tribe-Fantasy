@@ -2,7 +2,7 @@ import { allocate, fillLeftovers, type Bid, type ManagerBudget } from './allocat
 import { stageAllowance } from './points';
 import { hashSeed, mulberry32 } from './rng';
 import { parseSettings, type SeasonSettings } from './settings';
-import { nextPairings, scoreTournaments, type TournamentInput, type TournamentResult, type YearStatLine } from './tournament';
+import { nextPairings, scoreTournaments, type TournamentGame, type TournamentInput, type TournamentResult, type YearStatLine } from './tournament';
 
 export interface YearSimConfig {
   managers: number;
@@ -104,6 +104,9 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
       for (const [home, away] of nextPairings({ ...input, now: startsAt - HOUR })) {
         input.pairings.push({ gameId: id, home, away });
       }
+      // Unstarted until played, as finish_game leaves it: a tournament whose games are all finished is over (t202).
+      const g: TournamentGame = { id, stageId, number: n, sessionId: null, startedAt: null, finishedAt: null };
+      input.games.push(g);
       const nextGame = scoreTournaments({ ...input, now: startsAt - HOUR, currentStageId: stageId }).next!;
       for (const side of nextGame.sides) {
         const m = side.membershipId;
@@ -114,7 +117,7 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
         input.picks.push({ stageId, number: n, membershipId: m, athleteId: choice });
       }
       const sessionId = `${id}:s`;
-      input.games.push({ id, stageId, number: n, sessionId, startedAt: iso(startsAt), finishedAt: iso(startsAt + HOUR) });
+      Object.assign(g, { sessionId, startedAt: iso(startsAt), finishedAt: iso(startsAt + HOUR) });
       input.sessions.push({ id: sessionId, verifiedAt: iso(startsAt + HOUR) });
       for (const a of athleteIds) input.statLines.push(statLine(sessionId, a, skill[a], stats));
     }

@@ -129,6 +129,15 @@ describe('reset_game', () => {
     await setBench();
   });
 
+  it('undoes a last-game finish: no next game to delete, and the game can be played again (t202)', async () => {
+    const g1 = await open();
+    await start(g1);
+    await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: [], p_provisional: {}, p_last: true }));
+    await reset(g1);
+    expect((await audit('reset_game'))[0].details).toMatchObject({ next_game_deleted: false });
+    await start(g1);
+  });
+
   it('refuses an unstarted game, an older game, a non-admin and a missing game', async () => {
     const g1 = await open();
     await expect(reset(g1)).rejects.toThrow('GAME_NOT_STARTED');

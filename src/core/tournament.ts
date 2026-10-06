@@ -210,7 +210,10 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
   });
 
   let next: NextGame | null = null;
-  if (input.currentStageId !== null) {
+  const stageGames = input.games.filter((g) => g.stageId === input.currentStageId);
+  // Finish always leaves the next game unstarted, unless it was the last game (t202): then every game is finished.
+  const over = stageGames.length > 0 && stageGames.every((g) => g.finishedAt !== null);
+  if (input.currentStageId !== null && !over) {
     const stageId = input.currentStageId;
     const number = 1 + Math.max(0, ...input.games.filter((g) => g.stageId === stageId && g.startedAt !== null).map((g) => g.number));
     const withRoster = [...new Set(input.slots.filter((x) => x.stageId === stageId).map((x) => x.membershipId))].sort();

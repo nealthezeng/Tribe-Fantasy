@@ -10,7 +10,8 @@ type Preview = Awaited<ReturnType<typeof seasonPairings>>;
 /**
  * Tournament controls on the tally screen (spec §2): Start game N on the session list, Finish game N on the live
  * game's board (and on the list, so a game whose session was deleted can still be finished). Finish shows the next
- * game's pairings first: they're frozen once confirmed.
+ * game's pairings first: they're frozen once confirmed. "That was the last game" finishes without pairing (t202);
+ * the tournament is then over, and Add game N+1 on the list pairs it after all.
  */
 export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }: {
   season: CurrentSeason;
@@ -54,6 +55,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const opponent = edit?.id === game.id ? edit.text : null; // null = show the saved name; a draft never carries to another game
   const n = game.number;
   const live = game.started_at !== null && game.finished_at === null;
+  const over = game.finished_at !== null; // the newest game is finished: it was the last one
   const title = game.opponent ? `Game ${n} vs ${game.opponent}` : `Game ${n}`;
   const waiting = game.session_id ? unsaved.get(game.session_id) ?? 0 : 0;
   if (sessionId !== undefined && !(live && game.session_id === sessionId)) return messages;
@@ -67,10 +69,19 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   };
   const finish = () => void run(async () => setPreview(await seasonPairings(season.id)));
   const confirm = (p: Preview) => void run(async () => {
-    await api.finishGame(game.id, p.pairings, p.provisional);
+    if (over) await api.addNextGame(game.id, p.pairings, p.provisional);
+    else await api.finishGame(game.id, p.pairings, p.provisional);
     setPreview(null);
-    setStatus(`${title} finished. Game ${n + 1} is paired.`);
+    setStatus(over ? `Game ${n + 1} is paired.` : `${title} finished. Game ${n + 1} is paired.`);
   });
+  const finishLast = () => {
+    if (!window.confirm(`End ${stage.name} after game ${n}? No game ${n + 1} will be paired.`)) return;
+    void run(async () => {
+      await api.finishLastGame(game.id);
+      setPreview(null);
+      setStatus(`${title} finished. ${stage.name} is over.`);
+    });
+  };
 
   const nameOpponent = (e: FormEvent) => {
     e.preventDefault();
@@ -83,7 +94,13 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   return (
     <div className={sessionId === undefined ? 'card' : 'stack'} aria-label="Tournament game">
       {sessionId === undefined && <h2>{stage.name} tournament</h2>}
-      {!live && sessionId === undefined && (
+      {over && sessionId === undefined && !preview && (
+        <div className="head">
+          <span>{stage.name} is over after game {n}.</span>
+          <button className="secondary" disabled={busy} onClick={finish}>Add game {n + 1}</button>
+        </div>
+      )}
+      {!live && !over && sessionId === undefined && (
         <div className="head">
           <span>{title} is next. Starting it locks every team's pick.</span>
           <button disabled={busy} onClick={start}>Start game {n}</button>
@@ -111,8 +128,11 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
         </form>
       )}
       {preview && (
-        <div className="stack" role="group" aria-label={`Finish game ${n}`}>
-          <p><strong>Game {n + 1} pairings</strong>, from the live tally. They can't change once you finish.</p>
+        <div className="stack" role="group" aria-label={over ? `Add game ${n + 1}` : `Finish game ${n}`}>
+          <p>
+            <strong>Game {n + 1} pairings</strong>
+            {over ? ". They can't change once paired." : ", from the live tally. They can't change once you finish."}
+          </p>
           {[...preview.league].map(([leagueId, leagueName]) => (
             <p key={leagueId}>
               {preview.league.size > 1 && <><small className="muted">{leagueName}</small><br /></>}
@@ -121,7 +141,8 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
           ))}
           {waiting > 0 && <p className="muted"><small>Finish waits until your taps are saved.</small></p>}
           <div className="row">
-            <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>Finish game {n}</button>
+            <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>{over ? `Pair game ${n + 1}` : `Finish game ${n}`}</button>
+            {!over && <button className="secondary" disabled={busy || waiting > 0} onClick={finishLast}>That was the last game</button>}
             <button className="secondary" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
           </div>
         </div>
