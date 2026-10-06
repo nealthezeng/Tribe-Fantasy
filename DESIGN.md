@@ -158,7 +158,14 @@ Errors say what happened and what to do; an unknown error shows its code only in
   game number, and the state (a red `.live` dot whose ring pulses, Next up, Waiting on stats, or Won/Lost ±points).
   Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
   final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Credits, Place
-  "N `.of` M", Record. Then the auction, then the Tournament card (pick, standings, games).
+  "N `.of` M", Record. Then the auction, then the Tournament card (pick, standings), then the games.
+- **Game cards** (`.games` / `details.game`, M9 t93): each played game is a small black `.game-score` scoreboard of
+  your matchup (both teams, scores once final, the loser muted; "Bye" or "Not playing" otherwise) with the caption
+  **below** it, not inside: "Game 2 · Fall Beta", the status pill, your W/L ±points. One column on phones, two from
+  640px; an opened game takes the full row and shows every matchup in a `.card`. With a mouse, the scoreboard lifts
+  4px and grows 2% on hover (t97).
+- **By-line** (`.by`, t90): "Christopher Mao by (T) Test Zeal": the player, a small `by`, a 22px `.avatar.sm` with the
+  team's initial and the team name. Used inside opened games.
 - **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while bidding
   they're "credits left" in the auction header; between auctions they're a collapsed Credits card with the balance in
   its summary and the history inside.

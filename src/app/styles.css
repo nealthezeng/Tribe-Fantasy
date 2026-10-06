@@ -321,6 +321,36 @@ tbody tr:last-child td { border-bottom: 0; }
   .tally-buttons button, .tally-head button, .tally-bar button { transition: none; }
 }
 
+/* Played games as cards (t93): the matchup as a small black scoreboard, the caption under it, not inside. One column on
+   phones, two on wider screens; an opened game takes the full row and shows every matchup in a card. */
+.games { display: grid; gap: var(--s4); align-items: start; }
+.game > summary { display: grid; gap: var(--s2); }
+.game > summary::before { display: none; }
+.game[open] > summary { margin-bottom: var(--s3); }
+.game-score {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: var(--s3); min-height: 88px; padding: var(--s4);
+  border: 1px solid var(--pane-border); border-radius: var(--radius); background: var(--score-bg); color: var(--bar-fg); box-shadow: var(--score-shadow);
+}
+.game-score > .game-team:only-child { grid-column: 1 / -1; color: var(--bar-muted); }
+.game-score .vs { align-self: center; color: var(--bar-muted); }
+.game-side { display: grid; gap: var(--s1); min-width: 0; overflow-wrap: anywhere; }
+.game-side:last-child { text-align: right; }
+.game-side.lost { color: var(--bar-muted); }
+.game-team { font-weight: var(--fw-bold); }
+.game-side .pts { font-size: var(--fs-num); }
+@media (min-width: 640px) {
+  .games { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game[open] { grid-column: 1 / -1; }
+}
+/* "Christopher Mao by (T) Test Zeal" (t90): who played, for whose team. */
+.by { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); }
+.avatar.sm { width: 22px; height: 22px; font-size: var(--fs-xs); }
+/* t97: on a mouse, a game card's scoreboard lifts toward the pointer. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .game-score { transition: transform var(--dur) var(--ease); }
+  .game > summary:hover .game-score { transform: translateY(-4px) scale(1.02); }
+}
+
 /* Loading (t99): a resting card-shaped skeleton; it breathes slowly unless motion is reduced. */
 .skeleton { display: grid; gap: var(--s3); padding: var(--s4); border: 1px solid var(--pane-border); border-radius: var(--radius); background: var(--pane-bg); }
 .skeleton > [aria-hidden] { height: 12px; width: 90%; border-radius: var(--radius-pill); background: var(--surface-2); }
