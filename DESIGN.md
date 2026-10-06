@@ -123,8 +123,9 @@ Errors say what happened and what to do; an unknown error shows its code only in
   Tally (keepers). From 640px the tabs sit in the bar; tabs are muted until hovered, the current tab is white, and
   one 3px gold `.ink` marker glides under it when you switch (`useInk` in `src/app/lib/useInk.ts` measures the
   current tab). **On phones (under 640px) the same tabs dock at the bottom** within thumb reach (M9 t92): a frosted
-  `--sticky-bg` bar of equal 48px tabs above the home-bar inset, the gold marker on its top edge, and the page padded
-  by `--dock-height` so nothing hides under it (focused inputs scroll clear of it too). The dock is hidden while the
+  `--sticky-bg` bar of equal 48px tabs, the gold marker on its top edge, and the page padded by `--dock-height` so
+  nothing hides under it (focused inputs scroll clear of it too). Safari keeps the dock clear of the iPhone home bar
+  on its own (checked on a real iPhone, t128), so there is no safe-area padding. The dock is hidden while the
   tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that.
 - **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
   and *Sign out*. The avatar gets a baby blue ring while you're on Me.

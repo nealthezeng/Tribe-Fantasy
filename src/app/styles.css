@@ -374,19 +374,20 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 /* Phones (t92): the tabs dock at the bottom within thumb reach; the top bar keeps the brand and the avatar. Frosted
-   like the sticky headers, the gold marker on its top edge, clear of the home bar. Hidden while the tally board is
-   up: it has its own sticky bar, and the stat buttons need the whole screen. */
+   like the sticky headers, the gold marker on its top edge. Safari keeps it clear of the iPhone home bar on its own
+   (real iPhone, t128); env(safe-area-inset-*) would be 0 anyway without viewport-fit=cover. Hidden while the tally
+   board is up: it has its own sticky bar, and the stat buttons need the whole screen. */
 @media (max-width: 639px) {
   .tabs {
-    position: fixed; z-index: 3; inset: auto 0 0; margin: 0; padding-bottom: env(safe-area-inset-bottom);
+    position: fixed; z-index: 3; inset: auto 0 0; margin: 0;
     background: var(--sticky-bg); border-top: 1px solid var(--pane-border); -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur);
   }
   .tabs a { color: var(--muted); }
   .tabs a:hover, .tabs a[aria-current='page'] { color: var(--fg); }
   .tabs .ink { top: -1px; bottom: auto; }
-  .topbar:has(.tabs) + .shell:not(:has(.tally-bar)) { padding-bottom: calc(48px + var(--dock-height) + env(safe-area-inset-bottom)); }
+  .topbar:has(.tabs) + .shell:not(:has(.tally-bar)) { padding-bottom: calc(48px + var(--dock-height)); }
   /* A focused input scrolls clear of the dock, also when the phone keyboard lifts the dock over the page. */
-  html:has(.tabs) { scroll-padding-bottom: calc(var(--dock-height) + env(safe-area-inset-bottom)); }
+  html:has(.tabs) { scroll-padding-bottom: var(--dock-height); }
   body:has(.tally-bar) .tabs { display: none; }
 }
 
