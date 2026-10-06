@@ -1,40 +1,48 @@
 import { matchupDeltas, stageAllowance, TIE_EPSILON } from '../../core/points';
 import { athleteWeekScore } from '../../core/scoring';
-import { DEFAULT_SETTINGS as S } from '../../core/settings';
+import { DEFAULT_SETTINGS } from '../../core/settings';
 import { stageMultiplier } from '../../core/decay';
-import { statLabel } from '../lib/stats';
+import { loadCurrentSeason, statLabel } from '../lib/stats';
+import { useLoad } from '../lib/useLoad';
 
 const n = (x: number) => +x.toFixed(2);
 const signed = (x: number) => (x > 0 ? `+${n(x)}` : `${n(x)}`);
+const line = (stats: Record<string, number>) => Object.entries(stats).map(([k, c]) => `${c} ${statLabel(k)}`).join(', ');
 
 // The worked example: one player's stats in one game.
 const game = { goal: 2, block: 1, turnover: 2 };
-const gameScore = athleteWeekScore([{ athleteId: 'x', sessionType: 'tournament', pointsPlayed: 0, stats: game }], S);
-const tired = S.tiredness_multipliers[0] ?? 1;
-const bench = S.bench_size;
-const active = S.roster_size - bench;
-const raw = (stats: Record<string, number>) => Object.entries(stats).reduce((t, [k, c]) => t + (S.stat_weights[k] ?? 0) * c, 0);
-const line = (stats: Record<string, number>) => Object.entries(stats).map(([k, c]) => `${c} ${statLabel(k)}`).join(', ');
-
-// Points examples in a 6-team league: an even game, an upset and a favourite winning.
-const size = S.max_members;
-const ranks = { first: 1, third: 3, fourth: 4, last: size };
-const win = (winner: keyof typeof ranks, loser: keyof typeof ranks) =>
-  matchupDeltas({ managerId: winner, score: 10 }, { managerId: loser, score: 5 }, ranks, size, S);
-const even = win('third', 'fourth');
-const upset = win('last', 'first');
-const favourite = win('first', 'last');
-
-const allowance = (rank: number) => stageAllowance(rank, size, S);
 
 export function RulesPage() {
+  // Signed in: this season's numbers. Signed out (seasons aren't readable) or still loading: the defaults.
+  const season = useLoad(loadCurrentSeason, []).data;
+  const S = season?.settings ?? DEFAULT_SETTINGS;
+
+  // Every scored game is a tournament game, so the tournament multiplier is folded into each stat's points.
+  const mult = S.session_multipliers.tournament ?? 1;
+  const gameScore = athleteWeekScore([{ athleteId: 'x', sessionType: 'tournament', pointsPlayed: 0, stats: game }], S);
+  const tired = S.tiredness_multipliers[0] ?? 1;
+  const bench = S.bench_size;
+  const active = S.roster_size - bench;
+
+  // Points examples in a full league: an even game, an upset and a favourite winning.
+  const size = S.max_members;
+  const ranks = { first: 1, third: 3, fourth: 4, last: size };
+  const win = (winner: keyof typeof ranks, loser: keyof typeof ranks) =>
+    matchupDeltas({ managerId: winner, score: 10 }, { managerId: loser, score: 5 }, ranks, size, S);
+  const even = win('third', 'fourth');
+  const upset = win('last', 'first');
+  const favourite = win('first', 'last');
+  const allowance = (rank: number) => stageAllowance(rank, size, S);
+
   return (
     <section className="page">
       <h1>How Tribe Fantasy works</h1>
       <p className="notice">
         Tribe Fantasy is a fantasy league for our team. Playing is free. Donations go to the team fund, and they're
-        turned off during the fall beta. The commissioner can change any number below for a season; these are the
-        standard settings.
+        turned off during the fall beta.{' '}
+        {season
+          ? `The numbers below are ${season.name}'s settings.`
+          : 'The commissioner can change any number below for a season; sign in to see this season\'s.'}
       </p>
 
       <article className="card">
@@ -99,22 +107,21 @@ export function RulesPage() {
 
       <article className="card">
         <h2>Scoring</h2>
-        <p>Your score is your player's stats from that one game, ×{S.session_multipliers.tournament} for a
-          tournament. Practices aren't scored.</p>
+        <p>Your score is your player's stats from that one game. A player with no stats in the game scores{' '}
+          {n(S.absent_score)}.</p>
         <div className="table-wrap">
           <table>
             <thead><tr><th>Stat</th><th>Points</th></tr></thead>
             <tbody>
               {Object.entries(S.stat_weights).map(([k, w]) => (
-                <tr key={k}><td>{statLabel(k)}</td><td>{signed(w)}</td></tr>
+                <tr key={k}><td>{statLabel(k)}</td><td>{signed(w * mult)}</td></tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="section">
           <h3>Example</h3>
-          <p>{line(game)} = {n(raw(game))}, ×{S.session_multipliers.tournament} = {n(raw(game) * S.session_multipliers.tournament)}.</p>
-          <p>Game score: <strong>{n(gameScore)}</strong>. If you also started them the game before, it's{' '}
+          <p>{line(game)}: game score <strong>{n(gameScore)}</strong>. If you also started them the game before, it's{' '}
             {n(gameScore)} × {n(tired)} = {n(gameScore * tired)}. The higher score wins the matchup.</p>
         </div>
         <p className="muted">A game counts as soon as a stat keeper verifies its stats. They can be reopened for {S.stat_lock_hours} hours after that.</p>
