@@ -101,7 +101,8 @@
    ```
 2. SQL Editor: paste and run `supabase/migrations/0010_qol.sql` before the deploy. It's additive, so the old site
    keeps working — the only behaviour change it sees is the stricter `place_bid`: bids may not total more than the
-   balance.
+   balance. It also adds `rename_athlete`, `delete_athlete` (only athletes with no history) and `delete_session`
+   (only an empty, unverified session; its creator or an admin).
 
 3. SQL Editor: paste and run `supabase/migrations/0011_force_delete.sql` before the deploy: admin force-delete of an
    athlete or session (the old one-argument calls still work).

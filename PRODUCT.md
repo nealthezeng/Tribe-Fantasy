@@ -33,7 +33,7 @@ Unlike a generic fantasy sports app, the "athletes" are the users' own teammates
 
 - Auth: magic link or 6-digit code (Supabase, PKCE).
 - Roles enforced server-side via RLS: admin, coach/stat-keeper, player (linked athlete), league member, public.
-- Scoring: per-point-played (configurable normalize_mode), tournaments weighted x2, rank-weighted win/loss points (underdog wins pay more, curve still being tuned), degradation per manager + athlete: the more earlier stages a manager started that athlete in, the less the athlete scores for them (first repeat free, then x0.9 per stage, floor 0.6).
+- Scoring: each tournament game is a 1-v-1 matchup scored from that game's verified stat line (goal 3, assist 3, block 3, callahan 8, turnover -2; no per-point normalisation), rank-weighted win/loss points (underdog wins pay more, curve still being tuned). Two multipliers on the athlete's score: tiredness within a tournament (x0.5 if they also started the previous game, x0.75 two games back; cycling the 3 actives never tires) and degradation per manager + athlete across tournaments: the more earlier tournaments a manager started that athlete in, the less the athlete scores for them (first repeat free, then x0.9 per tournament, floor 0.6).
 - Credits: $1 = 20 credits, 100-credit minimum to play, currently unlimited credits per manager (pay-to-win risk flagged and accepted by the user for now).
 - No athlete trades yet (parked feature); no self-ownership; exclusive ownership (one manager per athlete per league).
 - Roster/athlete data visible only to league members + staff, not the public.

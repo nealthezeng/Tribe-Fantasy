@@ -126,16 +126,18 @@ notices, plus reminders. Fine.
 Times are shown in Eastern time, as everywhere else in the app (`America/New_York`). The site URL is a constant
 in SQL: `https://nealthezeng.github.io/Tribe-Fantasy/`.
 
+As shipped in 0016 (amendments 1, 7, 8, 9 below):
+
 - **bid_24h / bid_2h:**
-  - Subject: `Bidding for <stage> closes in 24 hours` (or `2 hours`)
-  - Body: `<team>: bidding for <stage> closes <Mon Nov 2, 9:00 PM> ET. You have placed <n> bid(s).`, then the
-    League link.
-  - With 0 bids the line reads `You haven't placed any bids yet.`
+  - Subject: `Bidding for <stage> closes within 24 hours` (or `2 hours`)
+  - Body: `<team>: bidding for <stage> closes <Mon Nov 2, 9:00 PM> ET. You have placed <n> bid(s).`
+  - With 0 bids the line reads `You haven't placed any bids yet.`; with 1, `You have placed 1 bid.`
 - **pick_next:**
   - Subject: `Pick your player for game <n>`
   - Body: `<team>: game <n> of <stage> is next. You play <opponent team>. Pick your player on the League page,
-    or the best rested player will be picked for you.`, then the League link.
-- **Footer on every email:** `Turn these emails off: <site>#/me`.
+    or we'll start your most rested healthy player for you. If that was the tournament's last game, ignore this
+    email.` (the last sentence goes once board t202 lands)
+- **Footer on every email:** `Open Tribe Fantasy: <site>` then `Turn these emails off: <site>#/me`.
 
 ## 7. App changes
 
