@@ -246,12 +246,17 @@ tbody tr:last-child td { border-bottom: 0; }
 .more { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); font-weight: var(--fw-semi); }
 .more::after { content: ''; width: 7px; height: 7px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
 
-/* Admin: one section at a time, picked from a sticky row of tabs. */
+/* Admin: one section at a time, picked from a sticky row of tabs. Phones swipe the row sideways; from 640px the chips
+   wrap onto a second row instead (a mouse can't reach chips scrolled off a hidden-scrollbar edge), and the pill
+   follows the current chip to its row (useInk sets --ink-y / --ink-h). */
 .subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--sticky-bg); border-bottom: 1px solid var(--pane-border); scrollbar-width: none; }
 .subnav button, .subnav button:hover:not(:disabled) { position: relative; z-index: 1; flex: none; background: var(--chip-bg); color: var(--fg); border-color: transparent; border-radius: var(--radius-pill); padding: var(--s2) 14px; font-size: var(--fs-sm); }
 .subnav button:hover:not(:disabled) { background: var(--line); }
 .subnav button[aria-pressed='true'], .subnav button[aria-pressed='true']:hover:not(:disabled) { background: transparent; color: var(--bg); border-color: transparent; }
-.subnav .ink { top: var(--s2); bottom: var(--s2); border-radius: var(--radius-pill); background: var(--fg); }
+.subnav .ink { top: 0; height: var(--ink-h, 0); transform: translate(var(--ink-x, 0), var(--ink-y, 0)); border-radius: var(--radius-pill); background: var(--fg); }
+@media (min-width: 640px) {
+  .subnav { flex-wrap: wrap; overflow-x: visible; }
+}
 
 /* A row of equal-width buttons that never wraps unevenly. */
 .actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
@@ -343,7 +348,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .game[open] { grid-column: 1 / -1; }
 }
 /* "Christopher Mao by (T) Test Zeal" (t90): who played, for whose team. */
-.by { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); }
+.by { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); min-width: 0; overflow-wrap: anywhere; }
 .avatar.sm { width: 22px; height: 22px; font-size: var(--fs-xs); }
 /* t97: on a mouse, a game card's scoreboard lifts toward the pointer. */
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
@@ -356,6 +361,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .skeleton > [aria-hidden] { height: 12px; width: 90%; border-radius: var(--radius-pill); background: var(--surface-2); }
 .skeleton > [aria-hidden]:nth-child(2) { height: 20px; width: 40%; }
 .skeleton > [aria-hidden]:last-child { width: 65%; }
+.card .skeleton { padding: 0; border: 0; background: none; } /* inside a card: just the bars, never a box in a box */
 @keyframes drop-in { from { opacity: 0; transform: translateY(-8px); } }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes rest { 50% { opacity: 0.55; } }

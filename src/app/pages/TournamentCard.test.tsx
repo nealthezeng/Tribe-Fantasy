@@ -148,6 +148,11 @@ describe('TournamentCard', () => {
       expect(card().querySelector('.game-score')?.textContent).toBe('Bye');
     });
 
+    it('names the Games section after the team, so several teams never share a region name (t130)', async () => {
+      await show(finalGame1());
+      expect(screen.getByRole('region', { name: 'Zeal games' })).toBeTruthy();
+    });
+
     it("says Not playing on the card when the team wasn't paired in that game", async () => {
       const r = afterGame1();
       await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g1' ? { ...p, home: 'm2', away: null } : p)) });

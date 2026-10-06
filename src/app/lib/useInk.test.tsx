@@ -27,10 +27,14 @@ it('keeps the marker where it was while the nav is hidden (dock hidden on the ta
   expect(ink().getPropertyValue('--ink-x')).toBe('10px');
 });
 
-it('measures the current tab once the nav is visible', () => {
+it('measures the current tab once the nav is visible, including its row when chips wrap (t126)', () => {
   vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(96);
   vi.spyOn(HTMLElement.prototype, 'offsetLeft', 'get').mockReturnValue(24);
+  vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockReturnValue(60);
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(44);
   render(<Nav />);
   expect(ink().getPropertyValue('--ink-w')).toBe('96px');
   expect(ink().getPropertyValue('--ink-x')).toBe('24px');
+  expect(ink().getPropertyValue('--ink-y')).toBe('60px');
+  expect(ink().getPropertyValue('--ink-h')).toBe('44px');
 });

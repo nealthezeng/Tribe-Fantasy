@@ -147,12 +147,14 @@ Errors say what happened and what to do; an unknown error shows its code only in
 - **`.notice`**: an info pane, the same glass as every box but glowing blue (`--notice-bg`), for information and next steps ("Set your name and join a league").
 - **`.success`**: green text with `role="status"` for a confirmed result. **`.error`**: red text with
   `role="alert"` for a failure, saying what to do next. **Loading** is the `Loading` component
-  (`src/app/components/Loading.tsx`): a `.skeleton` pane in a card's shape (a title bar and two lines) with
+  (`src/app/components/Loading.tsx`): a `.skeleton` pane in a card's shape (a title bar and two lines; inside a `.card`
+  just the bars, never a box in a box) with
   `role="status"` and a hidden "Loading…" for screen readers (M9 t99). Me and the tally pages still show plain
   `.muted` "Loading…" text.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
   as background). Used for attendance.
-- **`.subnav`**: admin's sticky, sideways-scrolling row of rounded tabs (`aria-pressed`). Admin shows one section
+- **`.subnav`**: admin's sticky row of rounded tabs (`aria-pressed`): on phones one row you swipe sideways; from
+  640px the chips wrap onto a second row rather than hide past an edge a mouse can't scroll (t126). Admin shows one section
   at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
   chips are see-through so the pill shows while it moves). Admin opens on the newest season.
 - **League tab, matchup first** (`Matchup` in `TournamentCard.tsx`): per team, the game that matters now (live,

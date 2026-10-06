@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 
 /** Moves a nav's `.ink` marker under its current item (aria-current or aria-pressed); CSS animates the glide.
+ *  Sets --ink-x / --ink-w, plus --ink-y / --ink-h for the admin pill, whose chips can wrap onto a second row.
  *  Re-measures when `active` changes, on resize, and once web fonts have loaded (they change tab widths). */
 export function useInk<T extends HTMLElement>(active: unknown) {
   const ref = useRef<T>(null);
@@ -10,7 +11,11 @@ export function useInk<T extends HTMLElement>(active: unknown) {
     const place = () => {
       if (!nav.offsetWidth) return; // hidden (the phone dock on the tally board): keep the last spot, it measures as 0
       const on = nav.querySelector<HTMLElement>('[aria-current="page"], [aria-pressed="true"]');
-      if (on) nav.style.setProperty('--ink-x', `${on.offsetLeft}px`); // none current (Me, Admin): shrink in place
+      if (on) { // none current (Me, Admin): shrink in place
+        nav.style.setProperty('--ink-x', `${on.offsetLeft}px`);
+        nav.style.setProperty('--ink-y', `${on.offsetTop}px`); // the row, once admin chips wrap
+        nav.style.setProperty('--ink-h', `${on.offsetHeight}px`);
+      }
       nav.style.setProperty('--ink-w', `${on?.offsetWidth ?? 0}px`);
     };
     place();

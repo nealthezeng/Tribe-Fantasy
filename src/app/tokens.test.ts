@@ -29,6 +29,12 @@ describe('the phone dock and the page fade stay off the tally board (t92, t99)',
   });
 });
 
+describe('nothing hides off the edge on a desktop', () => {
+  it('admin tab chips wrap to a new row from 640px instead of scrolling out of reach (t126)', () => {
+    expect(styles).toMatch(/@media \(min-width: 640px\) \{\s*\.subnav \{ flex-wrap: wrap; overflow-x: visible; \}/);
+  });
+});
+
 describe('the tally board never moves', () => {
   it('every button lift or squeeze rule excludes the tally board', () => {
     // Selectors of rules that move a button: a hover lift or a press squeeze.
