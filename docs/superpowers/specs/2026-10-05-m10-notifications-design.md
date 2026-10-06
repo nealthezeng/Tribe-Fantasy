@@ -132,7 +132,7 @@ in SQL: `https://nealthezeng.github.io/Tribe-Fantasy/`.
     League link.
   - With 0 bids the line reads `You haven't placed any bids yet.`
 - **pick_next:**
-  - Subject: `Pick your player for game <n>` (`… game <n> vs <opponent>` when `games.opponent` is set)
+  - Subject: `Pick your player for game <n>`
   - Body: `<team>: game <n> of <stage> is next. You play <opponent team>. Pick your player on the League page,
     or the best rested player will be picked for you.`, then the League link.
 - **Footer on every email:** `Turn these emails off: <site>#/me`.
@@ -217,3 +217,11 @@ Gmail's bulk-sender threshold), HTML email, and notifying staff (keepers) about 
    hand out the same row.
 7. **The pick email's fallback line matches the Rules page:** "or we'll start your most rested healthy player for
    you."
+8. **Pick subject has no " vs <opponent>":** `games.opponent` is always null when the pairings (and so the
+   notice) are created, so the branch could never fire; dropped. The body still names the fantasy opponent.
+9. **After a tournament's last game** `finish_game` still creates game N+1 (the app never knows the game count), so
+   managers get one pick email for a game that won't be played. The body ends "If that was the tournament's last
+   game, ignore this email." A "That was the last game" option on Finish would remove it (a later M10 task).
+10. **Runbook hardening from the final review:** pg_net `timeout_milliseconds := 60000`, a daily `notify-cleanup`
+   cron job for `cron.job_run_details`, the trigger drop as an emergency off switch, and the function logs each
+   run's `{queued, sent, failed}`.

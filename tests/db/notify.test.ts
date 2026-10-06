@@ -119,6 +119,7 @@ describe('pick notices', () => {
     expect(rows[0].subject).toBe('Pick your player for game 1');
     expect(rows[0].body).toMatch(/^alice: game 1 of Fall beta is next\. You play bob\. Pick your player on the League page/);
     expect(rows[1].body).toContain('You play alice.');
+    expect(rows[0].body).toContain("If that was the tournament's last game, ignore this email.");
   });
 
   it('finishing game N tells only the managers with no pick yet for game N+1', async () => {

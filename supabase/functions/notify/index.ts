@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   const sql = postgres(env('SUPABASE_DB_URL'), { max: 1, prepare: false });
   // Port 465 (implicit TLS): Supabase blocks outbound 25 and 587.
   const mail = nodemailer.createTransport({
-    host: 'smtp.gmail.com', port: 465, secure: true,
+    host: 'smtp.gmail.com', port: 465, secure: true, pool: true,
     auth: { user: env('GMAIL_USER'), pass: env('GMAIL_APP_PASSWORD') },
   });
   let sent = 0, failed = 0;
@@ -35,6 +35,7 @@ Deno.serve(async (req) => {
         failed++;
       }
     }
+    console.log(JSON.stringify({ queued, sent, failed }));
     return Response.json({ queued, sent, failed });
   } finally {
     mail.close();

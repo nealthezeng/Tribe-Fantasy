@@ -76,13 +76,13 @@ language plpgsql security definer set search_path = '' as $$
 declare g record;
 begin
   if new.away is null then return null; end if;
-  select gm.id, gm.number, gm.stage_id, gm.opponent, st.name as stage into g
+  select gm.id, gm.number, gm.stage_id, st.name as stage into g
   from public.games gm join public.stages st on st.id = gm.stage_id where gm.id = new.game_id;
   insert into private.outbox (membership_id, kind, ref, subject, body)
   select me.id, 'pick_next', g.id::text,
-    format('Pick your player for game %s', g.number) || coalesce(' vs ' || g.opponent, ''),
+    format('Pick your player for game %s', g.number),
     format('%s: game %s of %s is next. You play %s. Pick your player on the League page, or we''ll start your '
-      || 'most rested healthy player for you.', me.team_name, g.number, g.stage, opp.team_name)
+      || 'most rested healthy player for you. If that was the tournament''s last game, ignore this email.', me.team_name, g.number, g.stage, opp.team_name)
       || private.email_footer()
   from (values (new.home, new.away), (new.away, new.home)) v (me_id, opp_id)
   join public.memberships me on me.id = v.me_id

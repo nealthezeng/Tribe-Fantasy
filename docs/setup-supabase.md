@@ -134,7 +134,7 @@
 2. Deploy (merge + push). Hard-reload open admin and keeper tabs.
 3. Before deleting a tournament for real, **Admin → Backup** → download a Backup JSON: deletes can't be undone.
 
-## M10 email notifications (after 0001–0015)
+## M10 email notifications (after 0001–0014; 0015 is independent)
 
 Bid reminders (24 h and 2 h before bidding closes) and next-game pick notices, sent from the Gmail account already
 used for sign-in mail. SQL queues them; the Edge Function `notify` sends them; `pg_cron` runs it every minute.
@@ -152,8 +152,15 @@ used for sign-in mail. SQL queues them; the Edge Function `notify` sends them; `
    select cron.schedule('notify', '* * * * *', $$
      select net.http_post(
        url := 'https://effyjptuoztyduydwcwh.supabase.co/functions/v1/notify',
-       headers := '{"x-cron-secret": "PASTE-CRON-SECRET-HERE"}'::jsonb
+       headers := '{"x-cron-secret": "PASTE-CRON-SECRET-HERE"}'::jsonb,
+       timeout_milliseconds := 60000
      )
+   $$);
+   ```
+   Also schedule a daily cleanup of cron's run history (it keeps a row per run, secret included):
+   ```sql
+   select cron.schedule('notify-cleanup', '0 4 * * *', $$
+     delete from cron.job_run_details where end_time < now() - interval '7 days'
    $$);
    ```
 5. Smoke test, in the SQL Editor (sends one email to every membership you own):
@@ -162,8 +169,9 @@ used for sign-in mail. SQL queues them; the Edge Function `notify` sends them; `
    select m.id, 'test', now()::text, 'Tribe Fantasy test email', 'If you can read this, notifications work.'
    from public.memberships m join auth.users u on u.id = m.user_id where u.email = 'YOUR-EMAIL-HERE';
    ```
+   If it says `INSERT 0 0`, that account has no team: use an email that is in a league.
    Within a minute the email arrives. Check: `select kind, tries, sent_at, error from private.outbox order by id desc limit 5;`
    (`error` says what went wrong; the function's **Logs** tab shows each run's `{queued, sent, failed}`).
 6. Deploy (merge + push): the Me page gets the Emails switch, the Rules page a line about emails.
 
-Stop all email at any time: `select cron.unschedule('notify');`. Gmail allows about 500 emails a day.
+Stop all email at any time: `select cron.unschedule('notify');`. If the pick trigger ever gets in the way of a tournament (it runs inside Finish / Open tournament), remove it with `drop trigger game_pairings_pick_notice on public.game_pairings;`. Gmail allows about 500 emails a day.
