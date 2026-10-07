@@ -13,6 +13,8 @@ const MEMBER_CALLABLE = [
   'set_bench', 'set_game_pick', 'set_notify_email', 'swap_bench',
   // Open leagues (t215): owner/admin checks happen inside.
   'create_my_league', 'delete_league', 'join_open_league', 'rename_league', 'set_league_password',
+  // Leave league (t217): only your own team.
+  'leave_league',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
@@ -116,7 +118,9 @@ describe('RPC gate', () => {
       ['delete_season', admin, () => ({ p_season: c.spareSeason })],
       // Open leagues (t215), in the gate season again now that the spare one is gone.
       ['create_my_league', player, () => ({ p_name: 'Open', p_password: 'gate1', p_team_name: 'Pats' }), (r) => (c.open = r as string)],
-      ['join_open_league', keeper, () => ({ p_league: c.open, p_password: 'gate1', p_team_name: 'Keeps' })],
+      ['join_open_league', keeper, () => ({ p_league: c.open, p_password: 'gate1', p_team_name: 'Keeps' }),
+        (r) => (c.keeps = r as string)],
+      ['leave_league', keeper, () => ({ p_membership: c.keeps })],
       ['rename_league', player, () => ({ p_league: c.open, p_name: 'Open gate' })],
       ['set_league_password', player, () => ({ p_league: c.open, p_password: null })],
       ['delete_league', admin, () => ({ p_league: c.open })],

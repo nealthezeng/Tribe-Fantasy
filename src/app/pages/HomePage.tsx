@@ -3,7 +3,7 @@ import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { AuctionCard } from './AuctionCard';
-import { ManageLeague } from './LeaguesPage';
+import { LeagueLeave, ManageLeague } from './LeaguesPage';
 import { TournamentCard } from './TournamentCard';
 import { api } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
@@ -88,7 +88,14 @@ export function HomePage() {
           </article>
         );
         const mine = manageable(m.league_id);
-        const manage = mine && <ManageLeague league={mine} onChanged={() => { reload(); listed.reload(); }} />;
+        const changed = () => { reload(); listed.reload(); };
+        const listing = listed.data?.find((l) => l.id === m.league_id);
+        const manage = (
+          <>
+            {mine && <ManageLeague league={mine} onChanged={changed} />}
+            {listing && <LeagueLeave membershipId={m.id} league={listing} onLeft={changed} />}
+          </>
+        );
         if (!m.leagues || !uid) return <Fragment key={m.id}>{team}{manage}</Fragment>;
         return (
           <Fragment key={m.id}>

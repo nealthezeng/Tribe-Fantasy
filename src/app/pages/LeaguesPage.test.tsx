@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, type LeagueListing } from '../lib/rpc';
-import { CreateLeaguePage, LeaguesPage, ManageLeague } from './LeaguesPage';
+import { CreateLeaguePage, LeagueLeave, LeaguesPage, ManageLeague } from './LeaguesPage';
 
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }) }));
 vi.mock('../lib/rpc', () => ({ api: {
@@ -13,6 +13,7 @@ vi.mock('../lib/rpc', () => ({ api: {
   renameLeague: vi.fn(() => Promise.resolve()),
   setLeaguePassword: vi.fn(() => Promise.resolve()),
   deleteLeague: vi.fn(() => Promise.resolve()),
+  leaveLeague: vi.fn(() => Promise.resolve()),
 } }));
 
 const league = (over: Partial<LeagueListing>): LeagueListing => ({
@@ -36,7 +37,7 @@ const at = (path: string) => render(
 );
 
 beforeEach(() => { vi.mocked(api.listLeagues).mockResolvedValue(LEAGUES); });
-afterEach(() => { cleanup(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
 describe('LeaguesPage (t215)', () => {
   it('shows N of M teams, Password, Full and Joined, and offers Join only where you can join', async () => {
@@ -155,5 +156,37 @@ describe('ManageLeague (t215)', () => {
     render(<ManageLeague league={league({ is_creator: true })} onChanged={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Remove password', hidden: true })).toBeNull();
     expect(screen.getByRole('button', { name: 'Add password', hidden: true })).toBeTruthy();
+  });
+});
+
+describe('LeagueLeave (t217)', () => {
+  it('leaves only after the confirm, then tells Home', async () => {
+    const onLeft = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<LeagueLeave membershipId="m1" league={league({ teams: 3 })} onLeft={onLeft} />);
+    const button = screen.getByRole('button', { name: 'Leave Huck Yeah' });
+    fireEvent.click(button);
+    expect(api.leaveLeague).not.toHaveBeenCalled();
+    fireEvent.click(button);
+    await waitFor(() => expect(api.leaveLeague).toHaveBeenCalledWith('m1'));
+    expect(onLeft).toHaveBeenCalled();
+    expect(confirm.mock.calls[0][0]).not.toMatch(/deleted too/);
+  });
+
+  it('warns that the league goes too when yours is its only team', () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<LeagueLeave membershipId="m1" league={league({ teams: 1 })} onLeft={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Leave Huck Yeah' }));
+    expect(confirm.mock.calls[0][0]).toMatch(/Huck Yeah will be deleted too/);
+  });
+
+  it('explains a refusal in place', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(api.leaveLeague).mockRejectedValueOnce({ message: 'TEAM_HAS_BIDS' });
+    const onLeft = vi.fn();
+    render(<LeagueLeave membershipId="m1" league={league({})} onLeft={onLeft} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Leave Huck Yeah' }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/bid/);
+    expect(onLeft).not.toHaveBeenCalled();
   });
 });

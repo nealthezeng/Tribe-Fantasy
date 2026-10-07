@@ -204,3 +204,30 @@ export function ManageLeague({ league, onChanged }: { league: LeagueListing; onC
     </details>
   );
 }
+
+/** On Home, under each of your teams (t217). The server refuses once the team has donated, bid, or played. */
+export function LeagueLeave({ membershipId, league, onLeft }: { membershipId: string; league: LeagueListing; onLeft: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function leave() {
+    const alone = league.teams <= 1 ? ` ${league.name} will be deleted too, since yours is its only team.` : '';
+    if (!window.confirm(`Leave ${league.name}? Your team and its credits are removed.${alone}`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.leaveLeague(membershipId);
+      onLeft();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <button className="secondary" disabled={busy} onClick={() => void leave()}>Leave {league.name}</button>
+      {error && <p className="error" role="alert">{error}</p>}
+    </div>
+  );
+}

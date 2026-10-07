@@ -8,7 +8,7 @@ describe('errorMessage', () => {
   });
   it('maps the open-league codes (t215)', () => {
     for (const code of ['NO_SEASON', 'INVALID_PASSWORD', 'WRONG_PASSWORD', 'CREATE_LIMIT', 'NOT_LEAGUE_OWNER',
-      'LEAGUE_HAS_TEAMS', 'LEAGUE_HAS_DONATIONS']) {
+      'LEAGUE_HAS_TEAMS', 'LEAGUE_HAS_DONATIONS', 'TEAM_HAS_DONATIONS', 'TEAM_HAS_BIDS', 'TEAM_HAS_GAMES']) {
       expect(errorMessage({ message: code }), code).not.toMatch(/Something went wrong/);
     }
     expect(errorMessage({ message: 'WRONG_PASSWORD' })).toMatch(/Ask the league's creator/);

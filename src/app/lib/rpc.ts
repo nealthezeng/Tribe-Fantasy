@@ -34,6 +34,8 @@ export const api = {
   setLeaguePassword: (leagueId: string, password: string | null) =>
     call<void>('set_league_password', { p_league: leagueId, p_password: password }),
   deleteLeague: (leagueId: string) => call<void>('delete_league', { p_league: leagueId }),
+  /** Your own team only; refused once it has donated, bid, or played (t217). */
+  leaveLeague: (membershipId: string) => call<void>('leave_league', { p_membership: membershipId }),
   createSeason: (name: string, settings: object) => call<string>('create_season', { p_name: name, p_settings: settings }),
   updateSeasonSettings: (seasonId: string, settings: object) =>
     call<void>('update_season_settings', { p_season: seasonId, p_settings: settings }),

@@ -212,3 +212,13 @@ Stop all email at any time: `select cron.unschedule('notify');`. If the pick tri
 3. Right after the deploy: leagues made before 0019 (e.g. League A) have no creator and no password, so ANYONE
    signed in can join them until they're full. If that's not wanted, an admin sets a password in Admin → Leagues
    (works for any league, member or not) or from Home → Manage <league>.
+
+## Leave a league (t217, after 0019)
+
+1. SQL Editor: paste and run `supabase/migrations/0020_leave_league.sql`. It only adds `leave_league`, so it's safe
+   any time before the deploy. If the editor offers "Run and enable RLS", choose **Run without RLS** (no new table).
+2. Deploy (merge + push): each team on Home gets "Leave <league>" (with a confirm). Refused with a clear message when
+   the team has a donation, any bid (open, or a player won by bidding), or a game pairing (leaving would erase the
+   opponent's result). Leaving removes the team, its allowance and its random-fill players. The creator leaving as the
+   only team deletes the league; otherwise the league stays, becomes admin-managed, and the creator's one-league slot
+   frees up.
