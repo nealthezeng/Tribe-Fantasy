@@ -161,11 +161,13 @@ describe('ManageLeague (t215)', () => {
 
 describe('LeagueLeave (t217)', () => {
   it('leaves only after the confirm, then tells Home', async () => {
+    vi.mocked(api.listLeagues).mockResolvedValue([league({ teams: 3 })]);
     const onLeft = vi.fn();
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     render(<LeagueLeave membershipId="m1" league={league({ teams: 3 })} onLeft={onLeft} />);
     const button = screen.getByRole('button', { name: 'Leave Huck Yeah' });
     fireEvent.click(button);
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
     expect(api.leaveLeague).not.toHaveBeenCalled();
     fireEvent.click(button);
     await waitFor(() => expect(api.leaveLeague).toHaveBeenCalledWith('m1'));
@@ -173,11 +175,19 @@ describe('LeagueLeave (t217)', () => {
     expect(confirm.mock.calls[0][0]).not.toMatch(/deleted too/);
   });
 
-  it('warns that the league goes too when yours is its only team', () => {
+  it('warns that the league goes too when yours is its only team, counting teams afresh', async () => {
+    // Home loaded 3 teams, but the others have left since.
+    vi.mocked(api.listLeagues).mockResolvedValue([league({ teams: 1 })]);
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    render(<LeagueLeave membershipId="m1" league={league({ teams: 1 })} onLeft={vi.fn()} />);
+    render(<LeagueLeave membershipId="m1" league={league({ teams: 3 })} onLeft={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Leave Huck Yeah' }));
+    await waitFor(() => expect(confirm).toHaveBeenCalled());
     expect(confirm.mock.calls[0][0]).toMatch(/Huck Yeah will be deleted too/);
+  });
+
+  it('is not offered once the team has donated (leaving can never succeed then)', () => {
+    render(<LeagueLeave membershipId="m1" league={league({})} donated onLeft={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Leave Huck Yeah' })).toBeNull();
   });
 
   it('explains a refusal in place', async () => {

@@ -93,7 +93,8 @@ export function HomePage() {
         const manage = (
           <>
             {mine && <ManageLeague league={mine} onChanged={changed} />}
-            {listing && <LeagueLeave membershipId={m.id} league={listing} onLeft={changed} />}
+            {listing && <LeagueLeave membershipId={m.id} league={listing} onLeft={changed}
+              donated={m.credit_ledger.some((e) => e.kind === 'donation')} />}
           </>
         );
         if (!m.leagues || !uid) return <Fragment key={m.id}>{team}{manage}</Fragment>;

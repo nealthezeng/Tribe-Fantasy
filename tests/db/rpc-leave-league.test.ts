@@ -60,6 +60,28 @@ describe('leave_league', () => {
     await expect(leave(bob, bobM)).rejects.toThrow('TEAM_HAS_GAMES');
   });
 
+  it('leaves with a game-1 pick and a bench set before the tournament opens (own data only)', async () => {
+    await grant(f);
+    await openAuction(f);
+    await closeBids(f);
+    await runAuction(f);
+    const [slot] = (await f.db.query<{ athlete_id: string }>(
+      'select athlete_id from public.roster_slots where membership_id = $1 limit 1', [aliceM])).rows;
+    await f.db.query('update public.roster_slots set bench = true where membership_id = $1 and athlete_id = $2', [aliceM, slot.athlete_id]);
+    await f.db.query(`insert into public.game_picks (stage_id, game_number, membership_id, league_id, athlete_id)
+      values ($1, 1, $2, $3, $4)`, [f.stage, aliceM, f.league, slot.athlete_id]);
+    await leave(alice, aliceM);
+    expect(await count('public.game_picks where membership_id = $1', [aliceM])).toBe(0);
+  });
+
+  it('deletes a league once its last team leaves, even one its creator did not make (documented behaviour)', async () => {
+    // League A is an older, admin-made league: created_by is null.
+    await leave(alice, aliceM);
+    expect(await count('public.leagues where id = $1', [f.league])).toBe(1);
+    await leave(bob, bobM);
+    expect(await count('public.leagues where id = $1', [f.league])).toBe(0);
+  });
+
   it("refuses someone else's team and unknown ids alike", async () => {
     await expect(leave(bob, aliceM)).rejects.toThrow('NOT_MEMBER');
     await expect(leave(alice, '00000000-0000-0000-0000-000000000000')).rejects.toThrow('NOT_MEMBER');
@@ -79,6 +101,14 @@ describe('leave_league by the creator', () => {
     expect(await count('public.leagues where id = $1', [league])).toBe(0);
     const a = await f.db.query<{ details: Record<string, unknown> }>(`select details from public.audit_log where action = 'leave_league'`);
     expect(a.rows[0].details).toMatchObject({ league_id: league, league_deleted: true });
+  });
+
+  it('keeps the creator when someone else leaves', async () => {
+    const league = await create(alice, 'Kept');
+    await as(f.db, bob, (tx) => rpc(tx, 'join_open_league', { p_league: league, p_password: null, p_team_name: 'Bobs' }));
+    await leave(bob, await myMembership(bob, league));
+    const l = await f.db.query<{ created_by: string | null }>('select created_by from public.leagues where id = $1', [league]);
+    expect(l.rows[0].created_by).toBe(alice);
   });
 
   it('keeps the league for the other teams, hands it to admins, and frees the create slot', async () => {

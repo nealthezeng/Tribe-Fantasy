@@ -205,16 +205,23 @@ export function ManageLeague({ league, onChanged }: { league: LeagueListing; onC
   );
 }
 
-/** On Home, under each of your teams (t217). The server refuses once the team has donated, bid, or played. */
-export function LeagueLeave({ membershipId, league, onLeft }: { membershipId: string; league: LeagueListing; onLeft: () => void }) {
+/** On Home, under each of your teams (t217). The server refuses once the team has donated, bid, or been paired for a
+ *  game; a donation is known here, so the button isn't offered then. The last team to leave takes the league with it,
+ *  whoever created it. */
+export function LeagueLeave({ membershipId, league, donated = false, onLeft }: {
+  membershipId: string; league: LeagueListing; donated?: boolean; onLeft: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  if (donated) return null;
 
   async function leave() {
-    const alone = league.teams <= 1 ? ` ${league.name} will be deleted too, since yours is its only team.` : '';
-    if (!window.confirm(`Leave ${league.name}? Your team and its credits are removed.${alone}`)) return;
     setBusy(true);
     setError(null);
+    // Count teams afresh: others may have joined or left since Home loaded.
+    const teams = (await api.listLeagues().catch(() => [])).find((l) => l.id === league.id)?.teams ?? league.teams;
+    const alone = teams <= 1 ? ` ${league.name} will be deleted too, since yours is its only team.` : '';
+    if (!window.confirm(`Leave ${league.name}? Your team and its credits are removed.${alone}`)) { setBusy(false); return; }
     try {
       await api.leaveLeague(membershipId);
       onLeft();

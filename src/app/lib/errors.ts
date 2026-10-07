@@ -43,7 +43,7 @@ const MESSAGES: Record<string, string> = {
   LEAGUE_HAS_DONATIONS: "This league has donation records, so it can't be deleted.",
   TEAM_HAS_DONATIONS: "Your team has donation records, so it can't leave this league.",
   TEAM_HAS_BIDS: "Your team has bid on players, so it can't leave this league.",
-  TEAM_HAS_GAMES: "Your team has played games here, so it can't leave: that would erase your opponents' results.",
+  TEAM_HAS_GAMES: "Your team has been paired for a game, so it can't leave: that would erase your opponents' results.",
   DONATIONS_DISABLED: 'Recording donations to the team is turned off for this season.',
   INVALID_AMOUNT: "That amount isn't valid.",
   NOTE_REQUIRED: 'Add a note saying why.',

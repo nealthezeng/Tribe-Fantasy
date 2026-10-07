@@ -10,11 +10,17 @@ declare
   gone boolean := false;
 begin
   -- ponytail: as delete_league, blocks ledger inserts while this runs so a donation can't slip in after the check.
+  -- Kept BEFORE the league lock on purpose: run_auction writes a ledger row after each won bid and holds it to the
+  -- end, so league-first would deadlock with any auction run already past its first won bid; this order can only
+  -- meet the microseconds before that first ledger row. Postgres aborts one side (40P01) and a retry works.
   lock table public.credit_ledger in share mode;
   select * into m from public.memberships where id = p_membership and user_id = uid;
   -- Someone else's team and an unknown id read the same, so ids can't be probed.
   if not found then raise exception 'NOT_MEMBER'; end if;
   -- Same lock as joins and delete_league: no join or delete can interleave with the last-team check below.
+  -- It also serialises against new pairings: every game_pairings insert takes KEY SHARE on the league through its
+  -- league_id FK, so open_tournament / finish_game either commit first (and TEAM_HAS_GAMES below sees the pairing) or
+  -- wait and then fail on this team's deleted membership. Don't drop this FOR UPDATE or that FK without a substitute.
   select * into l from public.leagues where id = m.league_id for update;
   -- An admin deleted the league (and this team with it) while we waited for the lock.
   if not found then raise exception 'NOT_MEMBER'; end if;
@@ -30,6 +36,7 @@ begin
     raise exception 'TEAM_HAS_GAMES';
   end if;
   delete from public.memberships where id = m.id;
+  -- The last team out takes the league with it, whoever created it (user ruling 2026-10-06, documented in Rules).
   if not exists (select 1 from public.memberships where league_id = l.id) then
     delete from public.leagues where id = l.id;
     gone := true;

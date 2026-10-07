@@ -219,6 +219,8 @@ Stop all email at any time: `select cron.unschedule('notify');`. If the pick tri
    any time before the deploy. If the editor offers "Run and enable RLS", choose **Run without RLS** (no new table).
 2. Deploy (merge + push): each team on Home gets "Leave <league>" (with a confirm). Refused with a clear message when
    the team has a donation, any bid (open, or a player won by bidding), or a game pairing (leaving would erase the
-   opponent's result). Leaving removes the team, its allowance and its random-fill players. The creator leaving as the
-   only team deletes the league; otherwise the league stays, becomes admin-managed, and the creator's one-league slot
-   frees up.
+   opponent's result). Leaving removes the team, its allowance and its random-fill players. The last team to leave
+   deletes the league, whoever created it, including older admin-made leagues (user ruling 2026-10-06). When the
+   creator leaves and others stay, the league becomes admin-managed and the creator's one-league slot frees up.
+   Home hides Leave once the team has a donation. A leave at the exact moment an auction runs can deadlock; Postgres
+   cancels one of the two and a retry works (see the comments in 0020).

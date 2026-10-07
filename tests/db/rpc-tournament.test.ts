@@ -137,8 +137,9 @@ describe('start_game / finish_game', () => {
     await finishLast(g1);
     await expect(addNext(g1, pairings(), alice)).rejects.toThrow('FORBIDDEN');
     await expect(addNext(g1, [{ league_id: f.league, home: aliceM, away: bobM }])).rejects.toThrow('PAIRINGS_INVALID');
-    // UTC+14 keeps current_date a day ahead of Eastern at any hour, as on CI between 00:00 UTC and Eastern midnight.
-    // add_next_game compares with today in Eastern time, so the dates must too.
+    // add_next_game compares with today in Eastern time, so the dates must too. UTC+14 puts current_date a day ahead
+    // of Eastern for most of the day (not Eastern midnight to ~5-6 am), so the old current_date version fails here
+    // most hours, as it did on CI between 00:00 UTC and Eastern midnight.
     await f.db.query(`set timezone = 'Pacific/Kiritimati'`);
     const today = `(now() at time zone 'America/New_York')::date`;
     await f.db.query(`update public.stages set starts_on = ${today} - 2, ends_on = ${today} - 1 where id = $1`, [f.stage]);

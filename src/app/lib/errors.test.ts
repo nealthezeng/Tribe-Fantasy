@@ -12,6 +12,8 @@ describe('errorMessage', () => {
       expect(errorMessage({ message: code }), code).not.toMatch(/Something went wrong/);
     }
     expect(errorMessage({ message: 'WRONG_PASSWORD' })).toMatch(/Ask the league's creator/);
+    // Leaving is refused as soon as the team is paired, before the game is played.
+    expect(errorMessage({ message: 'TEAM_HAS_GAMES' })).toMatch(/paired for a game/);
   });
   it('maps the M3 stats codes', () => {
     expect(errorMessage({ message: 'VERIFIER_TAPPED' })).toMatch(/another keeper has to verify/);
