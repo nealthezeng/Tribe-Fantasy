@@ -115,7 +115,7 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
           <button className="secondary" disabled={busy || typed !== season.name}>Delete season</button>
         </div>
       </form>
-      {msg && <p className="muted" role="status">{msg}</p>}
+      {msg && <p className="success" role="status">{msg}</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </details>
   );

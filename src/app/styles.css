@@ -99,7 +99,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). A pick mid-save keeps its
    green; the whole tally board and segmented buttons keep their own disabled look. */
 :is(button, .button):disabled:not(.picked, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
-/* Secondary: a soft borderless fill; the keycap light and shadow give it its edge. */
+/* Secondary: a soft borderless fill, flat like the gold buttons (t111). */
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
 .secondary:hover:not(:disabled) { background: var(--line); }
 .secondary:active:not(:disabled) { background: var(--line); }

@@ -23,6 +23,8 @@ vi.mock('../../lib/supabase', () => ({
   },
 }));
 vi.mock('../../lib/rpc', () => ({ api: {
+  // Only the current season's leagues come back: League A (l2) is from an older season here, so its lock is unknown.
+  listLeagues: vi.fn(() => Promise.resolve([{ id: 'l1', has_password: false }])),
   deleteLeague: vi.fn(() => Promise.resolve()),
   setLeaguePassword: vi.fn(() => Promise.resolve()),
 } }));
@@ -46,6 +48,14 @@ describe('LeaguesPanel (t215)', () => {
     expect(await screen.findByText('League A now needs a password.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Make League A public' }));
     await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l2', null));
+  });
+
+  it('says which leagues are public, and offers Make public only where it changes something', async () => {
+    render(<LeaguesPanel seasonId="s1" />);
+    expect(await screen.findByText('Public')).toBeTruthy();
+    expect(screen.queryByText('Password')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Make Huck Yeah public' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Make League A public' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('refuses a password of only spaces', async () => {

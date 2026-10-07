@@ -32,7 +32,11 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
       if (res.error) throw res.error;
       for (const p of res.data as { id: string; display_name: string }[]) names.set(p.id, p.display_name);
     }
-    return rows.map((l) => ({ ...l, creator: l.created_by ? names.get(l.created_by) ?? 'Unknown' : 'An admin' }));
+    // Locked or public: only the current season's list says (the hash itself is private). Older seasons show neither.
+    const locked = new Map((await api.listLeagues()).map((l) => [l.id, l.has_password]));
+    return rows.map((l) => ({
+      ...l, creator: l.created_by ? names.get(l.created_by) ?? 'Unknown' : 'An admin', locked: locked.get(l.id),
+    }));
   }, [seasonId]);
 
   async function remove(l: LeagueRow) {
@@ -58,12 +62,15 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
         {leagues.data?.map((l) => (
           <li key={l.id} className="league-row">
             <div className="who">
-              <span className="title">{l.name}</span>
+              <span className="meta">
+                <span className="title">{l.name}</span>
+                {l.locked !== undefined && <span className={l.locked ? 'pill' : 'pill info'}>{l.locked ? 'Password' : 'Public'}</span>}
+              </span>
               <span className="muted">by {l.creator} · {l.memberships.length} {l.memberships.length === 1 ? 'team' : 'teams'}</span>
               {l.memberships.length > 0 && <small>{l.memberships.map((m) => m.team_name).join(', ')}</small>}
             </div>
             <button className="secondary" aria-label={`Delete ${l.name}`} onClick={() => void remove(l)}>Delete</button>
-            <PasswordForm league={l} />
+            <PasswordForm league={l} onSaved={leagues.reload} />
           </li>
         ))}
       </ul>
@@ -73,7 +80,7 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
 }
 
 /** Admins lock or open any league, including ones they aren't in (older leagues have no creator to do it). */
-function PasswordForm({ league }: { league: LeagueRow }) {
+function PasswordForm({ league, onSaved }: { league: LeagueRow & { locked?: boolean }; onSaved: () => void }) {
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +95,7 @@ function PasswordForm({ league }: { league: LeagueRow }) {
       await api.setLeaguePassword(league.id, next);
       setPassword('');
       setMsg(done);
+      onSaved();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -100,9 +108,9 @@ function PasswordForm({ league }: { league: LeagueRow }) {
       <input aria-label={`New password for ${league.name}`} placeholder="New password" maxLength={40} autoComplete="off"
         value={password} onChange={(e) => setPassword(e.target.value)} />
       <button className="secondary" disabled={busy}>Set password</button>
-      <button type="button" className="secondary" disabled={busy} aria-label={`Make ${league.name} public`}
+      <button type="button" className="secondary" disabled={busy || league.locked === false} aria-label={`Make ${league.name} public`}
         onClick={() => void save(null, `Anyone can join ${league.name} now.`)}>Make public</button>
-      {msg && <p className="muted" role="status">{msg}</p>}
+      {msg && <p className="success" role="status">{msg}</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </form>
   );

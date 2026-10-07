@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
@@ -145,8 +145,9 @@ export function CreateLeaguePage() {
   );
 }
 
-/** On Home, for the league's creator (or an admin): rename, set or remove the password, delete while theirs is the only team. */
-export function ManageLeague({ league, onChanged }: { league: LeagueListing; onChanged: () => void }) {
+/** On Home, for the league's creator (or an admin): rename, set or remove the password, delete while theirs is the only team.
+ *  `children` (Leave) sits with Delete, so a team's way out isn't a loose button under the card. */
+export function ManageLeague({ league, onChanged, children }: { league: LeagueListing; onChanged: () => void; children?: ReactNode }) {
   const { isAdmin } = useAuth();
   const [name, setName] = useState(league.name);
   const [password, setPassword] = useState('');
@@ -192,6 +193,7 @@ export function ManageLeague({ league, onChanged }: { league: LeagueListing; onC
         )}
       </form>
       <div className="section">
+        {children}
         {league.teams === 1 ? (
           <button className="secondary" disabled={busy} onClick={() => {
             if (!window.confirm(`Delete ${league.name}? Your team and its credits go with it. This can't be undone.`)) return;
@@ -199,7 +201,7 @@ export function ManageLeague({ league, onChanged }: { league: LeagueListing; onC
           }}>Delete league</button>
         ) : <p className="muted">{isAdmin ? 'Delete it from Admin → Leagues.' : 'Other teams have joined, so only an admin can delete this league.'}</p>}
       </div>
-      {msg && <p className="muted" role="status">{msg}</p>}
+      {msg && <p className="success" role="status">{msg}</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </details>
   );

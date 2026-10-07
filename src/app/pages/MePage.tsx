@@ -88,7 +88,6 @@ export function MePage() {
     <section className="page">
       <h1>{athlete.name}</h1>
       {error && <p className="error" role="alert">{error}</p>}
-      <EmailReminders uid={uid!} />
       <div className="card">
         <div className="head">
           <h2>Injury</h2>
@@ -128,6 +127,8 @@ export function MePage() {
           })}
         </ul>
       </div>
+      {/* A setting, not a task: under the things a player comes here to do. */}
+      <EmailReminders uid={uid!} />
     </section>
   );
 }

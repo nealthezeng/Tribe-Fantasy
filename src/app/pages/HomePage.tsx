@@ -90,13 +90,9 @@ export function HomePage() {
         const mine = manageable(m.league_id);
         const changed = () => { reload(); listed.reload(); };
         const listing = listed.data?.find((l) => l.id === m.league_id);
-        const manage = (
-          <>
-            {mine && <ManageLeague league={mine} onChanged={changed} />}
-            {listing && <LeagueLeave membershipId={m.id} league={listing} onLeft={changed}
-              donated={m.credit_ledger.some((e) => e.kind === 'donation')} />}
-          </>
-        );
+        const leave = listing && <LeagueLeave membershipId={m.id} league={listing} onLeft={changed}
+          donated={m.credit_ledger.some((e) => e.kind === 'donation')} />;
+        const manage = mine ? <ManageLeague league={mine} onChanged={changed}>{leave}</ManageLeague> : leave;
         if (!m.leagues || !uid) return <Fragment key={m.id}>{team}{manage}</Fragment>;
         return (
           <Fragment key={m.id}>
@@ -113,7 +109,7 @@ export function HomePage() {
         );
       })}
       {data && data.length > 0 && (
-        <p className="row">
+        <p className="meta">
           <Link to="/leagues" className="more">Join another league</Link>
           {canCreate && <Link to="/leagues/new" className="more">Create a league</Link>}
         </p>
