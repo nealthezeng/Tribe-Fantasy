@@ -56,13 +56,13 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
       {leagues.data?.length === 0 && <p className="muted">No leagues in this season yet.</p>}
       <ul className="list">
         {leagues.data?.map((l) => (
-          <li key={l.id}>
-            <span className="meta">
+          <li key={l.id} className="league-row">
+            <div className="who">
               <span className="title">{l.name}</span>
               <span className="muted">by {l.creator} · {l.memberships.length} {l.memberships.length === 1 ? 'team' : 'teams'}</span>
-            </span>
+              {l.memberships.length > 0 && <small>{l.memberships.map((m) => m.team_name).join(', ')}</small>}
+            </div>
             <button className="secondary" aria-label={`Delete ${l.name}`} onClick={() => void remove(l)}>Delete</button>
-            {l.memberships.length > 0 && <small className="muted">{l.memberships.map((m) => m.team_name).join(', ')}</small>}
             <PasswordForm league={l} />
           </li>
         ))}

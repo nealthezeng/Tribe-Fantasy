@@ -283,6 +283,18 @@ tbody tr:last-child td { border-bottom: 0; }
   .list li.athlete > form > button { flex: 0 0 auto; }
 }
 
+/* Admin league row (t216): name, creator line and teams on the left, Delete on the right, password form below at
+   full width. A grid, not a wrapping flex row, so Delete never drifts with the length of the text. */
+.list li.league-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--s2) var(--s3); padding-block: var(--s3); }
+.league-row .who { display: grid; gap: var(--s1); }
+.list li.league-row > form { grid-column: 1 / -1; }
+.list li.league-row > form > input { flex-basis: 100%; }
+.list li.league-row > form > button { flex: 1 1 0; }
+@media (min-width: 640px) {
+  .list li.league-row > form > input { flex-basis: 160px; }
+  .list li.league-row > form > button { flex: 0 0 auto; }
+}
+
 /* League tab while bidding is open: the header stays on screen while you scroll the bid list (the top bar isn't
    sticky, so top: 0). Negative margins let it cover the card's padding edge to edge. */
 .bid-header {
