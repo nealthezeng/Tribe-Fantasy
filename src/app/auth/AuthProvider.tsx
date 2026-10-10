@@ -6,7 +6,7 @@ import { readAuthRedirectError } from './authRedirectError';
 interface AuthState {
   session: Session | null;
   loading: boolean;
-  displayName: string | null;
+  displayName: string | null | undefined; // undefined = not loaded yet for this user; null = has no name
   isAdmin: boolean;
   isKeeper: boolean; // stat_keeper or admin
   authError: string | null;
@@ -19,7 +19,7 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null | undefined>(undefined);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isKeeper, setIsKeeper] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resetForUser = useCallback((uid: string | null) => {
     if (loadedFor.current === uid) return;
     loadedFor.current = uid;
-    setDisplayName(null);
+    setDisplayName(undefined);
     setIsAdmin(false);
     setIsKeeper(false);
   }, []);

@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Layout } from './Layout';
 
-const auth = vi.hoisted(() => ({ isAdmin: false, displayName: 'Pat' as string | null }));
+const auth = vi.hoisted(() => ({ isAdmin: false, displayName: 'Pat' as string | null | undefined }));
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({
     session: { user: { id: 'u1', email: 'pat@x.test' } }, isAdmin: auth.isAdmin, isKeeper: true, displayName: auth.displayName,
@@ -42,6 +42,13 @@ describe('Layout', () => {
     expect(screen.getByRole('heading', { name: /what's your name/i })).toBeTruthy();
     expect(screen.getByLabelText(/your name/i)).toBeTruthy();
     expect(screen.queryByText('league page')).toBeNull();
+  });
+
+  it("doesn't ask for a name while the profile is still loading after sign-in", () => {
+    auth.displayName = undefined;
+    render(<MemoryRouter><Routes><Route element={<Layout />}><Route index element={<p>league page</p>} /></Route></Routes></MemoryRouter>);
+    expect(screen.queryByRole('heading', { name: /what's your name/i })).toBeNull();
+    expect(screen.getByText('league page')).toBeTruthy();
   });
 
   it('flips between dark and light from the account menu and remembers it (t118)', () => {
