@@ -2,7 +2,9 @@ import { Fragment, type ReactNode } from 'react';
 import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { DEFAULT_SETTINGS } from '../../core/settings';
 import { AuctionCard } from './AuctionCard';
+import { DonateBox } from './DonateBox';
 import { LeagueLeave, ManageLeague } from './LeaguesPage';
 import { TournamentCard } from './TournamentCard';
 import { api } from '../lib/rpc';
@@ -18,7 +20,11 @@ interface MembershipRow {
   team_name: string;
   league_id: string;
   created_at: string;
-  leagues: { name: string; season_id: string; seasons: { name: string } | null } | null;
+  donation_code: string;
+  leagues: {
+    name: string; season_id: string;
+    seasons: { name: string; settings: { donations_enabled?: unknown; venmo_handle?: unknown; credits_per_dollar?: unknown } } | null;
+  } | null;
   credit_ledger: LedgerEntry[];
 }
 
@@ -29,7 +35,7 @@ export function HomePage() {
     if (!supabase || !uid) return [] as MembershipRow[];
     const { data, error } = await supabase
       .from('memberships')
-      .select(`id, team_name, league_id, created_at, leagues(name, season_id, seasons(name)), credit_ledger(${LEDGER_COLUMNS})`)
+      .select(`id, team_name, league_id, created_at, donation_code, leagues(name, season_id, seasons(name, settings)), credit_ledger(${LEDGER_COLUMNS})`)
       .eq('user_id', uid);
     if (error) throw error;
     return (data ?? []) as unknown as MembershipRow[];
@@ -93,7 +99,12 @@ export function HomePage() {
         const leave = listing && <LeagueLeave membershipId={m.id} league={listing} onLeft={changed}
           donated={m.credit_ledger.some((e) => e.kind === 'donation')} />;
         const manage = mine ? <ManageLeague league={mine} onChanged={changed}>{leave}</ManageLeague> : leave;
-        if (!m.leagues || !uid) return <Fragment key={m.id}>{team}{manage}</Fragment>;
+        const s = m.leagues?.seasons?.settings;
+        const donate = s?.donations_enabled === true && typeof s.venmo_handle === 'string'
+          ? <DonateBox code={m.donation_code} handle={s.venmo_handle}
+              creditsPerDollar={Number(s.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar)} />
+          : null;
+        if (!m.leagues || !uid) return <Fragment key={m.id}>{team}{donate}{manage}</Fragment>;
         return (
           <Fragment key={m.id}>
             <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
@@ -104,6 +115,7 @@ export function HomePage() {
                 team={<Wallet entries={m.credit_ledger} className="card"
                   summary={<>Credits <span className="big credits-sum">{balance(m.credit_ledger)}</span></>} />} />
             </TournamentCard>
+            {donate}
             {manage}
           </Fragment>
         );

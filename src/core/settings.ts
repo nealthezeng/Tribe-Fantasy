@@ -3,6 +3,8 @@ export type SessionType = 'practice' | 'tournament';
 export interface SeasonSettings {
   credits_per_dollar: number;
   donations_enabled: boolean;
+  /** The treasurer's Venmo username (no @), shown with each team's donation code. Null = no Venmo box. */
+  venmo_handle: string | null;
   allowance_base: number;
   allowance_gap: number;
   max_members: number;
@@ -38,6 +40,7 @@ export interface SeasonSettings {
 export const DEFAULT_SETTINGS: SeasonSettings = {
   credits_per_dollar: 20,
   donations_enabled: false,
+  venmo_handle: null,
   allowance_base: 100,
   allowance_gap: 30,
   max_members: 6,
@@ -115,6 +118,8 @@ const statWeights: Check = (v) => {
 const CHECKS: Record<keyof SeasonSettings, Check> = {
   credits_per_dollar: num(1, 10_000, true),
   donations_enabled: bool,
+  venmo_handle: nullable((v) =>
+    typeof v === 'string' && /^[A-Za-z0-9_-]{5,30}$/.test(v) ? null : 'must be a Venmo username: 5-30 letters, digits, - or _ (no @)'),
   allowance_base: num(0, 100_000, true),
   allowance_gap: num(0, 100_000, true),
   max_members: num(2, 50, true),

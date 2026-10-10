@@ -38,8 +38,8 @@ export function RulesPage() {
     <section className="page">
       <h1>How Tribe Fantasy works</h1>
       <p className="notice">
-        Tribe Fantasy is a fantasy league for our team. Playing is free. Donations go to the team fund, and they're
-        turned off during the fall beta.{' '}
+        Tribe Fantasy is a fantasy league for our team. Playing is free. Donations go to the team fund
+        {S.donations_enabled ? '.' : ", and they aren't open yet."}{' '}
         {season
           ? `The numbers below are ${season.name}'s settings.`
           : 'The commissioner can change any number below for a season; sign in to see this season\'s.'}
@@ -170,8 +170,11 @@ export function RulesPage() {
           <p>No. Everyone plays on free credits.</p>
           <h3>Where does a donation go?</h3>
           <p>A donation is a donation to the team fund. It buys credits at {S.credits_per_dollar} credits per
-            dollar. Credits have no cash value and can't be refunded or cashed out. Donations are off during the
-            fall beta.</p>
+            dollar. Credits have no cash value and can't be refunded or cashed out.{' '}
+            {S.donations_enabled && S.venmo_handle
+              ? <>To donate, Venmo @{S.venmo_handle} with your team's 4-letter code in the note (it's on your Home
+                page). Credits show up within about 10 minutes.</>
+              : "Donations aren't open yet."}</p>
           <h3>Who can see what?</h3>
           <p>Your league sees rosters, results and every bid after the auction closes. Only you and the league staff
             see your credit balance. Other teams can't see your pick until the game starts.</p>

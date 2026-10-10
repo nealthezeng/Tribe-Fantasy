@@ -37,6 +37,20 @@ describe('RulesPage', () => {
     expect(document.body.textContent).toContain('merch prize');
   });
 
+  it('says donations are not open while they are off', () => {
+    render(<RulesPage />);
+    expect(document.body.textContent).toContain("Donations aren't open yet.");
+    expect(document.body.textContent).not.toMatch(/Venmo/);
+  });
+
+  it('explains how to donate by Venmo once donations are on', async () => {
+    current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ donations_enabled: true, venmo_handle: 'tribe-fund' }) };
+    render(<RulesPage />);
+    expect(await screen.findByText(/Venmo @tribe-fund/)).toBeTruthy();
+    expect(document.body.textContent).toMatch(/4-letter code/);
+    expect(document.body.textContent).not.toContain("Donations aren't open yet.");
+  });
+
   it('says bids may not total more than your credits', () => {
     render(<RulesPage />);
     expect(document.body.textContent).toContain("Your bids together can't be more than your credits");

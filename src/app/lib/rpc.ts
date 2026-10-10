@@ -2,6 +2,19 @@ import type { QueuedTap } from '../tally/queue';
 import { supabase } from './supabase';
 import type { GamePairing, LeaguePairingInput } from './tournament';
 
+/** list_venmo_receipts(): receipts that didn't become credits (last 30 days) + skipped personal payments. */
+export interface VenmoReceipt {
+  id: number;
+  received_at: string;
+  status: 'unknown_code' | 'ambiguous' | 'unsigned' | 'unparsed' | 'disabled' | 'duplicate';
+  payer: string | null;
+  dollars: number | null;
+  note: string | null;
+  code: string | null;
+  team: string | null;
+}
+export interface VenmoReceiptList { receipts: VenmoReceipt[]; skipped: number }
+
 /** A row of list_leagues(): the current season's leagues, as anyone signed in sees them (t215). */
 export interface LeagueListing {
   id: string;
@@ -71,6 +84,7 @@ export const api = {
     }),
   grantStageAllowance: (stageId: string, ranks: Record<string, number>) =>
     call<number>('grant_stage_allowance', { p_stage: stageId, p_ranks: ranks }),
+  listVenmoReceipts: () => call<VenmoReceiptList>('list_venmo_receipts', {}),
   recordDonation: (membershipId: string, dollars: number, note: string) =>
     call<number>('record_donation', { p_membership: membershipId, p_dollars: dollars, p_note: note }),
   adjustCredits: (membershipId: string, amount: number, note: string) =>

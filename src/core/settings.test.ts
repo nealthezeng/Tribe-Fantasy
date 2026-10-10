@@ -127,3 +127,15 @@ describe('parseSettings', () => {
     expect(() => parseSettings({ session_multipliers: { tournamnet: 3 } })).toThrow(/unknown session type "tournamnet"/);
   });
 });
+
+describe('venmo_handle', () => {
+  it('defaults to null and accepts a Venmo username without @', () => {
+    expect(DEFAULT_SETTINGS.venmo_handle).toBeNull();
+    expect(parseSettings({ venmo_handle: 'Tribe-Fund_23' }).venmo_handle).toBe('Tribe-Fund_23');
+  });
+  it('rejects @, spaces and bad lengths', () => {
+    for (const bad of ['@tribe', 'tri be', 'abcd', 'x'.repeat(31), 5]) {
+      expect(() => parseSettings({ venmo_handle: bad }), String(bad)).toThrow(/venmo_handle/);
+    }
+  });
+});

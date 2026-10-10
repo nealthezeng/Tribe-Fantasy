@@ -5,6 +5,7 @@ import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
+import { VenmoReceipts } from './VenmoReceipts';
 import { balance, credits } from '../../lib/wallet';
 
 interface LeagueRow {
@@ -65,6 +66,7 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
           </ul>
         </div>
       ))}
+      <VenmoReceipts />
       <CreditForm
         title="Adjust credits"
         help="Fixes a mistake by adding a correcting entry; past entries never change. Use a negative number to take credits away."
