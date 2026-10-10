@@ -4,3 +4,4 @@ dist
 !.env.example
 graphify-out
 tsconfig.tsbuildinfo
+*.eml
