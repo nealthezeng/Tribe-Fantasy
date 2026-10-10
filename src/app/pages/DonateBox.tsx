@@ -12,7 +12,7 @@ export function DonateBox({ code, handle, creditsPerDollar }: { code: string; ha
       <p>Venmo <a href={venmo} target="_blank" rel="noreferrer">@{handle}</a> and keep <strong>{code}</strong> in the
         note. Credits show up within about 10 minutes.</p>
       <button type="button" className="secondary"
-        onClick={() => void navigator.clipboard.writeText(code).then(() => setCopied(true))}>
+        onClick={() => void navigator.clipboard?.writeText(code).then(() => setCopied(true), () => {})}>
         {copied ? 'Copied' : `Copy ${code}`}
       </button>
       <p className="muted">Every dollar is a donation to the team fund. $1 = {creditsPerDollar} credits. Credits have no

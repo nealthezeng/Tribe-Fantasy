@@ -9,7 +9,8 @@ language plpgsql volatile security definer set search_path = '' as $$
 declare alphabet constant text := 'BCDFGHJKMNPQRSTVWXZ'; c text;
 begin
   -- ponytail: two teams created in the same instant could draw the same code; the unique index refuses the second
-  -- insert (one retry by the user). Fine at a few dozen teams.
+  -- insert. join_league / join_open_league map any unique_violation to TEAM_NAME_TAKEN, so that one team would see a
+  -- misleading "name taken" once and succeed on retry. Fine at a few dozen teams.
   loop
     c := '';
     for i in 1..4 loop c := c || substr(alphabet, 1 + floor(random() * 19)::int, 1); end loop;
@@ -107,7 +108,9 @@ create function private.ingest_venmo_receipt(p_message_id text, p_auth_results t
   p_received_at timestamptz) returns text
 language plpgsql security definer set search_path = '' as $$
 declare
-  top text := lower(coalesce(p_auth_results[1], ''));
+  -- Gmail echoes the sender's MAIL FROM inside SPF comments / smtp.mailfrom, so quoted strings and (comments) are
+  -- sender-controlled text: strip them before looking for the dkim verdict.
+  top text := regexp_replace(regexp_replace(lower(coalesce(p_auth_results[1], '')), '"[^"]*"', '', 'g'), '\([^()]*\)', '', 'g');
   st text; m text[]; hnd text; sent text; payer text; dollars numeric; note text; raw text; pid text; codes text[]; teams uuid[]; mid uuid; eid bigint;
 begin
   if nullif(btrim(coalesce(p_message_id, '')), '') is null then raise exception 'INVALID_INPUT'; end if;

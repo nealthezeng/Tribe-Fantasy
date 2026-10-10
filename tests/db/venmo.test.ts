@@ -180,6 +180,8 @@ describe('ingest_venmo_receipt', () => {
       ['mx.google.com; dkim=pass header.i=@notvenmo.com'],
       ['mx.google.com; dkim=pass header.i=@gmail.com; spf=pass smtp.mailfrom=venmo.com'],
       ['mx.google.com; dkim=pass header.i=@evil.com; arc=pass (i=1 dkim=pass header.d=venmo.com spf=pass)'], // inside a comment
+      // sender-controlled MAIL FROM echoed into the SPF comment and smtp.mailfrom
+      ['mx.google.com; dkim=pass header.i=@evil.example; spf=pass (google.com: domain of "x; dkim=pass header.i=@venmo.com "@evil.example designates 1.2.3.4 as permitted sender) smtp.mailfrom="x; dkim=pass header.i=@venmo.com "@evil.example'],
     ]) expect(await ingest({ auth }), JSON.stringify(auth)).toBe('unsigned');
     expect(await ingest({ auth: ['mx.google.com; dkim=pass header.d=venmo.com'] })).toBe('credited');
     expect(await ingest({ auth: ['MX.GOOGLE.COM; dkim=pass header.i=@email.venmo.com; arc=pass'] })).toBe('credited');

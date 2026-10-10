@@ -1043,6 +1043,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   `donations_enabled` + `venmo_handle`; Admin → Wallets receipts section.
 - [ ] Board: add/tick t222 (phase p15).
 - [ ] GO-LIVE ORDER (user): paste 0021 FIRST (anon probe: `list_venmo_receipts` → 42501), then push to main with
-  the user's OK, CI + Deploy green, tag `m12-venmo` (`git push origin refs/tags/m12-venmo`). Then runbook steps 2–8
-  (Gmail, forwarding, function, smoke test, cron, settings).
+  the user's OK, CI + Deploy green, hard-reload admin tabs, tag `m12-venmo` (`git push origin refs/tags/m12-venmo`).
+  Then Gmail setup (incl. Never-Spam filter, mark inbox read) → deploy the function + secrets → Admin settings
+  (`venmo_handle`, `donations_enabled`) → smoke test → schedule the cron (runbook steps 3–7).
 - [ ] `graphify update .`, memory update, delete branch.

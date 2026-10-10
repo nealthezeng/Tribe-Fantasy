@@ -1,6 +1,6 @@
 # Venmo donations — design
 
-Date: 2026-10-10 · Status: AWAITING USER REVIEW · Board: t222 · Migration: 0021 · Tag: m12-venmo
+Date: 2026-10-10 · Status: APPROVED 2026-10-10 · BUILT (branch venmo-donations) · Board: t222 · Migration: 0021 · Tag: m12-venmo
 
 ## 1. Goal
 
@@ -72,7 +72,7 @@ Every decision lives here so PGlite tests cover it — the function is a pipe, l
 2. **Signed?** `p_auth_results[1]` (the top header = added by Gmail on receipt) must start with
    `mx.google.com;` and contain `dkim=pass` for `venmo.com` (`header.i=@venmo.com` or
    `header.d=venmo.com`). Else `unsigned`. Lower headers are ignored — a sender can forge those.
-3. **Parse:** subject `^(.+) paid you \$([0-9,]+\.[0-9]{2})$` → payer, dollars. Note, payment id
+3. **Parse:** subject → payer, dollars (real subject pattern: see §10). Note, payment id
    and the exact body patterns are fixed from the user's sample (§8 gate). Fails → `unparsed`.
 4. **Code:** upper-case the note, take every whole word matching the code pattern, keep those
    that exist. None found → `no_code` if no code-shaped word, else `unknown_code`; two different
@@ -128,3 +128,20 @@ forwarding, stop and revisit §2 (fallback: pending list + approve).
 ## 9. Not doing
 Donor receipt emails (could reuse the M10 outbox later), CSV reconciliation, refunds/chargebacks
 (treasurer uses Adjust credits), per-donation caps beyond the existing $10,000 check.
+
+## 10. Amendments (2026-10-10, build)
+- Real subject is `<payer> paid $<amount> to your Venmo account. …`; payer and amount are read from the subject.
+- Venmo's text/plain part is empty, so the function converts the HTML with html-to-text (wordwrap off); the note and
+  the alphanumeric TRANSACTION ID come from that text.
+- Trust = Gmail's top Authentication-Results header with quoted strings and parenthesised comments stripped (they echo
+  the sender's MAIL FROM), `dkim=pass` directly followed by `header.i`/`header.d` for venmo.com. PLUS the receipt's last
+  "Sent to @handle" must equal the season's `venmo_handle` (blocks replays of genuine receipts for payments to someone
+  else); `unsigned` therefore also means wrong/missing handle.
+- Drift (amount block not found) → `unparsed`.
+- Payment id and Sent-to are the LAST matches in the text, so the note can't set them. Only the note's first line is
+  scanned for codes.
+- The Donate box has a prefilled private Venmo link (note `Tribe Fantasy <code>`).
+- A deleted team's code can be handed out again (dropping "never reused").
+- `record_donation` keeps its signature (the shared body is `private.insert_donation`).
+- Go-live order as in the runbook (`docs/setup-supabase.md`): paste 0021, push, Gmail setup, function, settings,
+  smoke test, cron.

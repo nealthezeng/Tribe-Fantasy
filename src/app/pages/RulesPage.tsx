@@ -39,7 +39,7 @@ export function RulesPage() {
       <h1>How Tribe Fantasy works</h1>
       <p className="notice">
         Tribe Fantasy is a fantasy league for our team. Playing is free. Donations go to the team fund
-        {S.donations_enabled ? '.' : ", and they aren't open yet."}{' '}
+        {S.donations_enabled && S.venmo_handle ? '.' : ", and they aren't open yet."}{' '}
         {season
           ? `The numbers below are ${season.name}'s settings.`
           : 'The commissioner can change any number below for a season; sign in to see this season\'s.'}

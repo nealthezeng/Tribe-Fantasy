@@ -43,6 +43,15 @@ describe('RulesPage', () => {
     expect(document.body.textContent).not.toMatch(/Venmo/);
   });
 
+  it('says donations are not open when they are on but there is no Venmo handle', async () => {
+    current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ donations_enabled: true }) };
+    render(<RulesPage />);
+    await screen.findByText(/Spring 2027's settings/);
+    expect(document.body.textContent).toContain("Donations aren't open yet.");
+    expect(document.body.textContent).not.toMatch(/Venmo @/);
+    expect(document.querySelector('.notice')?.textContent).toContain("they aren't open yet");
+  });
+
   it('explains how to donate by Venmo once donations are on', async () => {
     current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ donations_enabled: true, venmo_handle: 'tribe-fund' }) };
     render(<RulesPage />);

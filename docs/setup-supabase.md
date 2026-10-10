@@ -193,27 +193,36 @@ Your personal inbox's password never goes into Supabase.
 1. SQL Editor: paste and run `supabase/migrations/0021_venmo.sql` BEFORE pushing the app (the new app reads
    `memberships.donation_code`). If asked, choose **Run without RLS** (`private.venmo_receipts` isn't API-exposed).
    Check: `select count(*) from public.memberships where donation_code is null;` → 0.
-2. Make a new Gmail used only for this (e.g. `tribefantasy.venmo@gmail.com`). Turn on 2-Step Verification, then
+2. Deploy the app: merge + push to main, wait for CI + Deploy green, then hard-reload any open admin tabs. Do this
+   BEFORE saving settings: the OLD app rejects the new `venmo_handle` setting with `unknown setting`.
+3. Make a new Gmail used only for this (e.g. `tribefantasy.venmo@gmail.com`). Turn on 2-Step Verification, then
    create an **app password** (Google Account → Security → App passwords).
-3. In your **personal** Gmail: Settings → Forwarding and POP/IMAP → **Add a forwarding address** → the new address;
-   open the confirmation email in the new account and click the link. Leave "Disable forwarding" selected there (the
-   filter below forwards only Venmo receipts).
-4. Personal Gmail → Create a filter: From `venmo@venmo.com`, Has the words `"paid you"` → **Forward it to** the new
-   address (optionally also apply a label).
-5. **Edge Functions → Deploy a new function → Via editor**, name it `venmo-intake`: paste
+   - In your **personal** Gmail: Settings → Forwarding and POP/IMAP → **Add a forwarding address** → the new address;
+     open the confirmation email in the new account and click the link. Leave "Disable forwarding" selected there
+     (the filter below forwards only Venmo receipts).
+   - Personal Gmail → Create a filter: From `venmo@venmo.com`, Has the words `"paid you"` → **Forward it to** the new
+     address (optionally also apply a label).
+   - In the DEDICATED Gmail → Create a filter: From `venmo@venmo.com` → **Never send it to Spam** (the function reads
+     only INBOX).
+   - Then mark everything already in the new inbox as read (Google's welcome and the forwarding-confirmation mails
+     would otherwise be ingested as `unsigned`).
+4. **Edge Functions → Deploy a new function → Via editor**, name it `venmo-intake`: paste
    `supabase/functions/venmo-intake/index.ts`, turn **Verify JWT** OFF. **Secrets**: add `VENMO_GMAIL_USER` (the new
-   address) and `VENMO_GMAIL_APP_PASSWORD` (step 2). `CRON_SECRET` is already there from `notify`.
+   address) and `VENMO_GMAIL_APP_PASSWORD` (step 3). `CRON_SECRET` is already there from `notify`.
+5. Admin → Settings: set `"venmo_handle": "<the Venmo username receipts say they were 'Sent to', no @>"` and
+   `"donations_enabled": true`.
 6. Smoke test (before scheduling): have someone Venmo you $1 with a team's code in the note (Home shows each team's
-   code). Wait for it to arrive in the new inbox, then in SQL Editor:
+   code). When it is in the new inbox, in SQL Editor:
    ```sql
    select net.http_post(
      url := 'https://effyjptuoztyduydwcwh.supabase.co/functions/v1/venmo-intake',
      headers := '{"x-cron-secret": "PASTE-CRON-SECRET-HERE"}'::jsonb,
      timeout_milliseconds := 60000);
    ```
-   then `select status, payer, dollars, code from private.venmo_receipts order by id desc limit 5;` → `credited`
-   (or `disabled` if donations are still off — fine for the test). **Edge Functions → venmo-intake → Logs** show
-   the counts. `unsigned` means the forwarded mail lost Venmo's signature: stop and tell Claude.
+   WAIT about 10 seconds (pg_net is asynchronous), then
+   `select id, status, payer, dollars, code from private.venmo_receipts order by id desc limit 5;` → `credited`.
+   **Edge Functions → venmo-intake → Logs** show the counts. If `unsigned`: first check `venmo_handle` matches the
+   receipt's "Sent to @…" exactly; only if it does, the forwarded mail lost Venmo's signature: stop and tell Claude.
    If the logs show a connection error to `imap.gmail.com:993`, Supabase blocks that port: stop and tell Claude.
 7. Schedule it:
    ```sql
@@ -225,7 +234,12 @@ Your personal inbox's password never goes into Supabase.
      )
    $$);
    ```
-8. Admin → Settings: set `"venmo_handle": "<your Venmo username, no @>"` and `"donations_enabled": true`.
+
+To re-run a receipt after fixing a setting: `delete from private.venmo_receipts where id = <id>;` then mark that
+email UNREAD in the Venmo Gmail; the next run re-ingests it. A credited one can't double-credit (`source_ref`), but
+don't delete credited rows.
+
+Rollback: remove `venmo_handle` from the season settings BEFORE reverting the app to a build without it.
 
 Stop all intake: `select cron.unschedule('venmo-intake');`. Receipts that didn't become credits are listed in
 Admin → Wallets; fix them with **Record a donation**. A refund = **Adjust credits** with a negative number.

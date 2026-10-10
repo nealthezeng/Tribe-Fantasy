@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
     host: 'imap.gmail.com', port: 993, secure: true, logger: false,
     auth: { user: env('VENMO_GMAIL_USER'), pass: env('VENMO_GMAIL_APP_PASSWORD') },
   });
+  imap.on('error', (e) => console.error(String(e)));
   const counts: Record<string, number> = {};
   try {
     await imap.connect();
@@ -52,8 +53,8 @@ Deno.serve(async (req) => {
     } finally {
       lock.release();
     }
-    await imap.logout();
   } finally {
+    await imap.logout().catch(() => imap.close());
     await sql.end();
   }
   console.log(JSON.stringify(counts));

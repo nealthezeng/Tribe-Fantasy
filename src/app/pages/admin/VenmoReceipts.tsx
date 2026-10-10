@@ -5,7 +5,7 @@ import { useLoad } from '../../lib/useLoad';
 const REASON: Record<VenmoReceipt['status'], string> = {
   unknown_code: 'No team has that code',
   ambiguous: 'More than one team code in the note',
-  unsigned: 'Not a verified Venmo email',
+  unsigned: 'Not a verified Venmo receipt sent to our Venmo — find it in the Venmo Gmail by date',
   unparsed: "Couldn't read the amount (or over $10,000)",
   disabled: 'Donations were turned off',
   duplicate: 'Already credited (same Venmo payment)',
@@ -17,7 +17,7 @@ export function VenmoReceipts() {
   const receipts = list.data?.receipts ?? [];
   return (
     <details className="section">
-      <summary>Venmo receipts not credited ({receipts.length})</summary>
+      <summary>Venmo receipts not credited{list.data ? ` (${receipts.length})` : ''}</summary>
       {!list.data && !list.error && <Loading />}
       {list.error && <p className="error" role="alert">{list.error}</p>}
       {list.data && receipts.length === 0 && <p className="muted">Every Venmo donation in the last 30 days was credited.</p>}
@@ -33,7 +33,7 @@ export function VenmoReceipts() {
         ))}
       </ul>
       {list.data && list.data.skipped > 0 && (
-        <p className="muted">{list.data.skipped} other Venmo payments without a team code were skipped.</p>
+        <p className="muted">{list.data.skipped} other Venmo {list.data.skipped === 1 ? 'payment without a team code was' : 'payments without a team code were'} skipped.</p>
       )}
     </details>
   );

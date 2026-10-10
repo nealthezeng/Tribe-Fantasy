@@ -28,4 +28,12 @@ describe('DonateBox', () => {
     expect(writeText).toHaveBeenCalledWith('BKRT');
     await waitFor(() => expect(screen.getByRole('button', { name: /copied/i })).toBeTruthy());
   });
+
+  it("doesn't throw when the clipboard is unavailable", () => {
+    Object.assign(navigator, { clipboard: undefined });
+    render(<DonateBox code="BKRT" handle="tribe-fund" creditsPerDollar={20} />);
+    fireEvent.click(screen.getByText(/Donate to the team/));
+    expect(() => fireEvent.click(screen.getByRole('button', { name: /copy bkrt/i }))).not.toThrow();
+    expect(screen.getByRole('button', { name: /copy bkrt/i })).toBeTruthy();
+  });
 });
