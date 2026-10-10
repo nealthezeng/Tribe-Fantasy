@@ -184,6 +184,52 @@ used for sign-in mail. SQL queues them; the Edge Function `notify` sends them; `
 
 Stop all email at any time: `select cron.unschedule('notify');`. If the pick trigger ever gets in the way of a tournament (it runs inside Finish / Open tournament), remove it with `drop trigger game_pairings_pick_notice on public.game_pairings;`. Gmail allows about 500 emails a day.
 
+## Venmo donations (0021, Edge Function `venmo-intake`)
+
+Donors Venmo the treasurer with their team's 4-letter code in the note. Venmo's "paid you" emails are forwarded to a
+Gmail that holds nothing else; `venmo-intake` reads only that mailbox every 10 minutes and SQL credits the team.
+Your personal inbox's password never goes into Supabase.
+
+1. SQL Editor: paste and run `supabase/migrations/0021_venmo.sql` BEFORE pushing the app (the new app reads
+   `memberships.donation_code`). If asked, choose **Run without RLS** (`private.venmo_receipts` isn't API-exposed).
+   Check: `select count(*) from public.memberships where donation_code is null;` → 0.
+2. Make a new Gmail used only for this (e.g. `tribefantasy.venmo@gmail.com`). Turn on 2-Step Verification, then
+   create an **app password** (Google Account → Security → App passwords).
+3. In your **personal** Gmail: Settings → Forwarding and POP/IMAP → **Add a forwarding address** → the new address;
+   open the confirmation email in the new account and click the link. Leave "Disable forwarding" selected there (the
+   filter below forwards only Venmo receipts).
+4. Personal Gmail → Create a filter: From `venmo@venmo.com`, Has the words `"paid you"` → **Forward it to** the new
+   address (optionally also apply a label).
+5. **Edge Functions → Deploy a new function → Via editor**, name it `venmo-intake`: paste
+   `supabase/functions/venmo-intake/index.ts`, turn **Verify JWT** OFF. **Secrets**: add `VENMO_GMAIL_USER` (the new
+   address) and `VENMO_GMAIL_APP_PASSWORD` (step 2). `CRON_SECRET` is already there from `notify`.
+6. Smoke test (before scheduling): have someone Venmo you $1 with a team's code in the note (Home shows each team's
+   code). Wait for it to arrive in the new inbox, then in SQL Editor:
+   ```sql
+   select net.http_post(
+     url := 'https://effyjptuoztyduydwcwh.supabase.co/functions/v1/venmo-intake',
+     headers := '{"x-cron-secret": "PASTE-CRON-SECRET-HERE"}'::jsonb,
+     timeout_milliseconds := 60000);
+   ```
+   then `select status, payer, dollars, code from private.venmo_receipts order by id desc limit 5;` → `credited`
+   (or `disabled` if donations are still off — fine for the test). **Edge Functions → venmo-intake → Logs** show
+   the counts. `unsigned` means the forwarded mail lost Venmo's signature: stop and tell Claude.
+   If the logs show a connection error to `imap.gmail.com:993`, Supabase blocks that port: stop and tell Claude.
+7. Schedule it:
+   ```sql
+   select cron.schedule('venmo-intake', '*/10 * * * *', $$
+     select net.http_post(
+       url := 'https://effyjptuoztyduydwcwh.supabase.co/functions/v1/venmo-intake',
+       headers := '{"x-cron-secret": "PASTE-CRON-SECRET-HERE"}'::jsonb,
+       timeout_milliseconds := 60000
+     )
+   $$);
+   ```
+8. Admin → Settings: set `"venmo_handle": "<your Venmo username, no @>"` and `"donations_enabled": true`.
+
+Stop all intake: `select cron.unschedule('venmo-intake');`. Receipts that didn't become credits are listed in
+Admin → Wallets; fix them with **Record a donation**. A refund = **Adjust credits** with a negative number.
+
 ## "That was the last game" (t202, after 0016)
 
 1. SQL Editor: paste and run `supabase/migrations/0017_last_game.sql` BEFORE the deploy. It replaces `finish_game`
