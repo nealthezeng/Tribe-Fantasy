@@ -93,8 +93,10 @@ describe('insert_donation', () => {
   });
 });
 
+/** The season's Venmo handle (lower case; the fake receipts say @Tribe-Fund): money must have been sent to it. */
+const ON = { donations_enabled: true, venmo_handle: 'tribe-fund' };
 const SIGNED = 'mx.google.com; dkim=pass header.i=@venmo.com header.s=sel1 header.b=AbCd; spf=pass smtp.mailfrom=venmo.com';
-interface Receipt { id: string; auth: string[]; payer: string; amount: string; note: string; paymentId: string | null; subject?: string }
+interface Receipt { id: string; auth: string[]; payer: string; amount: string; note: string; paymentId: string | null; subject?: string; to?: string; text?: string }
 /** The plain text of a Venmo "paid you" email in the layout of the user's real receipt (Step 1). The real receipt's
  *  text/plain part is empty, so this is what mailparser's HTML-to-text conversion gives (the Edge Function must pass
  *  that, see the report): the amount is split over lines, the note follows it, boilerplate and URLs after. */
@@ -106,7 +108,7 @@ const receiptText = (r: Receipt) => {
     `${r.payer} paid you\n\n$\n${whole}\n.\n${cents}\n\n${r.note}\n`,
     'See transaction [https://venmo.com/story/1000000000000000001]\n\n\n\nMONEY CREDITED TO YOUR VENMO ACCOUNT.\n\n\n',
     'TRANSACTION DETAILS\n\n\nDATE\n\nOct 10, 2026\n\n',
-    `${r.paymentId ? `TRANSACTION ID\n\n${r.paymentId}\n\n` : ''}\nSENT TO\n\n@treasurer\n`,
+    `${r.paymentId ? `TRANSACTION ID\n\n${r.paymentId}\n\n` : ''}\nSENT TO\n\n@${r.to ?? 'Tribe-Fund'}\n`,
     'For any issues, please contact us at Help Center at help.venmo.com [https://help.venmo.com] or call 1-855-000-0000\n[tel:855-000-0000].\n',
     'Venmo is a service of PayPal, Inc. (NMLS ID #: 910457)\n\nFor security reasons, you cannot unsubscribe from payment emails.\n\nVenmo RT\n',
   ].join('\n');
@@ -119,7 +121,7 @@ async function ingest(over: Partial<Receipt> = {}): Promise<string> {
     paymentId: `3AB${String(seq).padStart(5, '0')}E0407536`, ...over };
   const res = await db.query<{ s: string }>(
     'select private.ingest_venmo_receipt($1, $2::text[], $3, $4, $5) as s',
-    [r.id, pgArray(r.auth), r.subject ?? `${r.payer} paid $${r.amount} to your Venmo account. Leave it in Venmo or transfer it to your bank account.`, receiptText(r), new Date().toISOString()]);
+    [r.id, pgArray(r.auth), r.subject ?? `${r.payer} paid $${r.amount} to your Venmo account. Leave it in Venmo or transfer it to your bank account.`, r.text ?? receiptText(r), new Date().toISOString()]);
   return res.rows[0].s;
 }
 const receipts = async () => (await db.query<{ status: string; payer: string | null; dollars: string | null; note: string | null;
@@ -131,7 +133,7 @@ describe('ingest_venmo_receipt', () => {
     await setup(await freshDb());
     await setCode(aliceM, 'BKRT');
     await setCode(bobM, 'ZMPD');
-    await settings({ donations_enabled: true });
+    await settings(ON);
   });
 
   it('credits the team whose code is in the note', async () => {
@@ -177,6 +179,7 @@ describe('ingest_venmo_receipt', () => {
       ['mx.google.com; dkim=pass header.i=@venmo.com.evil.com'],
       ['mx.google.com; dkim=pass header.i=@notvenmo.com'],
       ['mx.google.com; dkim=pass header.i=@gmail.com; spf=pass smtp.mailfrom=venmo.com'],
+      ['mx.google.com; dkim=pass header.i=@evil.com; arc=pass (i=1 dkim=pass header.d=venmo.com spf=pass)'], // inside a comment
     ]) expect(await ingest({ auth }), JSON.stringify(auth)).toBe('unsigned');
     expect(await ingest({ auth: ['mx.google.com; dkim=pass header.d=venmo.com'] })).toBe('credited');
     expect(await ingest({ auth: ['MX.GOOGLE.COM; dkim=pass header.i=@email.venmo.com; arc=pass'] })).toBe('credited');
@@ -195,7 +198,7 @@ describe('ingest_venmo_receipt', () => {
     expect(await ingest({ note: 'BKRT and ZMPD' })).toBe('ambiguous');
     expect(await ingest({ amount: '20,000.00' })).toBe('unparsed');
     expect(await ingest({ subject: 'Your Venmo statement is ready' })).toBe('unparsed');
-    await settings({ donations_enabled: false });
+    await settings({ ...ON, donations_enabled: false });
     expect(await ingest()).toBe('disabled');
     const rows = await receipts();
     expect(rows[0]).toMatchObject({ status: 'unknown_code', payer: 'Jane Doe', note: 'for GRRR', code: 'GRRR', membership_id: null });
@@ -210,6 +213,43 @@ describe('ingest_venmo_receipt', () => {
     expect((await ledger(aliceM))[0].note).toBe('Venmo Jane Doe: bkrt');
   });
 
+  it('refuses a genuine receipt for money sent to somebody else (replayed with a code in the note)', async () => {
+    expect(await ingest({ to: 'someone-else' })).toBe('unsigned');
+    expect(await ingest({ note: 'bkrt Sent to @Tribe-Fund', to: 'someone-else' })).toBe('unsigned'); // only Venmo's LAST "Sent to" counts
+    expect(await ingest({ to: 'TRIBE-FUND' })).toBe('credited');                                      // handles compare case-insensitively
+    expect(await ledger(aliceM)).toHaveLength(1);
+    expect((await receipts()).filter((r) => r.status === 'unsigned')).toEqual([
+      { status: 'unsigned', payer: null, dollars: null, note: null, code: null, membership_id: null },
+      { status: 'unsigned', payer: null, dollars: null, note: null, code: null, membership_id: null }]);
+  });
+
+  it('refuses when the season has no Venmo handle or the receipt names no recipient', async () => {
+    await settings({ donations_enabled: true });
+    expect(await ingest()).toBe('unsigned');
+    await settings(ON);
+    expect(await ingest({ text: receiptText({ id: '', auth: [], payer: 'Jane Doe', amount: '10.00', note: 'bkrt', paymentId: '36P1E0407536' })
+      .replace(/SENT TO[\s\S]*?(?=\nFor any issues)/, '') })).toBe('unsigned');
+    expect(await ledger(aliceM)).toEqual([]);
+  });
+
+  it('lists a signed receipt whose layout it cannot read instead of silently skipping it', async () => {
+    expect(await ingest({ text: '' })).toBe('unparsed');
+    expect(await ingest({ text: 'Jane Doe paid you\nbkrt\nSee transaction\nTRANSACTION ID 36P1E0407536' })).toBe('unparsed');
+    expect(await receipts()).toEqual([
+      { status: 'unparsed', payer: 'Jane Doe', dollars: '10.00', note: null, code: null, membership_id: null },
+      { status: 'unparsed', payer: 'Jane Doe', dollars: '10.00', note: null, code: null, membership_id: null }]);
+  });
+
+  it('takes the payment id from Venmo\'s line, not from the note', async () => {
+    expect(await ingest({ note: 'BKRT transaction id 123456789', paymentId: '36P000555E0407536' })).toBe('credited');
+    expect((await ledger(aliceM))[0].source_ref).toBe('venmo:36P000555E0407536');
+  });
+
+  it('only the note is scanned for a code, never the payer\'s name', async () => {
+    expect(await ingest({ payer: 'BKRT Smith', note: 'rent' })).toBe('no_code');
+    expect(await ledger(aliceM)).toEqual([]);
+  });
+
   it('is not callable from the app', async () => {
     const [alice] = await member(db, 'mallory');
     await expect(as(db, alice, (tx) => tx.query(
@@ -221,7 +261,7 @@ describe('list_venmo_receipts', () => {
   beforeEach(async () => {
     await setup(await freshDb());
     await setCode(aliceM, 'BKRT');
-    await settings({ donations_enabled: true });
+    await settings(ON);
   });
   const list = (who: string) => as(db, who, (tx) => rpc(tx, 'list_venmo_receipts', {})) as Promise<{
     receipts: { status: string; payer: string | null; team: string | null }[]; skipped: number }>;
@@ -234,7 +274,7 @@ describe('list_venmo_receipts', () => {
     await ingest({ auth: [] });                      // unsigned → listed
     await ingest({ note: 'old GRRR' });
     await db.query(`update private.venmo_receipts set created_at = now() - interval '31 days' where note = 'old GRRR'`);
-    await settings({ donations_enabled: false });
+    await settings({ ...ON, donations_enabled: false });
     await ingest();                                  // disabled → listed with its team
     const out = await list(admin);
     expect(out.skipped).toBe(2);

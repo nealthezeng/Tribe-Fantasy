@@ -87,33 +87,35 @@ create table private.venmo_receipts (
   created_at timestamptz not null default now()
 );
 
--- The note in a "paid you" email as text. Real receipts have an empty text/plain part, so the text is mailparser's
--- conversion of the HTML: "<payer> paid you", the amount split over lines ("$", whole, ".", cents), the typed note,
--- then "See transaction [url]" and boilerplate. The note is the first non-blank line after the amount, so nothing
--- else in the email (names, URLs, tracking ids) ever reaches the code match. No note → null (not "See transaction").
+-- The note in a "paid you" email as text. Real receipts have an empty text/plain part, so the text is the HTML
+-- converted to text: "<payer> paid you", the amount split over lines ("$", whole, ".", cents), the typed note, then
+-- "See transaction [url]" and boilerplate. The note is the first non-blank line after the amount, so nothing else in
+-- the email (names, URLs, tracking ids) ever reaches the code match. Returns '' when no note was typed and NULL when the
+-- amount block isn't there at all (Venmo changed its layout, or the text is empty), so drift is loud, not silent.
 create function private.venmo_note(p_text text) returns text
 language sql immutable set search_path = '' as $$
-  select case when n ~* '^See transaction' then null else n end
-  from (select nullif(btrim((regexp_match(coalesce(p_text, ''),
-    'paid you[ \t]*\r?\n[[:space:]]*\$[[:space:]]*[0-9,]+[[:space:]]*\.[[:space:]]*[0-9]{2}[[:space:]]*\r?\n[[:space:]]*([^\r\n]+)'))[1]), '') as n) s
+  select case when m is null then null when btrim(coalesce(m[1], '')) ~* '^See transaction' then '' else btrim(coalesce(m[1], '')) end
+  from (select regexp_match(coalesce(p_text, ''),
+    'paid you[ \t]*\r?\n[[:space:]]*\$[[:space:]]*[0-9,]+[[:space:]]*\.[[:space:]]*[0-9]{2}(?:[[:space:]]*\r?\n[[:space:]]*([^\r\n]+))?') as m) s
 $$;
 
 -- Called by the Edge Function with one email; returns what happened. Re-delivering a message returns its first answer.
--- Trust comes only from the TOP Authentication-Results header: Gmail adds it on receipt, so a sender can't forge it
--- (headers a sender writes sit below it).
+-- Trust comes from the TOP Authentication-Results header (Gmail adds it on receipt, so a sender can't forge it) saying
+-- Venmo signed the email, AND from the signed body saying the money went to THIS team's season handle: a genuine
+-- receipt for a payment to somebody else, replayed with a team code in its note, is refused.
 create function private.ingest_venmo_receipt(p_message_id text, p_auth_results text[], p_subject text, p_text text,
   p_received_at timestamptz) returns text
 language plpgsql security definer set search_path = '' as $$
 declare
   top text := lower(coalesce(p_auth_results[1], ''));
-  st text; m text[]; payer text; dollars numeric; note text; pid text; codes text[]; teams uuid[]; mid uuid; eid bigint;
+  st text; m text[]; hnd text; sent text; payer text; dollars numeric; note text; raw text; pid text; codes text[]; teams uuid[]; mid uuid; eid bigint;
 begin
   if nullif(btrim(coalesce(p_message_id, '')), '') is null then raise exception 'INVALID_INPUT'; end if;
   select status into st from private.venmo_receipts where message_id = p_message_id;
   if found then return st; end if;
 
   if top !~ '^mx\.google\.com;'
-     or top !~ 'dkim=pass[^;]*header\.(i=@|d=)([a-z0-9-]+\.)*venmo\.com([[:space:];]|$)' then
+     or top !~ '(^|;)[[:space:]]*dkim=pass[[:space:]]+header\.(i=@|d=)([a-z0-9-]+\.)*venmo\.com([[:space:];]|$)' then
     st := 'unsigned';
   else
     m := regexp_match(coalesce(p_subject, ''), '^(.+) paid \$([0-9,]+\.[0-9]{2}) to your Venmo account');
@@ -122,24 +124,38 @@ begin
     else
       payer := left(btrim(m[1]), 100);
       dollars := replace(m[2], ',', '')::numeric;
-      note := left(private.venmo_note(p_text), 200);
-      pid := upper((regexp_match(coalesce(p_text, ''), '(?:Payment|Transaction)[[:space:]]+ID:?[[:space:]]*((?=[A-Z0-9]*[0-9])[A-Z0-9]{6,30})', 'i'))[1]);
+      raw := private.venmo_note(p_text);
+      -- The LAST "Transaction ID" is Venmo's: the typed note comes earlier and can say anything.
+      select upper(w[1]) into pid from regexp_matches(coalesce(p_text, ''),
+        '(?:Payment|Transaction)[[:space:]]+ID:?[[:space:]]*((?=[A-Z0-9]*[0-9])[A-Z0-9]{6,30})', 'gi') with ordinality t(w, n)
+        order by n desc limit 1;
+      note := left(nullif(raw, ''), 200);
       select array_agg(distinct w[1]) into codes
       from regexp_matches(upper(coalesce(note, '')), '\m([BCDFGHJKMNPQRSTVWXZ]{4})\M', 'g') w;
       select array_agg(id) into teams from public.memberships where donation_code = any(codes);
-      if codes is null then st := 'no_code';
+      if raw is null then st := 'unparsed';
+      elsif codes is null then st := 'no_code';
       elsif teams is null then st := 'unknown_code';
       elsif cardinality(teams) > 1 then st := 'ambiguous';
       else
         mid := teams[1];
-        begin
-          eid := private.insert_donation(mid, dollars, left('Venmo ' || payer || coalesce(': ' || note, ''), 200), null,
-            coalesce('venmo:' || pid, 'msg:' || p_message_id));
-          st := 'credited';
-        exception
-          when unique_violation then st := 'duplicate';
-          when raise_exception then st := case when sqlerrm = 'DONATIONS_DISABLED' then 'disabled' else 'unparsed' end;
-        end;
+        -- Who got paid is the LAST "Sent to @handle" (Venmo's, after anything the payer typed).
+        select lower(w[1]) into sent from regexp_matches(coalesce(p_text, ''), 'Sent to[[:space:]]*@([A-Za-z0-9_-]+)', 'gi')
+          with ordinality t(w, n) order by n desc limit 1;
+        select lower(s.settings ->> 'venmo_handle') into hnd from public.memberships mm
+          join public.leagues l on l.id = mm.league_id join public.seasons s on s.id = l.season_id where mm.id = mid;
+        if hnd is null or sent is distinct from hnd then
+          st := 'unsigned';
+        else
+          begin
+            eid := private.insert_donation(mid, dollars, left('Venmo ' || payer || coalesce(': ' || note, ''), 200), null,
+              coalesce('venmo:' || pid, 'msg:' || p_message_id));
+            st := 'credited';
+          exception
+            when unique_violation then st := 'duplicate';
+            when raise_exception then st := case when sqlerrm = 'DONATIONS_DISABLED' then 'disabled' else 'unparsed' end;
+          end;
+        end if;
       end if;
     end if;
   end if;
@@ -152,6 +168,7 @@ begin
   where st in ('no_code', 'unsigned');
   return st;
 end $$;
+
 revoke all on all functions in schema private from public, anon, authenticated;
 
 -- Admin → Wallets: receipts that didn't become credits (last 30 days), and how many personal payments were skipped.

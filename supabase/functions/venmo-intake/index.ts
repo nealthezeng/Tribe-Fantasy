@@ -33,8 +33,8 @@ Deno.serve(async (req) => {
           const msg = await imap.fetchOne(String(uid), { source: true }, { uid: true });
           if (!msg || !msg.source) continue;
           const mail = await simpleParser(msg.source);
-          // Venmo's text/plain part is empty (note and id are only in the HTML), so convert the HTML (no wrapping: the note stays on one line).
-          const text = mail.text?.trim() ? mail.text : htmlToText(mail.html || '', { wordwrap: false });
+          // Always the HTML when there is one (Venmo's text/plain part is empty), so SQL sees one layout: no wrapping, note on one line.
+          const text = mail.html ? htmlToText(mail.html, { wordwrap: false }) : (mail.text ?? '');
           // Top first: the first is the one Gmail added on receipt (the only one SQL trusts).
           const auth = mail.headerLines.filter((h) => h.key === 'authentication-results')
             .map((h) => h.line.replace(/^authentication-results:\s*/i, '').replace(/\r?\n\s+/g, ' '));
