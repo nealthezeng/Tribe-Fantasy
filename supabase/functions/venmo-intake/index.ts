@@ -39,8 +39,10 @@ Deno.serve(async (req) => {
           // Top first: the first is the one Gmail added on receipt (the only one SQL trusts).
           const auth = mail.headerLines.filter((h) => h.key === 'authentication-results')
             .map((h) => h.line.replace(/^authentication-results:\s*/i, '').replace(/\r?\n\s+/g, ' '));
+          // Sent as a Postgres array literal (sql.array arrived as one plain string: "malformed array literal").
+          const authArray = `{${auth.map((x) => `"${x.replace(/["\\]/g, '\\$&')}"`).join(',')}}`;
           const [{ s }] = await sql`select private.ingest_venmo_receipt(${mail.messageId ?? `uid:${uid}`},
-            ${sql.array(auth)}::text[], ${mail.subject ?? ''}, ${text}, ${mail.date ?? null}) as s`;
+            ${authArray}::text[], ${mail.subject ?? ''}, ${text}, ${mail.date ?? null}) as s`;
           counts[s] = (counts[s] ?? 0) + 1;
           await imap.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true });
         } catch (e) {
