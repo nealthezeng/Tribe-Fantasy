@@ -5,7 +5,7 @@ import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
-import { loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
+import { loadLeagueTournament, loadSeasonStandings, type LeagueTournament } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 
 const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
@@ -298,6 +298,40 @@ function Standings({ y, membershipId }: { y: LeagueTournament; membershipId: str
         </table>
       </div>
     </div>
+  );
+}
+
+/** Every team of the season ranked together by standings points (t223). Hidden while the season has one league. */
+export function AllLeagues({ seasonId, seasonName, mine }: { seasonId: string; seasonName: string; mine: Set<string> }) {
+  const { data, error } = useLoad(() => loadSeasonStandings(seasonId), [seasonId]);
+  if (data && data.leagues < 2) return null;
+  return (
+    <article className="card" aria-label={`All leagues, ${seasonName}`}>
+      <div>
+        <h2>All leagues</h2>
+        <p className="muted">{seasonName}</p>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      {!data && !error && <Loading />}
+      {data && (
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Team</th><th scope="col">League</th><th scope="col">Place</th><th scope="col">W-L-T</th><th scope="col">Points</th></tr></thead>
+            <tbody>
+              {data.rows.map((r) => (
+                <tr key={r.membershipId} aria-current={mine.has(r.membershipId) ? 'true' : undefined}>
+                  <td>{mine.has(r.membershipId) ? <strong>{r.team} (you)</strong> : r.team}</td>
+                  <td>{r.league}</td>
+                  <td>{r.tied ? `T${r.place}` : r.place}</td>
+                  <td>{r.wins}-{r.losses}-{r.ties}</td>
+                  <td>{fmt(r.points)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </article>
   );
 }
 

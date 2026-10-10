@@ -258,3 +258,28 @@ export async function seasonRanks(seasonId: string, stageId: string): Promise<{ 
   const years = await Promise.all((await leaguesOf(seasonId)).map((l) => loadLeagueTournament(seasonId, l.id)));
   return mergeRanks(years.map((y) => y.result), stageId);
 }
+
+export interface OverallStanding {
+  membershipId: string; team: string; league: string;
+  points: number; totalScore: number; wins: number; losses: number; ties: number; place: number; tied: boolean;
+}
+
+/** Every league's standings as one table, by the leagues' own rule: points, then total score; equal on both = tied. */
+export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament, 'result' | 'team'> }[]): OverallStanding[] {
+  const rows = leagues.flatMap(({ name, y }) => y.result.standings.map(({ membershipId, points, totalScore, wins, losses, ties }) =>
+    ({ membershipId, team: y.team.get(membershipId) ?? '', league: name, points, totalScore, wins, losses, ties })));
+  const ahead = (o: typeof rows[number], r: typeof rows[number]) =>
+    o.points > r.points || (o.points === r.points && o.totalScore > r.totalScore);
+  return rows.map((r) => ({
+    ...r,
+    place: 1 + rows.filter((o) => ahead(o, r)).length,
+    tied: rows.some((o) => o !== r && o.points === r.points && o.totalScore === r.totalScore),
+  })).sort((a, b) => a.place - b.place || a.league.localeCompare(b.league) || a.team.localeCompare(b.team));
+}
+
+/** The all-leagues leaderboard of a season, and how many leagues it spans. */
+export async function loadSeasonStandings(seasonId: string): Promise<{ rows: OverallStanding[]; leagues: number }> {
+  const leagues = await leaguesOf(seasonId);
+  const years = await Promise.all(leagues.map(async (l) => ({ name: l.name, y: await loadLeagueTournament(seasonId, l.id) })));
+  return { rows: mergeStandings(years), leagues: leagues.length };
+}

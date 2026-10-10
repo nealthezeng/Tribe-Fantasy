@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, toTournamentInput, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, mergeStandings, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -131,6 +131,23 @@ describe('mergeRanks', () => {
       r([game('g1', 'S1', 'pending'), game('g4', 'S1', 'upcoming'), game('g5', 'S1', 'final')]),
     ], 'S2');
     expect(out).toEqual({ ranks: { m1: 2 }, unsettled: 1 });
+  });
+});
+
+describe('mergeStandings', () => {
+  const league = (name: string, rows: [string, number, number][]) => ({
+    name,
+    y: {
+      result: { standings: rows.map(([m, points, totalScore]) => ({ membershipId: m, points, totalScore, wins: 1, losses: 0, ties: 0 })) },
+      team: new Map(rows.map(([m]) => [m, `Team ${m}`])),
+    } as unknown as LeagueTournament,
+  });
+  it('ranks every league together by points, then total score, with ties sharing a place', () => {
+    const out = mergeStandings([league('A', [['a1', 10, 50], ['a2', 4, 30]]), league('B', [['b1', 12, 0], ['b2', 4, 30]])]);
+    expect(out.map((r) => [r.membershipId, r.league, r.place, r.tied])).toEqual([
+      ['b1', 'B', 1, false], ['a1', 'A', 2, false], ['a2', 'A', 3, true], ['b2', 'B', 3, true],
+    ]);
+    expect(out[0].team).toBe('Team b1');
   });
 });
 

@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS } from '../../core/settings';
 import { AuctionCard } from './AuctionCard';
 import { DonateBox } from './DonateBox';
 import { LeagueLeave, ManageLeague } from './LeaguesPage';
-import { TournamentCard } from './TournamentCard';
+import { AllLeagues, TournamentCard } from './TournamentCard';
 import { api } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
@@ -120,6 +120,10 @@ export function HomePage() {
           </Fragment>
         );
       })}
+      {data && [...new Map(data.filter((m) => m.leagues).map((m) => [m.leagues!.season_id, m.leagues!.seasons?.name ?? '']))]
+        .map(([seasonId, seasonName]) => (
+          <AllLeagues key={seasonId} seasonId={seasonId} seasonName={seasonName} mine={new Set(data.map((m) => m.id))} />
+        ))}
       {data && data.length > 0 && (
         <p className="meta">
           <Link to="/leagues" className="more">Join another league</Link>

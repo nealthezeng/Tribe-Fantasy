@@ -2,13 +2,15 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
-import { buildLeagueTournament, type TournamentRows } from '../lib/tournament';
-import { TournamentCard } from './TournamentCard';
+import { buildLeagueTournament, type OverallStanding, type TournamentRows } from '../lib/tournament';
+import { AllLeagues, TournamentCard } from './TournamentCard';
 
 const rows = vi.hoisted(() => ({ current: null as unknown as TournamentRows }));
+const overall = vi.hoisted(() => ({ current: { rows: [] as OverallStanding[], leagues: 0 } }));
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
   loadLeagueTournament: () => Promise.resolve(buildLeagueTournament(rows.current, Date.parse('2026-11-07T16:30:00Z'))),
+  loadSeasonStandings: () => Promise.resolve(overall.current),
 }));
 vi.mock('../lib/rpc', () => ({ api: { setGamePick: vi.fn(), setBench: vi.fn(), swapBench: vi.fn() } }));
 
@@ -222,5 +224,24 @@ describe('TournamentCard', () => {
       expect(screen.getByText('Your pick is injured')).toBeTruthy();
       expect(document.querySelector('.score-side.picked')).toBeNull();
     });
+  });
+});
+
+describe('AllLeagues', () => {
+  const row = (membershipId: string, team: string, league: string, place: number, tied = false): OverallStanding =>
+    ({ membershipId, team, league, points: 10 - place, totalScore: 0, wins: 2, losses: 1, ties: 0, place, tied });
+
+  it('lists every team of the season with its league, marking yours', async () => {
+    overall.current = { rows: [row('b1', 'Flow', 'League B', 1), row('m1', 'Zeal', 'League A', 2, true), row('b2', 'Huck', 'League B', 2, true)], leagues: 2 };
+    render(<AllLeagues seasonId="X" seasonName="Fall 2026" mine={new Set(['m1'])} />);
+    const card = await screen.findByRole('article', { name: 'All leagues, Fall 2026' });
+    const body = within(card).getAllByRole('row').slice(1).map((r) => r.textContent);
+    expect(body).toEqual(['FlowLeague B12-1-09', 'Zeal (you)League AT22-1-08', 'HuckLeague BT22-1-08']);
+  });
+
+  it('stays hidden while the season has one league (its Standings already say it all)', async () => {
+    overall.current = { rows: [row('m1', 'Zeal', 'League A', 1)], leagues: 1 };
+    const { container } = render(<AllLeagues seasonId="Y" seasonName="Fall 2026" mine={new Set(['m1'])} />);
+    await waitFor(() => expect(container.innerHTML).toBe(''));
   });
 });
