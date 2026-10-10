@@ -7,6 +7,8 @@ import { makeKeeper, tap } from './stats-fixture';
 
 /** Read-only helpers used by RLS policies; they write nothing, so no audit row. */
 const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues'];
+/** Staff-only reads: refused for non-staff like any staff RPC, but they change nothing, so no audit row. */
+const STAFF_READS = ['list_venmo_receipts'];
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
   'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
@@ -127,7 +129,7 @@ describe('RPC gate', () => {
     ];
 
     const covered = new Set(steps.map(([name]) => name));
-    const missing = fns.map((f) => f.name).filter((n) => !READ_HELPERS.includes(n) && !covered.has(n));
+    const missing = fns.map((f) => f.name).filter((n) => !READ_HELPERS.includes(n) && !STAFF_READS.includes(n) && !covered.has(n));
     expect(missing, 'add an audit step for each new RPC').toEqual([]);
 
     for (const [name, who, args, keep] of steps) {
