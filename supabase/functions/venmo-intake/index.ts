@@ -5,6 +5,7 @@
 import postgres from 'npm:postgres@3';
 import { ImapFlow } from 'npm:imapflow@1';
 import { simpleParser } from 'npm:mailparser@3';
+import { htmlToText } from 'npm:html-to-text@9';
 
 declare const Deno: { env: { get(key: string): string | undefined }; serve(handler: (req: Request) => Promise<Response>): void };
 
@@ -32,11 +33,13 @@ Deno.serve(async (req) => {
           const msg = await imap.fetchOne(String(uid), { source: true }, { uid: true });
           if (!msg || !msg.source) continue;
           const mail = await simpleParser(msg.source);
+          // Venmo's text/plain part is empty (note and id are only in the HTML), so convert the HTML (no wrapping: the note stays on one line).
+          const text = mail.text?.trim() ? mail.text : htmlToText(mail.html || '', { wordwrap: false });
           // Top first: the first is the one Gmail added on receipt (the only one SQL trusts).
           const auth = mail.headerLines.filter((h) => h.key === 'authentication-results')
             .map((h) => h.line.replace(/^authentication-results:\s*/i, '').replace(/\r?\n\s+/g, ' '));
           const [{ s }] = await sql`select private.ingest_venmo_receipt(${mail.messageId ?? `uid:${uid}`},
-            ${sql.array(auth)}::text[], ${mail.subject ?? ''}, ${mail.text ?? ''}, ${mail.date ?? null}) as s`;
+            ${sql.array(auth)}::text[], ${mail.subject ?? ''}, ${text}, ${mail.date ?? null}) as s`;
           counts[s] = (counts[s] ?? 0) + 1;
           await imap.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true });
         } catch (e) {
