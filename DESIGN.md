@@ -170,8 +170,11 @@ Errors say what happened and what to do; an unknown error shows its code only in
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
   game" card (the pick), the auction, the Credits card, the Standings card, the games, the Join / Create `.more`
   links, and last a muted `details.settings` "League settings" fold holding Manage league and Leave.
-- **Team switcher** (`.segmented.team-switch`): with 2+ teams, one team at a time; the choice is remembered on the
-  device. Long names scroll sideways rather than squeeze.
+- **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; the choice is
+  remembered on the device. Long names scroll sideways rather than squeeze. Only the current season's teams are listed
+  (all of them if none are this season's, t240). Under it, `.others`: a `.strip` line per other team, its name (a
+  link-style button that switches to it) and what needs you there: "2 of 6 · No pick for game 3 · Auction closes in
+  2 d 0 h · No bids yet" (t241).
 - **Game cards** (`.games` / `details.game`, M9 t93): each played game is a small black `.game-score` scoreboard of
   your matchup (both teams, scores once final, the loser muted; "Bye" or "Not playing" otherwise) with the caption
   **below** it, not inside: "Game 2 · Fall Beta", the status pill, your W/L ±points. One column on phones, two from
@@ -193,8 +196,8 @@ Errors say what happened and what to do; an unknown error shows its code only in
   off, the card is the balance, the terms and the history.
 - **Standings** (`.ranks`): a ranked list. Rank and points in the display face, the rank muted and yours in
   `--gold-text`; the team with "League · W–L" under it (the league only in All leagues). A `.segmented` [league]
-  [All leagues] toggle shows only when the season has 2+ leagues. Before any game counts it's just the teams as
-  `.names` chips (yours in `--gold-text`, t236). A long list keeps the top 5, everyone tied with 5th and your row,
+  [All leagues] toggle shows only when the season has 2+ leagues. It's a leaderboard from day one: before any game
+  counts every row reads T1 · 0–0 · 0 (the user's call, t239). A long list keeps the top 5, everyone tied with 5th and your row,
   and only cuts when that hides 4+ teams; the gap row says "N more teams" to screen readers. Ties list by team name.
 - **`.steps`**: a real sequence as numbered inline steps (admin Tournaments: grant, open, run, open tournament).
 - **Fold the rare forms**: forms used once a season (add a tournament, new league, adjust credits) live in a

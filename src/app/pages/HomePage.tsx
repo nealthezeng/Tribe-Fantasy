@@ -123,7 +123,7 @@ function OtherTeam({ m, onPick }: { m: MembershipRow; onPick: () => void }) {
   return (
     <li className="strip">
       <button type="button" className="linklike" onClick={onPick}>{m.team_name}</button>
-      {data?.map((s) => <span key={s}>{s}</span>)}
+      {data?.length ? <span>{data.join(' · ')}</span> : null}
     </li>
   );
 }
