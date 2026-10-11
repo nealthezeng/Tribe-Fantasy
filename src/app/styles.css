@@ -247,8 +247,6 @@ tbody tr:last-child td { border-bottom: 0; }
 .steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); font-size: var(--fs-sm); color: var(--muted); }
 .steps li { counter-increment: step; display: inline-flex; align-items: center; gap: var(--s2); }
 .steps li::before { content: counter(step); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); color: var(--fg); font-weight: var(--fw-bold); font-size: var(--fs-xs); }
-/* Between auctions, the credits card shows the balance in its summary. */
-.credits-sum { margin-left: auto; font-size: var(--fs-xl); }
 /* A secondary way on: underlined text with a drawn arrow that nudges forward on hover. Gold buttons stay for actions. */
 .more { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); font-weight: var(--fw-semi); }
 .more::after { content: ''; width: 7px; height: 7px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
@@ -257,14 +255,14 @@ tbody tr:last-child td { border-bottom: 0; }
 .team-switch { display: flex; max-width: 100%; overflow-x: auto; justify-self: start; }
 .team-switch button { flex: none; white-space: nowrap; }
 /* t224: Credits, always open under the matchup: balance, amount chips, the gold Venmo button, the team code. */
-.money > .head .big { font-size: var(--fs-xl); }
 .amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
 .amounts button, .amounts button:hover:not(:disabled) { display: grid; gap: 2px; padding: var(--s2); background: var(--surface-2); color: var(--fg); }
-.amounts button[aria-pressed='true'], .amounts button[aria-pressed='true']:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
+/* The chosen amount is a selection, so baby blue (t238); the gold button stays the one loud thing. */
+.amounts button[aria-pressed='true'], .amounts button[aria-pressed='true']:hover:not(:disabled) { background: var(--blue-soft); color: var(--blue-ink); box-shadow: inset 0 0 0 2px var(--link); }
 .amounts small { color: inherit; font-family: var(--font-sans); font-stretch: normal; text-transform: none; letter-spacing: normal; font-size: var(--fs-xs); }
 .money .button.go { justify-self: stretch; min-height: var(--tap-lg); }
 .team-code { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); }
-.team-code .big { letter-spacing: var(--track-code); }
+.team-code strong { letter-spacing: var(--track-code); }
 .money [role='status']:empty { margin-top: calc(-1 * var(--s3)); } /* the copy message's live region waits, taking no room */
 /* t226: standings as a ranked list: place, team (league and record under it), points; your place in gold. */
 .ranks { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -277,6 +275,10 @@ tbody tr:last-child td { border-bottom: 0; }
 .ranks .who strong { font-weight: var(--fw-semi); }
 .ranks li[aria-current] .who strong { font-weight: var(--fw-bold); }
 .ranks li.gap { grid-template-columns: auto; justify-content: center; min-height: 0; color: var(--muted); }
+/* t236: before any game counts, Standings is just the teams, as compact name chips. */
+.card > ul.names { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2); } /* beats .card > ul:not(.list) */
+.names li { display: inline-flex; align-items: baseline; gap: var(--s1); padding: var(--s1) var(--s3); border-radius: var(--radius-pill); background: var(--chip-bg); }
+.names li[aria-current] { color: var(--gold-text); font-weight: var(--fw-bold); }
 
 /* Admin: one section at a time, picked from a sticky row of tabs. Phones swipe the row sideways; from 640px the chips
    wrap onto a second row instead (a mouse can't reach chips scrolled off a hidden-scrollbar edge), and the pill

@@ -113,6 +113,16 @@ describe('AuctionCard', () => {
     expect(api.placeBid).toHaveBeenCalledWith('s1', 'm1', 'a', 115);
   });
 
+  it('lists your bids first and turns Get more credits gold once you run low (t234, t237)', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Alice') as unknown as Row, athlete('b', 'Bob') as unknown as Row];
+    db.bids = [{ membership_id: 'm1', athlete_id: 'b', amount: 110 } satisfies BidRow as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect([...document.querySelectorAll('li.bid-row .title')].map((t) => t.textContent)).toEqual(['Bob', 'Alice']);
+    expect(screen.getByRole('button', { name: 'Get more credits' }).className).not.toContain('linklike'); // 5 left of 115
+  });
+
   it("keeps the bid list open through your first bid", async () => {
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('b', 'Bob') as unknown as Row];

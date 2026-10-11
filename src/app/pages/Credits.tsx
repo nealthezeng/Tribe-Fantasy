@@ -5,6 +5,7 @@ import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
 const AMOUNTS = [5, 10, 20];
 const THANKS_FOR = 7 * 24 * 3600_000; // a donation is thanked for a week, or until the next credit change
 const usd = (d: number) => `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
+const TERMS = "Credits have no cash value, can't be refunded, and there's no guaranteed prize.";
 
 export interface Donate { code: string; handle: string; creditsPerDollar: number }
 
@@ -29,23 +30,19 @@ export function Credits({ id, entries, donate, now = Date.now() }: {
         <p><span className="big">{total}</span> <span className="muted">{Math.abs(total) === 1 ? 'credit' : 'credits'}</span></p>
       </div>
       {thanks && <p className="success">Thanks for the {usd(Number(thanks.dollars))}! {credits(thanks.amount)} added.</p>}
-      {donate && <DonateForm {...donate} />}
+      {donate ? <DonateForm {...donate} /> : <p className="muted"><small>{TERMS}</small></p>}
       <details className="section">
         <summary>Credit history</summary>
         <ul className="list">
           {newestFirst.length === 0 && <li className="muted">No credits yet.</li>}
           {newestFirst.map((e) => (
             <li key={e.id}>
-              <span>{entryLabel(e)} <small>{new Date(e.created_at).toLocaleDateString()}</small></span>
+              <span>{entryLabel(e)} <small>{new Date(e.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span>
               <strong className="num">{e.amount > 0 ? '+' : ''}{e.amount}</strong>
             </li>
           ))}
         </ul>
       </details>
-      <p className="muted"><small>
-        {donate && `A donation to the team fund, to @${donate.handle} on Venmo. `}
-        Credits have no cash value, can't be refunded, and there's no guaranteed prize.
-      </small></p>
     </article>
   );
 }
@@ -78,8 +75,10 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
       <a className="button go" href={venmo} target="_blank" rel="noreferrer">
         Donate {usd(amount)} on Venmo<span className="sr-only"> (opens Venmo)</span>
       </a>
+      {/* The terms sit right under the button: read before paying, not after (t233). */}
+      <p className="muted"><small>A donation to the team fund, to @{handle} on Venmo. {TERMS}</small></p>
       <div className="team-code">
-        <p><small>Your team code</small><br /><span className="big">{code}</span></p>
+        <p>Venmo note: <strong>Tribe Fantasy {code}</strong></p>
         <button type="button" className="secondary" onClick={copy}>Copy code</button>
       </div>
       <p className="muted" role="status">{copied}</p>

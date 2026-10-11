@@ -257,12 +257,26 @@ describe('Standings toggle (t226)', () => {
 
   it('shows a long list as the top 5 and your row, then all of it on request', async () => {
     overall.leagues = 2;
-    overall.current = [...'abcdefgh'.split('').map((c, i) => row(c, `Team ${c}`, 'League B', i + 1)), row('m1', 'Zeal', 'League A', 9)];
+    overall.current = [...'abcdefghijk'.split('').map((c, i) => row(c, `Team ${c}`, 'League B', i + 1)), row('m1', 'Zeal', 'League A', 12)];
     await show(base());
     fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
     await waitFor(() => expect(standings().getByText(/Zeal/)).toBeTruthy());
-    expect(standings().getAllByRole('listitem')).toHaveLength(6); // 5 + yours (the gap marker is hidden)
-    fireEvent.click(standings().getByRole('button', { name: 'Show all 9 teams' }));
-    expect(standings().getAllByRole('listitem')).toHaveLength(9);
+    expect(standings().getAllByRole('listitem')).toHaveLength(7); // 5, the gap ('6 more teams'), yours
+    expect(standings().getByText('6 more teams')).toBeTruthy();
+    fireEvent.click(standings().getByRole('button', { name: 'Show all 12 teams' }));
+    expect(standings().getAllByRole('listitem')).toHaveLength(12);
+  });
+
+  it('never cuts inside a tie, and shows only names before any game counts (t236)', async () => {
+    overall.leagues = 2;
+    overall.current = [...'abcdefghi'.split('').map((c) => row(c, `Team ${c}`, 'League B', 1, true)), row('m1', 'Zeal', 'League A', 10)];
+    await show(base());
+    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
+    await waitFor(() => expect(standings().getAllByRole('listitem')).toHaveLength(10)); // all tied with 5th: no cut
+    cleanup();
+    overall.current = [{ ...row('m1', 'Zeal', 'League A', 1, true), wins: 0, losses: 0 }, { ...row('b1', 'Flow', 'League B', 1, true), wins: 0, losses: 0 }];
+    await show(base());
+    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
+    await waitFor(() => expect(document.querySelector('.names')?.textContent).toBe('Zeal (you)League AFlowLeague B'));
   });
 });

@@ -113,7 +113,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               <span>{balance - total === 1 ? 'credit' : 'credits'} left of {balance}</span>
             </p>
             {creditsId && (
-              <button type="button" className="linklike" onClick={() => {
+              // Running low (under 10% of your balance, or 2 minimum bids): the way to more credits turns gold (t234).
+              <button type="button" className={balance - total < Math.max(2 * minBid, balance / 10) ? undefined : 'linklike'} onClick={() => {
                 const to = document.getElementById(creditsId);
                 to?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
                 to?.focus({ preventScroll: true }); // the next Tab goes on from Credits, not back into the bid list
@@ -133,7 +134,10 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
         <BidList open={mine.length === 0}
           summary={<>Bid on players <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} available</span></>}>
           <ul className="list">
-            {athletes.filter((a) => a.opted_in).map((a) => {
+            {/* Players you've bid on first, so your bids are findable among the rest (t237). */}
+            {athletes.filter((a) => a.opted_in)
+              .sort((a, b) => Number(mine.some((x) => x.athlete_id === b.id)) - Number(mine.some((x) => x.athlete_id === a.id)))
+              .map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
               return (
                 <li key={a.id} className="bid-row">

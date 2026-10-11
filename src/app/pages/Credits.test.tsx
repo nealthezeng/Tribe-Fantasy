@@ -33,6 +33,8 @@ describe('Credits (t224, t225)', () => {
     expect(document.body.textContent).toMatch(/donation to the team fund/);
     expect(document.body.textContent).toMatch(/no cash value/);
     expect(document.body.textContent).toMatch(/no guaranteed prize/);
+    // Read before paying: the terms come right after the Venmo button (t233).
+    expect(screen.getByRole('link', { name: /on Venmo/ }).nextElementSibling?.textContent).toMatch(/team fund.*no guaranteed prize/);
   });
 
   it('thanks a fresh donation, but not one older than a week or followed by other credits', () => {

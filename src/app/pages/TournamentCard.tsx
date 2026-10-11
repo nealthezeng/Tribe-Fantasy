@@ -315,20 +315,35 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId, error }: {
   );
 }
 
-/** Ranked rows: place, team (league and record under it), points. A long list shows the top 5 and your row first. */
+/**
+ * Ranked rows: place, team (league and record under it), points. Before any game counts it's just the teams (t236).
+ * A long list shows the top 5 (with everyone tied with 5th) and your row, if that hides at least 4 teams.
+ */
 function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[]; membershipId: string; showLeague: boolean }) {
   const [open, setOpen] = useState(false);
-  const cut = !open && rows.length > 8;
-  const shown = cut ? rows.filter((r, i) => i < 5 || r.membershipId === membershipId) : rows;
+  if (rows.every((r) => r.wins + r.losses + r.ties === 0)) {
+    return (
+      <ul className="names">
+        {rows.map((r) => (
+          <li key={r.membershipId} aria-current={r.membershipId === membershipId ? 'true' : undefined}>
+            {r.team}{r.membershipId === membershipId && ' (you)'}{showLeague && <small>{r.league}</small>}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  const top = rows.filter((r) => r.place <= rows[Math.min(4, rows.length - 1)].place || r.membershipId === membershipId);
+  const cut = !open && rows.length - top.length >= 4;
+  const shown = cut ? top : rows;
   return (
     <>
       <ol className="ranks">
         {shown.map((r, i) => {
           const me = r.membershipId === membershipId;
-          const skipped = i > 0 && rows.indexOf(r) > rows.indexOf(shown[i - 1]) + 1;
+          const skipped = i > 0 ? rows.indexOf(r) - rows.indexOf(shown[i - 1]) - 1 : 0;
           return (
             <Fragment key={r.membershipId}>
-              {skipped && <li className="gap" aria-hidden="true">···</li>}
+              {skipped > 0 && <li className="gap"><span aria-hidden="true">···</span><span className="sr-only">{skipped} more teams</span></li>}
               <li aria-current={me ? 'true' : undefined}>
                 <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
                 <span className="who">
