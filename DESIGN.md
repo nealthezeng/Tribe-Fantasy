@@ -23,6 +23,7 @@ table below lists the dark values. The team's two colours are fixed by the user:
 | `--gold-deep` | #c99400 | The ring in the disc mark |
 | `--gold-hover` / `--gold-press` | #ffc629 / #dba300 | Button hover and press |
 | `--on-gold` | #111111 | Text on gold. Never white. |
+| `--gold-text` | #f5b700 (light #8a6400, about 5:1 on white) | Gold as text: your rank in Standings |
 | `--blue` | #8cc8f2 | Info and selection, the disc centre |
 | `--blue-soft` / `--blue-ink` | #16304a / #bfe1fa | `.notice` and `.pill.info` background and text |
 | `--link`, `--focus` | #8cc8f2 | Links and the 3px focus ring |
@@ -79,7 +80,7 @@ Condensed headings take no negative letter-spacing; it closes the word gaps. To 
 | `--fs-md` | 16px | Body, `h3` |
 | `--fs-lg` | 20px | `h2` |
 | `--fs-brand` | 24px | The brand in the top bar (display) |
-| `--fs-xl` | 26px | Player names on the scoreboard, the Credits card balance |
+| `--fs-xl` | 26px | Player names on the scoreboard, the Credits balance and team code, Standings rank and points |
 | `--fs-num` | 40px | `.big` headline numbers (display, tabular) |
 | `--fs-display` | 40px | `h1` page titles (display) |
 | `--fs-hero` | 64px | The signed-out hero headline (display) |
@@ -115,6 +116,8 @@ Player-facing glossary (clarify pass, board t115): a **season** is the league ye
 game, "Game 3 · Fall Beta", with the date as small text; only older practice sessions fall back to date · kind.
 Buttons say the action and its object ("Save settings", "Change close time", "Reopen tally", "Delete these stats").
 Errors say what happened and what to do; an unknown error shows its code only in brackets after that.
+**Few small words** (board t231): small grey text only when it prevents a mistake, explains a state, or is required
+(the donation terms). Controls and pills speak for themselves. Account-menu items have no subtitles.
 **Opponent**: the real team our team plays in a game; players see "vs Duke", staff see "Game 2 vs Duke"; unnamed games stay "Game 2".
 
 ## Components
@@ -153,7 +156,7 @@ Errors say what happened and what to do; an unknown error shows its code only in
   `role="status"` and a hidden "Loading…" for screen readers (M9 t99). Me and the tally pages still show plain
   `.muted` "Loading…" text.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
-  as background). Used for attendance.
+  as background). Used for attendance, the Standings league / All leagues toggle and the team switcher.
 - **`.subnav`**: admin's sticky row of rounded tabs (`aria-pressed`): on phones one row you swipe sideways; from
   640px the chips wrap onto a second row rather than hide past an edge a mouse can't scroll (t126). Admin shows one section
   at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
@@ -163,8 +166,12 @@ Errors say what happened and what to do; an unknown error shows its code only in
   page `h1` is `.sr-only` once you have a team). Under it a `.strip` of facts: tournament, a `.chip` with the dates,
   game number, and the state (a red `.live` dot whose ring pulses, Next up, Waiting on stats, or Won/Lost ±points).
   Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
-  final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Credits, Place
-  "N `.of` M", Record. Then the auction, then the Tournament card (pick, standings), then the games.
+  final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Place "N `.of` M",
+  Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
+  game" card (the pick), the auction, the Credits card, the Standings card, the games, the Join / Create `.more`
+  links, and last a muted `details.settings` "League settings" fold holding Manage league and Leave.
+- **Team switcher** (`.segmented.team-switch`): with 2+ teams, one team at a time; the choice is remembered on the
+  device. Long names scroll sideways rather than squeeze.
 - **Game cards** (`.games` / `details.game`, M9 t93): each played game is a small black `.game-score` scoreboard of
   your matchup (both teams, scores once final, the loser muted; "Bye" or "Not playing" otherwise) with the caption
   **below** it, not inside: "Game 2 · Fall Beta", the status pill, your W/L ±points. One column on phones, two from
@@ -173,8 +180,18 @@ Errors say what happened and what to do; an unknown error shows its code only in
 - **By-line** (`.by`, t90): "Christopher Mao by (T) Test Zeal": the player, a small `by`, a 22px `.avatar.sm` with the
   team's initial and the team name. Used inside opened games.
 - **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while bidding
-  they're "credits left" in the auction header; between auctions they're a collapsed Credits card with the balance in
-  its summary and the history inside.
+  they're "credits left" in the auction header, which reads "N bids · R roster spots" with a `.pill.info` Closes
+  pill and a "Get more credits" link that scrolls to the Credits card and moves focus to it.
+- **Credits card** (`.money`, `Credits.tsx`): always open, the balance in its head. A green `.success` thanks a
+  donation from the last week while it's the newest entry. "Donate for more": `.amounts` chips $5 / $10 / $20 with
+  the credits under each (inverted like `.segmented` when pressed), one full-width gold `.button.go` "Donate $N on
+  Venmo", and `.team-code`: the code in the display face beside Copy code, whose message is a `role="status"`.
+  Credit history is a folded `.section`; the terms close the card (a donation to the team fund, no cash value, can't
+  be refunded, no guaranteed prize).
+- **Standings** (`.ranks`): a ranked list. Rank and points in the display face, the rank muted and yours in
+  `--gold-text`; the team with "League · W–L" under it (the league only in All leagues). A `.segmented` [league]
+  [All leagues] toggle shows only when the season has 2+ leagues. Over 8 teams, the top 5, a gap, your row and
+  "Show all N teams". Ties list by team name.
 - **`.steps`**: a real sequence as numbered inline steps (admin Tournaments: grant, open, run, open tournament).
 - **Fold the rare forms**: forms used once a season (add a tournament, new league, adjust credits) live in a
   collapsed `details.section`; Edit opens the tournament form.
