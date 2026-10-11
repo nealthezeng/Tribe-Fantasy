@@ -9,6 +9,8 @@ import { LeagueLeave, ManageLeague } from './LeaguesPage';
 import { TournamentCard } from './TournamentCard';
 import { api, type LeagueListing } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
+import { inSeason, loadCurrentSeason } from '../lib/stats';
+import { loadTeamStatus } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 import { LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
 import team800 from '../assets/team-800.jpg';
@@ -44,7 +46,7 @@ export function HomePage() {
       .eq('user_id', uid)
       .order('created_at');
     if (error) throw error;
-    return (data ?? []) as unknown as MembershipRow[];
+    return inSeason((data ?? []) as unknown as MembershipRow[], (await loadCurrentSeason())?.id);
   }, [uid]);
   // For League settings (its creator, or an admin: older leagues have no creator) and the create limit (t215).
   const listed = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
@@ -92,11 +94,16 @@ export function HomePage() {
         </div>
       )}
       {data && data.length > 1 && (
-        <div className="segmented team-switch" role="group" aria-label="Team">
-          {data.map((t) => (
-            <button key={t.id} type="button" aria-pressed={t.id === m?.id} onClick={() => pick(t.id)}>{t.team_name}</button>
-          ))}
-        </div>
+        <>
+          <div className="segmented team-switch" role="group" aria-label="Team">
+            {data.map((t) => (
+              <button key={t.id} type="button" aria-pressed={t.id === m?.id} onClick={() => pick(t.id)}>{t.team_name}</button>
+            ))}
+          </div>
+          <ul className="others" aria-label="Your other teams">
+            {data.filter((t) => t.id !== m?.id).map((t) => <OtherTeam key={t.id} m={t} onPick={() => pick(t.id)} />)}
+          </ul>
+        </>
       )}
       {m && <Team key={m.id} m={m} uid={uid!} />}
       {data && data.length > 0 && (
@@ -107,6 +114,17 @@ export function HomePage() {
       )}
       {m && <LeagueSettings key={`settings-${m.id}`} m={m} isAdmin={isAdmin} listed={listed.data} onChanged={() => { reload(); listed.reload(); }} />}
     </section>
+  );
+}
+
+/** One of your other teams in a line (t241): its name, which switches to it, and what needs you there now. */
+function OtherTeam({ m, onPick }: { m: MembershipRow; onPick: () => void }) {
+  const { data } = useLoad(async () => (m.leagues ? loadTeamStatus(m.id, m.league_id, m.leagues.season_id) : []), [m.id]);
+  return (
+    <li className="strip">
+      <button type="button" className="linklike" onClick={onPick}>{m.team_name}</button>
+      {data?.map((s) => <span key={s}>{s}</span>)}
+    </li>
   );
 }
 

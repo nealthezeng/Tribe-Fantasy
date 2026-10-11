@@ -316,23 +316,12 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId, error }: {
 }
 
 /**
- * Ranked rows: place, team (league and record under it), points. Before any game counts it's just the teams (t236).
+ * Ranked rows: place, team (league and record under it), points; a leaderboard from day one, all tied at first (t239).
  * A long list shows the top 5 (with everyone tied with 5th) and your row, if that hides at least 4 teams.
  */
 function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[]; membershipId: string; showLeague: boolean }) {
   const [open, setOpen] = useState(false);
-  if (rows.every((r) => r.wins + r.losses + r.ties === 0)) {
-    return (
-      <ul className="names">
-        {rows.map((r) => (
-          <li key={r.membershipId} aria-current={r.membershipId === membershipId ? 'true' : undefined}>
-            {r.team}{r.membershipId === membershipId && ' (you)'}{showLeague && <> <small>{r.league}</small></>}
-          </li>
-        ))}
-      </ul>
-    );
-  }
-  const top = rows.filter((r) => r.place <= rows[Math.min(4, rows.length - 1)].place || r.membershipId === membershipId);
+  const top = rows.filter((r) => r.place <= (rows[Math.min(4, rows.length - 1)]?.place ?? 0) || r.membershipId === membershipId);
   const cut = !open && rows.length - top.length >= 4;
   const shown = cut ? top : rows;
   return (

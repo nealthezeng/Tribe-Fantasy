@@ -4,7 +4,7 @@ import {
   liveStatLines, pairingInputs, scoreTournaments, type TournamentInput, type TournamentResult,
 } from '../../core/tournament';
 import { rowToTap, type StatTapRow } from '../tally/queue';
-import { AUCTION_STAGE_COLUMNS, pickPlayingStage, type AuctionStage } from './auction';
+import { AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, pickPlayingStage, timeLeft, type AuctionStage } from './auction';
 import { todayLocal } from './stats';
 import { supabase } from './supabase';
 
@@ -288,4 +288,41 @@ export async function loadSeasonStandings(seasonId: string, own?: { leagueId: st
   const years = await Promise.all(leagues.map(async (l) =>
     ({ name: l.name, y: l.id === own?.leagueId ? own.y : await loadLeagueTournament(seasonId, l.id) })));
   return mergeStandings(years);
+}
+
+/**
+ * What another of your teams needs now, in a few words (t241): its place once games count, a live game, a missing
+ * pick for the next game, an open auction and whether it has bids.
+ */
+export function teamStatus(
+  y: Pick<LeagueTournament, 'result'>, membershipId: string,
+  auction: { stage: Pick<AuctionStage, 'bid_close_at' | 'auction_run_at'>; bids: number } | null, now = Date.now(),
+): string[] {
+  const out: string[] = [];
+  const { standings, games, next } = y.result;
+  const row = standings.find((r) => r.membershipId === membershipId);
+  if (row && standings.some((r) => r.wins + r.losses + r.ties > 0)) out.push(`${row.tied ? 'T' : ''}${row.place} of ${standings.length}`);
+  const live = games.find((g) => g.status === 'live'
+    && g.matchups.some((m) => m.home.membershipId === membershipId || m.away?.membershipId === membershipId));
+  if (live) out.push(`Game ${live.game.number} live`);
+  if (next?.sides.find((s) => s.membershipId === membershipId)?.picked === null) out.push(`No pick for game ${next.number}`);
+  if (auction && auctionPhase(auction.stage, now) === 'open') {
+    out.push(`Auction closes ${timeLeft(auction.stage.bid_close_at!, now)}`);
+    if (auction.bids === 0) out.push('No bids yet');
+  }
+  return out;
+}
+
+export async function loadTeamStatus(membershipId: string, leagueId: string, seasonId: string): Promise<string[]> {
+  const [y, st] = await Promise.all([
+    loadLeagueTournament(seasonId, leagueId),
+    supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId),
+  ]);
+  if (st.error) throw st.error;
+  const stage = pickAuctionStage((st.data ?? []) as AuctionStage[]);
+  if (!stage) return teamStatus(y, membershipId, null);
+  const bids = await supabase!.from('bids').select('athlete_id', { count: 'exact', head: true })
+    .eq('stage_id', stage.id).eq('membership_id', membershipId);
+  if (bids.error) throw bids.error;
+  return teamStatus(y, membershipId, { stage, bids: bids.count ?? 0 });
 }

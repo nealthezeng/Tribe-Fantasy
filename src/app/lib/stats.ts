@@ -22,6 +22,12 @@ export async function loadCurrentSeason(): Promise<CurrentSeason | null> {
   return data ? { id: data.id, name: data.name, settings: parseSettings(data.settings) } : null;
 }
 
+/** A user's teams in `seasonId` (t240), or all of them when they have none there, so last season's never crowd this one's. */
+export function inSeason<T extends { leagues: { season_id: string } | null }>(teams: T[], seasonId: string | undefined): T[] {
+  const now = seasonId ? teams.filter((t) => t.leagues?.season_id === seasonId) : [];
+  return now.length ? now : teams;
+}
+
 export interface SessionRow {
   id: string;
   season_id: string;

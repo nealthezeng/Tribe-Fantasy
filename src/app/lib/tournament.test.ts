@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, mergeStandings, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, mergeStandings, teamStatus, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -197,5 +197,27 @@ describe('loadCurrentGame', () => {
     mockGames = [{ id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }];
     const result = await loadCurrentGame('se', Date.parse('2026-11-15T12:00:00'));
     expect(result?.game.id).toBe('g2');
+  });
+});
+
+describe('teamStatus (t241)', () => {
+  const NOW = Date.parse('2026-10-11T12:00:00Z');
+  const row = (membershipId: string, wins: number, place: number, tied = false) =>
+    ({ membershipId, wins, losses: 0, ties: 0, place, tied, points: wins, totalScore: 0 });
+  const y = (over: object) => ({ result: { standings: [row('m1', 0, 1, true), row('m2', 0, 1, true)], games: [], next: null, ...over } }) as unknown as LeagueTournament;
+  const open = { stage: { bid_close_at: '2026-10-13T12:00:00Z', auction_run_at: null }, bids: 0 };
+
+  it('says nothing about place before a game counts, and flags an open auction with no bids', () => {
+    expect(teamStatus(y({}), 'm1', open, NOW)).toEqual(['Auction closes in 2 d 0 h', 'No bids yet']);
+    expect(teamStatus(y({}), 'm1', { ...open, bids: 2 }, NOW)).toEqual(['Auction closes in 2 d 0 h']);
+  });
+
+  it('gives the place once games count, a live game, and a missing pick', () => {
+    const live = { status: 'live', game: { number: 2 }, matchups: [{ home: { membershipId: 'm2' }, away: { membershipId: 'm1' } }] };
+    const out = teamStatus(y({
+      standings: [row('m2', 1, 1), row('m1', 0, 2)], games: [live],
+      next: { stageId: 's', number: 3, sides: [{ membershipId: 'm1', picked: null }] },
+    }), 'm1', null, NOW);
+    expect(out).toEqual(['2 of 2', 'Game 2 live', 'No pick for game 3']);
   });
 });

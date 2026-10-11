@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatDay, sessionState, sessionTitle, statLabel, toCsv, todayLocal } from './stats';
+import { formatDay, inSeason, sessionState, sessionTitle, statLabel, toCsv, todayLocal } from './stats';
 
 describe('stats helpers', () => {
   it('formats a session day without shifting it across time zones', () => {
@@ -27,5 +27,15 @@ describe('stats helpers', () => {
 
   it('formats today as YYYY-MM-DD', () => {
     expect(todayLocal()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('inSeason (t240)', () => {
+  const team = (id: string, season: string | null) => ({ id, leagues: season ? { season_id: season } : null });
+  it("keeps only this season's teams, or all of them when none are this season's", () => {
+    const teams = [team('old', 'fall'), team('new', 'spring'), team('loose', null)];
+    expect(inSeason(teams, 'spring').map((t) => t.id)).toEqual(['new']);
+    expect(inSeason(teams, 'summer').map((t) => t.id)).toEqual(['old', 'new', 'loose']);
+    expect(inSeason(teams, undefined).map((t) => t.id)).toEqual(['old', 'new', 'loose']);
   });
 });

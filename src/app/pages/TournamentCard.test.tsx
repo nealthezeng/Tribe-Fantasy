@@ -267,7 +267,7 @@ describe('Standings toggle (t226)', () => {
     expect(standings().getAllByRole('listitem')).toHaveLength(12);
   });
 
-  it('never cuts inside a tie, and shows only names before any game counts (t236)', async () => {
+  it('never cuts inside a tie, and is a leaderboard before any game counts (t239)', async () => {
     overall.leagues = 2;
     overall.current = [...'abcdefghi'.split('').map((c) => row(c, `Team ${c}`, 'League B', 1, true)), row('m1', 'Zeal', 'League A', 10)];
     await show(base());
@@ -277,6 +277,7 @@ describe('Standings toggle (t226)', () => {
     overall.current = [{ ...row('m1', 'Zeal', 'League A', 1, true), wins: 0, losses: 0 }, { ...row('b1', 'Flow', 'League B', 1, true), wins: 0, losses: 0 }];
     await show(base());
     fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
-    await waitFor(() => expect(document.querySelector('.names')?.textContent).toBe('Zeal (you) League AFlow League B'));
+    await waitFor(() => expect(standings().getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+      'T1Zeal (you)League A · 0–0', 'T1FlowLeague B · 0–0'].map((t) => expect.stringContaining(t))));
   });
 });

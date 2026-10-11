@@ -254,6 +254,8 @@ tbody tr:last-child td { border-bottom: 0; }
 /* t229: with 2+ teams, one team at a time. Long names scroll sideways rather than squeeze. */
 .team-switch { display: flex; max-width: 100%; overflow-x: auto; justify-self: start; }
 .team-switch button { flex: none; white-space: nowrap; }
+/* t241: your other teams, a line each: the name switches to it, then what needs you there. */
+.others { list-style: none; margin: 0; padding: 0; display: grid; }
 /* t224: Credits, always open under the matchup: balance, amount chips, the gold Venmo button, the team code. */
 .amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
 .amounts button, .amounts button:hover:not(:disabled) { display: grid; gap: 2px; padding: var(--s2); background: var(--surface-2); color: var(--fg); }
@@ -275,10 +277,6 @@ tbody tr:last-child td { border-bottom: 0; }
 .ranks .who strong { font-weight: var(--fw-semi); }
 .ranks li[aria-current] .who strong { font-weight: var(--fw-bold); }
 .ranks li.gap { grid-template-columns: auto; justify-content: center; min-height: 0; color: var(--muted); }
-/* t236: before any game counts, Standings is just the teams, as compact name chips. */
-.card > ul.names { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2); } /* beats .card > ul:not(.list) */
-.names li { display: inline-flex; align-items: baseline; gap: var(--s1); padding: var(--s1) var(--s3); border-radius: var(--radius-pill); background: var(--chip-bg); }
-.names li[aria-current] { color: var(--gold-text); font-weight: var(--fw-bold); }
 
 /* Admin: one section at a time, picked from a sticky row of tabs. Phones swipe the row sideways; from 640px the chips
    wrap onto a second row instead (a mouse can't reach chips scrolled off a hidden-scrollbar edge), and the pill
