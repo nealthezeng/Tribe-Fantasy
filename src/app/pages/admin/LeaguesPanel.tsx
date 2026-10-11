@@ -55,7 +55,6 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
   return (
     <div className="card">
       <h2>Leagues</h2>
-      <p className="muted">Anyone signed in can create a league (one per season) or join one from the Join a league page.</p>
       {!leagues.data && !leagues.error && <Loading />}
       {leagues.data?.length === 0 && <p className="muted">No leagues in this season yet.</p>}
       <ul className="list">

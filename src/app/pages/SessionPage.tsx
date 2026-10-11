@@ -237,7 +237,6 @@ function CorrectForm({ stats, lines, names, onSave }: {
         </div>
       )}
       <button disabled={!athlete}>Save correction</button>
-      <p className="muted">Logged. Scores update by themselves.</p>
     </form>
   );
 }

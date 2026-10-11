@@ -142,7 +142,7 @@ describe('ManageLeague (t215)', () => {
     expect(onChanged).toHaveBeenCalled();
     rerender(<ManageLeague league={league({ teams: 2, is_creator: true })} onChanged={onChanged} />);
     expect(screen.queryByRole('button', { name: 'Delete league', hidden: true })).toBeNull();
-    expect(screen.getByText(/only an admin can delete/)).toBeTruthy();
+    expect(screen.getByText(/only an admin can delete/i)).toBeTruthy();
   });
 
   it('renames, and removes the password only when there is one', async () => {

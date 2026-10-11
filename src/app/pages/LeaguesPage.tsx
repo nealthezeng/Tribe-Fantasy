@@ -133,10 +133,6 @@ export function CreateLeaguePage() {
           <label>Password<input required minLength={4} maxLength={40} autoComplete="off" value={password}
             onChange={(e) => setPassword(e.target.value)} /></label>
         )}
-        <p className="muted">
-          {locked ? 'Share the password with the people you want in.' : 'Anyone can join until it fills up.'} You join as
-          its first team.
-        </p>
         <button disabled={busy}>{busy ? 'Creating…' : 'Create league'}</button>
         {error && <p className="error" role="alert">{error}</p>}
       </form>
@@ -145,8 +141,8 @@ export function CreateLeaguePage() {
   );
 }
 
-/** On Home, for the league's creator (or an admin): rename, set or remove the password, delete while theirs is the only team.
- *  `children` (Leave) sits with Delete, so a team's way out isn't a loose button under the card. */
+/** On Home, inside League settings, for the league's creator (or an admin): rename, set or remove the password, delete
+ *  while theirs is the only team. `children` (Leave) sits with Delete. */
 export function ManageLeague({ league, onChanged, children }: { league: LeagueListing; onChanged: () => void; children?: ReactNode }) {
   const { isAdmin } = useAuth();
   const [name, setName] = useState(league.name);
@@ -171,8 +167,7 @@ export function ManageLeague({ league, onChanged, children }: { league: LeagueLi
   }
 
   return (
-    <details className="card">
-      <summary>Manage {league.name}</summary>
+    <div className="stack">
       <form className="row" onSubmit={(e) => { e.preventDefault(); void act(() => api.renameLeague(league.id, name), 'Renamed.'); }}>
         <label>League name<input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>
         <button className="secondary" disabled={busy || name.trim() === league.name}>Rename league</button>
@@ -199,11 +194,11 @@ export function ManageLeague({ league, onChanged, children }: { league: LeagueLi
             if (!window.confirm(`Delete ${league.name}? Your team and its credits go with it. This can't be undone.`)) return;
             void act(() => api.deleteLeague(league.id), 'Deleted.');
           }}>Delete league</button>
-        ) : <p className="muted">{isAdmin ? 'Delete it from Admin → Leagues.' : 'Other teams have joined, so only an admin can delete this league.'}</p>}
+        ) : <p className="muted">{isAdmin ? 'Delete it from Admin → Leagues.' : 'Only an admin can delete a league others have joined.'}</p>}
       </div>
       {msg && <p className="success" role="status">{msg}</p>}
       {error && <p className="error" role="alert">{error}</p>}
-    </details>
+    </div>
   );
 }
 

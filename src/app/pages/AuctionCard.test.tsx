@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuctionStage, BidRow } from '../lib/auction';
 import { AuctionCard } from './AuctionCard';
@@ -70,16 +71,18 @@ const athlete = (id: string, name: string) => ({ id, name, user_id: null, opted_
 
 function renderCard() {
   return render(
-    <AuctionCard membershipId="m1" leagueId="l1" seasonId="se1" userId="u1" joinedAt="2026-09-01T00:00:00Z"
-      teamName="Test Zeal" team={<article>TEAM CARD</article>} wallet={<p>WALLET</p>} />,
+    <MemoryRouter>
+      <AuctionCard membershipId="m1" leagueId="l1" seasonId="se1" userId="u1" joinedAt="2026-09-01T00:00:00Z"
+        teamName="Test Zeal" creditsId="credits-m1" />
+    </MemoryRouter>,
   );
 }
 
 describe('AuctionCard', () => {
-  it('renders only the team card when there is no stage yet', async () => {
-    renderCard();
-    await screen.findByText('TEAM CARD');
-    expect(screen.queryByText(/auction/i)).toBeNull();
+  it('renders nothing when there is no stage yet', async () => {
+    const { container } = renderCard();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.textContent).toBe('');
   });
 
   it('shows the combined header with nothing bid yet, list open, no separate team card', async () => {
@@ -87,9 +90,9 @@ describe('AuctionCard', () => {
     renderCard();
     await screen.findByText(/^Closes in/);
     expect(document.body.textContent).toContain('115 credits left of 115');
-    expect(document.body.textContent).toContain('0 players bid on · roster 4');
+    expect(document.body.textContent).toContain('0 bids · 4 roster spots');
     expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
-    expect(screen.queryByText('TEAM CARD')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Get more credits' })).toBeTruthy();
   });
 
   it('refuses an over-budget bid but allows raising your own bid within what you have left', async () => {
@@ -156,10 +159,9 @@ describe('AuctionCard', () => {
     await screen.findByText(/Your bids add up to 10 credits more than your balance/);
   });
 
-  it('shows the team card plus a collapsed auction card before bidding opens', async () => {
+  it('shows a collapsed auction card before bidding opens', async () => {
     db.stages = [{ id: 's1', name: 'Fall', starts_on: '2026-10-18', bid_close_at: null, auction_seed: null, auction_run_at: null } as Row];
     renderCard();
-    await screen.findByText('TEAM CARD');
     await waitFor(() => expect(document.querySelector('details.card')).not.toBeNull());
     const details = document.querySelector('details.card')!;
     expect(details.hasAttribute('open')).toBe(false);

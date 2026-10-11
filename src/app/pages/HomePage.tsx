@@ -1,16 +1,16 @@
-import { Fragment, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import { AuctionCard } from './AuctionCard';
-import { DonateBox } from './DonateBox';
+import { Credits } from './Credits';
 import { LeagueLeave, ManageLeague } from './LeaguesPage';
-import { AllLeagues, TournamentCard } from './TournamentCard';
-import { api } from '../lib/rpc';
+import { TournamentCard } from './TournamentCard';
+import { api, type LeagueListing } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
-import { balance, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
+import { LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
 import team800 from '../assets/team-800.jpg';
 import team1600 from '../assets/team-1600.jpg';
 import teamLogo from '../assets/team-logo.png';
@@ -28,21 +28,26 @@ interface MembershipRow {
   credit_ledger: LedgerEntry[];
 }
 
+/** With 2+ teams the League tab shows one at a time (t229); the choice is remembered on this device. */
+const TEAM_KEY = 'league-team';
+const savedTeam = () => { try { return localStorage.getItem(TEAM_KEY); } catch { return null; } };
+
 export function HomePage() {
   const { session, loading, isAdmin } = useAuth();
   const uid = session?.user.id;
+  const [teamId, setTeamId] = useState(savedTeam);
   const { data, error, reload } = useLoad(async () => {
     if (!supabase || !uid) return [] as MembershipRow[];
     const { data, error } = await supabase
       .from('memberships')
       .select(`id, team_name, league_id, created_at, donation_code, leagues(name, season_id, seasons(name, settings)), credit_ledger(${LEDGER_COLUMNS})`)
-      .eq('user_id', uid);
+      .eq('user_id', uid)
+      .order('created_at');
     if (error) throw error;
     return (data ?? []) as unknown as MembershipRow[];
   }, [uid]);
-  // For Manage league (its creator, or an admin: older leagues have no creator) and the create limit (t215).
+  // For League settings (its creator, or an admin: older leagues have no creator) and the create limit (t215).
   const listed = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
-  const manageable = (leagueId: string) => listed.data?.find((l) => l.id === leagueId && (l.is_creator || isAdmin));
   const canCreate = isAdmin || !listed.data?.some((l) => l.is_creator);
 
   if (loading) return <Loading />;
@@ -64,6 +69,12 @@ export function HomePage() {
       </section>
     );
   }
+
+  const m = data?.find((x) => x.id === teamId) ?? data?.[0];
+  const pick = (id: string) => {
+    setTeamId(id);
+    try { localStorage.setItem(TEAM_KEY, id); } catch { /* remembered for this visit only */ }
+  };
   return (
     <section className="page">
       {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
@@ -80,78 +91,56 @@ export function HomePage() {
           </div>
         </div>
       )}
-      {data?.map((m) => {
-        const subtitle = [m.leagues?.name, m.leagues?.seasons?.name].filter(Boolean).join(' · ');
-        const wallet = <Wallet entries={m.credit_ledger} className="section" />;
-        const team = (
-          <article className="card">
-            <div>
-              <h2>{m.team_name}</h2>
-              <p className="muted">{subtitle}</p>
-            </div>
-            <p><span className="big">{balance(m.credit_ledger)}</span> {Math.abs(balance(m.credit_ledger)) === 1 ? 'credit' : 'credits'}</p>
-            {wallet}
-          </article>
-        );
-        const mine = manageable(m.league_id);
-        const changed = () => { reload(); listed.reload(); };
-        const listing = listed.data?.find((l) => l.id === m.league_id);
-        const leave = listing && <LeagueLeave membershipId={m.id} league={listing} onLeft={changed}
-          donated={m.credit_ledger.some((e) => e.kind === 'donation')} />;
-        const manage = mine ? <ManageLeague league={mine} onChanged={changed}>{leave}</ManageLeague> : leave;
-        const s = m.leagues?.seasons?.settings;
-        const donate = s?.donations_enabled === true && typeof s.venmo_handle === 'string'
-          ? <DonateBox code={m.donation_code} handle={s.venmo_handle}
-              creditsPerDollar={Number(s.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar)} />
-          : null;
-        if (!m.leagues || !uid) return <Fragment key={m.id}>{team}{donate}{manage}</Fragment>;
-        return (
-          <Fragment key={m.id}>
-            <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
-              teamName={m.team_name} subtitle={subtitle}>
-              <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
-                joinedAt={m.created_at}
-                teamName={m.team_name} wallet={wallet}
-                team={<Wallet entries={m.credit_ledger} className="card"
-                  summary={<>Credits <span className="big credits-sum">{balance(m.credit_ledger)}</span></>} />} />
-            </TournamentCard>
-            {donate}
-            {manage}
-          </Fragment>
-        );
-      })}
-      {data && [...new Map(data.filter((m) => m.leagues).map((m) => [m.leagues!.season_id, m.leagues!.seasons?.name ?? '']))]
-        .map(([seasonId, seasonName]) => (
-          <AllLeagues key={seasonId} seasonId={seasonId} seasonName={seasonName} mine={new Set(data.map((m) => m.id))} />
-        ))}
+      {data && data.length > 1 && (
+        <div className="segmented team-switch" role="group" aria-label="Team">
+          {data.map((t) => (
+            <button key={t.id} type="button" aria-pressed={t.id === m?.id} onClick={() => pick(t.id)}>{t.team_name}</button>
+          ))}
+        </div>
+      )}
+      {m && <Team key={m.id} m={m} uid={uid!} />}
       {data && data.length > 0 && (
         <p className="meta">
           <Link to="/leagues" className="more">Join another league</Link>
           {canCreate && <Link to="/leagues/new" className="more">Create a league</Link>}
         </p>
       )}
+      {m && <LeagueSettings m={m} isAdmin={isAdmin} listed={listed.data} onChanged={() => { reload(); listed.reload(); }} />}
     </section>
   );
 }
 
-/** Credit history, collapsed. Between auctions it's its own card with the balance in the summary. */
-function Wallet({ entries, className, summary = 'Credit history' }: { entries: LedgerEntry[]; className: string; summary?: ReactNode }) {
-  const newestFirst = [...entries].sort((a, b) => b.id - a.id);
+/** One team: matchup, what to do now, Credits, standings, games. */
+function Team({ m, uid }: { m: MembershipRow; uid: string }) {
+  const subtitle = [m.leagues?.name, m.leagues?.seasons?.name].filter(Boolean).join(' · ');
+  const s = m.leagues?.seasons?.settings;
+  const donate = s?.donations_enabled === true && typeof s.venmo_handle === 'string'
+    ? { code: m.donation_code, handle: s.venmo_handle, creditsPerDollar: Number(s.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar) }
+    : null;
+  const creditsId = `credits-${m.id}`;
+  const money = <Credits id={creditsId} entries={m.credit_ledger} donate={donate} />;
+  if (!m.leagues) return money;
   return (
-    <details className={className}>
-      <summary>{summary}</summary>
-      <ul className="list">
-        {newestFirst.length === 0 && <li className="muted">No credits yet.</li>}
-        {newestFirst.map((e) => (
-          <li key={e.id}>
-            <span>{entryLabel(e)} <small>{new Date(e.created_at).toLocaleDateString()}</small></span>
-            <strong className="num">{e.amount > 0 ? '+' : ''}{e.amount}</strong>
-          </li>
-        ))}
-      </ul>
-      <p className="muted">
-        Credits are a thank-you for supporting the team. They have no cash value and can't be refunded.
-      </p>
+    <TournamentCard membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues.name} seasonId={m.leagues.season_id}
+      teamName={m.team_name} subtitle={subtitle} money={money}>
+      <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
+        joinedAt={m.created_at} teamName={m.team_name} creditsId={donate ? creditsId : undefined} />
+    </TournamentCard>
+  );
+}
+
+/** Rename / password / delete for the league's creator or an admin, and Leave: rare, so folded at the bottom (t227). */
+function LeagueSettings({ m, isAdmin, listed, onChanged }: { m: MembershipRow; isAdmin: boolean; listed?: LeagueListing[]; onChanged: () => void }) {
+  const listing = listed?.find((l) => l.id === m.league_id);
+  if (!listing) return null;
+  const donated = m.credit_ledger.some((e) => e.kind === 'donation');
+  const leave = donated ? null : <LeagueLeave membershipId={m.id} league={listing} onLeft={onChanged} />;
+  const manage = listing.is_creator || isAdmin;
+  if (!manage && !leave) return null;
+  return (
+    <details className="settings">
+      <summary>League settings</summary>
+      {manage ? <ManageLeague league={listing} onChanged={onChanged}>{leave}</ManageLeague> : leave}
     </details>
   );
 }

@@ -151,8 +151,9 @@ ul.error { margin: 0; padding-left: 20px; }
 .num { font-variant-numeric: tabular-nums; }
 .big { font-size: var(--fs-num); line-height: 0.9; font-variant-numeric: tabular-nums; }
 .code { font-size: var(--fs-lead); font-weight: var(--fw-semi); letter-spacing: var(--track-code); }
-details:is(.card, .section) { display: block; }
-details:is(.card, .section)[open] > summary { margin-bottom: var(--s3); }
+details:is(.card, .section, .settings) { display: block; }
+details:is(.card, .section, .settings)[open] > summary { margin-bottom: var(--s3); }
+details.settings > summary { color: var(--muted); } /* rare admin of your league: a quiet fold at the page's end (t227) */
 details > summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; gap: var(--s2); font-weight: var(--fw-semi); list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::before { content: ''; flex: none; width: 8px; height: 8px; margin: 0 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
@@ -237,7 +238,6 @@ tbody tr:last-child td { border-bottom: 0; }
 .pts, .pts-name { font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); line-height: 0.95; }
 .pts { font-size: var(--fs-score); font-variant-numeric: tabular-nums; }
 .pts-name { font-size: var(--fs-xl); }
-.score-note { grid-column: 1 / -1; grid-row: 4; margin-top: var(--s2); color: var(--bar-muted); font-size: var(--fs-sm); }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
 .tiles > div { display: grid; gap: var(--s1); align-content: start; padding: var(--s3); background: var(--pane-bg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); }
 .tiles dt { font-size: var(--fs-sm); color: var(--muted); }
@@ -252,6 +252,31 @@ tbody tr:last-child td { border-bottom: 0; }
 /* A secondary way on: underlined text with a drawn arrow that nudges forward on hover. Gold buttons stay for actions. */
 .more { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); font-weight: var(--fw-semi); }
 .more::after { content: ''; width: 7px; height: 7px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
+
+/* t229: with 2+ teams, one team at a time. Long names scroll sideways rather than squeeze. */
+.team-switch { display: flex; max-width: 100%; overflow-x: auto; justify-self: start; }
+.team-switch button { flex: none; white-space: nowrap; }
+/* t224: Credits, always open under the matchup: balance, amount chips, the gold Venmo button, the team code. */
+.money > .head .big { font-size: var(--fs-xl); }
+.amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+.amounts button, .amounts button:hover:not(:disabled) { display: grid; gap: 2px; padding: var(--s2); background: var(--surface-2); color: var(--fg); }
+.amounts button[aria-pressed='true'], .amounts button[aria-pressed='true']:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
+.amounts small { color: inherit; font-family: var(--font-sans); font-stretch: normal; text-transform: none; letter-spacing: normal; font-size: var(--fs-xs); }
+.money .button.go { justify-self: stretch; min-height: var(--tap-lg); }
+.team-code { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); }
+.team-code .big { letter-spacing: var(--track-code); }
+.money [role='status']:empty { margin-top: calc(-1 * var(--s3)); } /* the copy message's live region waits, taking no room */
+/* t226: standings as a ranked list: place, team (league and record under it), points; your place in gold. */
+.ranks { list-style: none; margin: 0; padding: 0; display: grid; }
+.ranks li { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr) auto; align-items: center; gap: var(--s3); min-height: 56px; padding: var(--s2) 0; border-top: 1px solid var(--line); }
+.ranks li:first-child { border-top: 0; }
+.ranks :is(.rank, .points) { font-family: var(--font-display); font-weight: var(--fw-display); letter-spacing: var(--display-track); font-variant-numeric: tabular-nums; font-size: var(--fs-xl); line-height: 1; }
+.ranks .rank { color: var(--muted); }
+.ranks li[aria-current] .rank { color: var(--gold-text); }
+.ranks .who { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.ranks .who strong { font-weight: var(--fw-semi); }
+.ranks li[aria-current] .who strong { font-weight: var(--fw-bold); }
+.ranks li.gap { grid-template-columns: auto; justify-content: center; min-height: 0; color: var(--muted); }
 
 /* Admin: one section at a time, picked from a sticky row of tabs. Phones swipe the row sideways; from 640px the chips
    wrap onto a second row instead (a mouse can't reach chips scrolled off a hidden-scrollbar edge), and the pill

@@ -222,10 +222,6 @@ function TournamentControls({ stage, current, seasonId, run }: {
     <details className="section">
       <summary>Tournament <span className="muted">· game {last.number} {last.started_at ? 'live' : 'next'}</span></summary>
       <div className="stack">
-        <p className="muted">
-          Game 1 was paired when the tournament opened. Each later pairing came from the phone that finished the game
-          before it. Check re-runs the Swiss step on the standings that phone sent; the audit log has those standings.
-        </p>
         <div className="row">
           <button className="secondary" onClick={check}>Check pairings</button>
           {played && <button className="secondary" onClick={() => undo(played)}>Undo game {played.number}</button>}

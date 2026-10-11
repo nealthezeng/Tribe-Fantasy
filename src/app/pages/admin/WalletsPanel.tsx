@@ -69,7 +69,7 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
       <VenmoReceipts />
       <CreditForm
         title="Adjust credits"
-        help="Fixes a mistake by adding a correcting entry; past entries never change. Use a negative number to take credits away."
+        help="Use a negative number to take credits away."
         teams={teams}
         amountLabel="Credits (+/−)"
         step="1"
@@ -81,8 +81,7 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
       {data.data?.donationsEnabled && (
         <CreditForm
           title="Record a donation to the team"
-          help={`Only after the treasurer has received the money through the official team channel. The app never
-            holds or moves money. The donor gets ${data.data.creditsPerDollar} credits per dollar.`}
+          help={`Only once the treasurer has the money. ${data.data.creditsPerDollar} credits per dollar.`}
           teams={teams}
           amountLabel="Dollars donated to the team"
           step="0.01"

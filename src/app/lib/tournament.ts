@@ -264,7 +264,10 @@ export interface OverallStanding {
   points: number; totalScore: number; wins: number; losses: number; ties: number; place: number; tied: boolean;
 }
 
-/** Every league's standings as one table, by the leagues' own rule: points, then total score; equal on both = tied. */
+/**
+ * Leagues' standings as one ranked list, by the leagues' own rule: points, then total score; equal on both = tied.
+ * Tied teams list by name, so one league's Standings and the all-leagues view order them alike (t226).
+ */
 export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament, 'result' | 'team'> }[]): OverallStanding[] {
   const rows = leagues.flatMap(({ name, y }) => y.result.standings.map(({ membershipId, points, totalScore, wins, losses, ties }) =>
     ({ membershipId, team: y.team.get(membershipId) ?? '', league: name, points, totalScore, wins, losses, ties })));
@@ -274,12 +277,15 @@ export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament
     ...r,
     place: 1 + rows.filter((o) => ahead(o, r)).length,
     tied: rows.some((o) => o !== r && o.points === r.points && o.totalScore === r.totalScore),
-  })).sort((a, b) => a.place - b.place || a.league.localeCompare(b.league) || a.team.localeCompare(b.team));
+  })).sort((a, b) => a.place - b.place || a.team.localeCompare(b.team) || a.league.localeCompare(b.league));
 }
 
-/** The all-leagues leaderboard of a season, and how many leagues it spans. */
-export async function loadSeasonStandings(seasonId: string): Promise<{ rows: OverallStanding[]; leagues: number }> {
+export const countLeagues = async (seasonId: string) => (await leaguesOf(seasonId)).length;
+
+/** The all-leagues leaderboard of a season. `own` is a league already loaded on the page: not fetched again. */
+export async function loadSeasonStandings(seasonId: string, own?: { leagueId: string; y: LeagueTournament }): Promise<OverallStanding[]> {
   const leagues = await leaguesOf(seasonId);
-  const years = await Promise.all(leagues.map(async (l) => ({ name: l.name, y: await loadLeagueTournament(seasonId, l.id) })));
-  return { rows: mergeStandings(years), leagues: leagues.length };
+  const years = await Promise.all(leagues.map(async (l) =>
+    ({ name: l.name, y: l.id === own?.leagueId ? own.y : await loadLeagueTournament(seasonId, l.id) })));
+  return mergeStandings(years);
 }

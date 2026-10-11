@@ -79,7 +79,7 @@ export function StatsPage() {
         {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      {sessions.length === 0 && <p className="muted">No games yet. Each game's stats show up here once keepers tally it.</p>}
+      {sessions.length === 0 && <p className="muted">No games yet.</p>}
       <ul className="list">
         {sessions.map((s) => (
           <li key={s.id}>

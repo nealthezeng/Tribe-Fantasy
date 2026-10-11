@@ -1,15 +1,19 @@
-import { useState, type ReactNode } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
-import { loadLeagueTournament, loadSeasonStandings, type LeagueTournament } from '../lib/tournament';
+import {
+  countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, type LeagueTournament, type OverallStanding,
+} from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 
 const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
+/** 2–1, or 2–1–1 with ties. */
+const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}–${r.losses}${r.ties ? `–${r.ties}` : ''}`;
 /** An athlete's name, or `none` when nobody plays. */
 const athleteName = (y: LeagueTournament, id: string | null, none = 'nobody') => (id ? y.athlete.get(id) ?? 'A player' : none);
 const sides = (g: GameOutcome) => g.matchups.flatMap((m) => [m.home, m.away]);
@@ -20,14 +24,13 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 };
 
 /**
- * One team on the League tab, matchup first: the game that matters now as a big headline with both picks, the
- * team's place, record and points, then `children` (the auction and credits), then the next pick and standings, then
- * the games played as cards.
+ * One team on the League tab, in the order a manager needs it: the matchup headline, what to do now (the next pick,
+ * then `children`: the auction), `money` (the Credits card), the standings, then the games played as cards.
  * Standings show all season, between tournaments too.
  */
-export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, children }: {
-  membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string;
-  children?: ReactNode;
+export function TournamentCard({ membershipId, leagueId, leagueName, seasonId, teamName, subtitle, money, children }: {
+  membershipId: string; leagueId: string; leagueName: string; seasonId: string; teamName: string; subtitle: string;
+  money?: ReactNode; children?: ReactNode;
 }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);
   if (!data) {
@@ -35,6 +38,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
       <>
         <div className="matchup"><h2 className="display">{teamName}</h2><p className="strip">{subtitle}</p></div>
         {children}
+        {money}
         {error ? <p className="error" role="alert">{error}</p> : <Loading />}
       </>
     );
@@ -45,13 +49,14 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
   return (
     <>
       <Matchup y={data} membershipId={membershipId} teamName={teamName} subtitle={subtitle} />
+      {next && (
+        <article className="card" aria-label="Next game">
+          <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />
+        </article>
+      )}
       {children}
-      <article className="card" aria-label="Tournament">
-        <h2>Tournament</h2>
-        {error && <p className="error" role="alert">{error}</p>}
-        {next && <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />}
-        <Standings y={data} membershipId={membershipId} />
-      </article>
+      {money}
+      <Standings y={data} membershipId={membershipId} leagueId={leagueId} leagueName={leagueName} seasonId={seasonId} error={error} />
       {played.length > 0 && (
         <section className="stack" aria-label={`${teamName} games`}>
           <h2>Games</h2>
@@ -96,6 +101,8 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const them = g ? opponentIn(g, membershipId) : undefined; // undefined = not paired yet, null = bye
   const dates = focus && y.stageDates.get(focus.stageId);
   const row = y.result.standings.find((r) => r.membershipId === membershipId);
+  // Before any game counts, Place / Record / Points would read T1 / 0–0 / 0: say so in the strip instead (t228).
+  const anyPlayed = y.result.standings.some((r) => r.wins + r.losses + r.ties > 0);
   // Before a game starts the scorer's auto-pick is a guess, so show only the manager's own pick.
   const minePlayer = status === 'upcoming' ? mine?.picked ?? null : mine?.athleteId ?? null;
   // A pick that won't play (injured, or moved to the bench) must not look all set up here.
@@ -120,7 +127,11 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
               {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
             </>}
             {doomed && <span className="pill warn">{mine?.notice === 'injured' ? 'Your pick is injured' : 'Your pick is on the bench'}</span>}
-          </> : <span>{subtitle}</span>}
+          </> : <>
+            <span>{subtitle}</span>
+            <span>{y.result.standings.length} teams</span>
+            {!anyPlayed && <span>No games yet</span>}
+          </>}
         </p>
       </div>
       {g && them && mine && (
@@ -132,15 +143,16 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
           <ScoreSide label={status === 'upcoming' ? 'Their pick' : 'They played'} y={y}
             athleteId={status === 'upcoming' ? null : them.athleteId} score={final ? them.score : null}
             empty={status === 'upcoming' ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
-          {(status === 'live' || status === 'pending') && <p className="score-note">Scores appear once this game's stats are verified.</p>}
         </div>
       )}
       {mine && status !== 'upcoming' && <Notice y={y} side={mine} />}
-      <dl className="tiles">
-        <div><dt>Place</dt><dd><span className="big">{row ? `${row.tied ? 'T' : ''}${row.place}` : '–'}</span> <span className="of">of {y.result.standings.length}</span></dd></div>
-        <div><dt>Record</dt><dd className="big">{row ? `${row.wins}–${row.losses}${row.ties ? `–${row.ties}` : ''}` : '–'}</dd></div>
-        <div><dt>Points</dt><dd className="big">{row ? fmt(row.points) : '–'}</dd></div>
-      </dl>
+      {anyPlayed && (
+        <dl className="tiles">
+          <div><dt>Place</dt><dd><span className="big">{row ? `${row.tied ? 'T' : ''}${row.place}` : '–'}</span> <span className="of">of {y.result.standings.length}</span></dd></div>
+          <div><dt>Record</dt><dd className="big">{row ? record(row) : '–'}</dd></div>
+          <div><dt>Points</dt><dd className="big">{row ? fmt(row.points) : '–'}</dd></div>
+        </dl>
+      )}
     </>
   );
 }
@@ -168,12 +180,12 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const mine = next.sides.find((x) => x.membershipId === membershipId);
   const title = `${labelOf(y, next.stageId, next.number)} · ${y.stage.get(next.stageId) ?? ''}`;
   if (!mine) {
-    return <div className="stack"><h3>{title}</h3><p className="muted">You have no players this tournament, so you forfeit each game you're paired in.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">You have no players this tournament, so you forfeit each game you're paired in.</p></div>;
   }
   const paired = y.result.games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number);
   const them = paired ? opponentIn(paired, membershipId) : undefined;
   if (paired && them === undefined) {
-    return <div className="stack"><h3>{title}</h3><p className="muted">You joined after this game was paired. You'll play from the next game.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">You joined after this game was paired. You'll play from the next game.</p></div>;
   }
   const started = y.input.games.some((g) => g.stageId === next.stageId && g.startedAt !== null);
   const swapUsed = y.input.swaps.some((w) => w.stageId === next.stageId && w.membershipId === membershipId);
@@ -201,12 +213,9 @@ function PickGame({ y, next, membershipId, onSaved }: {
 
   return (
     <div className="stack">
-      <div className="head">
-        <h3>{title}</h3>
-        <span className="pill info">Picks lock when the game starts</span>
-      </div>
+      <h2>{title}</h2>
       <p>
-        {them ? <>You play <strong>{y.team.get(them.membershipId)}</strong>. Their pick stays hidden until the game starts.</>
+        {them ? <>You play <strong>{y.team.get(them.membershipId)}</strong>. Picks lock when the game starts.</>
           : them === null ? 'You have a bye this game.'
             : next.number === 1 ? 'Your opponent is set when the tournament opens. You can pick now.'
               : `Your opponent is set when game ${next.number - 1} finishes. You can pick now.`}
@@ -259,11 +268,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
         ))}
       </ul>
       <p className="muted"><small>
-        {started
-          ? 'Your bench player comes in only if an active player gets injured (one swap per tournament).'
-          : 'Choose your bench before game 1 starts. It plays only if an active player gets injured.'}
-        {y.settings.tiredness_multipliers.length > 0 && <> Starting a player again soon tires them: {
-          y.settings.tiredness_multipliers.map((m, i) => `×${fmt(m)} ${i === 0 ? 'the next game' : `${i + 1} games later`}`).join(', ')}.</>}
+        {started ? 'The bench comes in only for an injury, once per tournament.' : 'Set your bench before game 1. It plays only for an injury.'}
       </small></p>
       {error && <p className="error" role="alert">{error}</p>}
     </div>
@@ -278,60 +283,64 @@ function Notice({ y, side }: { y: LeagueTournament; side: TournamentSide }) {
   return <p className="notice">{why}, so {who}.</p>;
 }
 
-function Standings({ y, membershipId }: { y: LeagueTournament; membershipId: string }) {
+/**
+ * The league's standings as a ranked list. While the season has 2+ leagues, a toggle swaps in every team of the
+ * season ranked together (t223, t226); that view loads on first use and reuses this league's data.
+ */
+function Standings({ y, membershipId, leagueId, leagueName, seasonId, error }: {
+  y: LeagueTournament; membershipId: string; leagueId: string; leagueName: string; seasonId: string; error: string | null;
+}) {
+  const [all, setAll] = useState(false);
+  const [wanted, setWanted] = useState(false); // stays true once asked for, so toggling back doesn't refetch
+  const leagues = useLoad(() => countLeagues(seasonId), [seasonId]);
+  const season = useLoad(async () => (wanted ? loadSeasonStandings(seasonId, { leagueId, y }) : undefined), [wanted, seasonId, leagueId]);
+  const rows = all ? season.data : mergeStandings([{ name: leagueName, y }]);
   return (
-    <div className="section">
-      <h3>Standings</h3>
-      <div className="table-wrap">
-        <table>
-          <thead><tr><th scope="col">Team</th><th scope="col">Place</th><th scope="col">W-L-T</th><th scope="col">Points</th></tr></thead>
-          <tbody>
-            {y.result.standings.map((r) => (
-              <tr key={r.membershipId} aria-current={r.membershipId === membershipId ? 'true' : undefined}>
-                <td>{r.membershipId === membershipId ? <strong>{y.team.get(r.membershipId)} (you)</strong> : y.team.get(r.membershipId)}</td>
-                <td>{r.tied ? `T${r.place}` : r.place}</td>
-                <td>{r.wins}-{r.losses}-{r.ties}</td>
-                <td>{fmt(r.points)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <article className="card" aria-label="Standings">
+      <div className="head">
+        <h2>Standings</h2>
+        {(leagues.data ?? 0) > 1 && (
+          <div className="segmented" role="group" aria-label="Standings for">
+            <button type="button" aria-pressed={!all} onClick={() => setAll(false)}>{leagueName}</button>
+            <button type="button" aria-pressed={all} onClick={() => { setAll(true); setWanted(true); }}>All leagues</button>
+          </div>
+        )}
       </div>
-    </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      {rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} />
+        : season.error ? <p className="error" role="alert">{season.error}</p> : <Loading />}
+    </article>
   );
 }
 
-/** Every team of the season ranked together by standings points (t223). Hidden while the season has one league. */
-export function AllLeagues({ seasonId, seasonName, mine }: { seasonId: string; seasonName: string; mine: Set<string> }) {
-  const { data, error } = useLoad(() => loadSeasonStandings(seasonId), [seasonId]);
-  if (data && data.leagues < 2) return null;
+/** Ranked rows: place, team (league and record under it), points. A long list shows the top 5 and your row first. */
+function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[]; membershipId: string; showLeague: boolean }) {
+  const [open, setOpen] = useState(false);
+  const cut = !open && rows.length > 8;
+  const shown = cut ? rows.filter((r, i) => i < 5 || r.membershipId === membershipId) : rows;
   return (
-    <article className="card" aria-label={`All leagues, ${seasonName}`}>
-      <div>
-        <h2>All leagues</h2>
-        <p className="muted">{seasonName}</p>
-      </div>
-      {error && <p className="error" role="alert">{error}</p>}
-      {!data && !error && <Loading />}
-      {data && (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th scope="col">Team</th><th scope="col">League</th><th scope="col">Place</th><th scope="col">W-L-T</th><th scope="col">Points</th></tr></thead>
-            <tbody>
-              {data.rows.map((r) => (
-                <tr key={r.membershipId} aria-current={mine.has(r.membershipId) ? 'true' : undefined}>
-                  <td>{mine.has(r.membershipId) ? <strong>{r.team} (you)</strong> : r.team}</td>
-                  <td>{r.league}</td>
-                  <td>{r.tied ? `T${r.place}` : r.place}</td>
-                  <td>{r.wins}-{r.losses}-{r.ties}</td>
-                  <td>{fmt(r.points)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </article>
+    <>
+      <ol className="ranks">
+        {shown.map((r, i) => {
+          const me = r.membershipId === membershipId;
+          const skipped = i > 0 && rows.indexOf(r) > rows.indexOf(shown[i - 1]) + 1;
+          return (
+            <Fragment key={r.membershipId}>
+              {skipped && <li className="gap" aria-hidden="true">···</li>}
+              <li aria-current={me ? 'true' : undefined}>
+                <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
+                <span className="who">
+                  <strong>{r.team}{me && ' (you)'}</strong>
+                  <small>{showLeague && `${r.league} · `}{record(r)}</small>
+                </span>
+                <span className="points">{fmt(r.points)}<span className="sr-only"> points</span></span>
+              </li>
+            </Fragment>
+          );
+        })}
+      </ol>
+      {cut && <button type="button" className="secondary" onClick={() => setOpen(true)}>Show all {rows.length} teams</button>}
+    </>
   );
 }
 
@@ -368,7 +377,6 @@ function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome;
       </summary>
       <div className="card">
         {g.status === 'void' && <p className="muted">This game's tally was deleted, so it doesn't count: no points, and nobody got tired.</p>}
-        {g.status === 'pending' && <p className="muted">Scores appear once this game's stats (and every earlier game's) are verified.</p>}
         {g.status !== 'void' && g.matchups.map((m) => (
           <div key={m.home.membershipId} className="stack">
             <SideDetail y={y} g={g} side={m.home} />

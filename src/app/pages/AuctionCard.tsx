@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { parseSettings } from '../../core/settings';
 import {
   AUCTION_STAGE_COLUMNS, auctionPhase, formatWhen, pickAuctionStage, timeLeft,
@@ -14,16 +15,14 @@ interface Athlete { id: string; name: string; user_id: string | null; opted_in: 
 interface Team { id: string; team_name: string }
 
 /**
- * The team card and the auction for one team, in the stage pickAuctionStage chooses. While bidding is open they are
- * one block with a sticky header (players bid on, credits left); otherwise the team card, then the auction collapsed.
+ * The auction for one team, in the stage pickAuctionStage chooses. While bidding is open it's a card with a sticky
+ * header (bids, credits left); otherwise it's collapsed.
  */
-export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, team, wallet }: {
+export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, creditsId }: {
   membershipId: string; leagueId: string; seasonId: string; userId: string; joinedAt: string;
   teamName: string;
-  /** The team card as it looks outside bidding. */
-  team: ReactNode;
-  /** Credit history, shown inside the combined block while bidding is open. */
-  wallet: ReactNode;
+  /** The Credits card's id: while bidding, "Get more credits" scrolls to it (t224). */
+  creditsId?: string;
 }) {
   // A refused bid's message shows on that player's row.
   const [error, setError] = useState<{ athleteId: string; text: string } | null>(null);
@@ -80,8 +79,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
   }
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
 
-  if (loadError) return <>{team}<p className="error" role="alert">{loadError}</p></>;
-  if (!data) return <>{team}</>; // loading, or no stage yet
+  if (loadError) return <p className="error" role="alert">{loadError}</p>;
+  if (!data) return null; // loading, or no stage yet
   const { stage, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
   const phase = auctionPhase(stage, now);
   const name = new Map(athletes.map((a) => [a.id, a.name]));
@@ -105,20 +104,23 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
         <div className={flash ? 'bid-header over' : 'bid-header'}>
           <div className="head">
             <h2>{stage.name} auction</h2>
-            <span className="pill ok">Closes {timeLeft(stage.bid_close_at!, now)}</span>
+            <span className="pill info">Closes {timeLeft(stage.bid_close_at!, now)}</span>
           </div>
           <div className="bid-sums">
-            <p><strong className="big">{mine.length}</strong> <span>{mine.length === 1 ? 'player' : 'players'} bid on · roster {rosterSize}</span></p>
+            <p><strong className="big">{mine.length}</strong> <span>{mine.length === 1 ? 'bid' : 'bids'} · {rosterSize} roster spots</span></p>
             <p>
               <strong key={flash} className={flash ? 'big flash-bad' : 'big'}>{balance - total}</strong>{' '}
               <span>{balance - total === 1 ? 'credit' : 'credits'} left of {balance}</span>
             </p>
+            {creditsId && (
+              <button type="button" className="linklike" onClick={() => document.getElementById(creditsId)?.scrollIntoView({
+                behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}>
+                Get more credits
+              </button>
+            )}
           </div>
         </div>
-        <p className="muted">
-          Sealed until {formatWhen(stage.bid_close_at!)}. Highest bid wins each player; your bids can't add up to more
-          than your credits.
-        </p>
+        <p className="muted"><span>Sealed until {formatWhen(stage.bid_close_at!)}. Highest bid wins each player.</span> <Link to="/rules">How it works</Link></p>
         {total > balance && (
           <p className="notice" role="alert">
             Your bids add up to {credits(total - balance)} more than your balance (it was lowered after you bid).
@@ -148,14 +150,12 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             })}
           </ul>
         </BidList>
-        {wallet}
       </article>
     );
   }
 
   return (
     <>
-      {team}
       <details className="card" aria-label={`${stage.name} auction`}>
         <summary>
           <h2>{stage.name} auction</h2>
@@ -204,7 +204,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               );
             })}
             {phase === 'run' && (
-              <p className="muted"><small>Open spots were filled at random with seed <code>{stage.auction_seed}</code>, never with an injured player.</small></p>
+              <p className="muted"><small>Open spots were filled at random (seed <code>{stage.auction_seed}</code>).</small></p>
             )}
           </div>
         )}

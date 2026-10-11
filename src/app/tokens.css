@@ -15,6 +15,7 @@
   --gold-press: #dba300;
   --gold-deep: #c99400;     /* the ring in the disc mark */
   --on-gold: #111111;       /* text on gold; never white */
+  --gold-text: #f5b700;     /* gold as text: your place in Standings */
   --blue: #8cc8f2;
   --blue-soft: #16304a;
   --blue-ink: #bfe1fa;
@@ -160,6 +161,7 @@
   --line-strong: #8795a3;   /* input borders: 3:1 against white */
   --link: #0b5d99;          /* gold and baby blue aren't readable as text on white */
   --check: #0b5d99;         /* gold is ~1.7:1 on a white pane */
+  --gold-text: #8a6400;     /* readable gold on white, about 5:1 */
   --focus: #0b5d99;
   --bar: #0f1419;
   --bar-muted: #b4bfca;

@@ -43,9 +43,9 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
           <strong>{name || 'No name yet'}</strong>
           <small>{email}</small>
         </p>
-        <NavLink to="/me" onClick={close}>Me<small>Emails, attendance, injuries</small></NavLink>
-        <NavLink to="/rules" onClick={close}>Rules<small>How scoring works</small></NavLink>
-        {isAdmin && <NavLink to="/admin" onClick={close}>Admin<small>Seasons, leagues, athletes</small></NavLink>}
+        <NavLink to="/me" onClick={close}>Me</NavLink>
+        <NavLink to="/rules" onClick={close}>Rules</NavLink>
+        {isAdmin && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
         <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
       </div>
@@ -74,7 +74,6 @@ function NameForm() {
   return (
     <section className="card">
       <h1>What's your name?</h1>
-      <p className="muted">Teammates and staff see it on the league and stats pages.</p>
       <form onSubmit={submit}>
         <label>Your name<input required maxLength={60} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></label>
         <button disabled={busy}>{busy ? 'Saving…' : 'Save name'}</button>
