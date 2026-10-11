@@ -181,17 +181,21 @@ Errors say what happened and what to do; an unknown error shows its code only in
   team's initial and the team name. Used inside opened games.
 - **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while bidding
   they're "credits left" in the auction header, which reads "N bids · R roster spots" with a `.pill.info` Closes
-  pill and a "Get more credits" link that scrolls to the Credits card and moves focus to it.
-- **Credits card** (`.money`, `Credits.tsx`): always open, the balance in its head. A green `.success` thanks a
-  donation from the last week while it's the newest entry. "Donate for more": `.amounts` chips $5 / $10 / $20 with
-  the credits under each (inverted like `.segmented` when pressed), one full-width gold `.button.go` "Donate $N on
-  Venmo", and `.team-code`: the code in the display face beside Copy code, whose message is a `role="status"`.
-  Credit history is a folded `.section`; the terms close the card (a donation to the team fund, no cash value, can't
-  be refunded, no guaranteed prize).
+  pill and a "Get more credits" link that scrolls to the Credits card and moves focus to it. Once credits left drop
+  under 10% of the balance (or 2 minimum bids) that link becomes a gold button (t234). The bid list puts players you'd
+  bid on when the page loaded first; the order stays put while you bid (t237).
+- **Credits card** (`.money`, `Credits.tsx`): always open, the balance as the big number in its head. A green
+  `.success` thanks a donation from the last week while it's the newest entry. "Donate for more": `.amounts` chips
+  $5 / $10 / $20 with the credits under each (the chosen one baby blue, a selection, t238), one full-width gold
+  `.button.go` "Donate $N on Venmo", and **right under it the terms** (a donation to the team fund, no cash value,
+  can't be refunded, no guaranteed prize: read before paying, t233). Then `.team-code`, "Venmo note: Tribe Fantasy
+  CODE" beside Copy code, whose message is a `role="status"`. Credit history is a folded `.section`. With donations
+  off, the card is the balance, the terms and the history.
 - **Standings** (`.ranks`): a ranked list. Rank and points in the display face, the rank muted and yours in
   `--gold-text`; the team with "League · W–L" under it (the league only in All leagues). A `.segmented` [league]
-  [All leagues] toggle shows only when the season has 2+ leagues. Over 8 teams, the top 5, a gap, your row and
-  "Show all N teams". Ties list by team name.
+  [All leagues] toggle shows only when the season has 2+ leagues. Before any game counts it's just the teams as
+  `.names` chips (yours in `--gold-text`, t236). A long list keeps the top 5, everyone tied with 5th and your row,
+  and only cuts when that hides 4+ teams; the gap row says "N more teams" to screen readers. Ties list by team name.
 - **`.steps`**: a real sequence as numbered inline steps (admin Tournaments: grant, open, run, open tournament).
 - **Fold the rare forms**: forms used once a season (add a tournament, new league, adjust credits) live in a
   collapsed `details.section`; Edit opens the tournament form.
