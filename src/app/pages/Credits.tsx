@@ -78,7 +78,7 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
       {/* The terms sit right under the button: read before paying, not after (t233). */}
       <p className="muted"><small>A donation to the team fund, to @{handle} on Venmo. {TERMS}</small></p>
       <div className="team-code">
-        <p>Venmo note: <strong>Tribe Fantasy {code}</strong></p>
+        <p>Venmo note: <strong>Tribe Fantasy <span className="code-chars">{code}</span></strong></p>
         <button type="button" className="secondary" onClick={copy}>Copy code</button>
       </div>
       <p className="muted" role="status">{copied}</p>

@@ -79,6 +79,12 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
   }
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
 
+  // Your bids as the page loaded them sort first (t237). Fixed for this visit, so a row never jumps as you bid.
+  const [kept, setKept] = useState<Set<string> | null>(null);
+  const bidOn = (bids: BidRow[]) => new Set(bids.filter((b) => b.membership_id === membershipId).map((b) => b.athlete_id));
+  const pinned = kept ?? (data ? bidOn(data.bids) : null);
+  useEffect(() => { if (!kept && data) setKept(bidOn(data.bids)); }, [kept, data]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loadError) return <p className="error" role="alert">{loadError}</p>;
   if (!data) return null; // loading, or no stage yet
   const { stage, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
@@ -114,7 +120,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             </p>
             {creditsId && (
               // Running low (under 10% of your balance, or 2 minimum bids): the way to more credits turns gold (t234).
-              <button type="button" className={balance - total < Math.max(2 * minBid, balance / 10) ? undefined : 'linklike'} onClick={() => {
+              <button type="button" className={balance - total < Math.max(2 * minBid, balance / 10, 1) ? undefined : 'linklike'} onClick={() => {
                 const to = document.getElementById(creditsId);
                 to?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
                 to?.focus({ preventScroll: true }); // the next Tab goes on from Credits, not back into the bid list
@@ -136,7 +142,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
           <ul className="list">
             {/* Players you've bid on first, so your bids are findable among the rest (t237). */}
             {athletes.filter((a) => a.opted_in)
-              .sort((a, b) => Number(mine.some((x) => x.athlete_id === b.id)) - Number(mine.some((x) => x.athlete_id === a.id)))
+              .sort((a, b) => Number(!!pinned?.has(b.id)) - Number(!!pinned?.has(a.id)))
               .map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
               return (

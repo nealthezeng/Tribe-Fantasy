@@ -326,7 +326,7 @@ function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[];
       <ul className="names">
         {rows.map((r) => (
           <li key={r.membershipId} aria-current={r.membershipId === membershipId ? 'true' : undefined}>
-            {r.team}{r.membershipId === membershipId && ' (you)'}{showLeague && <small>{r.league}</small>}
+            {r.team}{r.membershipId === membershipId && ' (you)'}{showLeague && <> <small>{r.league}</small></>}
           </li>
         ))}
       </ul>
@@ -343,7 +343,7 @@ function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[];
           const skipped = i > 0 ? rows.indexOf(r) - rows.indexOf(shown[i - 1]) - 1 : 0;
           return (
             <Fragment key={r.membershipId}>
-              {skipped > 0 && <li className="gap"><span aria-hidden="true">···</span><span className="sr-only">{skipped} more teams</span></li>}
+              {skipped > 0 && <li className="gap"><span aria-hidden="true">···</span><span className="sr-only">{skipped} more {skipped === 1 ? 'team' : 'teams'}</span></li>}
               <li aria-current={me ? 'true' : undefined}>
                 <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
                 <span className="who">

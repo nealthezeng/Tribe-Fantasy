@@ -123,6 +123,17 @@ describe('AuctionCard', () => {
     expect(screen.getByRole('button', { name: 'Get more credits' }).className).not.toContain('linklike'); // 5 left of 115
   });
 
+  it("doesn't move a row when you bid on it: the order is fixed for the visit (t237)", async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Alice') as unknown as Row, athlete('b', 'Bob') as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    fireEvent.change(screen.getByLabelText('Your bid on Bob, in credits'), { target: { value: '10' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Bid' })[1]);
+    await waitFor(() => expect(document.body.textContent).toContain('105 credits left of 115'));
+    expect([...document.querySelectorAll('li.bid-row .title')].map((t) => t.textContent)).toEqual(['Alice', 'Bob']);
+  });
+
   it("keeps the bid list open through your first bid", async () => {
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('b', 'Bob') as unknown as Row];

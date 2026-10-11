@@ -277,6 +277,6 @@ describe('Standings toggle (t226)', () => {
     overall.current = [{ ...row('m1', 'Zeal', 'League A', 1, true), wins: 0, losses: 0 }, { ...row('b1', 'Flow', 'League B', 1, true), wins: 0, losses: 0 }];
     await show(base());
     fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
-    await waitFor(() => expect(document.querySelector('.names')?.textContent).toBe('Zeal (you)League AFlowLeague B'));
+    await waitFor(() => expect(document.querySelector('.names')?.textContent).toBe('Zeal (you) League AFlow League B'));
   });
 });
