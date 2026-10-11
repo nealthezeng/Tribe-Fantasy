@@ -101,7 +101,7 @@ export function Layout() {
             </nav>
           )}
           {session
-            ? <AccountMenu name={displayName} email={session.user.email} isAdmin={isAdmin} />
+            ? <AccountMenu name={displayName ?? null} email={session.user.email} isAdmin={isAdmin} />
             : <NavLink to="/login" className="signin">Sign in</NavLink>}
         </div>
       </header>
@@ -112,7 +112,7 @@ export function Layout() {
             <button type="button" className="linklike" onClick={clearAuthError}>Dismiss</button>
           </p>
         )}
-        {!loading && session && !displayName ? <NameForm /> : <Outlet />}
+        {!loading && session && displayName === null ? <NameForm /> : <Outlet />}
       </main>
     </>
   );
