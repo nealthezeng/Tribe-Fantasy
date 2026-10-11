@@ -113,8 +113,11 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               <span>{balance - total === 1 ? 'credit' : 'credits'} left of {balance}</span>
             </p>
             {creditsId && (
-              <button type="button" className="linklike" onClick={() => document.getElementById(creditsId)?.scrollIntoView({
-                behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}>
+              <button type="button" className="linklike" onClick={() => {
+                const to = document.getElementById(creditsId);
+                to?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+                to?.focus({ preventScroll: true }); // the next Tab goes on from Credits, not back into the bid list
+              }}>
                 Get more credits
               </button>
             )}

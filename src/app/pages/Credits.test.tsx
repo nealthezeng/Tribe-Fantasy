@@ -55,11 +55,11 @@ describe('Credits (t224, t225)', () => {
     await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/Copied/));
   });
 
-  it('tells you to type the code when the clipboard is unavailable', () => {
+  it('tells you to type the code when the clipboard is unavailable', async () => {
     Object.assign(navigator, { clipboard: undefined });
     show([]);
     fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
-    expect(screen.getByRole('status').textContent).toBe("Couldn't copy. Type BKRT in the Venmo note.");
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe("Couldn't copy. Type BKRT in the Venmo note."));
   });
 
   it('shows only the balance and history while the season takes no donations', () => {

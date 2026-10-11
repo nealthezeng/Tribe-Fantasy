@@ -23,7 +23,7 @@ export function Credits({ id, entries, donate, now = Date.now() }: {
   const latest = newestFirst[0];
   const thanks = latest?.kind === 'donation' && now - Date.parse(latest.created_at) < THANKS_FOR ? latest : null;
   return (
-    <article className="card money" id={id} aria-label="Credits">
+    <article className="card money" id={id} tabIndex={-1} aria-label="Credits">
       <div className="head">
         <h2>Credits</h2>
         <p><span className="big">{total}</span> <span className="muted">{Math.abs(total) === 1 ? 'credit' : 'credits'}</span></p>
@@ -57,7 +57,11 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
   const venmo = `https://venmo.com/?${new URLSearchParams({ txn: 'pay', audience: 'private', recipients: handle,
     amount: String(amount), note: `Tribe Fantasy ${code}` })}`;
   const copy = () => {
-    const done = (ok: boolean) => setCopied(ok ? 'Copied. It goes in the Venmo note.' : `Couldn't copy. Type ${code} in the Venmo note.`);
+    // Cleared first, so a second copy changes the status again and gets announced again.
+    const done = (ok: boolean) => {
+      setCopied(null);
+      requestAnimationFrame(() => setCopied(ok ? 'Copied. It goes in the Venmo note.' : `Couldn't copy. Type ${code} in the Venmo note.`));
+    };
     if (!navigator.clipboard) return done(false);
     navigator.clipboard.writeText(code).then(() => done(true), () => done(false));
   };

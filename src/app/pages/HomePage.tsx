@@ -105,7 +105,7 @@ export function HomePage() {
           {canCreate && <Link to="/leagues/new" className="more">Create a league</Link>}
         </p>
       )}
-      {m && <LeagueSettings m={m} isAdmin={isAdmin} listed={listed.data} onChanged={() => { reload(); listed.reload(); }} />}
+      {m && <LeagueSettings key={m.id} m={m} isAdmin={isAdmin} listed={listed.data} onChanged={() => { reload(); listed.reload(); }} />}
     </section>
   );
 }

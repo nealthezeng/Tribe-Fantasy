@@ -1,4 +1,5 @@
 import { Fragment, useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
@@ -129,7 +130,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
             {doomed && <span className="pill warn">{mine?.notice === 'injured' ? 'Your pick is injured' : 'Your pick is on the bench'}</span>}
           </> : <>
             <span>{subtitle}</span>
-            <span>{y.result.standings.length} teams</span>
+            <span>{y.result.standings.length} {y.result.standings.length === 1 ? 'team' : 'teams'}</span>
             {!anyPlayed && <span>No games yet</span>}
           </>}
         </p>
@@ -269,6 +270,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
       </ul>
       <p className="muted"><small>
         {started ? 'The bench comes in only for an injury, once per tournament.' : 'Set your bench before game 1. It plays only for an injury.'}
+        {' '}<Link to="/rules">How it works</Link>
       </small></p>
       {error && <p className="error" role="alert">{error}</p>}
     </div>

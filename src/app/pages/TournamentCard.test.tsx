@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
 import { buildLeagueTournament, type OverallStanding, type TournamentRows } from '../lib/tournament';
@@ -58,7 +59,7 @@ beforeEach(() => {
 });
 const show = async (r: TournamentRows) => {
   rows.current = r;
-  render(<TournamentCard membershipId="m1" leagueId="L" leagueName="League A" seasonId="se" teamName="Zeal" subtitle="League A" />);
+  render(<MemoryRouter><TournamentCard membershipId="m1" leagueId="L" leagueName="League A" seasonId="se" teamName="Zeal" subtitle="League A" /></MemoryRouter>);
   await screen.findByRole('heading', { name: 'Standings' });
 };
 /** The pick list in the Next game card (game cards below repeat players' names). */
