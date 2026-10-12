@@ -18,11 +18,11 @@ interface Team { id: string; team_name: string }
  * The auction for one team, in the stage pickAuctionStage chooses. While bidding is open it's a card with a sticky
  * header (bids, credits left); otherwise it's collapsed.
  */
-export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, creditsId }: {
+export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, getCredits }: {
   membershipId: string; leagueId: string; seasonId: string; userId: string; joinedAt: string;
   teamName: string;
-  /** The Credits card's id: while bidding, "Get more credits" scrolls to it (t224). */
-  creditsId?: string;
+  /** While bidding and the season takes donations, "Get more credits" links to the Credits page. */
+  getCredits?: boolean;
 }) {
   // A refused bid's message shows on that player's row.
   const [error, setError] = useState<{ athleteId: string; text: string } | null>(null);
@@ -118,15 +118,11 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               <strong key={flash} className={flash ? 'big flash-bad' : 'big'}>{balance - total}</strong>{' '}
               <span>{balance - total === 1 ? 'credit' : 'credits'} left of {balance}</span>
             </p>
-            {creditsId && (
+            {getCredits && (
               // Running low (under 10% of your balance, or 2 minimum bids): the way to more credits turns gold (t234).
-              <button type="button" className={balance - total < Math.max(2 * minBid, balance / 10, 1) ? undefined : 'linklike'} onClick={() => {
-                const to = document.getElementById(creditsId);
-                to?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-                to?.focus({ preventScroll: true }); // the next Tab goes on from Credits, not back into the bid list
-              }}>
+              <Link to="/credits" className={balance - total < Math.max(2 * minBid, balance / 10, 1) ? 'button' : undefined}>
                 Get more credits
-              </button>
+              </Link>
             )}
           </div>
         </div>

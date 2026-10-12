@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthProvider';
 import { Layout } from './components/Layout';
 import { supabase } from './lib/supabase';
 import { AdminPage } from './pages/admin/AdminPage';
+import { CreditsPage } from './pages/Credits';
 import { HomePage } from './pages/HomePage';
 import { CreateLeaguePage, LeaguesPage } from './pages/LeaguesPage';
 import { LoginPage } from './pages/LoginPage';
@@ -28,6 +29,7 @@ const router = createHashRouter([
       { path: 'stats', element: <StatsPage /> },
       { path: 'stats/:id', element: <SessionPage /> },
       { path: 'me', element: <MePage /> },
+      { path: 'credits', element: <CreditsPage /> },
       { path: 'rules', element: <RulesPage /> },
     ],
   },

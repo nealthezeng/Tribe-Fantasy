@@ -4,7 +4,6 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import { AuctionCard } from './AuctionCard';
-import { Credits } from './Credits';
 import { LeagueLeave, ManageLeague } from './LeaguesPage';
 import { TournamentCard } from './TournamentCard';
 import { api, type LeagueListing } from '../lib/rpc';
@@ -13,11 +12,12 @@ import { inSeason, loadCurrentSeason } from '../lib/stats';
 import { loadTeamStatus } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 import { LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
+import type { Donate } from './Credits';
 import team800 from '../assets/team-800.jpg';
 import team1600 from '../assets/team-1600.jpg';
 import teamLogo from '../assets/team-logo.png';
 
-interface MembershipRow {
+export interface MembershipRow {
   id: string;
   team_name: string;
   league_id: string;
@@ -34,20 +34,31 @@ interface MembershipRow {
 const TEAM_KEY = 'league-team';
 const savedTeam = () => { try { return localStorage.getItem(TEAM_KEY); } catch { return null; } };
 
+/** Your teams in the current season, oldest first, each with its credit history. */
+export async function loadMyTeams(uid: string | undefined): Promise<MembershipRow[]> {
+  if (!supabase || !uid) return [];
+  const { data, error } = await supabase
+    .from('memberships')
+    .select(`id, team_name, league_id, created_at, donation_code, leagues(name, season_id, seasons(name, settings)), credit_ledger(${LEDGER_COLUMNS})`)
+    .eq('user_id', uid)
+    .order('created_at');
+  if (error) throw error;
+  return inSeason((data ?? []) as unknown as MembershipRow[], (await loadCurrentSeason())?.id);
+}
+
+/** How to donate to this team, or null while its season takes no donations. */
+export function donateFor(m: MembershipRow): Donate | null {
+  const s = m.leagues?.seasons?.settings;
+  return s?.donations_enabled === true && typeof s.venmo_handle === 'string'
+    ? { code: m.donation_code, handle: s.venmo_handle, creditsPerDollar: Number(s.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar) }
+    : null;
+}
+
 export function HomePage() {
   const { session, loading, isAdmin } = useAuth();
   const uid = session?.user.id;
   const [teamId, setTeamId] = useState(savedTeam);
-  const { data, error, reload } = useLoad(async () => {
-    if (!supabase || !uid) return [] as MembershipRow[];
-    const { data, error } = await supabase
-      .from('memberships')
-      .select(`id, team_name, league_id, created_at, donation_code, leagues(name, season_id, seasons(name, settings)), credit_ledger(${LEDGER_COLUMNS})`)
-      .eq('user_id', uid)
-      .order('created_at');
-    if (error) throw error;
-    return inSeason((data ?? []) as unknown as MembershipRow[], (await loadCurrentSeason())?.id);
-  }, [uid]);
+  const { data, error, reload } = useLoad(() => loadMyTeams(uid), [uid]);
   // For League settings (its creator, or an admin: older leagues have no creator) and the create limit (t215).
   const listed = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
   const canCreate = isAdmin || !listed.data?.some((l) => l.is_creator);
@@ -128,21 +139,15 @@ function OtherTeam({ m, onPick }: { m: MembershipRow; onPick: () => void }) {
   );
 }
 
-/** One team: matchup, what to do now, Credits, standings, games. */
+/** One team: matchup, what to do now, standings, games. Credits have their own page (/credits). */
 function Team({ m, uid }: { m: MembershipRow; uid: string }) {
-  const subtitle = [m.leagues?.name, m.leagues?.seasons?.name].filter(Boolean).join(' · ');
-  const s = m.leagues?.seasons?.settings;
-  const donate = s?.donations_enabled === true && typeof s.venmo_handle === 'string'
-    ? { code: m.donation_code, handle: s.venmo_handle, creditsPerDollar: Number(s.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar) }
-    : null;
-  const creditsId = `credits-${m.id}`;
-  const money = <Credits id={creditsId} entries={m.credit_ledger} donate={donate} />;
-  if (!m.leagues) return money;
+  if (!m.leagues) return null;
+  const subtitle = [m.leagues.name, m.leagues.seasons?.name].filter(Boolean).join(' · ');
   return (
     <TournamentCard membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues.name} seasonId={m.leagues.season_id}
-      teamName={m.team_name} subtitle={subtitle} money={money}>
+      teamName={m.team_name} subtitle={subtitle}>
       <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
-        joinedAt={m.created_at} teamName={m.team_name} creditsId={donate ? creditsId : undefined} />
+        joinedAt={m.created_at} teamName={m.team_name} getCredits={donateFor(m) !== null} />
     </TournamentCard>
   );
 }

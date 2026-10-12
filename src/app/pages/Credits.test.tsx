@@ -20,7 +20,7 @@ describe('Credits (t224, t225)', () => {
     show([entry(1, 'allowance', 115, '2026-10-03T00:00:00Z')]);
     expect(screen.getByRole('article', { name: 'Credits' }).textContent).toContain('115 credits');
     expect(venmo().searchParams.get('recipients')).toBe('tribe-fund');
-    expect(venmo().searchParams.get('note')).toBe('Tribe Fantasy BKRT');
+    expect(venmo().searchParams.get('note')).toBe('TribeF - BKRT');
     expect(venmo().searchParams.get('audience')).toBe('private');
     expect(venmo().searchParams.get('amount')).toBe('10');
     fireEvent.click(screen.getByRole('button', { name: /\$20/ }));

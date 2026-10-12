@@ -168,7 +168,7 @@ Errors say what happened and what to do; an unknown error shows its code only in
   Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
   final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Place "N `.of` M",
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
-  game" card (the pick), the auction, the Credits card, the Standings card, the games, the Join / Create `.more`
+  game" card (the pick), the auction, the Standings card, the games, the Join / Create `.more`
   links, and last a muted `details.settings` "League settings" fold holding Manage league and Leave.
 - **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; the choice is
   remembered on the device. Long names scroll sideways rather than squeeze. Only the current season's teams are listed
@@ -184,15 +184,15 @@ Errors say what happened and what to do; an unknown error shows its code only in
   team's initial and the team name. Used inside opened games.
 - **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while bidding
   they're "credits left" in the auction header, which reads "N bids · R roster spots" with a `.pill.info` Closes
-  pill and a "Get more credits" link that scrolls to the Credits card and moves focus to it. Once credits left drop
+  pill and a "Get more credits" link to the Credits page. Once credits left drop
   under 10% of the balance (or 2 minimum bids) that link becomes a gold button (t234). The bid list puts players you'd
   bid on when the page loaded first; the order stays put while you bid (t237).
-- **Credits card** (`.money`, `Credits.tsx`): always open, the balance as the big number in its head. A green
+- **Credits page** (`/credits`, `Credits.tsx`; account menu, or Get more credits while bidding): a `.money` card
+  per team this season, titled by team name when there are 2+. Each card is always open, the balance as the big number in its head. A green
   `.success` thanks a donation from the last week while it's the newest entry. "Donate for more": `.amounts` chips
   $5 / $10 / $20 with the credits under each (the chosen one baby blue, a selection, t238), one full-width gold
   `.button.go` "Donate $N on Venmo", and **right under it the terms** (a donation to the team fund, no cash value,
-  can't be refunded, no guaranteed prize: read before paying, t233). Then `.team-code`, "Venmo note: Tribe Fantasy
-  CODE" beside Copy code, whose message is a `role="status"`. Credit history is a folded `.section`. With donations
+  can't be refunded, no guaranteed prize: read before paying, t233). Then `.team-code`, "Venmo note: TribeF - CODE" beside Copy code, whose message is a `role="status"`. Credit history is a folded `.section`. With donations
   off, the card is the balance, the terms and the history.
 - **Standings** (`.ranks`): a ranked list. Rank and points in the display face, the rank muted and yours in
   `--gold-text`; the team with "League · W–L" under it (the league only in All leagues). A `.segmented` [league]

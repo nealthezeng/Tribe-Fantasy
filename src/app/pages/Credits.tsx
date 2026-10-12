@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { useAuth } from '../auth/AuthProvider';
+import { Loading } from '../components/Loading';
+import { useLoad } from '../lib/useLoad';
+import { donateFor, loadMyTeams } from './HomePage';
 import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
 
 const AMOUNTS = [5, 10, 20];
@@ -9,12 +13,31 @@ const TERMS = "Credits have no cash value, can't be refunded, and there's no gua
 
 export interface Donate { code: string; handle: string; creditsPerDollar: number }
 
+/** The Credits page (account menu, or Get more credits while bidding): one card per team this season. */
+export function CreditsPage() {
+  const { session, loading } = useAuth();
+  const uid = session?.user.id;
+  const { data, error } = useLoad(() => loadMyTeams(uid), [uid]);
+  if (loading) return <Loading />;
+  if (!session) return <p><Link to="/login">Sign in</Link> to see your credits.</p>;
+  return (
+    <section className="page">
+      <h1>Credits</h1>
+      {error && <p className="error" role="alert">{error}</p>}
+      {!data && !error && <Loading />}
+      {data?.length === 0 && <p className="muted">Join a league to get credits. <Link to="/leagues">Join a league</Link></p>}
+      {data?.map((m) => <Credits key={m.id} title={data.length > 1 ? m.team_name : undefined} entries={m.credit_ledger} donate={donateFor(m)} />)}
+    </section>
+  );
+}
+
 /**
- * A team's credits, always open under the matchup (t224): the balance, a thank-you for a fresh donation, how to donate
+ * A team's credits (t224): the balance, a thank-you for a fresh donation, how to donate
  * more on Venmo with the team's code in the note (spec 2026-10-10 §6), the history, and the donation terms.
  */
-export function Credits({ id, entries, donate, now = Date.now() }: {
-  id?: string; entries: LedgerEntry[];
+export function Credits({ title = 'Credits', entries, donate, now = Date.now() }: {
+  /** The team's name, when you have more than one. */
+  title?: string; entries: LedgerEntry[];
   /** null while the season takes no donations. */
   donate: Donate | null;
   now?: number;
@@ -24,9 +47,9 @@ export function Credits({ id, entries, donate, now = Date.now() }: {
   const latest = newestFirst[0];
   const thanks = latest?.kind === 'donation' && now - Date.parse(latest.created_at) < THANKS_FOR ? latest : null;
   return (
-    <article className="card money" id={id} tabIndex={-1} aria-label="Credits">
+    <article className="card money" aria-label={title}>
       <div className="head">
-        <h2>Credits</h2>
+        <h2>{title}</h2>
         <p><span className="big">{total}</span> <span className="muted">{Math.abs(total) === 1 ? 'credit' : 'credits'}</span></p>
       </div>
       {thanks && <p className="success">Thanks for the {usd(Number(thanks.dollars))}! {credits(thanks.amount)} added.</p>}
@@ -52,7 +75,7 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
   const [copied, setCopied] = useState<string | null>(null);
   // Opens the Venmo app on a phone with the recipient, amount and note filled in; private so it stays off the public feed.
   const venmo = `https://venmo.com/?${new URLSearchParams({ txn: 'pay', audience: 'private', recipients: handle,
-    amount: String(amount), note: `Tribe Fantasy ${code}` })}`;
+    amount: String(amount), note: `TribeF - ${code}` })}`;
   const copy = () => {
     // Cleared first, so a second copy changes the status again and gets announced again.
     const done = (ok: boolean) => {
@@ -78,7 +101,7 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
       {/* The terms sit right under the button: read before paying, not after (t233). */}
       <p className="muted"><small>A donation to the team fund, to @{handle} on Venmo. {TERMS}</small></p>
       <div className="team-code">
-        <p>Venmo note: <strong>Tribe Fantasy <span className="code-chars">{code}</span></strong></p>
+        <p>Venmo note: <strong>TribeF - <span className="code-chars">{code}</span></strong></p>
         <button type="button" className="secondary" onClick={copy}>Copy code</button>
       </div>
       <p className="muted" role="status">{copied}</p>

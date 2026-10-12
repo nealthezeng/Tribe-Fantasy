@@ -26,12 +26,12 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 
 /**
  * One team on the League tab, in the order a manager needs it: the matchup headline, what to do now (the next pick,
- * then `children`: the auction), `money` (the Credits card), the standings, then the games played as cards.
+ * then `children`: the auction), the standings, then the games played as cards.
  * Standings show all season, between tournaments too.
  */
-export function TournamentCard({ membershipId, leagueId, leagueName, seasonId, teamName, subtitle, money, children }: {
+export function TournamentCard({ membershipId, leagueId, leagueName, seasonId, teamName, subtitle, children }: {
   membershipId: string; leagueId: string; leagueName: string; seasonId: string; teamName: string; subtitle: string;
-  money?: ReactNode; children?: ReactNode;
+  children?: ReactNode;
 }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);
   if (!data) {
@@ -39,7 +39,6 @@ export function TournamentCard({ membershipId, leagueId, leagueName, seasonId, t
       <>
         <div className="matchup"><h2 className="display">{teamName}</h2><p className="strip">{subtitle}</p></div>
         {children}
-        {money}
         {error ? <p className="error" role="alert">{error}</p> : <Loading />}
       </>
     );
@@ -56,7 +55,6 @@ export function TournamentCard({ membershipId, leagueId, leagueName, seasonId, t
         </article>
       )}
       {children}
-      {money}
       <Standings y={data} membershipId={membershipId} leagueId={leagueId} leagueName={leagueName} seasonId={seasonId} error={error} />
       {played.length > 0 && (
         <section className="stack" aria-label={`${teamName} games`}>

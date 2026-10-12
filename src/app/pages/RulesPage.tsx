@@ -172,8 +172,8 @@ export function RulesPage() {
           <p>A donation is a donation to the team fund. It buys credits at {S.credits_per_dollar} credits per
             dollar. Credits have no cash value and can't be refunded or cashed out.{' '}
             {S.donations_enabled && S.venmo_handle
-              ? <>To donate, Venmo @{S.venmo_handle} with your team's 4-letter code in the note (it's on your Home
-                page). Credits show up within about 10 minutes.</>
+              ? <>To donate, Venmo @{S.venmo_handle} with your team's 4-letter code in the note (it's on the Credits
+                page, in the account menu). Credits show up within about 10 minutes.</>
               : "Donations aren't open yet."}</p>
           <h3>Who can see what?</h3>
           <p>Your league sees rosters, results and every bid after the auction closes. Only you and the league staff

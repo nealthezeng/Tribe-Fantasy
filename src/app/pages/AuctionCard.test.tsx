@@ -73,7 +73,7 @@ function renderCard() {
   return render(
     <MemoryRouter>
       <AuctionCard membershipId="m1" leagueId="l1" seasonId="se1" userId="u1" joinedAt="2026-09-01T00:00:00Z"
-        teamName="Test Zeal" creditsId="credits-m1" />
+        teamName="Test Zeal" getCredits />
     </MemoryRouter>,
   );
 }
@@ -92,7 +92,7 @@ describe('AuctionCard', () => {
     expect(document.body.textContent).toContain('115 credits left of 115');
     expect(document.body.textContent).toContain('0 bids · 4 roster spots');
     expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
-    expect(screen.getByRole('button', { name: 'Get more credits' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Get more credits' })).toBeTruthy();
   });
 
   it('refuses an over-budget bid but allows raising your own bid within what you have left', async () => {
@@ -120,7 +120,7 @@ describe('AuctionCard', () => {
     renderCard();
     await screen.findByText(/^Closes in/);
     expect([...document.querySelectorAll('li.bid-row .title')].map((t) => t.textContent)).toEqual(['Bob', 'Alice']);
-    expect(screen.getByRole('button', { name: 'Get more credits' }).className).not.toContain('linklike'); // 5 left of 115
+    expect(screen.getByRole('link', { name: 'Get more credits' }).className).toBe('button'); // 5 left of 115
   });
 
   it("doesn't move a row when you bid on it: the order is fixed for the visit (t237)", async () => {

@@ -17,11 +17,11 @@ function DiscMark() {
   );
 }
 
-/** Avatar button that opens Me, Rules, Admin and Sign out. A native popover handles Esc, tap-outside and focus. */
+/** Avatar button that opens Me, Credits, Rules, Admin and Sign out. A native popover handles Esc, tap-outside and focus. */
 function AccountMenu({ name, email, isAdmin }: { name: string | null; email: string | undefined; isAdmin: boolean }) {
   const menu = useRef<HTMLDivElement>(null);
   const path = useLocation().pathname;
-  const onMenuPage = path === '/me' || path.startsWith('/admin');
+  const onMenuPage = path === '/me' || path === '/credits' || path.startsWith('/admin');
   const close = () => menu.current?.hidePopover();
   const initial = (name || email || '?').trim().charAt(0).toUpperCase();
   // index.html set the theme before first paint; this flips it and remembers the choice on this device.
@@ -44,6 +44,7 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
           <small>{email}</small>
         </p>
         <NavLink to="/me" onClick={close}>Me</NavLink>
+        <NavLink to="/credits" onClick={close}>Credits</NavLink>
         <NavLink to="/rules" onClick={close}>Rules</NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
         <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
