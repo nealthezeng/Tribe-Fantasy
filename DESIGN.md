@@ -187,8 +187,8 @@ Errors say what happened and what to do; an unknown error shows its code only in
   pill and a "Get more credits" link to the Credits page. Once credits left drop
   under 10% of the balance (or 2 minimum bids) that link becomes a gold button (t234). The bid list puts players you'd
   bid on when the page loaded first; the order stays put while you bid (t237).
-- **Credits page** (`/credits`, `Credits.tsx`; account menu, or Get more credits while bidding): a `.money` card
-  per team this season, titled by the team name. Each card is always open, the balance as the big number in its head. A green
+- **Credits page** (`/credits`, `Credits.tsx`; account menu, or Get more credits while bidding): the `.money` card of the team chosen
+  on the League tab (same `.team-switch`, same remembered choice), titled by the team name. Each card is always open, the balance as the big number in its head. A green
   `.success` thanks a donation from the last week while it's the newest entry. "Donate for more": `.amounts` chips
   $5 / $10 / $20 with the credits under each (the chosen one baby blue, a selection, t238), one full-width gold
   `.button.go` "Donate $N on Venmo", and **right under it the terms** (a donation to the team fund, no cash value,

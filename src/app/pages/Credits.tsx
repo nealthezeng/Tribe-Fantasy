@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
 import { useLoad } from '../lib/useLoad';
-import { donateFor, loadMyTeams } from './HomePage';
+import { donateFor, loadMyTeams, TeamSwitch, useTeamChoice } from './HomePage';
 import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
 
 const AMOUNTS = [5, 10, 20];
@@ -13,11 +13,12 @@ const TERMS = 'No cash value, no refunds, no guaranteed prize.';
 
 export interface Donate { code: string; handle: string; creditsPerDollar: number }
 
-/** The Credits page (account menu, or Get more credits while bidding): one card per team this season. */
+/** The Credits page (account menu, or Get more credits while bidding): the team chosen on the League tab, same switch. */
 export function CreditsPage() {
   const { session, loading } = useAuth();
   const uid = session?.user.id;
   const { data, error } = useLoad(() => loadMyTeams(uid), [uid]);
+  const [m, pick] = useTeamChoice(data);
   if (loading) return <Loading />;
   if (!session) return <p><Link to="/login">Sign in</Link> to see your credits.</p>;
   return (
@@ -26,7 +27,8 @@ export function CreditsPage() {
       {error && <p className="error" role="alert">{error}</p>}
       {!data && !error && <Loading />}
       {data?.length === 0 && <p><Link to="/leagues">Join a league</Link></p>}
-      {data?.map((m) => <Credits key={m.id} title={m.team_name} entries={m.credit_ledger} donate={donateFor(m)} />)}
+      {data && data.length > 1 && <TeamSwitch teams={data} current={m} onPick={pick} />}
+      {m && <Credits key={m.id} title={m.team_name} entries={m.credit_ledger} donate={donateFor(m)} />}
     </section>
   );
 }

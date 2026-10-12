@@ -30,9 +30,29 @@ export interface MembershipRow {
   credit_ledger: LedgerEntry[];
 }
 
-/** With 2+ teams the League tab shows one at a time (t229); the choice is remembered on this device. */
+/** With 2+ teams the League tab and Credits page show one at a time (t229); the choice is shared and remembered on this device. */
 const TEAM_KEY = 'league-team';
 const savedTeam = () => { try { return localStorage.getItem(TEAM_KEY); } catch { return null; } };
+
+/** The chosen team out of `teams` (the first if none chosen yet), and a way to choose another. */
+export function useTeamChoice(teams: MembershipRow[] | undefined) {
+  const [teamId, setTeamId] = useState(savedTeam);
+  const pick = (id: string) => {
+    setTeamId(id);
+    try { localStorage.setItem(TEAM_KEY, id); } catch { /* remembered for this visit only */ }
+  };
+  return [teams?.find((x) => x.id === teamId) ?? teams?.[0], pick] as const;
+}
+
+export function TeamSwitch({ teams, current, onPick }: { teams: MembershipRow[]; current?: MembershipRow; onPick: (id: string) => void }) {
+  return (
+    <div className="segmented team-switch" role="group" aria-label="Team">
+      {teams.map((t) => (
+        <button key={t.id} type="button" aria-pressed={t.id === current?.id} onClick={() => onPick(t.id)}>{t.team_name}</button>
+      ))}
+    </div>
+  );
+}
 
 /** Your teams in the current season, oldest first, each with its credit history. */
 export async function loadMyTeams(uid: string | undefined): Promise<MembershipRow[]> {
@@ -57,11 +77,11 @@ export function donateFor(m: MembershipRow): Donate | null {
 export function HomePage() {
   const { session, loading, isAdmin } = useAuth();
   const uid = session?.user.id;
-  const [teamId, setTeamId] = useState(savedTeam);
   const { data, error, reload } = useLoad(() => loadMyTeams(uid), [uid]);
   // For League settings (its creator, or an admin: older leagues have no creator) and the create limit (t215).
   const listed = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
   const canCreate = isAdmin || !listed.data?.some((l) => l.is_creator);
+  const [m, pick] = useTeamChoice(data);
 
   if (loading) return <Loading />;
   if (!session) {
@@ -83,11 +103,6 @@ export function HomePage() {
     );
   }
 
-  const m = data?.find((x) => x.id === teamId) ?? data?.[0];
-  const pick = (id: string) => {
-    setTeamId(id);
-    try { localStorage.setItem(TEAM_KEY, id); } catch { /* remembered for this visit only */ }
-  };
   return (
     <section className="page">
       {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
@@ -105,11 +120,7 @@ export function HomePage() {
       )}
       {data && data.length > 1 && (
         <>
-          <div className="segmented team-switch" role="group" aria-label="Team">
-            {data.map((t) => (
-              <button key={t.id} type="button" aria-pressed={t.id === m?.id} onClick={() => pick(t.id)}>{t.team_name}</button>
-            ))}
-          </div>
+          <TeamSwitch teams={data} current={m} onPick={pick} />
           <ul className="others" aria-label="Your other teams">
             {data.filter((t) => t.id !== m?.id).map((t) => <OtherTeam key={t.id} m={t} onPick={() => pick(t.id)} />)}
           </ul>

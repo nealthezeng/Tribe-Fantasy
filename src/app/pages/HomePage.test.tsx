@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CreditsPage } from './Credits';
 import { HomePage } from './HomePage';
 
 vi.mock('../auth/AuthProvider', () => ({
@@ -45,5 +46,17 @@ describe('HomePage with several teams (t229, t240, t241)', () => {
     expect(switcher().getByRole('button', { name: 'Flow' }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('heading', { name: 'Flow' })).toBeTruthy();
     expect(localStorage.getItem('league-team')).toBe('b');
+  });
+});
+
+describe('CreditsPage with several teams', () => {
+  it('shows the team chosen on the League tab, and switching here switches there too', async () => {
+    localStorage.setItem('league-team', 'b');
+    render(<MemoryRouter><CreditsPage /></MemoryRouter>);
+    expect(await screen.findByRole('article', { name: 'Flow' })).toBeTruthy();
+    expect(screen.queryByRole('article', { name: 'Zeal' })).toBeNull();
+    fireEvent.click(switcher().getByRole('button', { name: 'Zeal' }));
+    expect(screen.getByRole('article', { name: 'Zeal' })).toBeTruthy();
+    expect(localStorage.getItem('league-team')).toBe('a');
   });
 });
