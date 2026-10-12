@@ -131,7 +131,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             Bids are {credits(total - balance)} over your balance.
           </p>
         )}
-        <BidList open={mine.length === 0}
+        <BidList open={mine.length === 0} loud={mine.length === 0}
           summary={<>Bid on players <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} available</span></>}>
           <ul className="list">
             {/* Players you've bid on first, so your bids are findable among the rest (t237). */}
@@ -220,10 +220,11 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
 }
 
 /** Starts open or closed once, on mount: a later `open` change (your first bid) must not snap it shut. */
-function BidList({ open, summary, children }: { open: boolean; summary: ReactNode; children: ReactNode }) {
+/** Closed, its summary reads as a button: solid gold until you've bid (`loud`), outlined after. */
+function BidList({ open, loud, summary, children }: { open: boolean; loud: boolean; summary: ReactNode; children: ReactNode }) {
   const [startOpen] = useState(open);
   return (
-    <details className="section" open={startOpen}>
+    <details className={loud ? 'section bid-cta loud' : 'section bid-cta'} open={startOpen}>
       <summary>{summary}</summary>
       {children}
     </details>

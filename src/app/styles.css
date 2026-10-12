@@ -153,7 +153,17 @@ ul.error { margin: 0; padding-left: 20px; }
 .code { font-size: var(--fs-lead); font-weight: var(--fw-semi); letter-spacing: var(--track-code); }
 details:is(.card, .section, .settings) { display: block; }
 details:is(.card, .section, .settings)[open] > summary { margin-bottom: var(--s3); }
-details.settings > summary { color: var(--muted); } /* rare admin of your league: a quiet fold at the page's end (t227) */
+details.settings > summary { color: var(--muted); }
+/* Bid on players, closed: a button, so nobody misses that bidding is open. Solid gold before your first bid. */
+details.bid-cta:not([open]) > summary {
+  justify-content: center; min-height: var(--tap-lg); padding: 0 var(--s4); border: 2px solid var(--gold); border-radius: var(--radius-sm);
+  color: var(--gold-text); font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button);
+  font-stretch: var(--button-stretch); text-transform: var(--button-case); letter-spacing: var(--button-track);
+}
+details.bid-cta:not([open]) > summary .muted { color: inherit; opacity: 0.75; }
+details.bid-cta:not([open]) > summary:hover { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+details.bid-cta.loud:not([open]) > summary { background: var(--gold); color: var(--on-gold); }
+details.bid-cta.loud:not([open]) > summary:hover { background: var(--gold-hover); } /* rare admin of your league: a quiet fold at the page's end (t227) */
 details > summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; gap: var(--s2); font-weight: var(--fw-semi); list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::before { content: ''; flex: none; width: 8px; height: 8px; margin: 0 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }

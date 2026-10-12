@@ -64,10 +64,24 @@ export function TeamSwitch({ teams, current, onPick }: { teams: MembershipRow[];
       const right = dots.some((d) => d.left >= box.right - 1);
       setGlow((g) => (g.left === left && g.right === right ? g : { left, right }));
     };
+    // A mouse wheel over the switch scrolls across the leagues; at either end the page scrolls as usual.
+    const wheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // sideways trackpad swipes already scroll it
+      const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY; // Firefox counts lines
+      const max = el.scrollWidth - el.clientWidth;
+      if (max <= 0 || (d < 0 && el.scrollLeft <= 0) || (d > 0 && el.scrollLeft >= max - 1)) return;
+      e.preventDefault();
+      el.scrollLeft += d;
+    };
     check();
     el.addEventListener('scroll', check, { passive: true });
+    el.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('resize', check);
-    return () => { el.removeEventListener('scroll', check); window.removeEventListener('resize', check); };
+    return () => {
+      el.removeEventListener('scroll', check);
+      el.removeEventListener('wheel', wheel);
+      window.removeEventListener('resize', check);
+    };
   }, [needs]);
   return (
     <div className={['team-switch-wrap', glow.left && 'glow-left', glow.right && 'glow-right'].filter(Boolean).join(' ')}>

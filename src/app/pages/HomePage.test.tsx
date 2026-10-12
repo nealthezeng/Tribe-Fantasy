@@ -61,6 +61,25 @@ describe('TeamSwitch edge glow', () => {
   });
 });
 
+describe('TeamSwitch mouse wheel', () => {
+  it('scrolls across the leagues, and lets the page scroll once at the end', async () => {
+    show();
+    const group = await screen.findByRole('group', { name: 'League' });
+    Object.defineProperties(group, { scrollWidth: { value: 600 }, clientWidth: { value: 300 } }); // jsdom has no layout
+    const spin = (deltaY: number) => {
+      const e = new WheelEvent('wheel', { deltaY, cancelable: true });
+      group.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    expect(spin(100)).toBe(true);
+    expect(group.scrollLeft).toBe(100);
+    group.scrollLeft = 300;
+    expect(spin(100)).toBe(false); // at the end: the page scrolls instead
+    expect(spin(-100)).toBe(true);
+    expect(group.scrollLeft).toBe(200);
+  });
+});
+
 describe('CreditsPage with several teams', () => {
   it('shows the team chosen on the League tab, and switching here switches there too', async () => {
     localStorage.setItem('league-team', 'b');
