@@ -55,9 +55,6 @@ export function BackupPanel({ seasonId }: { seasonId: string }) {
   return (
     <div className="card">
       <h2>Backup</h2>
-      <p className="muted">
-        Download one every week. Keep it private: it has balances and injuries.
-      </p>
       <div className="row">
         <button onClick={() => void backup()} disabled={busy !== null}>
           {busy === 'backup' ? 'Saving…' : 'Download backup'}
@@ -68,7 +65,6 @@ export function BackupPanel({ seasonId }: { seasonId: string }) {
         <button className="secondary" onClick={() => void ledger()} disabled={busy !== null}>Ledger CSV</button>
         <button className="secondary" onClick={() => void standings()} disabled={busy !== null}>Standings CSV</button>
       </div>
-      <p className="muted">Stats CSV: Stats tab, Download CSV.</p>
       {status && <p className="success" role="status">{status}</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>

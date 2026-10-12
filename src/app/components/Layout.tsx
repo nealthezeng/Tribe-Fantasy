@@ -109,7 +109,7 @@ export function Layout() {
       <main className="shell">
         {authError && (
           <p className="error" role="alert">
-            Sign-in link didn't work: {authError}. Request a new link, or use the 6-digit code from the email.{' '}
+            Sign-in link didn't work: {authError}. Use the code instead.{' '}
             <button type="button" className="linklike" onClick={clearAuthError}>Dismiss</button>
           </p>
         )}

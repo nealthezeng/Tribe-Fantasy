@@ -25,14 +25,14 @@ describe('VenmoReceipts', () => {
     expect(document.body.textContent).toContain('Not a verified Venmo receipt sent to our Venmo');
     expect(document.body.textContent).toContain('Jane Doe');
     expect(document.body.textContent).toContain('$10.00');
-    expect(document.body.textContent).toContain('3 other Venmo payments without a team code were skipped');
+    expect(document.body.textContent).toContain('3 skipped (no code).');
   });
 
-  it('says "1 payment was" for a single skipped payment', async () => {
+  it('counts a single skipped payment', async () => {
     list.value = { skipped: 1, receipts: [] };
     render(<VenmoReceipts />);
     await screen.findByText(/Venmo receipts not credited \(0\)/);
-    expect(document.body.textContent).toContain('1 other Venmo payment without a team code was skipped');
+    expect(document.body.textContent).toContain('1 skipped (no code).');
   });
 
   it('shows no count until the list has loaded', () => {

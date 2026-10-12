@@ -77,7 +77,7 @@ describe('TournamentCard', () => {
 
   it('lets a manager pre-select game 1 and choose the bench before the tournament opens', async () => {
     await show(base());
-    expect(screen.getByText(/Your opponent is set when the tournament opens/)).toBeTruthy();
+    expect(screen.getByText('Opponent TBD.')).toBeTruthy();
     expect(screen.getByText('Arlo').parentElement?.textContent).toContain('Bench');
     fireEvent.click(screen.getByRole('button', { name: 'Pick Alex' }));
     await waitFor(() => expect(api.setGamePick).toHaveBeenCalledWith('m1', 'S1', 1, 'a3'));
@@ -88,7 +88,7 @@ describe('TournamentCard', () => {
   it("shows the next opponent, the tiredness of last game's starter, and never the opponent's sealed pick", async () => {
     await show(afterGame1());
     expect(screen.getByRole('heading', { name: 'Game 2 · Fall beta' })).toBeTruthy();
-    expect(screen.getByText(/Picks lock when the game starts/).textContent).toContain('Flow');
+    expect(screen.getByText(/^You play/).textContent).toBe('You play Flow.');
     expect(picks().getByText('Ash').parentElement?.textContent).toContain('Tired ×0.5');
     // The header leads with the next matchup; neither side's pick is set, and theirs reads as hidden.
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
@@ -171,7 +171,7 @@ describe('TournamentCard', () => {
     await show({ ...r, games: r.games.map((g) => (g.id === 'g1' ? { ...g, session_id: null } : g)), sessions: [] });
     fireEvent.click(screen.getByText(/Game 1 · Fall beta/));
     expect(screen.getByText('Void')).toBeTruthy();
-    expect(screen.getByText(/tally was deleted/)).toBeTruthy();
+    expect(screen.getByText("Doesn't count.")).toBeTruthy();
     // A void start doesn't tire anyone.
     expect(picks().getByText('Ash').parentElement?.textContent).not.toContain('Tired');
   });

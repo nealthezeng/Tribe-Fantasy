@@ -1,5 +1,4 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
 import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
@@ -179,12 +178,12 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const mine = next.sides.find((x) => x.membershipId === membershipId);
   const title = `${labelOf(y, next.stageId, next.number)} · ${y.stage.get(next.stageId) ?? ''}`;
   if (!mine) {
-    return <div className="stack"><h2>{title}</h2><p className="muted">You have no players this tournament, so you forfeit each game you're paired in.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">No players: you forfeit.</p></div>;
   }
   const paired = y.result.games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number);
   const them = paired ? opponentIn(paired, membershipId) : undefined;
   if (paired && them === undefined) {
-    return <div className="stack"><h2>{title}</h2><p className="muted">You joined after this game was paired. You'll play from the next game.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">You start next game.</p></div>;
   }
   const started = y.input.games.some((g) => g.stageId === next.stageId && g.startedAt !== null);
   const swapUsed = y.input.swaps.some((w) => w.stageId === next.stageId && w.membershipId === membershipId);
@@ -214,19 +213,18 @@ function PickGame({ y, next, membershipId, onSaved }: {
     <div className="stack">
       <h2>{title}</h2>
       <p>
-        {them ? <>You play <strong>{y.team.get(them.membershipId)}</strong>. Picks lock when the game starts.</>
+        {them ? <>You play <strong>{y.team.get(them.membershipId)}</strong>.</>
           : them === null ? 'You have a bye this game.'
-            : next.number === 1 ? 'Your opponent is set when the tournament opens. You can pick now.'
-              : `Your opponent is set when game ${next.number - 1} finishes. You can pick now.`}
+            : 'Opponent TBD.'}
       </p>
       {mine.notice === 'missed' && (
         <p className="notice">No pick yet. If you don't pick, {name(mine.athleteId)} plays{mine.athleteId ? '' : ' and you forfeit'}.</p>
       )}
       {mine.notice === 'injured' && (
-        <p className="notice">{name(mine.picked)} is injured. When the game starts we'll play {name(mine.athleteId)} unless you change your pick.</p>
+        <p className="notice">{name(mine.picked)} is injured. {name(mine.athleteId)} plays.</p>
       )}
       {mine.notice === 'inactive' && (
-        <p className="notice">{name(mine.picked)} is on your bench, so {name(mine.athleteId)} plays unless you change your pick.</p>
+        <p className="notice">{name(mine.picked)} is benched. {name(mine.athleteId)} plays.</p>
       )}
       <ul className="list">
         {[...mine.active].sort(byName).map((id) => {
@@ -266,10 +264,6 @@ function PickGame({ y, next, membershipId, onSaved }: {
           </li>
         ))}
       </ul>
-      <p className="muted"><small>
-        {started ? 'The bench comes in only for an injury, once per tournament.' : 'Set your bench before game 1. It plays only for an injury.'}
-        {' '}<Link to="/rules">How it works</Link>
-      </small></p>
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );
@@ -380,7 +374,7 @@ function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome;
         </span>
       </summary>
       <div className="card">
-        {g.status === 'void' && <p className="muted">This game's tally was deleted, so it doesn't count: no points, and nobody got tired.</p>}
+        {g.status === 'void' && <p className="muted">Doesn't count.</p>}
         {g.status !== 'void' && g.matchups.map((m) => (
           <div key={m.home.membershipId} className="stack">
             <SideDetail y={y} g={g} side={m.home} />

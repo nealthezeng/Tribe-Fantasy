@@ -177,7 +177,7 @@ describe('AuctionCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     const msg = await screen.findByText('Not enough credits for that bid.');
     expect(msg.closest('li')!.textContent).toContain('Alice');
-    await screen.findByText(/Your bids add up to 10 credits more than your balance/);
+    await screen.findByText('Bids are 10 credits over your balance.');
   });
 
   it('shows a collapsed auction card before bidding opens', async () => {

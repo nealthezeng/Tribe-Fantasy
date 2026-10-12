@@ -6,7 +6,7 @@ import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { gameTitles, lockTime, SESSION_COLUMNS, sessionState, statLabel, titleOf, type SessionRow } from '../lib/stats';
+import { gameTitles, SESSION_COLUMNS, sessionState, statLabel, titleOf, type SessionRow } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { rowToTap, type StatTapRow } from '../tally/queue';
@@ -103,11 +103,6 @@ export function SessionPage() {
         <p className="meta">
           {STATE_PILL[state]}
           {!session.counts && <span className="pill">Not counted</span>}
-          <span className="muted">
-            {state === 'open' && 'Stats count once another keeper verifies them.'}
-            {state === 'verified' && `Locks ${lockTime(session, settings.stat_lock_hours)}. A keeper can still reopen it until then.`}
-            {state === 'locked' && 'Final.'}
-          </span>
         </p>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
@@ -128,7 +123,6 @@ export function SessionPage() {
       {isKeeper && state === 'open' && merge && (
         <div className="card">
           <h2>Totals to verify</h2>
-          <p className="muted">Preview: two keepers' taps for the same stat within {settings.tap_merge_seconds} seconds count once.</p>
           <StatTable stats={stats} rows={Object.entries(merge.counts).map(([a, c]) => ({ athlete: name(a), counts: c, score: rawScore(c, settings.stat_weights) }))} />
           {merge.merged.length > 0 && (
             <>
@@ -148,7 +142,7 @@ export function SessionPage() {
             </details>
           ))}
           {iTapped ? (
-            <p className="notice">You tallied this game, so another keeper has to verify it.</p>
+            <p className="notice">Another keeper must verify.</p>
           ) : (
             <button disabled={busy} onClick={() => void verify()}>{busy ? 'Verifying…' : 'Verify these totals'}</button>
           )}

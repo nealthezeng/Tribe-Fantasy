@@ -110,7 +110,6 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
         <div className="head">
           <span>
             {game.session_id ? <>{title} is live.</> : <>{title}: its tally was deleted, so it won't count. Finish it to pair the next game.</>}
-            {waiting > 0 && <> <small className="muted">Finish waits until your taps are saved.</small></>}
           </span>
           <span className="meta">
             {sessionId === undefined && game.session_id && (
@@ -130,17 +129,13 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
       )}
       {preview && (
         <div className="stack" role="group" aria-label={over ? `Add game ${n + 1}` : `Finish game ${n}`}>
-          <p>
-            <strong>Game {n + 1} pairings</strong>
-            {over ? ". They can't change once paired." : ", from the live tally. They can't change once you finish."}
-          </p>
+          <p><strong>Game {n + 1} pairings</strong></p>
           {[...preview.league].map(([leagueId, leagueName]) => (
             <p key={leagueId}>
               {preview.league.size > 1 && <><small className="muted">{leagueName}</small><br /></>}
               {describePairings(preview.pairings.filter((p) => p.league_id === leagueId), preview.team)}
             </p>
           ))}
-          {waiting > 0 && <p className="muted"><small>Finish waits until your taps are saved.</small></p>}
           <div className="row">
             <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>{over ? `Pair game ${n + 1}` : `Finish game ${n}`}</button>
             <button className="secondary" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>

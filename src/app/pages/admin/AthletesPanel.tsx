@@ -69,7 +69,7 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
     <div className="card">
       <h2>Athletes <small>{count} opted in</small></h2>
       {!athletes.data && !athletes.error && <Loading />}
-      {athletes.data?.list.length === 0 && <p className="muted">No athletes yet. Add them below.</p>}
+      {athletes.data?.list.length === 0 && <p className="muted">None yet.</p>}
       <ul className="list">
         {athletes.data?.list.map((a) => (
           <li key={a.id} className="athlete">

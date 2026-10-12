@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link } from 'react-router';
 import { parseSettings } from '../../core/settings';
 import {
-  AUCTION_STAGE_COLUMNS, auctionPhase, formatWhen, pickAuctionStage, timeLeft,
+  AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, timeLeft,
   type AuctionStage, type BidRow, type SlotRow,
 } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
@@ -126,11 +126,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
             )}
           </div>
         </div>
-        <p className="muted"><span>Sealed until {formatWhen(stage.bid_close_at!)}. Highest bid wins each player.</span> <Link to="/rules">How it works</Link></p>
         {total > balance && (
           <p className="notice" role="alert">
-            Your bids add up to {credits(total - balance)} more than your balance (it was lowered after you bid).
-            Lower or remove bids until they fit.
+            Bids are {credits(total - balance)} over your balance.
           </p>
         )}
         <BidList open={mine.length === 0}
@@ -173,9 +171,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
           </span>
         </summary>
 
-        {phase === 'not_open' && <p className="muted">Bidding hasn't opened for this tournament yet.</p>}
+        {phase === 'not_open' && <p className="muted">Bidding not open yet.</p>}
 
-        {phase === 'closed' && <p className="notice">Bids are closed. Rosters appear here once the auction runs.</p>}
+        {phase === 'closed' && <p className="notice">Bids closed.</p>}
 
         {phase === 'run' && (() => {
           const roster = slots.filter((s) => s.membership_id === membershipId);
@@ -212,9 +210,6 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
                 </details>
               );
             })}
-            {phase === 'run' && (
-              <p className="muted"><small>Open spots were filled at random (seed <code>{stage.auction_seed}</code>).</small></p>
-            )}
           </div>
         )}
 

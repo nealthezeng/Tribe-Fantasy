@@ -37,7 +37,7 @@ export function AdminPage() {
         <span className="ink" aria-hidden="true" />
       </nav>
       {tab === 'keepers' ? <StaffPanel /> : !seasonId ? (
-        <p className="notice">Create a season above to manage its tournaments, leagues, wallets and athletes.</p>
+        <p className="notice">Create a season first.</p>
       ) : (
         <Fragment key={seasonId}>
           {tab === 'stages' && <StagesPanel seasonId={seasonId} />}

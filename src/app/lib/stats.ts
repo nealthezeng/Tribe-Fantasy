@@ -47,10 +47,6 @@ export function sessionState(s: Pick<SessionRow, 'verified_at'>, lockHours: numb
   return Date.parse(s.verified_at) + lockHours * 3_600_000 <= now ? 'locked' : 'verified';
 }
 
-export function lockTime(s: Pick<SessionRow, 'verified_at'>, lockHours: number): string {
-  return new Date(Date.parse(s.verified_at!) + lockHours * 3_600_000).toLocaleString();
-}
-
 /** '2026-09-25' → 'Fri, Sep 25'. Parsed as a local date so it never shifts a day across time zones. */
 export function formatDay(isoDay: string): string {
   const [y, m, d] = isoDay.split('-').map(Number);

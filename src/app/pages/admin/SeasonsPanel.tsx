@@ -43,7 +43,7 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
     <div className="card">
       <h2>Seasons</h2>
       {!seasons.data && !seasons.error && <Loading />}
-      {list?.length === 0 && <p className="muted">No seasons yet. Create the first one below.</p>}
+      {list?.length === 0 && <p className="muted">None yet.</p>}
       <ul className="list">
         {list?.map((s) => (
           <li key={s.id}>

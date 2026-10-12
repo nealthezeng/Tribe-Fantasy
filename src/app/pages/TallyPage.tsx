@@ -263,13 +263,13 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
         <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length]])} />
       </div>
       {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
-      {closed && !verified && <p className="notice">This session is from an earlier season, so tallying is closed here. Taps already saved on this phone still upload.</p>}
+      {closed && !verified && <p className="notice">Earlier season: tallying closed.</p>}
       {!stored && <p className="error" role="alert">This phone won't store taps. Keep this page open until it says Saved.</p>}
       {rejected && <p className="error" role="alert">{rejected.count} {rejected.count === 1 ? 'tap' : 'taps'} not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}
       {error && <p className="error" role="alert">{error}</p>}
       {data.error && <p className="error" role="alert">Couldn't refresh: {data.error}</p>}
       <input type="search" aria-label="Find a player" placeholder="Find a player" value={search} onChange={(e) => setSearch(e.target.value)} />
-      <p className="muted">A Callahan is one tap: it already includes the goal and the D. Tapped too many? Hold the button to take one off.</p>
+      <p className="muted">Hold a button to undo a tap.</p>
       {hint && <p className="notice" role="status">{hint} <button className="linklike" onClick={() => setHint(null)}>Dismiss</button></p>}
       <ul className="list">
         {shown.map((a) => {

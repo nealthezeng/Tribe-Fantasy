@@ -86,7 +86,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           </li>
         ))}
       </ul>
-      {stages.data?.length === 0 && <p className="muted">No tournaments yet. Add the first one below.</p>}
+      {stages.data?.length === 0 && <p className="muted">None yet.</p>}
       {/* Used once a tournament: folded away, and opened by Edit. */}
       {/* Keyed by the tournament being edited, so Edit on another one reopens it even after a manual collapse. */}
       <details key={form.id ?? 'new'} className="section" open={form.id ? true : undefined}>

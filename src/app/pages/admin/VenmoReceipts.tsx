@@ -33,7 +33,7 @@ export function VenmoReceipts() {
         ))}
       </ul>
       {list.data && list.data.skipped > 0 && (
-        <p className="muted">{list.data.skipped} other Venmo {list.data.skipped === 1 ? 'payment without a team code was' : 'payments without a team code were'} skipped.</p>
+        <p className="muted">{list.data.skipped} skipped (no code).</p>
       )}
     </details>
   );

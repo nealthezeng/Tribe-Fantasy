@@ -9,7 +9,7 @@ import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
 const AMOUNTS = [5, 10, 20];
 const THANKS_FOR = 7 * 24 * 3600_000; // a donation is thanked for a week, or until the next credit change
 const usd = (d: number) => `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
-const TERMS = "Credits have no cash value, can't be refunded, and there's no guaranteed prize.";
+const TERMS = 'No cash value, no refunds, no guaranteed prize.';
 
 export interface Donate { code: string; handle: string; creditsPerDollar: number }
 
@@ -25,7 +25,7 @@ export function CreditsPage() {
       <h1>Credits</h1>
       {error && <p className="error" role="alert">{error}</p>}
       {!data && !error && <Loading />}
-      {data?.length === 0 && <p className="muted">Join a league to get credits. <Link to="/leagues">Join a league</Link></p>}
+      {data?.length === 0 && <p><Link to="/leagues">Join a league</Link></p>}
       {data?.map((m) => <Credits key={m.id} title={data.length > 1 ? m.team_name : undefined} entries={m.credit_ledger} donate={donateFor(m)} />)}
     </section>
   );
@@ -99,13 +99,12 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
         Donate {usd(amount)} on Venmo<span className="sr-only"> (opens Venmo)</span>
       </a>
       {/* The terms sit right under the button: read before paying, not after (t233). */}
-      <p className="muted"><small>A donation to the team fund, to @{handle} on Venmo. {TERMS}</small></p>
+      <p className="muted"><small>Donation to the team fund. {TERMS}</small></p>
       <div className="team-code">
         <p>Venmo note: <strong>TribeF - <span className="code-chars">{code}</span></strong></p>
         <button type="button" className="secondary" onClick={copy}>Copy code</button>
       </div>
       <p className="muted" role="status">{copied}</p>
-      <p className="muted"><small>Keep {code} in the note so the credits reach your team, within about 10 minutes. <Link to="/rules">How it works</Link></small></p>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function LoginPage() {
         </form>
       ) : (
         <form onSubmit={verifyCode}>
-          <p className="notice">We emailed <strong>{email.trim()}</strong>. Open the link <strong>in this browser</strong>, or type the 6-digit code here.</p>
+          <p className="notice">Code sent to <strong>{email.trim()}</strong>.</p>
           <label>Code<input className="code" inputMode="numeric" maxLength={6} autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></label>
           <button disabled={busy}>{busy ? 'Checking…' : 'Sign in'}</button>
           <button type="button" className="linklike" onClick={() => setSent(false)}>Use a different email</button>

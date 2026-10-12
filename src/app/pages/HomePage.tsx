@@ -97,7 +97,6 @@ export function HomePage() {
       {data && data.length === 0 && (
         <div className="card">
           <h2>Get started</h2>
-          <p>Join a league someone has already made, or create your own and invite people.</p>
           <div className="row">
             <Link to="/leagues" className="button">Join a league</Link>
             <Link to="/leagues/new" className="button secondary">Create a league</Link>

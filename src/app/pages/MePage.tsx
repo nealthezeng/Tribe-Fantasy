@@ -105,7 +105,7 @@ export function MePage() {
       </div>
       <div className="card">
         <h2>Attendance</h2>
-        <p className="muted">Games from the last week. You can change your answer until {lockHours} hours after a game's stats are verified.</p>
+        <p className="muted">Last 7 days.</p>
         {sessions.length === 0 && <p>No games in the last week.</p>}
         <ul className="list">
           {sessions.map((s) => {
