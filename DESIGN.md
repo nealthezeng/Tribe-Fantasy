@@ -173,8 +173,9 @@ Errors say what happened and what to do; an unknown error shows its code only in
 - **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; each button is named by
   its **league** (the team name is the headline below). The choice is remembered on the device and shared with the
   Credits page. Long rows scroll sideways rather than squeeze. Only the current season's teams are listed (all of them
-  if none are this season's, t240). A gold `.dot` marks a team that needs you: no pick for its next game, or an open
-  auction you haven't bid in.
+  if none are this season's, t240). A gold `.needs` dot marks a team that needs you: no pick for its next game, or an open
+  auction you haven't bid in. When a dotted league is scrolled out of sight, that edge of the switch glows gold and
+  pulses (`.team-switch-wrap.glow-left` / `.glow-right`; steady with reduced motion).
 - **Game cards** (`.games` / `details.game`, M9 t93): each played game is a small black `.game-score` scoreboard of
   your matchup (both teams, scores once final, the loser muted; "Bye" or "Not playing" otherwise) with the caption
   **below** it, not inside: "Game 2 · Fall Beta", the status pill, your W/L ±points. One column on phones, two from

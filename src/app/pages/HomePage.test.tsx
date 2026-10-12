@@ -48,6 +48,19 @@ describe('HomePage with several teams (t229, t240)', () => {
   });
 });
 
+describe('TeamSwitch edge glow', () => {
+  it('lights the edge a team that needs you is hidden past, and only that edge', async () => {
+    // jsdom has no layout: the switch is 0–300px wide and every dot sits at 500px, past its right edge.
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      return (this.classList.contains('needs') ? { left: 500, right: 508 } : { left: 0, right: 300 }) as DOMRect;
+    });
+    show();
+    const group = await screen.findByRole('group', { name: 'League' });
+    await waitFor(() => expect(group.parentElement!.className).toBe('team-switch-wrap glow-right'));
+    spy.mockRestore();
+  });
+});
+
 describe('CreditsPage with several teams', () => {
   it('shows the team chosen on the League tab, and switching here switches there too', async () => {
     localStorage.setItem('league-team', 'b');

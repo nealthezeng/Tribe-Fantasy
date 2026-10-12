@@ -252,10 +252,28 @@ tbody tr:last-child td { border-bottom: 0; }
 .more::after { content: ''; width: 7px; height: 7px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
 
 /* t229: with 2+ teams, one team at a time. Long names scroll sideways rather than squeeze. */
-.team-switch { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: thin; justify-self: start; }
+.team-switch-wrap { position: relative; justify-self: start; max-width: 100%; min-width: 0; }
+.team-switch { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .team-switch button { flex: none; white-space: nowrap; }
 /* A team that needs you (no pick, or no bid in an open auction). */
-.team-switch .dot { display: inline-block; width: 8px; height: 8px; margin-left: var(--s2); border-radius: 50%; background: var(--gold); vertical-align: middle; }
+.team-switch .needs { display: inline-block; width: 8px; height: 8px; margin-left: var(--s2); border-radius: 50%; background: var(--gold); vertical-align: middle; }
+/* A team that needs you is scrolled out of sight: that edge of the switch glows gold, pulsing unless motion is reduced. */
+.team-switch-wrap::before, .team-switch-wrap::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 44px; pointer-events: none; opacity: 0; transition: opacity var(--dur) var(--ease);
+}
+.team-switch-wrap::before {
+  left: 0; border-radius: var(--radius-sm) 0 0 var(--radius-sm); box-shadow: -4px 0 18px -4px var(--gold);
+  background: linear-gradient(to right, color-mix(in srgb, var(--gold) 80%, transparent), transparent);
+}
+.team-switch-wrap::after {
+  right: 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; box-shadow: 4px 0 18px -4px var(--gold);
+  background: linear-gradient(to left, color-mix(in srgb, var(--gold) 80%, transparent), transparent);
+}
+.team-switch-wrap.glow-left::before, .team-switch-wrap.glow-right::after { opacity: 1; }
+@keyframes aura { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: no-preference) {
+  .team-switch-wrap.glow-left::before, .team-switch-wrap.glow-right::after { animation: aura var(--dur-pulse) ease-in-out infinite; }
+}
 /* t224: Credits, always open under the matchup: balance, amount chips, the gold Venmo button, the team code. */
 .amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
 .amounts button, .amounts button:hover:not(:disabled) { display: grid; gap: 2px; padding: var(--s2); background: var(--surface-2); color: var(--fg); }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
@@ -44,22 +44,42 @@ export function useTeamChoice(teams: MembershipRow[] | undefined) {
   return [teams?.find((x) => x.id === teamId) ?? teams?.[0], pick] as const;
 }
 
-/** One button per team, named by its league; a gold dot marks a team that needs you. */
+/**
+ * One button per team, named by its league; a gold dot marks a team that needs you. When such a team is scrolled out of
+ * sight, that edge of the switch glows and pulses.
+ */
 export function TeamSwitch({ teams, current, onPick }: { teams: MembershipRow[]; current?: MembershipRow; onPick: (id: string) => void }) {
+  const { data: needs } = useLoad(() => Promise.all(teams.map((m) => (m.leagues
+    ? loadNeedsYou(m.id, m.league_id, m.leagues.season_id).catch(() => false) // no dot rather than no switch
+    : false))), [teams.map((t) => t.id).join()]);
+  const scroller = useRef<HTMLDivElement>(null);
+  const [glow, setGlow] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const check = () => {
+      const box = el.getBoundingClientRect();
+      const dots = [...el.querySelectorAll('.needs')].map((d) => d.getBoundingClientRect());
+      const left = dots.some((d) => d.right <= box.left + 1);
+      const right = dots.some((d) => d.left >= box.right - 1);
+      setGlow((g) => (g.left === left && g.right === right ? g : { left, right }));
+    };
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => { el.removeEventListener('scroll', check); window.removeEventListener('resize', check); };
+  }, [needs]);
   return (
-    <div className="segmented team-switch" role="group" aria-label="League">
-      {teams.map((t) => <TeamButton key={t.id} m={t} pressed={t.id === current?.id} onPick={() => onPick(t.id)} />)}
+    <div className={['team-switch-wrap', glow.left && 'glow-left', glow.right && 'glow-right'].filter(Boolean).join(' ')}>
+      <div className="segmented team-switch" role="group" aria-label="League" ref={scroller}>
+        {teams.map((t, i) => (
+          <button key={t.id} type="button" aria-pressed={t.id === current?.id} onClick={() => onPick(t.id)}>
+            {t.leagues?.name ?? t.team_name}
+            {needs?.[i] && <span className="needs"><span className="sr-only"> (needs you)</span></span>}
+          </button>
+        ))}
+      </div>
     </div>
-  );
-}
-
-function TeamButton({ m, pressed, onPick }: { m: MembershipRow; pressed: boolean; onPick: () => void }) {
-  const { data: dot } = useLoad(async () => (m.leagues ? loadNeedsYou(m.id, m.league_id, m.leagues.season_id) : false), [m.id]);
-  return (
-    <button type="button" aria-pressed={pressed} onClick={onPick}>
-      {m.leagues?.name ?? m.team_name}
-      {dot && <span className="dot"><span className="sr-only"> (needs you)</span></span>}
-    </button>
   );
 }
 
