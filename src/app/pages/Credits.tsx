@@ -26,7 +26,7 @@ export function CreditsPage() {
       {error && <p className="error" role="alert">{error}</p>}
       {!data && !error && <Loading />}
       {data?.length === 0 && <p><Link to="/leagues">Join a league</Link></p>}
-      {data?.map((m) => <Credits key={m.id} title={data.length > 1 ? m.team_name : undefined} entries={m.credit_ledger} donate={donateFor(m)} />)}
+      {data?.map((m) => <Credits key={m.id} title={m.team_name} entries={m.credit_ledger} donate={donateFor(m)} />)}
     </section>
   );
 }
@@ -36,7 +36,7 @@ export function CreditsPage() {
  * more on Venmo with the team's code in the note (spec 2026-10-10 §6), the history, and the donation terms.
  */
 export function Credits({ title = 'Credits', entries, donate, now = Date.now() }: {
-  /** The team's name, when you have more than one. */
+  /** The team's name on the Credits page. */
   title?: string; entries: LedgerEntry[];
   /** null while the season takes no donations. */
   donate: Donate | null;

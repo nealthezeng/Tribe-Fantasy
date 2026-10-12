@@ -106,7 +106,7 @@ export function MePage() {
       <div className="card">
         <h2>Attendance</h2>
         <p className="muted">Last 7 days.</p>
-        {sessions.length === 0 && <p>No games in the last week.</p>}
+        {sessions.length === 0 && <p>No games.</p>}
         <ul className="list">
           {sessions.map((s) => {
             const status = attendance.get(s.id);
