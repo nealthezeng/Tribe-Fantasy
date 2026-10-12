@@ -170,11 +170,11 @@ Errors say what happened and what to do; an unknown error shows its code only in
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
   game" card (the pick), the auction, the Standings card, the games, the Join / Create `.more`
   links, and last a muted `details.settings` "League settings" fold holding Manage league and Leave.
-- **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; the choice is
-  remembered on the device. Long names scroll sideways rather than squeeze. Only the current season's teams are listed
-  (all of them if none are this season's, t240). Under it, `.others`: a `.strip` line per other team, its name (a
-  link-style button that switches to it) and what needs you there: "2 of 6 · No pick for game 3 · Auction closes in
-  2 d 0 h · No bids yet" (t241).
+- **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; each button is named by
+  its **league** (the team name is the headline below). The choice is remembered on the device and shared with the
+  Credits page. Long rows scroll sideways rather than squeeze. Only the current season's teams are listed (all of them
+  if none are this season's, t240). A gold `.dot` marks a team that needs you: no pick for its next game, or an open
+  auction you haven't bid in.
 - **Game cards** (`.games` / `details.game`, M9 t93): each played game is a small black `.game-score` scoreboard of
   your matchup (both teams, scores once final, the loser muted; "Bye" or "Not playing" otherwise) with the caption
   **below** it, not inside: "Game 2 · Fall Beta", the status pill, your W/L ±points. One column on phones, two from

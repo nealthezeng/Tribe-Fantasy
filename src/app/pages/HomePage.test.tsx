@@ -23,7 +23,7 @@ vi.mock('../lib/stats', async (orig) => ({
 }));
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
-  loadTeamStatus: (id: string) => Promise.resolve(id === 'b' ? ['2 of 6', 'No pick for game 3'] : []),
+  loadNeedsYou: (id: string) => Promise.resolve(id === 'b'),
 }));
 vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]) } }));
 // The team itself (matchup, auction, standings) has its own tests.
@@ -31,19 +31,18 @@ vi.mock('./TournamentCard', () => ({ TournamentCard: ({ teamName }: { teamName: 
 
 afterEach(() => { cleanup(); localStorage.clear(); });
 const show = () => render(<MemoryRouter><HomePage /></MemoryRouter>);
-const switcher = () => within(screen.getByRole('group', { name: 'Team' }));
+const switcher = () => within(screen.getByRole('group', { name: 'League' }));
 
-describe('HomePage with several teams (t229, t240, t241)', () => {
-  it("lists only this season's teams, and a line per other team that switches to it", async () => {
+describe('HomePage with several teams (t229, t240)', () => {
+  it("names this season's teams by league, dots the one that needs you, and switches", async () => {
     localStorage.setItem('league-team', 'old'); // saved last season: falls back to the first current team
     show();
-    await screen.findByRole('group', { name: 'Team' });
-    expect(switcher().getAllByRole('button').map((b) => b.textContent)).toEqual(['Zeal', 'Flow']);
-    expect(switcher().getByRole('button', { name: 'Zeal' }).getAttribute('aria-pressed')).toBe('true');
-    const others = within(screen.getByRole('list', { name: 'Your other teams' }));
-    await waitFor(() => expect(others.getByRole('listitem').textContent).toBe('Flow2 of 6 · No pick for game 3'));
-    fireEvent.click(others.getByRole('button', { name: 'Flow' }));
-    expect(switcher().getByRole('button', { name: 'Flow' }).getAttribute('aria-pressed')).toBe('true');
+    await screen.findByRole('group', { name: 'League' });
+    expect(switcher().getAllByRole('button').map((b) => b.textContent)).toEqual(['League a', 'League b']);
+    expect(switcher().getByRole('button', { name: 'League a' }).getAttribute('aria-pressed')).toBe('true');
+    await waitFor(() => expect(switcher().getAllByRole('button').map((b) => b.textContent)).toEqual(['League a', 'League b (needs you)']));
+    fireEvent.click(switcher().getByRole('button', { name: /League b/ }));
+    expect(switcher().getByRole('button', { name: /League b/ }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('heading', { name: 'Flow' })).toBeTruthy();
     expect(localStorage.getItem('league-team')).toBe('b');
   });
@@ -55,7 +54,7 @@ describe('CreditsPage with several teams', () => {
     render(<MemoryRouter><CreditsPage /></MemoryRouter>);
     expect(await screen.findByRole('article', { name: 'Flow' })).toBeTruthy();
     expect(screen.queryByRole('article', { name: 'Zeal' })).toBeNull();
-    fireEvent.click(switcher().getByRole('button', { name: 'Zeal' }));
+    fireEvent.click(switcher().getByRole('button', { name: 'League a' }));
     expect(screen.getByRole('article', { name: 'Zeal' })).toBeTruthy();
     expect(localStorage.getItem('league-team')).toBe('a');
   });

@@ -252,10 +252,10 @@ tbody tr:last-child td { border-bottom: 0; }
 .more::after { content: ''; width: 7px; height: 7px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg); }
 
 /* t229: with 2+ teams, one team at a time. Long names scroll sideways rather than squeeze. */
-.team-switch { display: flex; max-width: 100%; overflow-x: auto; justify-self: start; }
+.team-switch { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: thin; justify-self: start; }
 .team-switch button { flex: none; white-space: nowrap; }
-/* t241: your other teams, a line each: the name switches to it, then what needs you there. */
-.others { list-style: none; margin: 0; padding: 0; display: grid; }
+/* A team that needs you (no pick, or no bid in an open auction). */
+.team-switch .dot { display: inline-block; width: 8px; height: 8px; margin-left: var(--s2); border-radius: 50%; background: var(--gold); vertical-align: middle; }
 /* t224: Credits, always open under the matchup: balance, amount chips, the gold Venmo button, the team code. */
 .amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
 .amounts button, .amounts button:hover:not(:disabled) { display: grid; gap: 2px; padding: var(--s2); background: var(--surface-2); color: var(--fg); }
