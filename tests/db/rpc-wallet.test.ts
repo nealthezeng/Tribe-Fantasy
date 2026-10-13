@@ -163,6 +163,29 @@ describe('grant_stage_allowance', () => {
   });
 });
 
+describe('donation leaderboard', () => {
+  it('ranks donors this season by total across teams, hides anonymous names, and needs a sign-in', async () => {
+    await settings({ donations_enabled: true });
+    await as(db, admin, async (tx) => {
+      const b = (await rpc(tx, 'create_league', { p_season: season, p_name: 'League B' })) as string;
+      await rpc(tx, 'create_invite', { p_league: b, p_code: 'LEAGUE2', p_max_uses: 50, p_expires_at: null });
+    });
+    const [alice, a] = await member('alice');
+    const [bob, b] = await member('bob');
+    await member('carol'); // no donation: not listed
+    const a2 = (await as(db, alice, (tx) => rpc(tx, 'join_league', { p_code: 'LEAGUE2', p_team_name: 'alice2' }))) as string;
+    const give = (m: string, d: number) => as(db, admin, (tx) => rpc(tx, 'record_donation', { p_membership: m, p_dollars: d, p_note: null }));
+    await give(a, 5); await give(a2, 10); await give(b, 20);
+    const board = () => as(db, alice, async (tx) =>
+      (await tx.query('select * from public.donation_leaderboard($1)', [season])).rows);
+    expect(await board()).toEqual([
+      { name: 'bob', dollars: '20.00', is_me: false }, { name: 'alice', dollars: '15.00', is_me: true }]);
+    await as(db, bob, (tx) => rpc(tx, 'set_donate_anonymously', { p_on: true }));
+    expect((await board() as { name: string | null }[])[0].name).toBeNull();
+    await expect(as(db, null, (tx) => tx.query('select * from public.donation_leaderboard($1)', [season]))).rejects.toThrow();
+  });
+});
+
 describe('donations and adjustments', () => {
   it('refuses donations while donations_enabled is off', async () => {
     const [, a] = await member('alice');

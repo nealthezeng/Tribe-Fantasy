@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
+import { errorMessage } from '../lib/errors';
+import { api } from '../lib/rpc';
+import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { donateFor, loadMyTeams, TeamSwitch, useTeamChoice } from './HomePage';
 import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
@@ -29,6 +32,7 @@ export function CreditsPage() {
       {data?.length === 0 && <p><Link to="/leagues">Join a league</Link></p>}
       {data && data.length > 1 && <TeamSwitch teams={data} current={m} onPick={pick} />}
       {m && <Credits key={m.id} title={m.team_name} entries={m.credit_ledger} donate={donateFor(m)} />}
+      {m?.leagues && <Donors uid={uid!} seasonId={m.leagues.season_id} />}
     </section>
   );
 }
@@ -108,5 +112,55 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
       </div>
       <p className="muted" role="status">{copied}</p>
     </div>
+  );
+}
+
+/** Everyone who donated this season, by name and total; a tick box shows you as Anonymous instead. */
+export function Donors({ uid, seasonId }: { uid: string; seasonId: string }) {
+  const board = useLoad(() => api.donationLeaderboard(seasonId), [seasonId]);
+  const anon = useLoad(async () => {
+    const r = await supabase!.from('profiles').select('donate_anonymously').eq('id', uid).maybeSingle();
+    if (r.error) throw r.error;
+    return (r.data as { donate_anonymously: boolean } | null)?.donate_anonymously ?? false;
+  }, [uid]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function toggle(on: boolean) {
+    setError(null);
+    setSaving(true);
+    try {
+      await api.setDonateAnonymously(on);
+      board.reload();
+      anon.reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <article className="card" aria-label="Donors">
+      <h2>Donors</h2>
+      {(error ?? board.error) && <p className="error" role="alert">{error ?? board.error}</p>}
+      {!board.data && !board.error && <Loading />}
+      {board.data?.length === 0 && <p className="muted">No donations yet.</p>}
+      {board.data && board.data.length > 0 && (
+        <ol className="list">
+          {board.data.map((r, i) => (
+            <li key={i}>
+              <span>{i + 1}. {r.name ?? 'Anonymous'}{r.is_me && <small className="muted"> (you)</small>}</span>
+              <strong className="num">{usd(Number(r.dollars))}</strong>
+            </li>
+          ))}
+        </ol>
+      )}
+      <label className="check">
+        <input type="checkbox" checked={anon.data ?? false} disabled={anon.data === undefined || saving}
+          onChange={(e) => void toggle(e.target.checked)} />
+        Show me as Anonymous
+      </label>
+    </article>
   );
 }

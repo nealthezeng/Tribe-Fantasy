@@ -36,6 +36,10 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 export const api = {
   setDisplayName: (name: string) => call<void>('set_display_name', { p_name: name }),
   setNotifyEmail: (on: boolean) => call<void>('set_notify_email', { p_on: on }),
+  setDonateAnonymously: (on: boolean) => call<void>('set_donate_anonymously', { p_on: on }),
+  /** Every donor this season, biggest total first; `name` null = anonymous. */
+  donationLeaderboard: (seasonId: string) =>
+    call<{ name: string | null; dollars: number; is_me: boolean }[]>('donation_leaderboard', { p_season: seasonId }),
   listLeagues: () => call<LeagueListing[]>('list_leagues', {}),
   /** `password` null = a public league. */
   createMyLeague: (name: string, password: string | null, teamName: string) =>
