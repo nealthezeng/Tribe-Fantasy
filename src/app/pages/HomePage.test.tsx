@@ -25,7 +25,8 @@ vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
   loadNeedsYou: (id: string) => Promise.resolve(id === 'b'),
 }));
-vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), donationLeaderboard: () => Promise.resolve([]) } }));
+vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), donationLeaderboard: () => Promise.resolve([]),
+  myDonateAnonymously: () => Promise.resolve(false) } }));
 // The team itself (matchup, auction, standings) has its own tests.
 vi.mock('./TournamentCard', () => ({ TournamentCard: ({ teamName }: { teamName: string }) => <h2>{teamName}</h2> }));
 
@@ -86,6 +87,8 @@ describe('CreditsPage with several teams', () => {
     render(<MemoryRouter><CreditsPage /></MemoryRouter>);
     expect(await screen.findByRole('article', { name: 'Flow' })).toBeTruthy();
     expect(screen.queryByRole('article', { name: 'Zeal' })).toBeNull();
+    // The season takes no donations ({} settings), so no Donors card.
+    expect(screen.queryByRole('article', { name: 'Donors' })).toBeNull();
     fireEvent.click(switcher().getByRole('button', { name: 'League a' }));
     expect(screen.getByRole('article', { name: 'Zeal' })).toBeTruthy();
     expect(localStorage.getItem('league-team')).toBe('a');

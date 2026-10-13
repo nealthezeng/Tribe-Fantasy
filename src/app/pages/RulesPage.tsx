@@ -177,9 +177,9 @@ export function RulesPage() {
               : "Donations aren't open yet."}</p>
           <h3>Who can see what?</h3>
           <p>Your league sees rosters, results and every bid after the auction closes. Only you and the league staff
-            see your credit balance. Other teams can't see your pick until the game starts. Everyone signed in sees
-            the Donors list on the Credits page: each donor's name and total for the season. Tick "Show me as
-            Anonymous" there to hide your name.</p>
+            see your credit balance. Other teams can't see your pick until the game starts.
+            {S.donations_enabled && S.venmo_handle && <> The Credits page lists each donor's name and season total;
+              tick Show me as Anonymous to hide your name.</>}</p>
           <h3>I'm a player. Can I opt out?</h3>
           <p>Yes. Tell a captain before the next auction opens. Players who opt out aren't listed or bid on in the next auction.</p>
           <h3>Will I get emails?</h3>

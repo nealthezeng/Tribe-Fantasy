@@ -7,7 +7,7 @@ import { makeKeeper, tap } from './stats-fixture';
 
 /** Read-only helpers used by RLS policies; they write nothing, so no audit row. */
 const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues',
-  'donation_leaderboard'];
+  'donation_leaderboard', 'my_donate_anonymously'];
 /** Staff-only reads: refused for non-staff like any staff RPC, but they change nothing, so no audit row. */
 const STAFF_READS = ['list_venmo_receipts'];
 /** Any signed-in user may call these; they check ownership instead of a role. */

@@ -164,25 +164,59 @@ describe('grant_stage_allowance', () => {
 });
 
 describe('donation leaderboard', () => {
-  it('ranks donors this season by total across teams, hides anonymous names, and needs a sign-in', async () => {
+  const board = (uid: string | null, seasonId = season) => as(db, uid, async (tx) =>
+    (await tx.query('select * from public.donation_leaderboard($1)', [seasonId])).rows);
+  const give = (m: string, d: number) => as(db, admin, (tx) => rpc(tx, 'record_donation', { p_membership: m, p_dollars: d, p_note: null }));
+  const anon = (uid: string, on: boolean | null) => as(db, uid, (tx) => rpc(tx, 'set_donate_anonymously', { p_on: on }));
+
+  it('ranks donors this season by total across teams, donations only, members only', async () => {
     await settings({ donations_enabled: true });
     await as(db, admin, async (tx) => {
       const b = (await rpc(tx, 'create_league', { p_season: season, p_name: 'League B' })) as string;
       await rpc(tx, 'create_invite', { p_league: b, p_code: 'LEAGUE2', p_max_uses: 50, p_expires_at: null });
     });
     const [alice, a] = await member('alice');
-    const [bob, b] = await member('bob');
+    const [, b] = await member('bob');
     await member('carol'); // no donation: not listed
     const a2 = (await as(db, alice, (tx) => rpc(tx, 'join_league', { p_code: 'LEAGUE2', p_team_name: 'alice2' }))) as string;
-    const give = (m: string, d: number) => as(db, admin, (tx) => rpc(tx, 'record_donation', { p_membership: m, p_dollars: d, p_note: null }));
     await give(a, 5); await give(a2, 10); await give(b, 20);
-    const board = () => as(db, alice, async (tx) =>
-      (await tx.query('select * from public.donation_leaderboard($1)', [season])).rows);
-    expect(await board()).toEqual([
+    await as(db, admin, (tx) => rpc(tx, 'adjust_credits', { p_membership: b, p_amount: 500, p_note: 'not a donation' }));
+    expect(await board(alice)).toEqual([
       { name: 'bob', dollars: '20.00', is_me: false }, { name: 'alice', dollars: '15.00', is_me: true }]);
-    await as(db, bob, (tx) => rpc(tx, 'set_donate_anonymously', { p_on: true }));
-    expect((await board() as { name: string | null }[])[0].name).toBeNull();
-    await expect(as(db, null, (tx) => tx.query('select * from public.donation_leaderboard($1)', [season]))).rejects.toThrow();
+
+    // Another season's donations don't count.
+    const other = (await as(db, admin, (tx) => rpc(tx, 'create_season', { p_name: 'Other', p_settings: {} }))) as string;
+    expect(await board(alice, other)).toEqual([]);
+
+    // Signed out: no execute. Signed up but in no league and no role: refused, like names elsewhere.
+    await expect(board(null)).rejects.toThrow(/permission denied/);
+    const outsider = await createUser(db, 'out@x.test');
+    await expect(board(outsider)).rejects.toThrow('FORBIDDEN');
+  });
+
+  it("hides an anonymous donor's name but not their total, and only they can read the choice", async () => {
+    await settings({ donations_enabled: true });
+    const [alice, a] = await member('alice');
+    const [bob, b] = await member('bob');
+    await give(a, 5); await give(b, 20);
+    const mine = (uid: string) => as(db, uid, (tx) => rpc(tx, 'my_donate_anonymously', {}));
+    expect(await mine(bob)).toBe(false);
+
+    await anon(bob, true);
+    expect(await mine(bob)).toBe(true);
+    expect(await mine(alice)).toBe(false);
+    expect((await board(alice))[0]).toEqual({ name: null, dollars: '20.00', is_me: false });
+    expect((await board(bob))[0]).toEqual({ name: null, dollars: '20.00', is_me: true });
+    // No other member can see who ticked the box: it isn't on profiles, and private isn't readable.
+    await expect(as(db, alice, (tx) => tx.query('select * from private.donor_prefs'))).rejects.toThrow(/permission denied/);
+    const cols = await db.query(`select 1 from information_schema.columns where table_name = 'profiles' and column_name like '%anon%'`);
+    expect(cols.rows).toEqual([]);
+
+    await anon(bob, false);
+    expect(((await board(alice))[0] as { name: string | null }).name).toBe('bob');
+    await expect(anon(bob, null)).rejects.toThrow('INVALID_INPUT');
+    const log = await db.query(`select details from public.audit_log where action = 'set_donate_anonymously' order by id`);
+    expect(log.rows).toEqual([{ details: { on: true } }, { details: { on: false } }]);
   });
 });
 

@@ -4,7 +4,6 @@ import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { donateFor, loadMyTeams, TeamSwitch, useTeamChoice } from './HomePage';
 import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
@@ -32,7 +31,8 @@ export function CreditsPage() {
       {data?.length === 0 && <p><Link to="/leagues">Join a league</Link></p>}
       {data && data.length > 1 && <TeamSwitch teams={data} current={m} onPick={pick} />}
       {m && <Credits key={m.id} title={m.team_name} entries={m.credit_ledger} donate={donateFor(m)} />}
-      {m?.leagues && <Donors uid={uid!} seasonId={m.leagues.season_id} />}
+      {/* Only while the season takes donations, like the Donate box. */}
+      {m?.leagues && donateFor(m) && <Donors uid={session.user.id} seasonId={m.leagues.season_id} />}
     </section>
   );
 }
@@ -118,32 +118,38 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
 /** Everyone who donated this season, by name and total; a tick box shows you as Anonymous instead. */
 export function Donors({ uid, seasonId }: { uid: string; seasonId: string }) {
   const board = useLoad(() => api.donationLeaderboard(seasonId), [seasonId]);
-  const anon = useLoad(async () => {
-    const r = await supabase!.from('profiles').select('donate_anonymously').eq('id', uid).maybeSingle();
-    if (r.error) throw r.error;
-    return (r.data as { donate_anonymously: boolean } | null)?.donate_anonymously ?? false;
-  }, [uid]);
+  const anon = useLoad(() => api.myDonateAnonymously(), [uid]);
+  // The box flips at once (before the save lands) and rolls back if the save fails, as in EmailReminders.
+  const [chosen, setChosen] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function toggle(on: boolean) {
+  async function toggle(next: boolean) {
+    const before = chosen;
     setError(null);
+    setChosen(next);
     setSaving(true);
     try {
-      await api.setDonateAnonymously(on);
+      await api.setDonateAnonymously(next);
       board.reload();
-      anon.reload();
     } catch (err) {
+      setChosen(before);
       setError(errorMessage(err));
     } finally {
       setSaving(false);
     }
   }
 
+  const failed = (load: { error: string | null; reload: () => void }) => (
+    <p className="error" role="alert">
+      {load.error} <button type="button" className="secondary" onClick={load.reload}>Try again</button>
+    </p>
+  );
   return (
     <article className="card" aria-label="Donors">
       <h2>Donors</h2>
-      {(error ?? board.error) && <p className="error" role="alert">{error ?? board.error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+      {board.error && !board.data && failed(board)}
       {!board.data && !board.error && <Loading />}
       {board.data?.length === 0 && <p className="muted">No donations yet.</p>}
       {board.data && board.data.length > 0 && (
@@ -156,8 +162,9 @@ export function Donors({ uid, seasonId }: { uid: string; seasonId: string }) {
           ))}
         </ol>
       )}
+      {anon.error && anon.data === undefined && failed(anon)}
       <label className="check">
-        <input type="checkbox" checked={anon.data ?? false} disabled={anon.data === undefined || saving}
+        <input type="checkbox" checked={chosen ?? anon.data ?? false} disabled={anon.data === undefined || saving}
           onChange={(e) => void toggle(e.target.checked)} />
         Show me as Anonymous
       </label>
