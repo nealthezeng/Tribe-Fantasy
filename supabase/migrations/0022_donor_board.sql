@@ -44,7 +44,7 @@ begin
     left join private.donor_prefs d on d.user_id = m.user_id
     where c.kind = 'donation' and l.season_id = p_season
     group by m.user_id, d.anonymous, p.display_name
-    order by 2 desc, 1 nulls last;
+    order by 2 desc, 1 nulls last, 3 desc;
 end $$;
 
 do $$

@@ -177,10 +177,10 @@ describe('donation leaderboard', () => {
     });
     const [alice, a] = await member('alice');
     const [, b] = await member('bob');
-    await member('carol'); // no donation: not listed
+    const [, c] = await member('carol'); // credits but no donation: not listed
     const a2 = (await as(db, alice, (tx) => rpc(tx, 'join_league', { p_code: 'LEAGUE2', p_team_name: 'alice2' }))) as string;
     await give(a, 5); await give(a2, 10); await give(b, 20);
-    await as(db, admin, (tx) => rpc(tx, 'adjust_credits', { p_membership: b, p_amount: 500, p_note: 'not a donation' }));
+    await as(db, admin, (tx) => rpc(tx, 'adjust_credits', { p_membership: c, p_amount: 500, p_note: 'not a donation' }));
     expect(await board(alice)).toEqual([
       { name: 'bob', dollars: '20.00', is_me: false }, { name: 'alice', dollars: '15.00', is_me: true }]);
 
