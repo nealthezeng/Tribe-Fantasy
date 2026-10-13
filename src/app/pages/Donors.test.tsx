@@ -28,7 +28,7 @@ afterEach(() => {
   cleanup();
   Object.assign(state, { anon: false, rows: null, boardFails: false, prefFails: false, saveFails: false });
 });
-const show = () => render(<Donors uid="u" seasonId="s" />);
+const show = () => render(<Donors seasonId="s" />);
 const box = () => screen.getByRole('checkbox', { name: /Anonymous/ }) as HTMLInputElement;
 
 describe('Donors', () => {

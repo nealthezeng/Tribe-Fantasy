@@ -199,7 +199,7 @@ Errors say what happened and what to do; an unknown error shows its code only in
   can't be refunded, no guaranteed prize: read before paying, t233). Then `.team-code`, "Venmo note: TribeF - CODE" beside Copy code, whose message is a `role="status"`. Credit history is a folded `.section`. With donations
   off, the card is the balance, the terms and the history.
   Under it, while the season takes donations, a **Donors** card: the season's donors across all leagues, biggest
-  total first, as a plain divided `.list` of "N. Name … $X" (not `.ranks`: no standings place, no ties), "(you)"
+  total first, as a plain divided `.list` of "N. Name … $X" (not `.ranks`: no standings place; equal totals list by name), "(you)"
   muted on your row, "Anonymous" for hidden names, then a "Show me as Anonymous" `label.check` that flips at once and
   rolls back on a failed save. Hidden with donations off.
 - **Standings** (`.ranks`): a ranked list. Rank and points in the display face, the rank muted and yours in

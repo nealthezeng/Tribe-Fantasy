@@ -32,7 +32,7 @@ export function CreditsPage() {
       {data && data.length > 1 && <TeamSwitch teams={data} current={m} onPick={pick} />}
       {m && <Credits key={m.id} title={m.team_name} entries={m.credit_ledger} donate={donateFor(m)} />}
       {/* Only while the season takes donations, like the Donate box. */}
-      {m?.leagues && donateFor(m) && <Donors uid={session.user.id} seasonId={m.leagues.season_id} />}
+      {m?.leagues && donateFor(m) && <Donors seasonId={m.leagues.season_id} />}
     </section>
   );
 }
@@ -116,9 +116,9 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
 }
 
 /** Everyone who donated this season, by name and total; a tick box shows you as Anonymous instead. */
-export function Donors({ uid, seasonId }: { uid: string; seasonId: string }) {
+export function Donors({ seasonId }: { seasonId: string }) {
   const board = useLoad(() => api.donationLeaderboard(seasonId), [seasonId]);
-  const anon = useLoad(() => api.myDonateAnonymously(), [uid]);
+  const anon = useLoad(() => api.myDonateAnonymously(), []);
   // The box flips at once (before the save lands) and rolls back if the save fails, as in EmailReminders.
   const [chosen, setChosen] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);

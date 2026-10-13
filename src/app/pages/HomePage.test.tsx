@@ -8,9 +8,10 @@ import { HomePage } from './HomePage';
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false, isAdmin: false }),
 }));
+const season = vi.hoisted(() => ({ settings: {} as Record<string, unknown> }));
 const team = vi.hoisted(() => (id: string, team_name: string, season_id: string) => ({
   id, team_name, league_id: `L-${id}`, created_at: '2026-10-01T00:00:00Z', donation_code: 'BKRT', credit_ledger: [],
-  leagues: { name: `League ${id}`, season_id, seasons: { name: season_id, settings: {} } },
+  leagues: { name: `League ${id}`, season_id, seasons: { name: season_id, get settings() { return season.settings; } } },
 }));
 vi.mock('../lib/supabase', () => {
   const rows = [team('old', 'Last Fall', 'fall'), team('a', 'Zeal', 'spring'), team('b', 'Flow', 'spring')];
@@ -30,7 +31,7 @@ vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), do
 // The team itself (matchup, auction, standings) has its own tests.
 vi.mock('./TournamentCard', () => ({ TournamentCard: ({ teamName }: { teamName: string }) => <h2>{teamName}</h2> }));
 
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => { cleanup(); localStorage.clear(); season.settings = {}; });
 const show = () => render(<MemoryRouter><HomePage /></MemoryRouter>);
 const switcher = () => within(screen.getByRole('group', { name: 'League' }));
 
@@ -92,5 +93,11 @@ describe('CreditsPage with several teams', () => {
     fireEvent.click(switcher().getByRole('button', { name: 'League a' }));
     expect(screen.getByRole('article', { name: 'Zeal' })).toBeTruthy();
     expect(localStorage.getItem('league-team')).toBe('a');
+  });
+
+  it('shows the Donors card while the season takes donations', async () => {
+    season.settings = { donations_enabled: true, venmo_handle: 'tribe-fund' };
+    render(<MemoryRouter><CreditsPage /></MemoryRouter>);
+    expect(await screen.findByRole('article', { name: 'Donors' })).toBeTruthy();
   });
 });
