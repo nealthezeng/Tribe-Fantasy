@@ -25,7 +25,7 @@ vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
   loadNeedsYou: (id: string) => Promise.resolve(id === 'b'),
 }));
-vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]) } }));
+vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), donationLeaderboard: () => Promise.resolve([]) } }));
 // The team itself (matchup, auction, standings) has its own tests.
 vi.mock('./TournamentCard', () => ({ TournamentCard: ({ teamName }: { teamName: string }) => <h2>{teamName}</h2> }));
 
