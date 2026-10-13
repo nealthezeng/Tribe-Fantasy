@@ -6,7 +6,8 @@ import { as, createUser, freshDb, makeAdmin, rpc } from './helpers';
 import { makeKeeper, tap } from './stats-fixture';
 
 /** Read-only helpers used by RLS policies; they write nothing, so no audit row. */
-const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues'];
+const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues',
+  'donation_leaderboard'];
 /** Staff-only reads: refused for non-staff like any staff RPC, but they change nothing, so no audit row. */
 const STAFF_READS = ['list_venmo_receipts'];
 /** Any signed-in user may call these; they check ownership instead of a role. */
@@ -17,6 +18,8 @@ const MEMBER_CALLABLE = [
   'create_my_league', 'delete_league', 'join_open_league', 'rename_league', 'set_league_password',
   // Leave league (t217): only your own team.
   'leave_league',
+  // Donors list (Credits page): your own profile only.
+  'set_donate_anonymously',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
@@ -64,6 +67,7 @@ describe('RPC gate', () => {
     const steps: [string, string, () => Record<string, unknown>, ((r: unknown) => void)?][] = [
       ['set_display_name', player, () => ({ p_name: 'Pat' })],
       ['set_notify_email', player, () => ({ p_on: false })],
+      ['set_donate_anonymously', player, () => ({ p_on: true })],
       ['create_season', admin, () => ({ p_name: 'Gate', p_settings: {} }), (r) => (c.season = r as string)],
       ['update_season_settings', admin, () => ({ p_season: c.season, p_settings: { donations_enabled: true, roster_size: 1, allow_self_ownership: true } })],
       ['create_league', admin, () => ({ p_season: c.season, p_name: 'L' }), (r) => (c.league = r as string)],
