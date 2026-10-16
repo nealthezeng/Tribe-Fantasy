@@ -29,12 +29,18 @@ describe('errorMessage', () => {
     expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES', details: 'League A' })).toMatch(/^League A has more roster spots/);
     expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES' })).toMatch(/^A league has more roster spots/);
   });
-  it('has plain language for every code the tournament migration raises', async () => {
+  it('has plain language for every code the tournament and shares migrations raise', async () => {
     const { readFileSync } = await import('node:fs');
-    const sql = readFileSync(new URL('../../../supabase/migrations/0012_tournament.sql', import.meta.url), 'utf8');
-    const codes = [...new Set([...sql.matchAll(/raise exception '([A-Z_]+)'/g)].map((m) => m[1]))];
+    const sql = ['0012_tournament.sql', '0023_shares.sql']
+      .map((f) => readFileSync(new URL(`../../../supabase/migrations/${f}`, import.meta.url), 'utf8')).join('\n');
+    // set_bench and swap_bench went with the bench (0023, C3).
+    const bench = ['TOURNAMENT_STARTED', 'TOURNAMENT_NOT_STARTED', 'BENCH_SIZE', 'NOT_ACTIVE', 'NOT_ON_BENCH', 'NOT_INJURED', 'SWAP_USED'];
+    const codes = [...new Set([...sql.matchAll(/raise exception '([A-Z_]+)'/g)].map((m) => m[1]))].filter((c) => !bench.includes(c));
     expect(codes.length).toBeGreaterThan(10);
     expect(codes.filter((c) => errorMessage({ message: c }).startsWith('Something went wrong'))).toEqual([]);
+  });
+  it('says how many picks a game takes (M13)', () => {
+    expect(errorMessage({ message: 'TOO_MANY_PICKS' }, '2')).toBe('You already have 2 picks. Clear one first.');
   });
   it('falls back to the raw message', () => {
     expect(errorMessage({ message: 'socket hang up' })).toBe('Something went wrong (socket hang up). Try again, and tell an admin if it keeps happening.');

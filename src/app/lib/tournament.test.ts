@@ -34,10 +34,9 @@ const rows: TournamentRows = {
   pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
   members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00+00:00' },
     { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00+00:00' }],
-  slots: [{ stage_id: 'S1', membership_id: 'm1', athlete_id: 'a1', price: 10, bench: false },
-    { stage_id: 'S1', membership_id: 'm2', athlete_id: 'b1', price: 5, bench: false }],
+  slots: [{ stage_id: 'S1', membership_id: 'm1', athlete_id: 'a1', price: 10, share: 0.5 },
+    { stage_id: 'S1', membership_id: 'm2', athlete_id: 'b1', price: 5, share: 0.25 }],
   picks: [{ stage_id: 'S1', game_number: 1, membership_id: 'm1', athlete_id: 'a1' }],
-  swaps: [],
   sessions: [{ id: 'p1', verified_at: '2026-11-07T20:00:00+00:00' }],
   lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 7 }],
   taps: [],
@@ -56,7 +55,7 @@ describe('toTournamentInput', () => {
     expect(input.games[0]).toEqual({ id: 'g1', stageId: 'S1', number: 1, sessionId: 'p1', startedAt: T,
       finishedAt: '2026-11-07T15:00:00+00:00', opponent: null });
     expect(input.picks).toEqual([{ stageId: 'S1', number: 1, membershipId: 'm1', athleteId: 'a1' }]);
-    expect(input.slots[0]).toEqual({ stageId: 'S1', membershipId: 'm1', athleteId: 'a1', price: 10, bench: false });
+    expect(input.slots[0]).toEqual({ stageId: 'S1', membershipId: 'm1', athleteId: 'a1', price: 10, share: 0.5 });
     expect(input.statLines).toEqual([{ sessionId: 'p1', athleteId: 'a1', stats: { goal: 1 }, pointsPlayed: 7 }]);
     expect(input.injuries).toEqual([{ athleteId: 'b1', confirmedAt: '2026-10-10T00:00:00+00:00', clearedAt: '2026-10-12T00:00:00+00:00' }]);
     expect(input.currentStageId).toBe('S1');
@@ -89,7 +88,9 @@ describe('buildLeagueTournament', () => {
     expect(y.result.games.map((g) => g.status)).toEqual(['final', 'upcoming']);
     // Tournament ×2: goal 3 × 2 = 6. m2 never picked, so b1 played for them (and scored 0).
     const [m] = y.result.games[0].matchups;
-    expect(m.away).toMatchObject({ membershipId: 'm2', picked: null, athleteId: 'b1', notice: 'missed', score: 0 });
+    expect(m.away).toMatchObject({ membershipId: 'm2', picked: [], athleteIds: ['b1'], score: 0,
+      replacements: [{ picked: null, athleteId: 'b1', why: 'missed' }] });
+    expect(m.home).toMatchObject({ athleteIds: ['a1'], athleteScores: { a1: 6 }, factor: { a1: 0.5 }, points: { a1: 3 }, score: 3 });
     expect(y.result.standings[0]).toMatchObject({ membershipId: 'm1', wins: 1, place: 1 });
     expect(y.result.next).toMatchObject({ stageId: 'S1', number: 2 });
     expect(y.team.get('m1')).toBe('Zeal');
@@ -99,11 +100,24 @@ describe('buildLeagueTournament', () => {
 });
 
 describe('checkPairing', () => {
-  const provisional = [{ league_id: 'L', order: ['m1', 'm2', 'm3', 'm4'], meetings: { 'm1|m2': 1, 'm3|m4': 1 } }];
+  const provisional = [{ league_id: 'L', order: ['m1', 'm2', 'm3', 'm4'], meetings: { 'm1|m2': 1, 'm3|m4': 1 }, season_meetings: {} }];
   it('matches the Swiss re-run, whatever order jsonb gave the keys', () => {
     // Avoiding the rematches: 1v3, 2v4.
     const pairings = [{ away: 'm3', home: 'm1', league_id: 'L' }, { away: 'm4', home: 'm2', league_id: 'L' }];
     expect(checkPairing({ pairings, provisional })).toBe(true);
+  });
+  it('re-runs with the season rematches too (C11)', () => {
+    const pairings = [{ league_id: 'L', home: 'm1', away: 'm3' }, { league_id: 'L', home: 'm2', away: 'm4' }];
+    const seasonOnly = [{ league_id: 'L', order: ['m1', 'm2', 'm3', 'm4'], meetings: {}, season_meetings: { 'm1|m2': 1, 'm3|m4': 1 } }];
+    expect(checkPairing({ pairings, provisional: seasonOnly })).toBe(true);
+    // A row saved before season_meetings existed re-runs without them.
+    expect(checkPairing({ pairings, provisional: [{ league_id: 'L', order: ['m1', 'm2', 'm3', 'm4'], meetings: {} }] as never })).toBe(false);
+  });
+  it('checks a 12-team league (max_members 12)', () => {
+    const order = Array.from({ length: 12 }, (_, i) => `m${i + 1}`);
+    const pairings = [['m1', 'm4'], ['m2', 'm3'], ['m5', 'm6'], ['m7', 'm8'], ['m9', 'm10'], ['m11', 'm12']]
+      .map(([home, away]) => ({ league_id: 'L', home, away }));
+    expect(checkPairing({ pairings, provisional: [{ league_id: 'L', order, meetings: { 'm1|m2': 1 }, season_meetings: { 'm1|m3': 1, 'm3|m4': 1 } }] })).toBe(true);
   });
   it('flags a pairing that is not the Swiss one', () => {
     const pairings = [{ league_id: 'L', home: 'm1', away: 'm4' }, { league_id: 'L', home: 'm2', away: 'm3' }];
@@ -114,10 +128,10 @@ describe('checkPairing', () => {
     const pairings = [{ away: 'm3', home: 'm1', league_id: 'L' }];
     expect(checkPairing({ pairings, provisional: [{}] as never })).toBe(false); // missing order
     expect(checkPairing({ pairings, provisional: [null] as never })).toBe(false); // null entry
-    // 9 ids exceeds the 8-team max: would hang the tab during Swiss
+    // 13 ids exceeds the 12-team max: would hang the tab during Swiss
     expect(checkPairing({
       pairings,
-      provisional: [{ league_id: 'L', order: ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9'], meetings: {} }],
+      provisional: [{ league_id: 'L', order: Array.from({ length: 13 }, (_, i) => `m${i + 1}`), meetings: {}, season_meetings: {} }],
     })).toBe(false);
   });
 });
@@ -204,7 +218,7 @@ describe('needsYou', () => {
   const NOW = Date.parse('2026-10-11T12:00:00Z');
   const row = (membershipId: string, wins: number, place: number, tied = false) =>
     ({ membershipId, wins, losses: 0, ties: 0, place, tied, points: wins, totalScore: 0 });
-  const y = (over: object) => ({ result: { standings: [row('m1', 0, 1, true), row('m2', 0, 1, true)], games: [], next: null, ...over } }) as unknown as LeagueTournament;
+  const y = (over: object) => ({ settings: { picks_per_game: 2 }, result: { standings: [row('m1', 0, 1, true), row('m2', 0, 1, true)], games: [], next: null, ...over } }) as unknown as LeagueTournament;
   const open = { stage: { bid_close_at: '2026-10-13T12:00:00Z', auction_run_at: null }, bids: 0 };
 
   it('flags an open auction you have not bid in, and nothing once you have or it closed', () => {
@@ -214,10 +228,12 @@ describe('needsYou', () => {
     expect(needsYou(y({}), 'm1', null, NOW)).toBe(false);
   });
 
-  it('flags a missing pick for the next game, not a live game', () => {
+  it('flags missing picks for the next game, not a live game', () => {
     const live = { status: 'live', game: { number: 2 }, matchups: [{ home: { membershipId: 'm2' }, away: { membershipId: 'm1' } }] };
-    const next = (picked: string | null) => ({ stageId: 's', number: 3, sides: [{ membershipId: 'm1', picked }] });
-    expect(needsYou(y({ games: [live], next: next(null) }), 'm1', null, NOW)).toBe(true);
-    expect(needsYou(y({ games: [live], next: next('a1') }), 'm1', null, NOW)).toBe(false);
+    const next = (picked: string[], players = ['a1', 'a2', 'a3']) => ({ stageId: 's', number: 3, sides: [{ membershipId: 'm1', picked, players }] });
+    expect(needsYou(y({ games: [live], next: next([]) }), 'm1', null, NOW)).toBe(true);
+    expect(needsYou(y({ games: [live], next: next(['a1']) }), 'm1', null, NOW)).toBe(true); // 1 of 2
+    expect(needsYou(y({ games: [live], next: next(['a1', 'a2']) }), 'm1', null, NOW)).toBe(false);
+    expect(needsYou(y({ games: [live], next: next(['a1'], ['a1']) }), 'm1', null, NOW)).toBe(false); // a 1-player roster is set
   });
 });

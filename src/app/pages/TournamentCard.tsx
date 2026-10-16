@@ -1,5 +1,4 @@
 import { Fragment, useState, type ReactNode } from 'react';
-import { rawScore } from '../../core/scoring';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
@@ -16,6 +15,10 @@ const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.a
 const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}–${r.losses}${r.ties ? `–${r.ties}` : ''}`;
 /** An athlete's name, or `none` when nobody plays. */
 const athleteName = (y: LeagueTournament, id: string | null, none = 'nobody') => (id ? y.athlete.get(id) ?? 'A player' : none);
+/** Two significant figures, so a sliver of a share never reads 0: 0.45, 0.0033. */
+const sig = (n: number) => Number(n.toPrecision(2));
+/** 67%; under 1% keeps one significant figure, so a sliver never reads 0%. */
+const pct = (share: number) => `${share < 0.01 ? Number((share * 100).toPrecision(1)) : Math.round(share * 100)}%`;
 const sides = (g: GameOutcome) => g.matchups.flatMap((m) => [m.home, m.away]);
 const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null | undefined => {
   const m = g.matchups.find((x) => x.home.membershipId === membershipId || x.away?.membershipId === membershipId);
@@ -101,10 +104,12 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const row = y.result.standings.find((r) => r.membershipId === membershipId);
   // Before any game counts, Place / Record / Points would read T1 / 0–0 / 0: say so in the strip instead (t228).
   const anyPlayed = y.result.standings.some((r) => r.wins + r.losses + r.ties > 0);
-  // Before a game starts the scorer's auto-pick is a guess, so show only the manager's own pick.
-  const minePlayer = status === 'upcoming' ? mine?.picked ?? null : mine?.athleteId ?? null;
-  // A pick that won't play (injured, or moved to the bench) must not look all set up here.
-  const doomed = status === 'upcoming' && minePlayer !== null && (mine?.notice === 'injured' || mine?.notice === 'inactive');
+  const upcoming = status === 'upcoming';
+  // Before a game starts the scorer's auto-picks are a guess, so show only the manager's own picks.
+  const minePlayers = !mine ? [] : upcoming ? mine.picked : mine.athleteIds;
+  // A pick that won't play (injured, with someone free to replace them) must not look all set up here.
+  const doomed = upcoming && !!mine && mine.replacements.some((r) => r.picked !== null && !mine.athleteIds.includes(r.picked));
+  const wanted = mine ? Math.min(y.settings.picks_per_game, mine.players.length) : 0;
 
   return (
     <>
@@ -124,7 +129,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
               {status === 'pending' && <span>Waiting on stats</span>}
               {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
             </>}
-            {doomed && <span className="pill warn">{mine?.notice === 'injured' ? 'Your pick is injured' : 'Your pick is on the bench'}</span>}
+            {doomed && <span className="pill warn">Your pick is injured</span>}
           </> : <>
             <span>{subtitle}</span>
             <span>{y.result.standings.length} {y.result.standings.length === 1 ? 'team' : 'teams'}</span>
@@ -134,16 +139,16 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
       </div>
       {g && them && mine && (
         <div className="score">
-          <ScoreSide label={status === 'upcoming' ? 'Your pick' : 'You played'} y={y} athleteId={minePlayer}
-            picked={status === 'upcoming' && minePlayer !== null && !doomed}
-            score={final ? mine.score : null} empty={status === 'upcoming' ? 'No pick yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
+          <ScoreSide label={upcoming ? 'Your picks' : 'You played'} y={y} athleteIds={minePlayers}
+            picked={upcoming && wanted > 0 && minePlayers.length >= wanted && !doomed}
+            score={final ? mine.score : null} empty={upcoming ? 'No picks yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
           <span className="vs">{final ? 'to' : 'vs'}</span>
-          <ScoreSide label={status === 'upcoming' ? 'Their pick' : 'They played'} y={y}
-            athleteId={status === 'upcoming' ? null : them.athleteId} score={final ? them.score : null}
-            empty={status === 'upcoming' ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
+          <ScoreSide label={upcoming ? 'Their picks' : 'They played'} y={y}
+            athleteIds={upcoming ? [] : them.athleteIds} score={final ? them.score : null}
+            empty={upcoming ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
         </div>
       )}
-      {mine && status !== 'upcoming' && <Notice y={y} side={mine} />}
+      {mine && !upcoming && <Notice y={y} side={mine} played />}
       {anyPlayed && (
         <dl className="tiles">
           <div><dt>Place</dt><dd><span className="big">{row ? `${row.tied ? 'T' : ''}${row.place}` : '–'}</span> <span className="of">of {y.result.standings.length}</span></dd></div>
@@ -155,16 +160,18 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   );
 }
 
-function ScoreSide({ label, y, athleteId, score, empty, lost = false, picked = false }: {
-  label: string; y: LeagueTournament; athleteId: string | null; score: number | null; empty: string; lost?: boolean;
-  /** Your pick is set for the next game: shown in green. */
+function ScoreSide({ label, y, athleteIds, score, empty, lost = false, picked = false }: {
+  label: string; y: LeagueTournament; athleteIds: string[]; score: number | null; empty: string; lost?: boolean;
+  /** Your picks are set for the next game: shown in green. */
   picked?: boolean;
 }) {
-  const name = athleteId ? y.athlete.get(athleteId) ?? 'A player' : empty;
+  // First names: two of them share half a phone-wide scoreboard. The pick card has the full names.
+  const names = athleteIds.length === 0 ? empty : athleteIds.map((a) => <span key={a}>{athleteName(y, a).split(' ')[0]}</span>);
   return (
     <div className={['score-side', lost && 'lost', picked && 'picked'].filter(Boolean).join(' ')}>
       <small>{label}</small>
-      {score !== null ? <><span className="pts">{fmt(score)}</span><strong>{name}</strong></> : <span className="pts-name">{name}</span>}
+      {score !== null ? <><span className="pts">{fmt(score)}</span><strong className="names">{names}</strong></>
+        : <span className="pts-name names">{names}</span>}
     </div>
   );
 }
@@ -185,29 +192,23 @@ function PickGame({ y, next, membershipId, onSaved }: {
   if (paired && them === undefined) {
     return <div className="stack"><h2>{title}</h2><p className="muted">You start next game.</p></div>;
   }
-  const started = y.input.games.some((g) => g.stageId === next.stageId && g.startedAt !== null);
-  const swapUsed = y.input.swaps.some((w) => w.stageId === next.stageId && w.membershipId === membershipId);
-  const injuredActive = mine.active.filter((a) => y.injured.has(a));
+  const n = y.settings.picks_per_game;
+  const wanted = Math.min(n, mine.players.length);
+  const full = mine.picked.length >= n;
   const byName = (a: string, b: string) => name(a).localeCompare(name(b));
 
-  async function act(action: () => Promise<void>) {
+  /** Saves the whole set: set_game_pick replaces the team's picks for this game. */
+  async function save(athleteIds: string[]) {
     setBusy(true);
     setError(null);
     try {
-      await action();
+      await api.setGamePick(membershipId, next.stageId, next.number, athleteIds);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, String(n)));
     }
     setBusy(false);
     onSaved(); // a refused pick usually means the game just started: show it
   }
-  const choose = (athleteId: string | null) => act(() => api.setGamePick(membershipId, next.stageId, next.number, athleteId));
-  // ponytail: benching rotates out the longest-benched player; with the default bench of 1 that's a plain swap.
-  const bench = (athleteId: string) => act(() => api.setBench(membershipId, next.stageId, [athleteId, ...mine.bench].slice(0, mine.bench.length)));
-  const swapIn = (out: string, inAthlete: string) => {
-    if (!window.confirm(`Swap ${name(inAthlete)} in for ${name(out)} for the rest of this tournament? You get one swap per tournament.`)) return;
-    void act(() => api.swapBench(membershipId, next.stageId, out, inAthlete));
-  };
 
   return (
     <div className="stack">
@@ -217,64 +218,66 @@ function PickGame({ y, next, membershipId, onSaved }: {
           : them === null ? 'You have a bye this game.'
             : 'Opponent TBD.'}
       </p>
-      {mine.notice === 'missed' && (
-        <p className="notice">No pick yet. If you don't pick, {name(mine.athleteId)} plays{mine.athleteId ? '' : ' and you forfeit'}.</p>
-      )}
-      {mine.notice === 'injured' && (
-        <p className="notice">{name(mine.picked)} is injured. {name(mine.athleteId)} plays.</p>
-      )}
-      {mine.notice === 'inactive' && (
-        <p className="notice">{name(mine.picked)} is benched. {name(mine.athleteId)} plays.</p>
-      )}
+      <Notice y={y} side={mine} />
+      <p className="count-line"><span>Pick {wanted}</span><strong>{mine.picked.length} of {wanted}</strong></p>
       <ul className="list">
-        {[...mine.active].sort(byName).map((id) => {
-          const chosen = mine.picked === id;
-          const tired = mine.rest[id] < 1;
-          return (
-            <li key={id}>
-              <span className="meta">
-                <span className="title">{name(id)}</span>
-                {tired && <span className="pill warn">Tired ×{fmt(mine.rest[id])}</span>}
-                {y.injured.has(id) && <span className="pill bad">Injured</span>}
-              </span>
-              {!started && mine.bench.length > 0 && (
-                <button className="secondary" aria-label={`Bench ${name(id)}`} disabled={busy} onClick={() => void bench(id)}>Bench</button>
-              )}
-              {chosen ? (
-                <button className="secondary picked" aria-pressed="true" disabled={busy} onClick={() => void choose(null)}>
-                  <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" /></svg>
-                  Your pick <span className="clear">· Clear</span>
-                </button>
-              ) : (
-                <button aria-label={`Pick ${name(id)}`} disabled={busy} onClick={() => void choose(id)}>Pick</button>
-              )}
-            </li>
-          );
-        })}
-        {[...mine.bench].sort(byName).map((id) => (
-          <li key={id} className="used">
-            <span className="meta">
-              <span className="title">{name(id)}</span>
-              <span className="pill">Bench</span>
-              {y.injured.has(id) && <span className="pill bad">Injured</span>}
+        {[...mine.players].sort(byName).map((id) => (
+          <li key={id} className="pickrow">
+            <span className="who">
+              <span><span className="title">{name(id)}</span>{y.injured.has(id) && <> <span className="pill bad">Injured</span></>}</span>
+              <Factor side={mine} id={id} />
             </span>
-            {started && !swapUsed && injuredActive.map((out) => (
-              <button key={out} className="secondary" disabled={busy} onClick={() => swapIn(out, id)}>Swap in for {name(out)}</button>
-            ))}
+            {mine.picked.includes(id) ? (
+              <button className="secondary picked" aria-pressed="true" disabled={busy}
+                onClick={() => void save(mine.picked.filter((a) => a !== id))}>
+                <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" /></svg>
+                Your pick <span className="clear">· Clear</span>
+              </button>
+            ) : (
+              <button aria-label={`Pick ${name(id)}`} disabled={busy || full} onClick={() => void save([...mine.picked, id])}>Pick</button>
+            )}
           </li>
         ))}
       </ul>
+      {full && mine.players.length > mine.picked.length && <p className="hint">You have {n} picks. Clear one to change.</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );
 }
 
-function Notice({ y, side }: { y: LeagueTournament; side: TournamentSide }) {
+/** What a player's points count for this game (decision 11): one number, its parts one tap away. The core multiplies. */
+function Factor({ side, id }: { side: TournamentSide; id: string }) {
+  return (
+    <details className="factor">
+      <summary aria-label={`Counts ×${sig(side.factor[id])}`}>×{sig(side.factor[id])}</summary>
+      <p className="parts">
+        <span><b>{pct(side.share[id])}</b> share</span>
+        {side.rest[id] < 1 ? <span><b>×{sig(side.rest[id])}</b> tired</span> : <span><b>×1</b> rested</span>}
+        {side.decay[id] !== 1 && <span><b>×{sig(side.decay[id])}</b> earlier tournaments</span>}
+      </p>
+    </details>
+  );
+}
+
+/**
+ * Why a starter isn't the team's own pick: each injured pick, then who fills the picks left empty. An injured pick with
+ * nobody healthy free to replace them plays anyway (the core lists them as their own replacement): not a swap.
+ */
+function Notice({ y, side, played = false }: { y: LeagueTournament; side: TournamentSide; played?: boolean }) {
   const name = (id: string | null) => athleteName(y, id);
-  if (!side.notice) return null;
-  const who = side.athleteId ? `${name(side.athleteId)} played for you` : 'nobody was left to play (forfeit)';
-  const why = { missed: "You didn't pick", injured: `${name(side.picked)} was injured`, inactive: `${name(side.picked)} was on your bench` }[side.notice];
-  return <p className="notice">{why}, so {who}.</p>;
+  const lines = side.replacements.flatMap(({ picked, athleteId }) => {
+    if (picked === null) return [];
+    if (side.athleteIds.includes(picked)) {
+      return [played ? `${name(picked)} was injured and played: nobody else was free.` : `${name(picked)} is injured and still plays: nobody else is free.`];
+    }
+    return [played ? `${name(picked)} was injured, so ${name(athleteId)} played.` : `${name(picked)} is injured. ${name(athleteId)} plays.`];
+  });
+  const fill = side.replacements.flatMap((r) => (r.picked === null && r.athleteId !== null ? [name(r.athleteId)] : []));
+  if (fill.length > 0) {
+    const who = fill.join(' and ');
+    lines.push(played ? `You didn't pick, so ${who} played.` : `If you don't pick, ${who} ${fill.length === 1 ? 'plays' : 'play'}.`);
+  }
+  return <>{lines.map((t) => <p key={t} className="notice">{t}</p>)}</>;
 }
 
 /**
@@ -381,6 +384,7 @@ function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome;
             {m.away ? <SideDetail y={y} g={g} side={m.away} /> : <p className="muted">Bye</p>}
           </div>
         ))}
+        {g.status === 'final' && <p className="hint">× is share × tired × earlier tournaments.</p>}
       </div>
     </details>
   );
@@ -396,45 +400,30 @@ function GameSide({ y, side, lost }: { y: LeagueTournament; side: TournamentSide
   );
 }
 
-/** "Christopher Mao by (T) Test Zeal": who played, and for whose team. */
-function ByLine({ player, team }: { player: string; team: string }) {
-  return (
-    <span className="by">
-      {player} <small>by</small> <span className="avatar sm" aria-hidden="true">{team.trim().charAt(0).toUpperCase()}</span>{' '}
-      <strong>{team}</strong>
-    </span>
-  );
-}
-
-/** A line's points, with the tournament multiplier (×2) that every game score carries alike. */
-const raw = (y: LeagueTournament, stats: Record<string, number>) =>
-  (y.settings.session_multipliers.tournament ?? 1) * rawScore(stats, y.settings.stat_weights);
-
+/** One team's side of an opened game: each starter as "name · stats" and, once final, "game score × factor = points". */
 function SideDetail({ y, g, side }: { y: LeagueTournament; g: GameOutcome; side: TournamentSide }) {
-  const line = side.athleteId === null ? undefined
-    : y.input.statLines.find((l) => l.sessionId === g.game.sessionId && l.athleteId === side.athleteId);
-  const factors = [
-    side.tired !== null && side.tired !== 1 ? ` × ${fmt(side.tired)} tired` : '',
-    side.decay !== null && side.decay !== 1 ? ` × ${fmt(side.decay)} earlier tournaments` : '',
-  ].join('');
+  const statsOf = (a: string) => {
+    const line = y.input.statLines.find((l) => l.sessionId === g.game.sessionId && l.athleteId === a);
+    return line ? Object.entries(line.stats).filter(([, n]) => n).map(([k, n]) => `${n} ${statLabel(k)}`).join(', ') || 'No stats'
+      : "Didn't play";
+  };
   return (
     <div className="stack">
       <p className="head">
-        <ByLine player={side.athleteId ? y.athlete.get(side.athleteId) ?? 'A player' : 'Forfeit'} team={y.team.get(side.membershipId) ?? 'A team'} />
+        <span className="by">{y.team.get(side.membershipId) ?? 'A team'}</span>
         {side.score !== null && <span className="num">{fmt(side.score)} {side.delta !== null && <>({signed(side.delta)})</>}</span>}
       </p>
-      <Notice y={y} side={side} />
-      {side.score !== null && side.athleteId !== null && (
+      <Notice y={y} side={side} played />
+      {side.athleteIds.length === 0 ? <p className="muted">Forfeit</p> : (
         <ul className="list">
-          <li>
-            <small>{line ? Object.entries(line.stats).filter(([, n]) => n).map(([k, n]) => `${n} ${statLabel(k)}`).join(', ') || 'No stats'
-              : `Didn't play: ${fmt(y.settings.absent_score)}`}</small>
-            {line && <span className="num">{fmt(raw(y, line.stats))}</span>}
-          </li>
-          <li>
-            <span>Game score{factors}</span>
-            <strong className="num">{fmt(side.athleteScore!)}{factors && <>{factors.replace(/ tired| earlier tournaments/g, '')} = {fmt(side.score)}</>}</strong>
-          </li>
+          {side.athleteIds.map((a) => (
+            <li key={a}>
+              <small>{athleteName(y, a)}{side.points && ` · ${statsOf(a)}`}</small>
+              {side.points && side.athleteScores && (
+                <strong className="num calc">{fmt(side.athleteScores[a])} × {sig(side.factor[a])} = {fmt(side.points[a])}</strong>
+              )}
+            </li>
+          ))}
         </ul>
       )}
     </div>

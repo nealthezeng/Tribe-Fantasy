@@ -69,23 +69,22 @@ const MESSAGES: Record<string, string> = {
   GAME_NOT_STARTED: "This game hasn't started, so there's nothing to undo.",
   NOT_LATEST_GAME: 'Undo the newest game first: only the latest played game can be undone.',
   PAIRINGS_INVALID: "Those pairings don't include every team exactly once. Reload and try again.",
-  TOURNAMENT_STARTED: 'The tournament has started, so the bench is set. Use Swap in if an active player is injured.',
-  TOURNAMENT_NOT_STARTED: "The tournament hasn't started yet. Change your bench instead.",
-  BENCH_SIZE: "That's the wrong number of bench players.",
-  NOT_ACTIVE: "That player isn't one of your active players.",
-  NOT_ON_BENCH: "That player isn't on your bench.",
-  NOT_INJURED: 'You can swap only for a player with a confirmed injury.',
-  SWAP_USED: "You've already used your bench swap this tournament.",
+  TOO_MANY_PICKS: 'You already have {detail} picks. Clear one first.',
+  TOO_MANY_PLAYERS: 'You can buy shares in up to {detail} players. Remove one first.',
+  INVALID_INVITE: "That invite code isn't right. Check it with the league's creator.",
   NOT_ON_ROSTER: "That player isn't on your roster this tournament.",
   STANDINGS_MISSING: "The standings didn't include every team. Reload and try again.",
   NOT_ENOUGH_ATHLETES: '{detail} has more roster spots than healthy opted-in players. Opt in more players or lower the roster size.',
 };
 
-/** `{detail}` in a message is replaced by the error's detail (Postgres DETAIL), e.g. a league name. */
-export function errorMessage(err: unknown): string {
+/**
+ * `{detail}` in a message is replaced by the error's detail (Postgres DETAIL), e.g. a league name, else by `fallback`
+ * (the pick card passes picks_per_game for TOO_MANY_PICKS).
+ */
+export function errorMessage(err: unknown, fallback = 'A league'): string {
   const e = typeof err === 'object' && err !== null ? (err as { message?: unknown; details?: unknown; detail?: unknown }) : {};
   const raw = 'message' in e ? String(e.message) : String(err);
-  const detail = String(e.details ?? e.detail ?? 'A league');
+  const detail = String(e.details ?? e.detail ?? fallback);
   return MESSAGES[raw.trim()]?.replace('{detail}', detail)
     ?? `Something went wrong (${raw}). Try again, and tell an admin if it keeps happening.`;
 }

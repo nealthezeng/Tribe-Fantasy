@@ -8,25 +8,22 @@ import { auctionFixture, bid, closeBids, grant, member, openAuction, runAuction,
 import { makeKeeper, tap } from './stats-fixture';
 import { stageAllowance } from '../../src/core/points';
 import { DEFAULT_SETTINGS } from '../../src/core/settings';
-import { pairingInputs, rosterOf, scoreTournaments, type TournamentInput, type TournamentResult } from '../../src/core/tournament';
-import { checkPairing, toPairings, toTournamentInput, type TournamentRows } from '../../src/app/lib/tournament';
+import { rosterOf, scoreTournaments, type TournamentResult } from '../../src/core/tournament';
+import { checkPairing, leaguePairingInput, toPairings, toTournamentInput, type TournamentRows } from '../../src/app/lib/tournament';
 
 let f: AuctionFixture;
 let teams: { uid: string; mid: string; name: string }[];
 let keeper: string, verifier: string;
 let result: TournamentResult;
-let rows: Rows;
+let rows: TournamentRows;
 const NOW = Date.parse('2027-01-01T00:00:00Z'); // after every game's verified_at (set below), so all three played games are final
 const START = 115; // everyone ties before the first game: (100 + 130) / 2
 
 const q = async <T,>(sql: string, params: unknown[] = []) => (await f.db.query<T>(sql, params)).rows;
 const iso = (col: string) => `to_json(${col}) #>> '{}' as ${col.split('.').pop()}`;
 
-type Slot = { stage_id: string; membership_id: string; athlete_id: string; price: number; share: number };
-type Rows = Omit<TournamentRows, 'slots' | 'swaps'> & { slots: Slot[] };
-
 /** Every row the way loadLeagueRows reads them for staff (with live taps). */
-const readRows = async (): Promise<Rows> => ({
+const readRows = async (): Promise<TournamentRows> => ({
   settings: (await q<{ settings: unknown }>('select settings from public.seasons where id = $1', [f.season]))[0].settings,
   stages: await q(`select id, name, starts_on::text, ends_on::text, ${iso('bid_close_at')}, auction_seed, ${iso('auction_run_at')}
     from public.stages where season_id = $1`, [f.season]),
@@ -42,19 +39,10 @@ const readRows = async (): Promise<Rows> => ({
   athletes: await q('select id, name from public.athletes where season_id = $1', [f.season]),
 });
 
-// ponytail: toTournamentInput (src/app/lib/tournament.ts) reads bench and swaps and drops share until T5 moves it to
-// shares. Feed it the old shape and put the shares back; once T5 lands this is just toTournamentInput(rows, now).
-const inputOf = (r: Rows, now: number): TournamentInput => {
-  const legacy = { ...r, slots: r.slots.map((x) => ({ ...x, bench: false })), swaps: [] };
-  return {
-    ...toTournamentInput(legacy as unknown as TournamentRows, now),
-    slots: r.slots.map((x) => ({ stageId: x.stage_id, membershipId: x.membership_id, athleteId: x.athlete_id, price: x.price, share: x.share })),
-  };
-};
 
 /** The next game's pairings and their inputs, as the finishing keeper's phone computes them. */
 const pairNext = async () => {
-  const provisional = [{ league_id: f.league, ...pairingInputs(inputOf(await readRows(), Date.now())) }];
+  const provisional = [leaguePairingInput(f.league, toTournamentInput(await readRows(), Date.now()))];
   return { pairings: provisional.flatMap(toPairings), provisional };
 };
 /** A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself). */
@@ -101,7 +89,7 @@ beforeAll(async () => {
   await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: first.pairings }));
   const sessionLines = new Map<string, { athlete_id: string; stats: Record<string, number> }[]>();
   for (const n of [1, 2, 3]) {
-    const input = inputOf(await readRows(), Date.now());
+    const input = toTournamentInput(await readRows(), Date.now());
     for (const [i, t] of teams.entries()) {
       if (n === 3 && i === 2) continue;
       const roster = rosterOf(input, t.mid, f.stage);
@@ -138,7 +126,7 @@ beforeAll(async () => {
   }
   await f.db.query(`update public.sessions set verified_at = '2026-11-08T00:00:00Z' where id in (select session_id from public.games)`);
   rows = await readRows();
-  result = scoreTournaments(inputOf(rows, NOW));
+  result = scoreTournaments(toTournamentInput(rows, NOW));
 }, 120_000);
 
 const team = (mid: string) => teams.find((t) => t.mid === mid)!.name;
@@ -211,7 +199,7 @@ describe('dry run: one tournament, six managers', () => {
   });
 
   it('is deterministic', () => {
-    expect(scoreTournaments(inputOf(rows, NOW))).toEqual(result);
+    expect(scoreTournaments(toTournamentInput(rows, NOW))).toEqual(result);
   });
 
   it('grants the next stage allowance from these standings, matching the TypeScript formula', async () => {

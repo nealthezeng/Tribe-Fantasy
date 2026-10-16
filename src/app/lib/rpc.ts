@@ -118,10 +118,7 @@ export const api = {
   deleteStage: (stageId: string) => call<void>('delete_stage', { p_stage: stageId }),
   renameSeason: (seasonId: string, name: string) => call<void>('rename_season', { p_season: seasonId, p_name: name }),
   deleteSeason: (seasonId: string) => call<void>('delete_season', { p_season: seasonId }),
-  setGamePick: (membershipId: string, stageId: string, number: number, athleteId: string | null) =>
-    call<void>('set_game_pick', { p_membership: membershipId, p_stage: stageId, p_number: number, p_athlete: athleteId }),
-  setBench: (membershipId: string, stageId: string, athleteIds: string[]) =>
-    call<void>('set_bench', { p_membership: membershipId, p_stage: stageId, p_athletes: athleteIds }),
-  swapBench: (membershipId: string, stageId: string, outAthlete: string, inAthlete: string) =>
-    call<void>('swap_bench', { p_membership: membershipId, p_stage: stageId, p_out: outAthlete, p_in: inAthlete }),
+  /** Replaces the team's whole pick set for game `number` (0 to picks_per_game players); PostgREST takes the JSON array as uuid[]. */
+  setGamePick: (membershipId: string, stageId: string, number: number, athleteIds: string[]) =>
+    call<void>('set_game_pick', { p_membership: membershipId, p_stage: stageId, p_number: number, p_athletes: athleteIds }),
 };

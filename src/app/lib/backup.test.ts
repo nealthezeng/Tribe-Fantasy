@@ -12,6 +12,10 @@ describe('backup', () => {
     expect(Object.keys(BACKUP_TABLES).sort()).toEqual(kept);
   });
 
+  it('keys game_picks by player, one row per pick (M13)', () => {
+    expect(BACKUP_TABLES.game_picks).toEqual(['stage_id', 'game_number', 'membership_id', 'athlete_id']);
+  });
+
   it('writes the ledger oldest first with dollars to the cent', () => {
     const rows = ledgerRows([{ name: 'A', memberships: [{ team_name: 'Zeal', credit_ledger: [
       { created_at: '2026-10-19T00:00:00Z', kind: 'bid', amount: -40, dollars: null, note: null, stages: { name: 'Fall' } },

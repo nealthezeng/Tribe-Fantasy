@@ -14,12 +14,12 @@ vi.mock('../lib/tournament', async (orig) => ({
   loadSeasonStandings: () => Promise.resolve(overall.current),
   countLeagues: () => Promise.resolve(overall.leagues),
 }));
-vi.mock('../lib/rpc', () => ({ api: { setGamePick: vi.fn(), setBench: vi.fn(), swapBench: vi.fn() } }));
+vi.mock('../lib/rpc', () => ({ api: { setGamePick: vi.fn() } }));
 
 const NAMES: Record<string, string> = { a1: 'Ash', a2: 'Avery', a3: 'Alex', a4: 'Arlo', b1: 'Bea', b2: 'Quinn', b3: 'Blake', b4: 'Bryn' };
-const roster = (m: string, ids: string[]) =>
-  ids.map((athlete_id, i) => ({ stage_id: 'S1', membership_id: m, athlete_id, price: [30, 20, 10, 5][i], bench: false }));
-/** Two teams before the tournament opens: a4 and b4 are the cheapest, so they're benched by default. */
+const roster = (m: string, ids: string[], shares = [1, 1, 1, 1]) =>
+  ids.map((athlete_id, i) => ({ stage_id: 'S1', membership_id: m, athlete_id, price: [30, 20, 10, 5][i], share: shares[i] }));
+/** Two teams of four players before the tournament opens. */
 const base = (): TournamentRows => ({
   settings: {},
   stages: [{ id: 'S1', name: 'Fall beta', starts_on: '2026-10-19', ends_on: '2026-11-08', bid_close_at: '2026-11-03T00:00:00Z', auction_seed: null,
@@ -29,7 +29,6 @@ const base = (): TournamentRows => ({
   members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00Z' }, { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00Z' }],
   slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4']), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
   picks: [],
-  swaps: [],
   sessions: [],
   lines: [],
   taps: [],
@@ -48,14 +47,14 @@ const afterGame1 = (): TournamentRows => ({
   sessions: [{ id: 'p1', verified_at: null }],
 });
 
-const confirm = vi.fn();
 afterEach(cleanup);
 beforeEach(() => {
-  vi.mocked(api.setGamePick).mockReset();
-  vi.mocked(api.setBench).mockReset();
-  vi.mocked(api.swapBench).mockReset();
-  confirm.mockReset().mockReturnValue(true);
-  window.confirm = confirm;
+  // Saves the way set_game_pick does: the set replaces this team's picks for that game.
+  vi.mocked(api.setGamePick).mockReset().mockImplementation((m, stage, n, ids) => {
+    rows.current = { ...rows.current, picks: [...rows.current.picks.filter((p) => !(p.membership_id === m && p.game_number === n)),
+      ...ids.map((athlete_id) => ({ stage_id: stage, game_number: n, membership_id: m, athlete_id }))] };
+    return Promise.resolve();
+  });
 });
 const show = async (r: TournamentRows) => {
   rows.current = r;
@@ -75,37 +74,106 @@ describe('TournamentCard', () => {
     expect(screen.getByText(/vs UNC · Fall beta/)).toBeTruthy();
   });
 
-  it('lets a manager pre-select game 1 and choose the bench before the tournament opens', async () => {
+  it('pre-selects two players for game 1, then refuses a third until one is cleared', async () => {
     await show(base());
     expect(screen.getByText('Opponent TBD.')).toBeTruthy();
-    expect(screen.getByText('Arlo').parentElement?.textContent).toContain('Bench');
-    fireEvent.click(screen.getByRole('button', { name: 'Pick Alex' }));
-    await waitFor(() => expect(api.setGamePick).toHaveBeenCalledWith('m1', 'S1', 1, 'a3'));
-    fireEvent.click(screen.getByRole('button', { name: 'Bench Alex' }));
-    await waitFor(() => expect(api.setBench).toHaveBeenCalledWith('m1', 'S1', ['a3']));
+    expect(picks().getByText(/^Pick 2/).parentElement?.textContent).toBe('Pick 20 of 2');
+    fireEvent.click(picks().getByRole('button', { name: 'Pick Alex' }));
+    await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a3']));
+    await waitFor(() => expect(picks().getByText('1 of 2')).toBeTruthy()); // reloaded with Alex picked
+    fireEvent.click(picks().getByRole('button', { name: 'Pick Ash' }));
+    await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a3', 'a1']));
+    await waitFor(() => expect(picks().getAllByRole('button', { pressed: true })).toHaveLength(2));
+    expect(picks().getByText('2 of 2')).toBeTruthy();
+    expect((picks().getByRole('button', { name: 'Pick Avery' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(picks().getByText('You have 2 picks. Clear one to change.')).toBeTruthy();
+    // Clearing Alex (rows list by name) sends Ash alone.
+    fireEvent.click(picks().getAllByRole('button', { pressed: true })[0]);
+    await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a1']));
+    expect(screen.queryByRole('button', { name: /^Bench / })).toBeNull(); // no bench any more (C3)
+  });
+
+  it("shows each player's combined factor, with share, tiredness and earlier tournaments one tap away (decision 11)", async () => {
+    const r = afterGame1();
+    // An earlier tournament where Zeal started Ash: with no grace, Ash carries x0.9 into this one.
+    const S0 = { ...r.stages[0], id: 'S0', name: 'Opener', starts_on: '2026-10-03', ends_on: '2026-10-04' };
+    await show({
+      ...r,
+      settings: { decay_grace_stages: 0 },
+      stages: [S0, ...r.stages],
+      games: [{ id: 'g0', stage_id: 'S0', number: 1, session_id: 'p0', started_at: '2026-10-03T14:00:00Z', finished_at: '2026-10-03T15:00:00Z',
+        opponent: null }, ...r.games],
+      pairings: [{ game_id: 'g0', home: 'm1', away: 'm2' }, ...r.pairings],
+      slots: [{ stage_id: 'S0', membership_id: 'm1', athlete_id: 'a1', price: 10, share: 1 },
+        ...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 0.4, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
+      picks: [{ stage_id: 'S0', game_number: 1, membership_id: 'm1', athlete_id: 'a1' }, ...r.picks],
+      sessions: [{ id: 'p0', verified_at: '2026-10-03T16:00:00Z' }, ...r.sessions],
+    });
+    const row = (name: string) => picks().getByText(name).closest('li')!;
+    // Ash: half of him, started last game (x0.5), started in the opener (x0.9).
+    expect(row('Ash').querySelector('summary')?.textContent).toBe('×0.23');
+    expect(row('Ash').querySelector('.parts')?.textContent).toBe('50% share×0.5 tired×0.9 earlier tournaments');
+    expect(row('Arlo').querySelector('summary')?.textContent).toBe('×1');
+    expect(row('Arlo').querySelector('.parts')?.textContent).toBe('100% share×1 rested'); // x1 earlier tournaments is left out
+    expect(row('Alex').querySelector('summary')?.textContent).toBe('×0.4');
+  });
+
+  it("shows a combined factor of x0.25 for a half share of last game's starter", async () => {
+    const r = afterGame1();
+    await show({ ...r, slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 1, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])] });
+    expect(picks().getByText('Ash').closest('li')?.textContent).toContain('×0.25');
+  });
+
+  it('names who plays for an injured pick, and says when an injured pick still plays', async () => {
+    const r = afterGame1();
+    await show({
+      ...r,
+      picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' },
+        { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }],
+      injuries: [{ athlete_id: 'a2', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+    });
+    // Arlo is the most rested healthy player left (Ash started game 1).
+    expect(picks().getByText('Avery is injured. Arlo plays.')).toBeTruthy();
+    cleanup();
+    // A one-player team: nobody healthy is free, so the injured pick plays anyway. Not a swap.
+    await show({
+      ...r,
+      slots: [...roster('m1', ['a1']), ...roster('m2', ['b1', 'b2'])],
+      picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a1' }],
+      injuries: [{ athlete_id: 'a1', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+    });
+    expect(picks().getByText('Ash is injured and still plays: nobody else is free.')).toBeTruthy();
+    expect(picks().queryByText(/Ash plays/)).toBeNull();
+  });
+
+  it('says who plays if you leave a pick empty', async () => {
+    const r = afterGame1();
+    await show({ ...r, picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }] });
+    expect(picks().getByText(/^If you don't pick, (Avery|Arlo) plays\.$/)).toBeTruthy();
+    expect(picks().getByText('1 of 2')).toBeTruthy();
+    // The scoreboard holds your picks, green only once both are in.
+    expect(document.querySelector('.score-side')?.textContent).toBe('Your picksAlex');
+    expect(document.querySelector('.score-side.picked')).toBeNull();
+    cleanup();
+    await show({ ...r, picks: [...r.picks, ...['a3', 'a4'].map((athlete_id) => ({ stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id }))] });
+    expect(document.querySelector('.score-side.picked')?.textContent).toBe('Your picksAlexArlo');
+    expect(picks().queryByText(/If you don't pick/)).toBeNull();
   });
 
   it("shows the next opponent, the tiredness of last game's starter, and never the opponent's sealed pick", async () => {
     await show(afterGame1());
     expect(screen.getByRole('heading', { name: 'Game 2 · Fall beta' })).toBeTruthy();
     expect(screen.getByText(/^You play/).textContent).toBe('You play Flow.');
-    expect(picks().getByText('Ash').parentElement?.textContent).toContain('Tired ×0.5');
-    // The header leads with the next matchup; neither side's pick is set, and theirs reads as hidden.
+    expect(picks().getByText('Ash').closest('li')?.textContent).toContain('×0.5 tired');
+    // The header leads with the next matchup; neither side's picks are set, and theirs read as hidden.
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
-    expect(screen.getByText('No pick yet')).toBeTruthy();
+    expect(screen.getByText('No picks yet')).toBeTruthy();
     expect(screen.getByText('Hidden')).toBeTruthy();
     expect(screen.queryByText('Record')).toBeNull(); // game 1 isn't verified: no game counts yet, so no tiles (t228)
-    // Quinn is who the scorer would auto-pick for Flow: shown nowhere until game 2 starts.
-    expect(document.body.textContent).not.toContain('Quinn');
+    // Blake and Bryn (rested) are who the scorer would auto-pick for Flow: shown nowhere until game 2 starts.
+    expect(document.body.textContent).not.toContain('Blake');
+    expect(document.body.textContent).not.toContain('Bryn');
     expect(screen.getByText(/Waiting on stats/)).toBeTruthy(); // game 1, finished but not verified
-    expect(screen.queryByRole('button', { name: /^Bench / })).toBeNull(); // the tournament has started
-  });
-
-  it('offers the bench swap for an injured active player once the tournament has started', async () => {
-    await show({ ...afterGame1(), injuries: [{ athlete_id: 'a2', confirmed_at: '2026-11-07T14:30:00Z', cleared_at: null }] });
-    fireEvent.click(screen.getByRole('button', { name: 'Swap in for Avery' }));
-    expect(confirm).toHaveBeenCalled();
-    await waitFor(() => expect(api.swapBench).toHaveBeenCalledWith('m1', 'S1', 'a2', 'a4'));
   });
 
   it('keeps showing the standings between tournaments, with nothing to pick (T4)', async () => {
@@ -118,7 +186,7 @@ describe('TournamentCard', () => {
   });
 
   describe('game cards (t93, t90)', () => {
-    /** Game 1 played and verified, so final: Ash (2 goals) beat Bea (1 goal). The stage is over: nothing to pick. */
+    /** Game 1 played and verified, so final: Ash (2 goals) beat Bea (1 goal); each 2nd starter was auto-picked. The stage is over. */
     const finalGame1 = (): TournamentRows => {
       const r = afterGame1();
       return {
@@ -141,11 +209,20 @@ describe('TournamentCard', () => {
       expect(card().querySelector('summary > .meta')?.textContent).toMatch(/^Game 1 · Fall beta\s*Final\s*W \+/);
     });
 
-    it('says who played for whom inside an opened game', async () => {
-      await show(finalGame1());
+    it('lists each starter inside an opened game as game score × factor = points', async () => {
+      const r = finalGame1();
+      await show({
+        ...r,
+        slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 1, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
+        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 3, turnover: 2 }, points_played: 0 }, ...r.lines.slice(1)],
+      });
       fireEvent.click(screen.getByText(/Game 1 · Fall beta/));
-      const byLines = [...card().querySelectorAll('.by')].map((el) => el.textContent);
-      expect(byLines).toEqual(['Ash by Z Zeal', 'Bea by F Flow']);
+      expect([...card().querySelectorAll('.by')].map((el) => el.textContent)).toEqual(['Zeal', 'Flow']);
+      // (3 goals x 3 - 2 turnovers x 2) x 2 for a tournament = 10, and Zeal owns half of Ash.
+      const ash = [...card().querySelectorAll('li')].find((li) => li.textContent?.startsWith('Ash'))!;
+      expect(ash.querySelector('small')?.textContent).toBe('Ash · 3 Goal, 2 Turnover');
+      expect(ash.querySelector('.calc')?.textContent).toBe('10 × 0.5 = 5');
+      expect(card().textContent).toContain("You didn't pick, so");
     });
 
     it('says Bye on the card when the team sat out', async () => {
@@ -173,7 +250,7 @@ describe('TournamentCard', () => {
     expect(screen.getByText('Void')).toBeTruthy();
     expect(screen.getByText("Doesn't count.")).toBeTruthy();
     // A void start doesn't tire anyone.
-    expect(picks().getByText('Ash').parentElement?.textContent).not.toContain('Tired');
+    expect(picks().getByText('Ash').closest('li')?.textContent).not.toContain('tired');
   });
 
   describe('matchup header', () => {
@@ -192,6 +269,7 @@ describe('TournamentCard', () => {
       expect(screen.getByText('Live')).toBeTruthy();
       expect(scoreboard()?.textContent).toContain('Avery');
       expect(scoreboard()?.textContent).toContain('Quinn'); // revealed: the game has started
+      expect(scoreboard()?.textContent).toContain('They played');
     });
 
     it('between tournaments, shows the last final game with the result and the loser greyed', async () => {
@@ -208,6 +286,7 @@ describe('TournamentCard', () => {
       });
       expect(document.querySelector('.strip')?.textContent).toMatch(/Won \+/);
       expect(document.querySelector('.score-side.lost')?.textContent).toContain('Bea');
+      expect(document.querySelector('.score-side')?.textContent).toMatch(/^You played[\d.]+Ash\w+$/); // two starters
       expect(screen.getByText('Record').nextElementSibling?.textContent).toBe('1–0');
       expect(standings().getAllByRole('listitem').map((li) => li.textContent)).toEqual([expect.stringMatching(/^1Zeal \(you\)1–0/), expect.stringMatching(/^2Flow0–1/)]);
     });

@@ -15,8 +15,8 @@ export interface GameRow {
 export const GAME_COLUMNS = 'id, stage_id, number, session_id, started_at, finished_at, opponent';
 /** One pairing as open_tournament / finish_game take it. */
 export interface GamePairing { league_id: string; home: string; away: string | null }
-/** What one league's pairing was computed from (saved in the finish_game audit row). */
-export interface LeaguePairingInput { league_id: string; order: string[]; meetings: Record<string, number> }
+/** What one league's pairing was computed from (saved in the finish_game audit row): this tournament's meetings, then the season's (C11). */
+export interface LeaguePairingInput { league_id: string; order: string[]; meetings: Record<string, number>; season_meetings: Record<string, number> }
 interface LineRow { session_id: string; athlete_id: string; stats: Record<string, number>; points_played: number }
 interface InjuryRow { athlete_id: string; confirmed_at: string | null; cleared_at: string | null }
 
@@ -28,9 +28,8 @@ export interface TournamentRows {
   /** This league's pairings only. */
   pairings: { game_id: string; home: string; away: string | null }[];
   members: { id: string; team_name: string; created_at: string }[];
-  slots: { stage_id: string; membership_id: string; athlete_id: string; price: number; bench: boolean }[];
+  slots: { stage_id: string; membership_id: string; athlete_id: string; price: number; share: number }[];
   picks: { stage_id: string; game_number: number; membership_id: string; athlete_id: string }[];
-  swaps: { stage_id: string; membership_id: string; out_athlete: string; in_athlete: string; from_game: number }[];
   /** Every session a game links to: a game whose session is missing is void. */
   sessions: { id: string; verified_at: string | null }[];
   lines: LineRow[];
@@ -61,11 +60,8 @@ export function toTournamentInput(rows: TournamentRows, now: number): Tournament
     })),
     pairings: rows.pairings.map((p) => ({ gameId: p.game_id, home: p.home, away: p.away })),
     members: rows.members.map((m) => ({ id: m.id, createdAt: m.created_at })),
-    slots: rows.slots.map((x) => ({ stageId: x.stage_id, membershipId: x.membership_id, athleteId: x.athlete_id, price: x.price, bench: x.bench })),
+    slots: rows.slots.map((x) => ({ stageId: x.stage_id, membershipId: x.membership_id, athleteId: x.athlete_id, price: x.price, share: x.share })),
     picks: rows.picks.map((p) => ({ stageId: p.stage_id, number: p.game_number, membershipId: p.membership_id, athleteId: p.athlete_id })),
-    swaps: rows.swaps.map((w) => ({
-      stageId: w.stage_id, membershipId: w.membership_id, outAthlete: w.out_athlete, inAthlete: w.in_athlete, fromGame: w.from_game,
-    })),
     sessions: rows.sessions.map((s) => ({ id: s.id, verifiedAt: s.verified_at })),
     statLines: [
       ...rows.lines.map((l) => ({ sessionId: l.session_id, athleteId: l.athlete_id, stats: l.stats, pointsPlayed: l.points_played })),
@@ -137,8 +133,8 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
     rowsOf<{ settings: unknown }>(sb.from('seasons').select('settings').eq('id', seasonId)),
     rowsOf<AuctionStage>(sb.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)),
     rowsOf<TournamentRows['members'][number]>(sb.from('memberships').select('id, team_name, created_at').eq('league_id', leagueId)),
-    rowsOf<TournamentRows['slots'][number]>(sb.from('roster_slots').select('stage_id, membership_id, athlete_id, price, bench').eq('league_id', leagueId)),
-    // ponytail: unpaged, fine below 1000 picks a league-year (6 teams × ~20 games).
+    rowsOf<TournamentRows['slots'][number]>(sb.from('roster_slots').select('stage_id, membership_id, athlete_id, price, share').eq('league_id', leagueId)),
+    // ponytail: unpaged, fine below 1000 picks a league-year (12 teams × 2 picks × ~20 games ≈ 480); page it if that grows.
     rowsOf<TournamentRows['picks'][number]>(sb.from('game_picks').select('stage_id, game_number, membership_id, athlete_id').eq('league_id', leagueId)),
     rowsOf<InjuryRow>(sb.from('injuries').select('athlete_id, confirmed_at, cleared_at').not('confirmed_at', 'is', null)),
     rowsOf<TournamentRows['athletes'][number]>(sb.from('athletes').select('id, name').eq('season_id', seasonId)),
@@ -148,11 +144,9 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
   const games = await rowsOf<GameRow>(stageIds.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', stageIds) : null);
   const gameIds = games.map((g) => g.id);
   const sessionIds = games.flatMap((g) => (g.session_id ? [g.session_id] : []));
-  const [pairings, swaps, sessions] = await Promise.all([
+  const [pairings, sessions] = await Promise.all([
     rowsOf<TournamentRows['pairings'][number]>(gameIds.length
       ? sb.from('game_pairings').select('game_id, home, away').eq('league_id', leagueId).in('game_id', gameIds) : null),
-    rowsOf<TournamentRows['swaps'][number]>(stageIds.length
-      ? sb.from('bench_swaps').select('stage_id, membership_id, out_athlete, in_athlete, from_game').in('stage_id', stageIds) : null),
     rowsOf<TournamentRows['sessions'][number]>(sessionIds.length ? sb.from('sessions').select('id, verified_at').in('id', sessionIds) : null),
   ]);
   const open = sessions.filter((s) => s.verified_at === null).map((s) => s.id);
@@ -167,7 +161,7 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
       : [],
   ]);
   return {
-    settings: season[0].settings, stages, games, pairings, members, slots, picks, swaps, sessions, lines, taps: tapRows,
+    settings: season[0].settings, stages, games, pairings, members, slots, picks, sessions, lines, taps: tapRows,
     injuries, athletes,
   };
 }
@@ -178,9 +172,15 @@ export const loadLeagueTournament = async (seasonId: string, leagueId: string) =
 const leaguesOf = (seasonId: string) =>
   rowsOf<{ id: string; name: string }>(supabase!.from('leagues').select('id, name').eq('season_id', seasonId).order('name'));
 
+/** One league's pairing inputs as finish_game saves them. */
+export function leaguePairingInput(leagueId: string, input: TournamentInput): LeaguePairingInput {
+  const { order, meetings, seasonMeetings } = pairingInputs(input);
+  return { league_id: leagueId, order, meetings, season_meetings: seasonMeetings };
+}
+
 /** The Swiss pairing of one league's inputs, in the shape the RPCs take. */
 export const toPairings = (p: LeaguePairingInput): GamePairing[] =>
-  swissPairings(p.order, p.meetings).map(([home, away]) => ({ league_id: p.league_id, home, away }));
+  swissPairings(p.order, p.meetings, p.season_meetings ?? {}).map(([home, away]) => ({ league_id: p.league_id, home, away }));
 
 /**
  * The next game's pairings for every league of the season, from provisional standings (live taps where a session
@@ -191,7 +191,7 @@ export async function seasonPairings(seasonId: string, now = Date.now()): Promis
 }> {
   const leagues = await leaguesOf(seasonId);
   const loaded = await Promise.all(leagues.map(async (l) => ({ l, rows: await loadLeagueRows(seasonId, l.id, { taps: true }) })));
-  const provisional = loaded.map(({ l, rows }) => ({ league_id: l.id, ...pairingInputs(toTournamentInput(rows, now)) }));
+  const provisional = loaded.map(({ l, rows }) => leaguePairingInput(l.id, toTournamentInput(rows, now)));
   return {
     pairings: provisional.flatMap(toPairings),
     provisional,
@@ -222,8 +222,8 @@ export async function loadCurrentGame(seasonId: string, now = Date.now()): Promi
 export function checkPairing(details: { pairings: GamePairing[]; provisional: LeaguePairingInput[] }): boolean {
   if (!Array.isArray(details.pairings) || !Array.isArray(details.provisional)) return false;
   try {
-    // Leagues are at most 8 teams. An order longer than that is junk and would hang the tab during exhaustive Swiss.
-    if (details.provisional.some((p) => p.order.length > 8)) return false;
+    // Leagues are at most 12 teams. An order longer than that is junk and would hang the tab during exhaustive Swiss.
+    if (details.provisional.some((p) => p.order.length > 12)) return false;
     // jsonb reorders object keys, so compare as plain strings.
     const key = (p: GamePairing) => `${p.league_id}:${p.home}:${p.away ?? ''}`;
     return details.provisional.flatMap(toPairings).map(key).join() === details.pairings.map(key).join();
@@ -290,13 +290,16 @@ export async function loadSeasonStandings(seasonId: string, own?: { leagueId: st
   return mergeStandings(years);
 }
 
-/** Whether a team needs you now: no pick for its next game, or an open auction without a bid from it. Dots the team switch. */
+/**
+ * Whether a team needs you now: fewer picks for its next game than it owes (picks_per_game, or its whole roster if
+ * shorter: C9), or open share buying without a buy from it. Dots the team switch.
+ */
 export function needsYou(
-  y: Pick<LeagueTournament, 'result'>, membershipId: string,
+  y: Pick<LeagueTournament, 'result' | 'settings'>, membershipId: string,
   auction: { stage: Pick<AuctionStage, 'bid_close_at' | 'auction_run_at'>; bids: number } | null, now = Date.now(),
 ): boolean {
-  const { next } = y.result;
-  if (next?.sides.find((s) => s.membershipId === membershipId)?.picked === null) return true;
+  const side = y.result.next?.sides.find((s) => s.membershipId === membershipId);
+  if (side && side.picked.length < Math.min(y.settings.picks_per_game, side.players.length)) return true;
   return auction !== null && auctionPhase(auction.stage, now) === 'open' && auction.bids === 0;
 }
 
