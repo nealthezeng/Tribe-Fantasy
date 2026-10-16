@@ -30,9 +30,20 @@ describe('RulesPage', () => {
     expect(text).toContain('Up to 12 teams');
     expect(text).toContain('most rested healthy players, then the ones scoring best lately');
     expect(text).not.toMatch(/\b(bench|bids?|bidding|auction)\b/i);
+    expect(text).toContain('Resting a player for 2 games between starts never does.');
+    expect(text).toContain('and earlier tournaments (below)');
+    expect(text).not.toMatch(/repeat|Rotating/);
+    expect(text).toContain("Other teams can't see your picks until the game starts");
     expect(screen.getByText('2 games before').parentElement?.textContent).toBe('2 games before×0.75');
     // Last beats 1st with upset_k 0.5: 3 × (1 + 0.5) = +4.5 for the winner, −1 × 1.5 = −1.5 for the loser.
     expect(screen.getByText('Last beats 1st').parentElement?.textContent).toBe('Last beats 1st+4.5-1.5');
+  });
+
+  it('derives the resting sentence from the tiredness steps', async () => {
+    current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ tiredness_multipliers: [0.5] }) };
+    render(<RulesPage />);
+    await screen.findByText(/Spring 2027's settings/);
+    expect(document.body.textContent).toContain('Resting a player for 1 game between starts never does.');
   });
 
   it('says donations go to the team fund and credits have no cash value', () => {

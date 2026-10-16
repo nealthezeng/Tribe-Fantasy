@@ -294,24 +294,39 @@ safe to paste early: it drops the 4-argument `set_game_pick` the old bundle call
 1. After the Oct 17–18 tuning weekend, **delete the Feasterns tournament** (Admin → Tournaments → Delete). Left in,
    its 1v1 games would be re-scored as 2v2 with auto-picked second starters. Delete refunds what was spent.
 2. **No game running** (nothing live on Tally; no keeper mid-game).
-3. Pre-paste check. It must list `roster_slots_stage_id_league_id_athlete_id_key` and `game_picks_pkey`, because 0023
-   drops them by those names:
-   ```sql
-   select conname from pg_constraint
-   where conrelid in ('public.roster_slots'::regclass, 'public.game_picks'::regclass);
-   ```
-4. SQL Editor: paste and run `supabase/migrations/0023_shares.sql`. It only changes existing tables, so the RLS
-   prompt ("Run and enable RLS") does not apply.
-5. **Push to main immediately.** Between the paste and the push the old site's whole League tab breaks (it reads
+3. **Take a backup**: Admin → Backup, download the JSON and the CSVs. The app can't restore it (see Rollback), but it is
+   the only copy of the bench-era data once 0023 runs.
+4. Pre-paste checks, in the SQL Editor:
+   - It must list `roster_slots_stage_id_league_id_athlete_id_key` and `game_picks_pkey`, because 0023 drops them by
+     those names:
+     ```sql
+     select conname from pg_constraint
+     where conrelid in ('public.roster_slots'::regclass, 'public.game_picks'::regclass);
+     ```
+   - No game may be left in any stage (0023 re-scores them as 2v2). Expect **no rows**; any stage listed still has
+     1v1 games, so delete it first:
+     ```sql
+     select s.name, count(*) as games from public.games g join public.stages s on s.id = g.stage_id group by s.name;
+     ```
+   - No season may have `roster_size` below `picks_per_game` (2), or it fails to load. Expect **no rows**:
+     ```sql
+     select name from public.seasons where (settings ->> 'roster_size')::int < 2;
+     ```
+5. SQL Editor: paste and run `supabase/migrations/0023_shares.sql`. It runs in one transaction (`begin;` … `commit;`),
+   so an error leaves nothing half-applied. It only changes existing tables, so the RLS prompt ("Run and enable RLS")
+   does not apply.
+6. **Push to main immediately.** Between the paste and the push the old site's whole League tab breaks (it reads
    `roster_slots.bench`) and Pick fails.
-6. Hard-reload any open admin or keeper tabs. The old settings editor saves every key and can't hold the new ones.
-7. Admin → Settings: set `roster_size` **6** and `max_members` **12** for the live season. Stored values beat the new
+7. Hard-reload any open admin or keeper tabs. The old settings editor saves every key and can't hold the new ones.
+8. Admin → Settings: set `roster_size` **6** and `max_members` **12** for the live season. Stored values beat the new
    defaults (today they are 4 and 6). `min_shares` (20) and `picks_per_game` (2) come from the defaults.
-8. Anon probe (the anon key, no sign-in): `set_game_pick` called with `p_athletes` returns **42501**, and `set_bench`
-   returns **404** (PGRST202, the function is gone).
-9. Then Admin → Tournaments: **Open share buying** (close at least a day before the tournament), and after the close
-   **Settle shares**, then **Open tournament**.
+9. Anon probe (the anon key, no sign-in): `set_game_pick` called with `p_athletes` returns **42501**, and `set_bench`
+   returns **404** (PGRST202, the function is gone). Then signed in: the League tab loads, the **Buy shares** card
+   shows, and the pick card shows 2 picks.
+10. Then Admin → Tournaments: **Open share buying** (close at least a day before the tournament), and after the close
+    **Settle shares**, then **Open tournament**.
 
-**Rollback.** 0023 is not reversible by a code revert. The bench data, the bench swaps and the old one-pick game shape
-are gone, and every old slot became a whole share. To go back you restore from the Admin → Backup JSON taken before
-the paste. Download one first.
+**Rollback.** 0023 is not reversible by a code revert: the bench data, the bench swaps and the old one-pick game shape
+are gone, every old slot became a whole share, and a code revert alone would break the site against the new schema.
+The app cannot restore a backup either (Admin → Backup only exports; its `roster_slots` rows carry a `bench` column the
+new schema no longer has). Going back means a forward-fix migration, or hand-written SQL that uses the backup as data.

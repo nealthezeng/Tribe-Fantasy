@@ -16,6 +16,12 @@ export const balance = (entries: Pick<LedgerEntry, 'amount'>[]) => entries.reduc
 /** 1 → '1 credit', 115 → '115 credits'. */
 export const credits = (n: number) => `${n} ${Math.abs(n) === 1 ? 'credit' : 'credits'}`;
 
+/** 67%; under 1% keeps one significant figure, so a sliver never reads 0%. */
+export const pct = (share: number) => {
+  const x = Number(share);
+  return `${x < 0.01 ? Number((x * 100).toPrecision(1)) : Math.round(x * 100)}%`;
+};
+
 export function entryLabel(e: LedgerEntry): string {
   switch (e.kind) {
     case 'allowance': return `Allowance — ${e.stages?.name ?? 'tournament'}`;

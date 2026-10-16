@@ -123,7 +123,7 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
     typeof v === 'string' && /^[A-Za-z0-9_-]{5,30}$/.test(v) ? null : 'must be a Venmo username: 5-30 letters, digits, - or _ (no @)'),
   allowance_base: num(0, 100_000, true),
   allowance_gap: num(0, 100_000, true),
-  max_members: num(2, 50, true),
+  max_members: num(2, 12, true),
   roster_size: num(1, 30, true),
   min_shares: num(1, 100_000, true),
   picks_per_game: num(1, 5, true),

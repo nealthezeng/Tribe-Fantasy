@@ -63,7 +63,7 @@ describe('parseSettings', () => {
   });
 
   it('bounds the M4 wallet and league-size settings', () => {
-    for (const bad of [{ max_members: 1 }, { max_members: 51 }, { allowance_base: -1 }, { allowance_gap: 2.5 },
+    for (const bad of [{ max_members: 1 }, { max_members: 13 }, { max_members: 51 }, { allowance_base: -1 }, { allowance_gap: 2.5 },
       { donations_enabled: 'yes' }]) {
       expect(() => parseSettings(bad), JSON.stringify(bad)).toThrow(SettingsError);
     }

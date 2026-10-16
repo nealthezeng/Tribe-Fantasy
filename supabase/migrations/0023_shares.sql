@@ -4,6 +4,9 @@
 -- roster_slots.bench, which goes). Safe on top of 0001–0022 with bench-era rows still in place: bench flags and swaps
 -- are dropped, old slots become whole shares (share 1).
 
+-- One transaction: a failure part-way leaves nothing half-applied.
+begin;
+
 -- parseSettings rejects unknown keys, and the settings editor saved every key, so these are in stored settings (C8).
 update public.seasons set settings = settings - 'bench_size' - 'exclusive_ownership';
 
@@ -435,3 +438,5 @@ begin
     execute format('grant execute on function %s to authenticated', f.sig);
   end loop;
 end $$;
+
+commit;

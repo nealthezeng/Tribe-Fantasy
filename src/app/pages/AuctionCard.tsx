@@ -9,7 +9,7 @@ import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
-import { balance as sumLedger, credits } from '../lib/wallet';
+import { balance as sumLedger, credits, pct } from '../lib/wallet';
 
 interface Athlete { id: string; name: string; user_id: string | null; opted_in: boolean }
 interface Team { id: string; team_name: string }
@@ -248,8 +248,6 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
     </>
   );
 }
-
-const pct = (share: number) => `${Math.round(Number(share) * 100)}%`;
 
 /** Starts open or closed once, on mount: a later `open` change (your first buy) must not snap it shut. */
 /** Closed, its summary reads as a button: solid gold until you've bought (`loud`), outlined after. */

@@ -36,9 +36,9 @@ describe('donation codes', () => {
   beforeEach(async () => setup(await freshDb()));
 
   it('gives every new team its own 4-consonant code', async () => {
-    await settings({ max_members: 50 }); // 22 teams in one league
+    await settings({ max_members: 12 }); // 12 teams in one league
     const codes = [await code(aliceM), await code(bobM)];
-    for (let i = 0; i < 20; i++) codes.push(await code((await member(db, `m${i}`))[1]));
+    for (let i = 0; i < 10; i++) codes.push(await code((await member(db, `m${i}`))[1]));
     for (const c of codes) expect(c).toMatch(CODE);
     expect(new Set(codes).size).toBe(codes.length);
   });

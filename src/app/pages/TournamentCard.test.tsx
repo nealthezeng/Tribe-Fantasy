@@ -146,6 +146,21 @@ describe('TournamentCard', () => {
     expect(picks().queryByText(/Ash plays/)).toBeNull();
   });
 
+  it('does not call a swap "still plays" when a spare came in for one injured pick and an injured pick filled the other', async () => {
+    const r = afterGame1();
+    // Ash and Avery are both picked and injured; Alex is the only healthy spare. The core pairs Ash->Alex and Avery->Ash.
+    await show({
+      ...r,
+      slots: [...roster('m1', ['a1', 'a2', 'a3']), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
+      picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a1' },
+        { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' }],
+      injuries: [{ athlete_id: 'a1', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null },
+        { athlete_id: 'a2', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+    });
+    expect(picks().queryByText(/still plays/)).toBeNull();
+    expect(picks().getByText('Ash is injured. Alex plays.')).toBeTruthy();
+  });
+
   it('says who plays if you leave a pick empty', async () => {
     const r = afterGame1();
     await show({ ...r, picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }] });
@@ -223,6 +238,7 @@ describe('TournamentCard', () => {
       expect(ash.querySelector('small')?.textContent).toBe('Ash · 3 Goal, 2 Turnover');
       expect(ash.querySelector('.calc')?.textContent).toBe('10 × 0.5 = 5');
       expect(card().textContent).toContain("You didn't pick, so");
+      expect(card().textContent).toContain("Flow didn't pick, so"); // not "You": the viewer is Zeal
     });
 
     it('says Bye on the card when the team sat out', async () => {

@@ -8,6 +8,7 @@ import {
   countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, type LeagueTournament, type OverallStanding,
 } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
+import { pct } from '../lib/wallet';
 
 const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
@@ -17,8 +18,6 @@ const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}
 const athleteName = (y: LeagueTournament, id: string | null, none = 'nobody') => (id ? y.athlete.get(id) ?? 'A player' : none);
 /** Two significant figures, so a sliver of a share never reads 0: 0.45, 0.0033. */
 const sig = (n: number) => Number(n.toPrecision(2));
-/** 67%; under 1% keeps one significant figure, so a sliver never reads 0%. */
-const pct = (share: number) => `${share < 0.01 ? Number((share * 100).toPrecision(1)) : Math.round(share * 100)}%`;
 const sides = (g: GameOutcome) => g.matchups.flatMap((m) => [m.home, m.away]);
 const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null | undefined => {
   const m = g.matchups.find((x) => x.home.membershipId === membershipId || x.away?.membershipId === membershipId);
@@ -108,7 +107,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   // Before a game starts the scorer's auto-picks are a guess, so show only the manager's own picks.
   const minePlayers = !mine ? [] : upcoming ? mine.picked : mine.athleteIds;
   // A pick that won't play (injured, with someone free to replace them) must not look all set up here.
-  const doomed = upcoming && !!mine && mine.replacements.some((r) => r.picked !== null && !mine.athleteIds.includes(r.picked));
+  const doomed = upcoming && !!mine && mine.replacements.some((r) => r.picked !== null && r.athleteId !== r.picked);
   const wanted = mine ? Math.min(y.settings.picks_per_game, mine.players.length) : 0;
 
   return (
@@ -262,12 +261,13 @@ function Factor({ side, id }: { side: TournamentSide; id: string }) {
 /**
  * Why a starter isn't the team's own pick: each injured pick, then who fills the picks left empty. An injured pick with
  * nobody healthy free to replace them plays anyway (the core lists them as their own replacement): not a swap.
+ * `team` names another team's side; omitted, the side is the viewer's ("You").
  */
-function Notice({ y, side, played = false }: { y: LeagueTournament; side: TournamentSide; played?: boolean }) {
+function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: TournamentSide; played?: boolean; team?: string }) {
   const name = (id: string | null) => athleteName(y, id);
   const lines = side.replacements.flatMap(({ picked, athleteId }) => {
     if (picked === null) return [];
-    if (side.athleteIds.includes(picked)) {
+    if (athleteId === picked) {
       return [played ? `${name(picked)} was injured and played: nobody else was free.` : `${name(picked)} is injured and still plays: nobody else is free.`];
     }
     return [played ? `${name(picked)} was injured, so ${name(athleteId)} played.` : `${name(picked)} is injured. ${name(athleteId)} plays.`];
@@ -275,7 +275,7 @@ function Notice({ y, side, played = false }: { y: LeagueTournament; side: Tourna
   const fill = side.replacements.flatMap((r) => (r.picked === null && r.athleteId !== null ? [name(r.athleteId)] : []));
   if (fill.length > 0) {
     const who = fill.join(' and ');
-    lines.push(played ? `You didn't pick, so ${who} played.` : `If you don't pick, ${who} ${fill.length === 1 ? 'plays' : 'play'}.`);
+    lines.push(played ? `${team ?? 'You'} didn't pick, so ${who} played.` : `If you don't pick, ${who} ${fill.length === 1 ? 'plays' : 'play'}.`);
   }
   return <>{lines.map((t) => <p key={t} className="notice">{t}</p>)}</>;
 }
@@ -380,8 +380,8 @@ function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome;
         {g.status === 'void' && <p className="muted">Doesn't count.</p>}
         {g.status !== 'void' && g.matchups.map((m) => (
           <div key={m.home.membershipId} className="stack">
-            <SideDetail y={y} g={g} side={m.home} />
-            {m.away ? <SideDetail y={y} g={g} side={m.away} /> : <p className="muted">Bye</p>}
+            <SideDetail y={y} g={g} side={m.home} membershipId={membershipId} />
+            {m.away ? <SideDetail y={y} g={g} side={m.away} membershipId={membershipId} /> : <p className="muted">Bye</p>}
           </div>
         ))}
         {g.status === 'final' && <p className="hint">× is share × tired × earlier tournaments.</p>}
@@ -401,7 +401,7 @@ function GameSide({ y, side, lost }: { y: LeagueTournament; side: TournamentSide
 }
 
 /** One team's side of an opened game: each starter as "name · stats" and, once final, "game score × factor = points". */
-function SideDetail({ y, g, side }: { y: LeagueTournament; g: GameOutcome; side: TournamentSide }) {
+function SideDetail({ y, g, side, membershipId }: { y: LeagueTournament; g: GameOutcome; side: TournamentSide; membershipId: string }) {
   const statsOf = (a: string) => {
     const line = y.input.statLines.find((l) => l.sessionId === g.game.sessionId && l.athleteId === a);
     return line ? Object.entries(line.stats).filter(([, n]) => n).map(([k, n]) => `${n} ${statLabel(k)}`).join(', ') || 'No stats'
@@ -413,7 +413,7 @@ function SideDetail({ y, g, side }: { y: LeagueTournament; g: GameOutcome; side:
         <span className="by">{y.team.get(side.membershipId) ?? 'A team'}</span>
         {side.score !== null && <span className="num">{fmt(side.score)} {side.delta !== null && <>({signed(side.delta)})</>}</span>}
       </p>
-      <Notice y={y} side={side} played />
+      <Notice y={y} side={side} played team={side.membershipId === membershipId ? undefined : y.team.get(side.membershipId) ?? 'A team'} />
       {side.athleteIds.length === 0 ? <p className="muted">Forfeit</p> : (
         <ul className="list">
           {side.athleteIds.map((a) => (

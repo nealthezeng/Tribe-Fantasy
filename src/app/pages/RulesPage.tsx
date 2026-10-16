@@ -95,7 +95,8 @@ export function RulesPage() {
         </ul>
         <div className="section">
           <h3>Tired players</h3>
-          <p>Starting a player in back-to-back games tires them. Rotating your players never does.</p>
+          <p>Starting a player in back-to-back games tires them. Resting a player for {S.tiredness_multipliers.length}{' '}
+            {S.tiredness_multipliers.length === 1 ? 'game' : 'games'} between starts never does.</p>
           <div className="table-wrap">
             <table>
               <thead><tr><th>You last started them</th><th>Their stats count</th></tr></thead>
@@ -127,7 +128,7 @@ export function RulesPage() {
         <div className="section">
           <h3>Example</h3>
           <p>A starter earns his game score × three factors: the <strong>share</strong> you own, <strong>tired</strong>{' '}
-            (above) and <strong>repeat</strong> (below). A player's card shows the combined factor, and its parts are one
+            (above) and <strong>earlier tournaments</strong> (below). A player's card shows the combined factor, and its parts are one
             tap away. Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
             matchup.</p>
           <p>{line(game)} by a player you own half of, started the game before: {n(gameScore)} × {owned * 100}% ×{' '}
@@ -183,7 +184,7 @@ export function RulesPage() {
               : "Donations aren't open yet."}</p>
           <h3>Who can see what?</h3>
           <p>Your league sees rosters, results and every buy and split after buying closes. Only you and the league staff
-            see your credit balance. Other teams can't see your pick until the game starts.
+            see your credit balance. Other teams can't see your picks until the game starts.
             {S.donations_enabled && S.venmo_handle && <> The Credits page lists each donor's name and season total;
               tick Show me as Anonymous to hide your name.</>}</p>
           <h3>I'm a player. Can I opt out?</h3>

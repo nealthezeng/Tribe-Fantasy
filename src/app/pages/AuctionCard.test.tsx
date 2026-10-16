@@ -262,6 +262,15 @@ describe('AuctionCard', () => {
       expect(document.body.textContent).toContain('Test Zeal · 2 players');
     });
 
+    it('shows a sliver of a share as 0.3%, never 0%', async () => {
+      settled();
+      db.roster_slots = [slot('m1', 1, 1, 0.003), slot('m2', 1, 299, 0.997)];
+      renderCard();
+      await screen.findByText('Your players');
+      expect(screen.getAllByText('Sam')[0].closest('li')!.textContent).toContain('0.3%');
+      expect(document.body.textContent).not.toContain('You own 0%');
+    });
+
     it('has no Random fill, and no player-facing bid or auction wording', async () => {
       settled();
       renderCard();
