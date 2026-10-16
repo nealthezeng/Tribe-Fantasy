@@ -284,3 +284,34 @@ Admin → Wallets; fix them with **Record a donation**. A refund = **Adjust cred
    creator leaves and others stay, the league becomes admin-managed and the creator's one-league slot frees up.
    Home hides Leave once the team has a donation. A leave at the exact moment an auction runs can deadlock; Postgres
    cancels one of the two and a retry works (see the comments in 0020).
+
+## M13 shares (after 0001–0022): go-live runbook
+
+`0023_shares.sql` replaces the sealed-bid auction with shares, drops the bench and makes games 2v2. It is **not**
+safe to paste early: it drops the 4-argument `set_game_pick` the old bundle calls, and the old League tab reads
+`roster_slots.bench`, which it removes. Paste and push together.
+
+1. After the Oct 17–18 tuning weekend, **delete the Feasterns tournament** (Admin → Tournaments → Delete). Left in,
+   its 1v1 games would be re-scored as 2v2 with auto-picked second starters. Delete refunds what was spent.
+2. **No game running** (nothing live on Tally; no keeper mid-game).
+3. Pre-paste check. It must list `roster_slots_stage_id_league_id_athlete_id_key` and `game_picks_pkey`, because 0023
+   drops them by those names:
+   ```sql
+   select conname from pg_constraint
+   where conrelid in ('public.roster_slots'::regclass, 'public.game_picks'::regclass);
+   ```
+4. SQL Editor: paste and run `supabase/migrations/0023_shares.sql`. It only changes existing tables, so the RLS
+   prompt ("Run and enable RLS") does not apply.
+5. **Push to main immediately.** Between the paste and the push the old site's whole League tab breaks (it reads
+   `roster_slots.bench`) and Pick fails.
+6. Hard-reload any open admin or keeper tabs. The old settings editor saves every key and can't hold the new ones.
+7. Admin → Settings: set `roster_size` **6** and `max_members` **12** for the live season. Stored values beat the new
+   defaults (today they are 4 and 6). `min_shares` (20) and `picks_per_game` (2) come from the defaults.
+8. Anon probe (the anon key, no sign-in): `set_game_pick` called with `p_athletes` returns **42501**, and `set_bench`
+   returns **404** (PGRST202, the function is gone).
+9. Then Admin → Tournaments: **Open share buying** (close at least a day before the tournament), and after the close
+   **Settle shares**, then **Open tournament**.
+
+**Rollback.** 0023 is not reversible by a code revert. The bench data, the bench swaps and the old one-pick game shape
+are gone, and every old slot became a whole share. To go back you restore from the Admin → Backup JSON taken before
+the paste. Download one first.

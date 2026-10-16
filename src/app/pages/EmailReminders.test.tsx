@@ -25,7 +25,7 @@ vi.mock('../lib/rpc', () => ({
 
 afterEach(cleanup);
 
-const box = () => screen.getByRole('checkbox', { name: /email me before bidding closes/i }) as HTMLInputElement;
+const box = () => screen.getByRole('checkbox', { name: /email me before buying shares closes/i }) as HTMLInputElement;
 
 describe('EmailReminders', () => {
   it('shows emails on by default and turns them off', async () => {

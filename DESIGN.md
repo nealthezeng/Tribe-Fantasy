@@ -106,7 +106,7 @@ skeleton's slow breathing.
 Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 16px side padding, 24px top).
 
 **Phones (600px and narrower):** every box floats as a rounded glass pane inside the 16px gutter, the same as on
-wider screens and like the scoreboard; cards use 12px padding and the bid columns slim to 4rem / 3.5rem / 44px. Only
+wider screens and like the scoreboard; cards use 12px padding and the buy-shares columns slim to 4rem / 3.5rem / 44px. Only
 the signed-out hero runs edge to edge, merging with the top bar. (Before M9 polish, phone cards were square bands.)
 
 ## Words
@@ -118,6 +118,10 @@ Buttons say the action and its object ("Save settings", "Change close time", "Re
 Errors say what happened and what to do; an unknown error shows its code only in brackets after that.
 **Few small words** (board t231): small grey text only when it prevents a mistake, explains a state, or is required
 (the donation terms). Controls and pills speak for themselves. Account-menu items have no subtitles.
+**Share**: the part of a player a team owns, shown as a percentage ("You own 66% of Sam"); credits put on a
+player buy shares, and a team scores that part of his points. **Buy shares**: the action that was the auction; the
+card, the button and the admin controls all say "Buy shares" or "buying". Never "bid" or "auction" in player-facing
+text (the code names `bids`, `place_bid`, `run_auction` stay).
 **Opponent**: the real team our team plays in a game; players see "vs Duke", staff see "Game 2 vs Duke"; unnamed games stay "Game 2".
 
 ## Components
@@ -168,13 +172,13 @@ Errors say what happened and what to do; an unknown error shows its code only in
   Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
   final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Place "N `.of` M",
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
-  game" card (the pick), the auction, the Standings card, the games, the Join / Create `.more`
+  game" card (the pick), the Buy shares card, the Standings card, the games, the Join / Create `.more`
   links, and last a muted `details.settings` "League settings" fold holding Manage league and Leave.
 - **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; each button is named by
   its **league** (the team name is the headline below). The choice is remembered on the device and shared with the
   Credits page. Long rows scroll sideways rather than squeeze. Only the current season's teams are listed (all of them
-  if none are this season's, t240). A gold `.needs` dot marks a team that needs you: no pick for its next game, or an open
-  auction you haven't bid in. When a dotted league is scrolled out of sight, that edge of the switch glows gold and
+  if none are this season's, t240). A gold `.needs` dot marks a team that needs you: fewer picks than a game takes (2, or your whole roster if smaller)
+  for its next game, or open share buying you haven't bought in. When a dotted league is scrolled out of sight, that edge of the switch glows gold and
   pulses (`.team-switch-wrap.glow-left` / `.glow-right`; steady with reduced motion).
   A mouse wheel over the switch scrolls it sideways; at either end the page scrolls.
 - **Game cards** (`.games` / `details.game`, M9 t93): each played game is a small black `.game-score` scoreboard of
@@ -182,16 +186,29 @@ Errors say what happened and what to do; an unknown error shows its code only in
   **below** it, not inside: "Game 2 · Fall Beta", the status pill, your W/L ±points. One column on phones, two from
   640px; an opened game takes the full row and shows every matchup in a `.card`. With a mouse, the scoreboard lifts
   4px and grows 2% on hover (t97).
-- **By-line** (`.by`, t90): "Christopher Mao by (T) Test Zeal": the player, a small `by`, a 22px `.avatar.sm` with the
-  team's initial and the team name. Used inside opened games.
-- **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while bidding
-  they're "credits left" in the auction header, which reads "N bids · R roster spots" with a `.pill.info` Closes
+- **By-line** (`.by`, t90): a 22px `.avatar.sm` with the team's initial and the team name, heading a side inside an
+  opened game; its starters are listed under it (M13, 2v2).
+- **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while
+  buying they're "credits left" in the Buy shares header, which reads "N of 6 players" with a `.pill.info` Closes
   pill and a "Get more credits" link to the Credits page. Once credits left drop
-  under 10% of the balance (or 2 minimum bids) that link becomes a gold button (t234). The bid list puts players you'd
-  bid on when the page loaded first; the order stays put while you bid (t237).
-  Closed, "Bid on players" (`details.bid-cta`) reads as a full-width button: solid gold before your first bid
-  (`.loud`), gold-outlined after. Open, it's a plain fold header.
-- **Credits page** (`/credits`, `Credits.tsx`; account menu, or Get more credits while bidding): the `.money` card of the team chosen
+  under 10% of the balance (or 2 minimum buys) that link becomes a gold button (t234). The list puts players you'd
+  bought when the page loaded first; the order stays put while you buy (t237). A player row has the credits input
+  and Buy / Save; at 6 players the other rows lock. "Buy shares" (`details.bid-cta`) reads as a full-width button:
+  solid gold before your first buy (`.loud`), gold-outlined after. Open, it's a plain fold header.
+- **Pick card** (M13, `PickGame`): "Pick 2" with a `.count-line` "N of 2", then every roster player as a `.pickrow`:
+  the name (an Injured `.pill.bad` if hurt), a **factor chip** (`details.factor`, `Factor`) reading the combined
+  factor for the next game ("×0.45", share × tired × earlier tournaments, computed by the core, never the UI) and, one
+  tap away, its parts ("66% share · ×0.75 tired · ×0.9 earlier tournaments"; a rested player shows "×1 rested").
+  Pick / Your pick (green `.picked`, with "· Clear") fills one of the 2 slots; with both full the other Pick
+  buttons are off and a `.hint` says to clear one. A `.notice` names any starter who isn't your own pick (missed or
+  injured). There is no Tired pill and no bench.
+- **Settled shares** (Buy shares card after the close): "Your players", each an `li.own`: name, "66% · 100
+  credits", a **share bar** (`.sharebar`: gold `i` = your share, blue `i.other` = other teams) and a `.split` line of
+  who else owns him with their %. "Every team" is a fold of what each team bought (credits before settling, % after).
+- **Score breakdown** (opened game, `SideDetail`): the side total, then one line per starter, "name · stats" and a
+  `.calc` "game score × factor = points" ("10 × 0.45 = 4.5"); the side score is the sum. A forfeit side (no players)
+  says "Forfeit". The scoreboard holds two names a side.
+- **Credits page** (`/credits`, `Credits.tsx`; account menu, or Get more credits while buying shares): the `.money` card of the team chosen
   on the League tab (same `.team-switch`, same remembered choice), titled by the team name. Each card is always open, the balance as the big number in its head. A green
   `.success` thanks a donation from the last week while it's the newest entry. "Donate for more": `.amounts` chips
   $5 / $10 / $20 with the credits under each (the chosen one baby blue, a selection, t238), one full-width gold
@@ -238,7 +255,7 @@ Errors say what happened and what to do; an unknown error shows its code only in
   underlined, errors are written out.
 - **Gold means act.** Use gold for the main action and the current place, not for decoration or long text.
 - **Text on gold is always `--on-gold`.** Links and focus are baby blue (`--link`).
-- **Depth**: floating panes (cards, number tiles, the scoreboard, the account menu, sticky bid header and admin
+- **Depth**: floating panes (cards, number tiles, the scoreboard, the account menu, sticky buy-shares header and admin
   subnav) are frosted glass: `--pane-bg` layered fill, `--pane-highlight` top edge, `--pane-shadow`, `--pane-blur`, over
   a faint gold and blue `--bg-ambient` glow on the page; each pane has a gold glow in its top-left corner, like the
   scoreboard. Page-level list rows get the same fill and shadow without the blur. Rows inside panes

@@ -9,8 +9,9 @@ const n = (x: number) => +x.toFixed(2);
 const signed = (x: number) => (x > 0 ? `+${n(x)}` : `${n(x)}`);
 const line = (stats: Record<string, number>) => Object.entries(stats).map(([k, c]) => `${c} ${statLabel(k)}`).join(', ');
 
-// The worked example: one player's stats in one game.
-const game = { goal: 2, block: 1, turnover: 2 };
+// The worked example: one player's stats in one game, and how much of him you own.
+const game = { goal: 2 };
+const owned = 0.5;
 
 export function RulesPage() {
   // Signed in: this season's numbers. Signed out (seasons aren't readable) or still loading: the defaults.
@@ -21,8 +22,8 @@ export function RulesPage() {
   const mult = S.session_multipliers.tournament ?? 1;
   const gameScore = athleteWeekScore([{ athleteId: 'x', sessionType: 'tournament', pointsPlayed: 0, stats: game }], S);
   const tired = S.tiredness_multipliers[0] ?? 1;
-  const bench = S.bench_size;
-  const active = S.roster_size - bench;
+  const pool = Math.max(S.min_shares, 150); // the split example: 100 and 50 credits on one player
+  const pct = (credits: number) => Math.round((100 * credits) / pool);
 
   // Points examples in a full league: an even game, an upset and a favourite winning.
   const size = S.max_members;
@@ -51,28 +52,30 @@ export function RulesPage() {
           <li>The league runs all season, and the season is split into <strong>tournaments</strong>, the events our
             team plays.</li>
           <li>Anyone can create a league, open to all or with a password, or join one from the list. You can create one
-            league a season. You can leave a league from the League page until your team has donated, bid on a player
+            league a season. You can leave a league from the League page until your team has donated, bought shares
             or been paired for a game. If yours is the last team to leave, the league is deleted.</li>
-          <li>Each league has up to {S.max_members} teams. Every game our team plays at a tournament, every fantasy
+          <li>Up to {S.max_members} teams in a league. Every game our team plays at a tournament, every fantasy
             team plays one head-to-head matchup. Standings never reset between tournaments.</li>
-          <li>Rosters are rebuilt for every tournament in a fresh auction. Each roster holds {S.roster_size} players:{' '}
-            {active} active and {bench} on the bench. There are no trades.</li>
+          <li>Rosters are rebuilt for every tournament, by buying shares in players. Each roster holds up to{' '}
+            {S.roster_size} players. There are no trades.</li>
           <li>The team at the top of the season's standings wins a merch prize. There is no cash prize.</li>
         </ul>
       </article>
 
       <article className="card">
-        <h2>Credits and the auction</h2>
+        <h2>Credits and shares</h2>
         <ul>
           <li>Every team gets free credits before each tournament: {allowance(1)} for the team in first, up to{' '}
             {allowance(size)} for the team in last. Unspent credits carry over.</li>
-          <li>Your bids together can't be more than your credits: the app won't take a bid that goes over.</li>
-          <li>Bids are sealed: nobody sees anyone's bids until the auction closes. Then every bid is shown to the
-            league.</li>
-          <li>The highest bid wins each player and pays what it bid. A tie goes to the bid placed first (changing a bid counts as placing it again). A bid you can't afford by its turn is skipped. The minimum
-            bid is {S.min_bid} credit.</li>
-          <li>Players nobody won are dealt at random to teams with open spots, for free. Injured players are never
-            dealt. If there aren't enough players, a team plays that tournament short.</li>
+          <li>You buy shares by putting credits on players. Each roster holds up to {S.roster_size} players, and the
+            minimum is {S.min_bid} credit. Your buys together can't be more than your credits: the app won't take one that
+            goes over.</li>
+          <li>Buys are sealed: nobody sees anyone's buys until buying closes. Then every buy is shown to the league.</li>
+          <li>Every credit you put in is spent. A player has {S.min_shares} shares, or one per credit if the league puts
+            more than that on him. You own your credits' worth. Put 100 credits on Sam while another team puts 50, and he
+            has {pool} shares: you own {pct(100)}%, they own {pct(50)}%.</li>
+          <li>Nobody loses a player, and nobody is dealt one. A team that buys into fewer than {S.roster_size} players
+            plays the tournament with fewer.</li>
           <li>You can't own yourself.</li>
         </ul>
       </article>
@@ -80,20 +83,19 @@ export function RulesPage() {
       <article className="card">
         <h2>Your game picks</h2>
         <ul>
-          <li>Each game you start <strong>one</strong> of your active players against one other fantasy team.</li>
+          <li>Each game you start {S.picks_per_game} of your players against one other fantasy team. Another team may
+            start the same player; each side scores its own share.</li>
           <li>Opponents are paired Swiss style: teams close in the standings meet, and you don't play the same team
             twice if it can be avoided. Game 1 is paired by the standings when the
             tournament opens; each later game is paired when the game before it finishes.</li>
           <li>Pick for the next game any time before it starts, even before you know your opponent. Picks lock when a
             stat keeper starts the game. Other teams' picks stay hidden until then.</li>
-          <li>Forgot to pick, or your pick is injured or on your bench? We start your most rested healthy active player (then
-            the one scoring best lately), and you'll see a notice.</li>
-          <li>Choose your bench before game 1 starts; if you don't, it's the player you paid least for. The bench plays
-            only if an active player gets injured: then you can swap it in for the rest of the tournament, once.</li>
+          <li>Forgot to pick, or a pick is injured? We start your most rested healthy players, then the ones scoring
+            best lately, and you'll see a notice.</li>
         </ul>
         <div className="section">
           <h3>Tired players</h3>
-          <p>Starting a player in back-to-back games tires them. Rotating your {active} active players never does.</p>
+          <p>Starting a player in back-to-back games tires them. Rotating your players never does.</p>
           <div className="table-wrap">
             <table>
               <thead><tr><th>You last started them</th><th>Their stats count</th></tr></thead>
@@ -110,7 +112,7 @@ export function RulesPage() {
 
       <article className="card">
         <h2>Scoring</h2>
-        <p>Your score is your player's stats from that one game. A player with no stats in the game scores{' '}
+        <p>A starter's game score comes from his stats in that one game. A player with no stats in the game scores{' '}
           {n(S.absent_score)}.</p>
         <div className="table-wrap">
           <table>
@@ -124,8 +126,12 @@ export function RulesPage() {
         </div>
         <div className="section">
           <h3>Example</h3>
-          <p>{line(game)}: game score <strong>{n(gameScore)}</strong>. If you also started them the game before, it's{' '}
-            {n(gameScore)} × {n(tired)} = {n(gameScore * tired)}. The higher score wins the matchup.</p>
+          <p>A starter earns his game score × three factors: the <strong>share</strong> you own, <strong>tired</strong>{' '}
+            (above) and <strong>repeat</strong> (below). A player's card shows the combined factor, and its parts are one
+            tap away. Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
+            matchup.</p>
+          <p>{line(game)} by a player you own half of, started the game before: {n(gameScore)} × {owned * 100}% ×{' '}
+            {n(tired)} = <strong>{n(gameScore * owned * tired)}</strong>.</p>
         </div>
         <p className="muted">A game counts as soon as a stat keeper verifies its stats. They can be reopened for {S.stat_lock_hours} hours after that.</p>
       </article>
@@ -176,15 +182,15 @@ export function RulesPage() {
                 page, in the account menu). Credits show up within about 10 minutes.</>
               : "Donations aren't open yet."}</p>
           <h3>Who can see what?</h3>
-          <p>Your league sees rosters, results and every bid after the auction closes. Only you and the league staff
+          <p>Your league sees rosters, results and every buy and split after buying closes. Only you and the league staff
             see your credit balance. Other teams can't see your pick until the game starts.
             {S.donations_enabled && S.venmo_handle && <> The Credits page lists each donor's name and season total;
               tick Show me as Anonymous to hide your name.</>}</p>
           <h3>I'm a player. Can I opt out?</h3>
-          <p>Yes. Tell a captain before the next auction opens. Players who opt out aren't listed or bid on in the next auction.</p>
+          <p>Yes. Tell a captain before share buying opens. Players who opt out aren't listed or bought in the next round.</p>
           <h3>Will I get emails?</h3>
-          <p>Yes: 24 hours and 2 hours before bidding closes, and when it's time to pick your player for the next
-            game. Turn them off on the Me page.</p>
+          <p>Yes: 24 hours and 2 hours before buying shares closes, and when it's time to pick your players for the
+            next game. Turn them off on the Me page.</p>
           <h3>What if a stat is wrong?</h3>
           <p>Tell a stat keeper. A game's stats can be reopened for {S.stat_lock_hours} hours after they're verified, and an admin can correct them after
             that. Scores update by themselves.</p>

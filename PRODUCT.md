@@ -8,7 +8,7 @@ web
 
 ## Users
 
-- **Managers**: members of the college ultimate team who buy credits, bid on teammates ("athletes") in a tournament auction, and manage a fantasy roster across the season.
+- **Managers**: members of the college ultimate team who buy credits, buy shares in teammates ("athletes") before each tournament, and manage a fantasy roster across the season.
 - **Athletes**: team members who opt in to be draftable; their tournament game stats drive fantasy scoring.
 - **Stat keepers / coaches**: tap in live stats (goals, assists, blocks, callahans, turnovers) during tournament games via a big-button tally screen; cannot record or verify their own athletes.
 - **Admins**: run seasons/tournaments, settings, deleting leagues, and confirmed-donation bookkeeping (treasurer role).
@@ -16,7 +16,7 @@ web
 
 ## Product Purpose
 
-A donation-funded fantasy league for a college ultimate team: managers bid credits (bought via real-money donations to the team fund) on their own teammates, draft rosters, and compete head-to-head in every tournament game based on real stats. Success means the league runs engagingly through the season (managers active every tournament) and raises meaningful donations for the team fund — both matter equally, not one at the expense of the other.
+A donation-funded fantasy league for a college ultimate team: managers put credits (bought via real-money donations to the team fund) on their own teammates to buy shares, build rosters, and compete head-to-head in every tournament game based on real stats. Success means the league runs engagingly through the season (managers active every tournament) and raises meaningful donations for the team fund — both matter equally, not one at the expense of the other.
 
 ## Positioning
 
@@ -24,7 +24,7 @@ Unlike a generic fantasy sports app, the "athletes" are the users' own teammates
 
 ## Operating Context
 
-- Runs in tournaments (each one event, paired one 1-v-1 matchup per game) within a season-long league; a fresh credit auction happens before each tournament; standings and ranks never reset across tournaments.
+- Runs in tournaments (each one event, paired in one 2-v-2 matchup per game) within a season-long league; a fresh round of share buying happens before each tournament; standings and ranks never reset across tournaments.
 - Stats are entered live at tournament games on phones/tablets by keepers, then verified by a second person before they count toward league scoring.
 - Money flows only as donations recorded by admins/treasurer against a university club-sports or student-org giving channel — never a personal payment account.
 - Deployed as a public GitHub Pages SPA (hash routing) backed by Supabase (Postgres + auth + RLS); all writes go through security-definer RPCs.
@@ -33,9 +33,9 @@ Unlike a generic fantasy sports app, the "athletes" are the users' own teammates
 
 - Auth: magic link or 6-digit code (Supabase, PKCE).
 - Roles enforced server-side via RLS: admin, coach/stat-keeper, player (linked athlete), league member, public.
-- Scoring: each tournament game is a 1-v-1 matchup scored from that game's verified stat line (goal 3, assist 3, block 3, callahan 8, turnover -2; no per-point normalisation), rank-weighted win/loss points (underdog wins pay more, curve still being tuned). Two multipliers on the athlete's score: tiredness within a tournament (x0.5 if they also started the previous game, x0.75 two games back; cycling the 3 actives never tires) and degradation per manager + athlete across tournaments: the more earlier tournaments a manager started that athlete in, the less the athlete scores for them (first repeat free, then x0.9 per tournament, floor 0.6).
+- Scoring: each tournament game is a 2-v-2 matchup (each team starts 2 of its up-to-6 players) scored from the starters' verified stat lines, each weighted by the share the team owns (goal 3, assist 3, block 3, callahan 8, turnover -2; no per-point normalisation), rank-weighted win/loss points (underdog wins pay more, curve still being tuned). Two more multipliers on the athlete's score: tiredness within a tournament (x0.5 if they also started the previous game, x0.75 two games back; rotating the roster never tires) and degradation per manager + athlete across tournaments: the more earlier tournaments a manager started that athlete in, the less the athlete scores for them (first repeat free, then x0.9 per tournament, floor 0.6).
 - Credits: $1 = 20 credits, 100-credit minimum to play, currently unlimited credits per manager (pay-to-win risk flagged and accepted by the user for now).
-- No athlete trades yet (parked feature); no self-ownership; exclusive ownership (one manager per athlete per league).
+- No athlete trades yet (parked feature); no self-ownership; shared ownership (many managers can own shares of one athlete; a team owns credits ÷ shares, up to 6 athletes per tournament).
 - Roster/athlete data visible only to league members + staff, not the public.
 - **Explicitly undecided / open (do not invent)**: real prize and its funding, legal/compliance sign-off for money handling, final rank-weight scoring curve, real season calendar dates, manager eligibility for alumni/parents.
 

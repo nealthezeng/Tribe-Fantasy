@@ -44,7 +44,7 @@ export function EmailReminders({ uid }: { uid: string }) {
       <label className="check">
         <input type="checkbox" checked={chosen ?? on.data ?? true} disabled={on.data === undefined || saving}
           onChange={(e) => void toggle(e.target.checked)} />
-        Email me before bidding closes and when it's time to pick for the next game.
+        Email me before buying shares closes and when it's time to pick for the next game.
       </label>
     </div>
   );

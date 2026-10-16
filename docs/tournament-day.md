@@ -9,13 +9,15 @@ So at least one keeper who is **not** a manager must be there or online to verif
 
 ## The week before
 
-1. **Admin → Athletes:** everyone who's playing is opted in. Opted-out players can't be bid on or dealt.
+1. **Admin → Athletes:** everyone who's playing is opted in. Opted-out players can't be bought.
 2. **Admin → Tournaments:** add the tournament (name, first and last day). Picks and Start game stop after the
    last day, so get it right; Edit fixes it.
-3. **Grant allowance**, then **Open auction** with a close time at least a day before the tournament.
-4. Remind managers to bid (League tab). Bids are sealed until the close.
-5. After the close: **Run auction**, then **Open tournament**. The confirm shows game 1's pairings.
-6. Remind managers to pick for game 1 and set their bench (League tab). Picks can be changed until the game starts.
+3. **Grant allowance**, then **Open share buying** with a close time at least a day before the tournament.
+4. Remind managers to buy shares (League tab). Each team can buy into up to 6 players; buys are sealed until the
+   close, and every credit put in is spent.
+5. After the close: **Settle shares**, then **Open tournament**. The confirm shows game 1's pairings.
+6. Remind managers to pick 2 players for game 1 (League tab). Picks can be changed until the game starts; a team
+   that doesn't pick gets its most rested healthy players.
 7. **Admin → Backup:** download the JSON and keep it private.
 
 ## Each game
@@ -34,8 +36,7 @@ So at least one keeper who is **not** a manager must be there or online to verif
 
 - The player reports it on their **Me** page, or tells a keeper.
 - A keeper taps **Confirm injury** on the Tally screen. Nobody can confirm their own injury.
-- From then on, a manager who picked that player gets an auto-pick instead, and can swap their bench player in for the
-  rest of the tournament (League tab, once per tournament).
+- From then on, a manager who picked that player gets an auto-pick for that slot instead. There is no bench.
 - When the player is back, they tap **I'm back** on their Me page.
 
 ## When something goes wrong
