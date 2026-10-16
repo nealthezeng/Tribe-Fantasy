@@ -1,5 +1,3 @@
-import { seededShuffle } from './rng';
-
 export interface Bid {
   id: string;
   managerId: string;
@@ -8,23 +6,12 @@ export interface Bid {
   placedAt: string;
 }
 
-export interface ManagerBudget {
-  managerId: string;
-  budget: number;
-  openSlots: number;
-}
-
-export interface Award {
+export interface Holding {
   managerId: string;
   athleteId: string;
   amount: number;
-  bidId: string | null;
-}
-
-export interface AllocationResult {
-  awards: Award[];
-  remaining: ManagerBudget[];
-  unclaimed: string[];
+  share: number;
+  bidId: string;
 }
 
 const byString = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
@@ -33,44 +20,31 @@ export function compareBids(a: Bid, b: Bid): number {
   return b.amount - a.amount || Date.parse(a.placedAt) - Date.parse(b.placedAt) || byString(a.id, b.id);
 }
 
-/** Spec §5.5: highest bid first; skip if taken, roster full or unaffordable. */
-export function allocate(bids: Bid[], managers: ManagerBudget[], athleteIds: string[]): AllocationResult {
-  const state = new Map(managers.map((m) => [m.managerId, { ...m }]));
-  const open = new Set(athleteIds);
-  const awards: Award[] = [];
+/**
+ * Spec §4 run_auction: per manager, largest buy first; keep it if > 0, the roster has room and it fits the
+ * remaining budget (else drop and try smaller). Then pool = max(minShares, kept total) and share = amount / pool.
+ * Callers pass one league's bids. Sorted by athleteId, then managerId.
+ */
+export function settleShares(bids: Bid[], budgets: Record<string, number>, minShares: number, rosterSize: number): Holding[] {
+  const kept: Bid[] = [];
+  const left = new Map<string, { budget: number; count: number }>();
   for (const b of [...bids].sort(compareBids)) {
-    const m = state.get(b.managerId);
-    if (!m || !open.has(b.athleteId) || m.openSlots <= 0 || m.budget < b.amount) continue;
-    open.delete(b.athleteId);
+    const m = left.get(b.managerId) ?? { budget: budgets[b.managerId] ?? 0, count: 0 };
+    left.set(b.managerId, m);
+    if (b.amount <= 0 || m.count >= rosterSize || b.amount > m.budget) continue;
     m.budget -= b.amount;
-    m.openSlots -= 1;
-    awards.push({ managerId: m.managerId, athleteId: b.athleteId, amount: b.amount, bidId: b.id });
+    m.count += 1;
+    kept.push(b);
   }
-  return {
-    awards,
-    remaining: managers.map((m) => ({ ...state.get(m.managerId)! })),
-    unclaimed: athleteIds.filter((a) => open.has(a)),
-  };
-}
-
-/** Spec §5.5 final fill: seeded shuffle, dealt one per manager per pass, 0 credits. */
-export function fillLeftovers(managers: ManagerBudget[], unclaimed: string[], seed: string): Award[] {
-  const pool = seededShuffle([...unclaimed].sort(byString), `${seed}:athletes`);
-  const order = seededShuffle(
-    [...managers].sort((a, b) => byString(a.managerId, b.managerId)).map((m) => ({ ...m })),
-    `${seed}:managers`,
-  );
-  const awards: Award[] = [];
-  let progressed = true;
-  while (pool.length > 0 && progressed) {
-    progressed = false;
-    for (const m of order) {
-      if (pool.length === 0) break;
-      if (m.openSlots <= 0) continue;
-      awards.push({ managerId: m.managerId, athleteId: pool.shift()!, amount: 0, bidId: null });
-      m.openSlots -= 1;
-      progressed = true;
-    }
-  }
-  return awards;
+  const pool = new Map<string, number>();
+  for (const b of kept) pool.set(b.athleteId, (pool.get(b.athleteId) ?? 0) + b.amount);
+  return kept
+    .map((b) => ({
+      managerId: b.managerId,
+      athleteId: b.athleteId,
+      amount: b.amount,
+      share: b.amount / Math.max(minShares, pool.get(b.athleteId)!),
+      bidId: b.id,
+    }))
+    .sort((a, b) => byString(a.athleteId, b.athleteId) || byString(a.managerId, b.managerId));
 }
