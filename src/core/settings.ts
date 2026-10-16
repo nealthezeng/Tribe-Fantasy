@@ -9,10 +9,11 @@ export interface SeasonSettings {
   allowance_gap: number;
   max_members: number;
   roster_size: number;
-  /** Roster athletes kept on the bench; they play only after a swap for an injured active athlete. */
-  bench_size: number;
+  /** A player has at least this many shares; once more credits than this are on him, shares = credits. */
+  min_shares: number;
+  /** Players each team starts in a game. */
+  picks_per_game: number;
   min_bid: number;
-  exclusive_ownership: boolean;
   allow_self_ownership: boolean;
   stat_weights: Record<string, number>;
   normalize_mode: 'per_point' | 'none';
@@ -43,11 +44,11 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   venmo_handle: null,
   allowance_base: 100,
   allowance_gap: 30,
-  max_members: 6,
-  roster_size: 4,
-  bench_size: 1,
+  max_members: 12,
+  roster_size: 6,
+  min_shares: 20,
+  picks_per_game: 2,
   min_bid: 1,
-  exclusive_ownership: true,
   allow_self_ownership: false,
   stat_weights: { goal: 3, assist: 3, block: 3, callahan: 8, turnover: -2 },
   normalize_mode: 'none',
@@ -124,9 +125,9 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   allowance_gap: num(0, 100_000, true),
   max_members: num(2, 50, true),
   roster_size: num(1, 30, true),
-  bench_size: num(0, 5, true),
+  min_shares: num(1, 100_000, true),
+  picks_per_game: num(1, 5, true),
   min_bid: num(0, 10_000_000, true),
-  exclusive_ownership: bool,
   allow_self_ownership: bool,
   stat_weights: statWeights,
   normalize_mode: oneOf('per_point', 'none'),
@@ -184,8 +185,8 @@ export function parseSettings(input: unknown): SeasonSettings {
     const problem = check(merged[key]);
     if (problem) issues.push(`${key} ${problem}`);
   }
-  if (issues.length === 0 && (merged.bench_size as number) >= (merged.roster_size as number)) {
-    issues.push('bench_size must be less than roster_size');
+  if (issues.length === 0 && (merged.picks_per_game as number) > (merged.roster_size as number)) {
+    issues.push('picks_per_game must be at most roster_size');
   }
   if (issues.length > 0) throw new SettingsError(issues);
 

@@ -39,6 +39,13 @@ describe('swissPairings', () => {
     expect(swissPairings(['a', 'b'], met(['a', 'b']))).toEqual([['a', 'b']]);
   });
 
+  it('prefers a season rematch over a tournament rematch', () => {
+    const order = ['A', 'B', 'C', 'D'];
+    const season = { 'A|C': 1, 'A|D': 1, 'B|C': 1, 'B|D': 1 };
+    expect(swissPairings(order, { 'A|B': 1 }, season)).toEqual([['A', 'C'], ['B', 'D']]);
+    expect(swissPairings(order, { 'A|B': 1 }, { 'A|C': 1 })).toEqual([['A', 'D'], ['B', 'C']]);
+  });
+
   it('pairs every team exactly once for 8 teams with history', () => {
     const order = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const pairs = swissPairings(order, met(['a', 'b'], ['c', 'd'], ['e', 'f'], ['g', 'h']));

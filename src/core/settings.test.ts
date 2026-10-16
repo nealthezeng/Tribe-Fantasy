@@ -12,8 +12,8 @@ describe('parseSettings', () => {
     expect(DEFAULT_SETTINGS.donations_enabled).toBe(false);
     expect(DEFAULT_SETTINGS.allowance_base).toBe(100);
     expect(DEFAULT_SETTINGS.allowance_gap).toBe(30);
-    expect(DEFAULT_SETTINGS.max_members).toBe(6);
-    expect(DEFAULT_SETTINGS.roster_size).toBe(4);
+    expect(DEFAULT_SETTINGS.max_members).toBe(12);
+    expect(DEFAULT_SETTINGS.roster_size).toBe(6);
     expect(DEFAULT_SETTINGS.normalize_mode).toBe('none');
     expect(DEFAULT_SETTINGS.stat_weights).toEqual({ goal: 3, assist: 3, block: 3, callahan: 8, turnover: -2 });
     expect(DEFAULT_SETTINGS.tap_merge_seconds).toBe(10);
@@ -80,8 +80,11 @@ describe('parseSettings', () => {
     }
   });
 
-  it('has the tournament bench and tiredness defaults (tournament mode §3)', () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ bench_size: 1, tiredness_multipliers: [0.5, 0.75] });
+  it('has the share defaults and no bench or exclusive ownership (M13)', () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ roster_size: 6, max_members: 12, min_shares: 20, picks_per_game: 2 });
+    expect(DEFAULT_SETTINGS).not.toHaveProperty('bench_size');
+    expect(DEFAULT_SETTINGS).not.toHaveProperty('exclusive_ownership');
+    expect(DEFAULT_SETTINGS.tiredness_multipliers).toEqual([0.5, 0.75]);
   });
 
   it('takes a tiredness list of up to 10 factors in [0, 1]', () => {
@@ -93,10 +96,16 @@ describe('parseSettings', () => {
     }
   });
 
-  it('keeps at least one active athlete: bench_size < roster_size', () => {
-    expect(parseSettings({ roster_size: 3, bench_size: 0 }).bench_size).toBe(0);
-    expect(() => parseSettings({ roster_size: 3, bench_size: 3 })).toThrow(/bench_size must be less than roster_size/);
-    expect(() => parseSettings({ bench_size: 1.5 })).toThrow(/bench_size/);
+  it('rejects the retired bench and exclusive-ownership settings', () => {
+    expect(() => parseSettings({ bench_size: 1 })).toThrow(/unknown setting "bench_size"/);
+    expect(() => parseSettings({ exclusive_ownership: true })).toThrow(/unknown setting "exclusive_ownership"/);
+  });
+
+  it('bounds min_shares and picks_per_game, and picks_per_game <= roster_size', () => {
+    expect(() => parseSettings({ roster_size: 1, picks_per_game: 2 })).toThrow(/picks_per_game must be at most roster_size/);
+    expect(() => parseSettings({ min_shares: 0 })).toThrow(/min_shares/);
+    expect(() => parseSettings({ picks_per_game: 6 })).toThrow(/picks_per_game/);
+    expect(parseSettings({ min_shares: 50, picks_per_game: 3 })).toMatchObject({ min_shares: 50, picks_per_game: 3 });
   });
 
   it('rejects the settings retired by the stages revision', () => {
