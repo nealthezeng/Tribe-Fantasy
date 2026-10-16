@@ -189,7 +189,9 @@ declare uid uuid := private.require_user(); season uuid; lid uuid; nxt int; pick
 begin
   select season_id into season from public.stages where id = p_stage;
   if not found then raise exception 'NOT_FOUND'; end if;
-  select league_id into lid from public.memberships where id = p_membership and user_id = uid;
+  -- Locking the membership row serialises one team's calls, so two overlapping sets can't both delete-then-insert
+  -- past picks_per_game (as place_bid).
+  select league_id into lid from public.memberships where id = p_membership and user_id = uid for update;
   if not found then raise exception 'NOT_MEMBER'; end if;
   -- Waits for a concurrent start_game, so a pick can't slip in after its game starts.
   perform 1 from public.games where stage_id = p_stage for share;

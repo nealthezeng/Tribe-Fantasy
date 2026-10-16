@@ -150,14 +150,15 @@ describe('pick notices', () => {
   });
 
   it('pick email until 2 picks, or the whole roster if shorter (C9)', async () => {
+    const [, daveM] = await member(f.db, 'dave');
+    await f.db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
+      values ($1, $2, $3, $4, 10, 'bid')`, [f.stage, daveM, f.league, f.athletes[5]]);
     await pick(alice, aliceM, 1, [f.athletes[0]]);
     await pick(bob, bobM, 1, [f.athletes[2], f.athletes[3]]);
     await pick(carol, carolM, 1, [f.athletes[4]]);
-    const g1 = await open([{ league_id: f.league, home: aliceM, away: carolM }, { league_id: f.league, home: bobM, away: null }]);
-    expect((await outbox()).map((r) => r.membership_id)).toEqual([aliceM]); // 1 of 2; carol's 1 of 1 is enough
-    await start(g1);
-    await finish(g1); // alice v bob next, neither has picked for game 2
-    expect((await outbox()).map((r) => r.membership_id)).toEqual([aliceM, aliceM, bobM]);
+    await open([{ league_id: f.league, home: aliceM, away: carolM }, { league_id: f.league, home: bobM, away: daveM }]);
+    // alice has 1 of 2 and dave 0 of 1: told. bob's 2 of 2 and carol's 1 of 1 (a 1-player roster) are enough.
+    expect((await outbox()).map((r) => r.membership_id)).toEqual([aliceM, daveM]);
   });
 
   it('skips managers who turned emails off', async () => {

@@ -16,7 +16,7 @@ let teams: { uid: string; mid: string; name: string }[];
 let keeper: string, verifier: string;
 let result: TournamentResult;
 let rows: Rows;
-const NOW = Date.parse('2027-01-01T00:00:00Z'); // long after the stage: everything final
+const NOW = Date.parse('2027-01-01T00:00:00Z'); // after every game's verified_at (set below), so all three played games are final
 const START = 115; // everyone ties before the first game: (100 + 130) / 2
 
 const q = async <T,>(sql: string, params: unknown[] = []) => (await f.db.query<T>(sql, params)).rows;
