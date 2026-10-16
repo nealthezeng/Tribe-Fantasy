@@ -288,7 +288,7 @@ describe('join_league cap', () => {
       .rejects.toThrow('ALREADY_MEMBER');
   });
 
-  it('defaults to DEFAULT_SETTINGS.max_members (6)', async () => {
+  it('defaults to DEFAULT_SETTINGS.max_members (12)', async () => {
     for (let i = 1; i <= DEFAULT_SETTINGS.max_members; i++) await member(`m${i}`);
     await expect(member('one_more')).rejects.toThrow('LEAGUE_FULL');
   });

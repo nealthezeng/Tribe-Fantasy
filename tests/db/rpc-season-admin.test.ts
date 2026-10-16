@@ -58,7 +58,7 @@ describe('delete_season', () => {
     await del(f.season);
 
     for (const t of ['public.stages', 'public.leagues', 'public.memberships', 'public.credit_ledger', 'public.bids',
-      'public.roster_slots', 'public.games', 'public.game_pairings', 'public.game_picks', 'public.bench_swaps', 'public.sessions',
+      'public.roster_slots', 'public.games', 'public.game_pairings', 'public.game_picks', 'public.sessions',
       'public.stat_taps', 'public.stat_lines', 'public.attendance', 'public.injuries', 'public.invites', 'private.outbox']) {
       expect(await count(t), t).toBe(0);
     }

@@ -118,15 +118,16 @@ describe('reset_game', () => {
     await start(g1); // playable again
   });
 
-  it('resets a live game that has no next game yet; undoing game 1 reopens bench choices', async () => {
+  it('resets a live game that has no next game yet; undoing game 1 reopens its picks', async () => {
     const g1 = await open();
     await start(g1);
-    const setBench = () => as(f.db, alice, (tx) => rpc(tx, 'set_bench', { p_membership: aliceM, p_stage: f.stage, p_athletes: `{${f.athletes[0]}}` }));
-    await expect(setBench()).rejects.toThrow('TOURNAMENT_STARTED');
+    const pick = () => as(f.db, alice, (tx) => rpc(tx, 'set_game_pick',
+      { p_membership: aliceM, p_stage: f.stage, p_number: 1, p_athletes: `{${f.athletes[0]}}` }));
+    await expect(pick()).rejects.toThrow('PICK_LOCKED');
     await reset(g1);
     expect(await gameRow(g1)).toMatchObject({ started: false });
     expect((await audit('reset_game'))[0].details).toMatchObject({ next_game_deleted: false });
-    await setBench();
+    await pick();
   });
 
   it('undoes a last-game finish: no next game to delete, and the game can be played again (t202)', async () => {

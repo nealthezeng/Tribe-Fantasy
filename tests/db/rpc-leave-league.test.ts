@@ -1,7 +1,7 @@
 // t217: a manager leaves a league, unless their team has donated, bid, or played a game.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { as, rpc } from './helpers';
-import { auctionFixture, bid, closeBids, grant, member, openAuction, runAuction, type AuctionFixture } from './auction-fixture';
+import { auctionFixture, bid, grant, member, openAuction, type AuctionFixture } from './auction-fixture';
 
 let f: AuctionFixture;
 let alice: string, aliceM: string, bob: string, bobM: string;
@@ -17,12 +17,11 @@ beforeEach(async () => {
 });
 
 describe('leave_league', () => {
-  it('removes the team with its allowance and random-fill players, and audits', async () => {
+  it('removes the team with its allowance and bench-era fill players, and audits', async () => {
     await grant(f);
-    await openAuction(f);
-    await closeBids(f);
-    await runAuction(f);
-    expect(await count('public.roster_slots where membership_id = $1', [aliceM])).toBeGreaterThan(0);
+    // Superuser write: a free fill player from before shares (0007), which doesn't block leaving.
+    await f.db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
+      values ($1, $2, $3, $4, 0, 'fill')`, [f.stage, aliceM, f.league, f.athletes[0]]);
     await leave(alice, aliceM);
     expect(await count('public.memberships where id = $1', [aliceM])).toBe(0);
     expect(await count('public.credit_ledger where membership_id = $1', [aliceM])).toBe(0);
@@ -60,16 +59,9 @@ describe('leave_league', () => {
     await expect(leave(bob, bobM)).rejects.toThrow('TEAM_HAS_GAMES');
   });
 
-  it('leaves with a game-1 pick and a bench set before the tournament opens (own data only)', async () => {
-    await grant(f);
-    await openAuction(f);
-    await closeBids(f);
-    await runAuction(f);
-    const [slot] = (await f.db.query<{ athlete_id: string }>(
-      'select athlete_id from public.roster_slots where membership_id = $1 limit 1', [aliceM])).rows;
-    await f.db.query('update public.roster_slots set bench = true where membership_id = $1 and athlete_id = $2', [aliceM, slot.athlete_id]);
+  it('leaves with a game-1 pick made before the tournament opens (own data only)', async () => {
     await f.db.query(`insert into public.game_picks (stage_id, game_number, membership_id, league_id, athlete_id)
-      values ($1, 1, $2, $3, $4)`, [f.stage, aliceM, f.league, slot.athlete_id]);
+      values ($1, 1, $2, $3, $4)`, [f.stage, aliceM, f.league, f.athletes[0]]);
     await leave(alice, aliceM);
     expect(await count('public.game_picks where membership_id = $1', [aliceM])).toBe(0);
   });

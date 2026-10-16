@@ -1,8 +1,9 @@
-// run_auction's bid step must award exactly what allocate() in src/core/allocation.ts awards.
+// run_auction must settle exactly what settleShares() in src/core/allocation.ts settles: the same kept buys, pools
+// and shares.
 import { describe, expect, it } from 'vitest';
-import { allocate, type Bid } from '../../src/core/allocation';
+import { settleShares, type Bid } from '../../src/core/allocation';
 import { as, rpc } from './helpers';
-import { auctionFixture, closeBids, grant, member, openAuction, runAuction, slots } from './auction-fixture';
+import { auctionFixture, closeBids, grant, member, openAuction, runAuction } from './auction-fixture';
 
 /** Small deterministic PRNG so a failing draft can be replayed. */
 function lcg(seed: number) {
@@ -10,11 +11,12 @@ function lcg(seed: number) {
   return (n: number) => { s = (s * 1103515245 + 12345) % 2 ** 31; return s % n; };
 }
 
-describe('run_auction matches allocate()', () => {
+describe('run_auction matches settleShares()', () => {
   for (const seed of [1, 2, 3, 4]) {
     it(`random draft ${seed}`, async () => {
       const rand = lcg(seed);
-      const f = await auctionFixture(10, { roster_size: 2 });
+      // min_shares 40, so some pools are the floor and some the credits put in.
+      const f = await auctionFixture(10, { roster_size: 2, min_shares: 40 });
       const teams: [string, string][] = [];
       for (const n of ['m1', 'm2', 'm3', 'm4']) teams.push(await member(f.db, n));
       await grant(f); // 115 each
@@ -25,8 +27,8 @@ describe('run_auction matches allocate()', () => {
       await openAuction(f);
       for (const [, mid] of teams) {
         for (const athlete of f.athletes) {
-          // Direct writes: totals may exceed budgets here (place_bid refuses that since M8.5), so the
-          // affordability skip both sides implement still gets exercised. Amounts collide often.
+          // Direct writes: totals may exceed budgets and buys may exceed roster_size here (place_bid refuses both),
+          // so the C5 drop both sides implement still gets exercised. Amounts collide often.
           if (rand(3) === 0) {
             await f.db.query(`insert into public.bids (stage_id, membership_id, league_id, athlete_id, amount)
               values ($1, $2, $3, $4, $5)`, [f.stage, mid, f.league, athlete, 1 + rand(60)]);
@@ -46,12 +48,15 @@ describe('run_auction matches allocate()', () => {
       const bids: Bid[] = bidRows.map((b) => ({
         id: b.id, managerId: b.membership_id, athleteId: b.athlete_id, amount: b.amount, placedAt: b.placed_at.toISOString(),
       }));
-      const expected = allocate(bids, budgets.map((b) => ({ managerId: b.membership_id, budget: b.budget, openSlots: 2 })), f.athletes);
+      const expected = settleShares(bids, Object.fromEntries(budgets.map((b) => [b.membership_id, b.budget])), 40, 2);
 
       await runAuction(f);
-      const won = (await slots(f)).filter((s) => s.via === 'bid')
-        .map((s) => `${s.membership_id}:${s.athlete_id}:${s.price}`).sort();
-      expect(won).toEqual(expected.awards.map((a) => `${a.managerId}:${a.athleteId}:${a.amount}`).sort());
+      const got = (await f.db.query<{ membership_id: string; athlete_id: string; price: number; share: number }>(
+        'select membership_id, athlete_id, price, share::float8 as share from public.roster_slots')).rows;
+      const key = (m: string, a: string, amount: number, share: number) => `${m}:${a}:${amount}:${share.toFixed(9)}`;
+      expect(got.map((s) => key(s.membership_id, s.athlete_id, s.price, s.share)).sort())
+        .toEqual(expected.map((h) => key(h.managerId, h.athleteId, h.amount, h.share)).sort());
+      expect(expected.length).toBeGreaterThan(0);
     });
   }
 });

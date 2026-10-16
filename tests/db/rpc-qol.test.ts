@@ -42,21 +42,19 @@ describe('delete_athlete', () => {
       .rejects.toThrow('NOT_FOUND');
   });
 
-  it('refuses an athlete with a bid, a roster slot, a game pick or a bench swap', async () => {
+  it('refuses an athlete with a bid, a roster slot or a game pick', async () => {
     const f = await auctionFixture();
     const [alice, am] = await member(f.db, 'alice');
     await grant(f);
     await openAuction(f);
-    const [a0, a1, a2, a3, a4] = f.athletes;
+    const [a0, a1, a2] = f.athletes;
     await bid(f, alice, am, a0, 5);
-    // Superuser writes: a roster slot, a game pick and a bench swap (either side), without running the auction.
+    // Superuser writes: a roster slot and a game pick, without running the auction.
     await f.db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
       values ($1, $2, $3, $4, 0, 'fill')`, [f.stage, am, f.league, a1]);
     await f.db.query(`insert into public.game_picks (stage_id, game_number, membership_id, league_id, athlete_id)
       values ($1, 1, $2, $3, $4)`, [f.stage, am, f.league, a2]);
-    await f.db.query(`insert into public.bench_swaps (stage_id, membership_id, out_athlete, in_athlete, from_game)
-      values ($1, $2, $3, $4, 2)`, [f.stage, am, a3, a4]);
-    for (const a of [a0, a1, a2, a3, a4]) {
+    for (const a of [a0, a1, a2]) {
       await expect(as(f.db, f.admin, (tx) => rpc(tx, 'delete_athlete', { p_athlete: a }))).rejects.toThrow('ATHLETE_IN_USE');
     }
   });
@@ -81,8 +79,6 @@ describe('delete_athlete forced (t81)', () => {
       values ($1, $2, $3, $4, 0, 'fill')`, [f.stage, bm, league2, a]);
     await f.db.query(`insert into public.game_picks (stage_id, game_number, membership_id, league_id, athlete_id)
       values ($1, 1, $2, $3, $4)`, [f.stage, am, f.league, a]);
-    await f.db.query(`insert into public.bench_swaps (stage_id, membership_id, out_athlete, in_athlete, from_game)
-      values ($1, $2, $3, $4, 2)`, [f.stage, am, f.athletes[1], a]);
     const name = (await f.db.query<{ name: string }>(`select name from public.athletes where id = $1`, [a])).rows[0].name;
     const balance = async (m: string) =>
       (await f.db.query<{ b: number }>(`select coalesce(sum(amount), 0)::int as b from public.credit_ledger where membership_id = $1`, [m])).rows[0].b;
@@ -94,14 +90,13 @@ describe('delete_athlete forced (t81)', () => {
     for (const t of ['bids', 'roster_slots', 'game_picks']) {
       expect((await f.db.query(`select 1 from public.${t} where athlete_id = $1`, [a])).rows, t).toHaveLength(0);
     }
-    expect((await f.db.query(`select 1 from public.bench_swaps`)).rows).toHaveLength(0);
     expect(await balance(am)).toBe(aliceBefore + 30);
     expect(await balance(bm)).toBe(bobBefore);
     const refund = await f.db.query<{ kind: string; note: string; stage_id: string }>(
       `select kind, note, stage_id from public.credit_ledger where membership_id = $1 and amount = 30`, [am]);
     expect(refund.rows).toEqual([{ kind: 'adjustment', note: `Refund: ${name} removed`, stage_id: f.stage }]);
     expect((await audit(f.db, 'delete_athlete'))[0].details).toMatchObject({
-      name, force: true, taps: 0, lines: 0, bids: 1, slots: 2, picks: 1, swaps: 1, refunded: 30,
+      name, force: true, taps: 0, lines: 0, bids: 1, slots: 2, picks: 1, refunded: 30,
     });
   });
 

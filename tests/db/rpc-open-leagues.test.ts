@@ -86,8 +86,8 @@ describe('list_leagues', () => {
     const locked = await create(bob, 'Alpha', 'secret1');
     await join(carol, open);
     expect(await list(carol)).toEqual([
-      { id: locked, name: 'Alpha', teams: 1, max_teams: 6, has_password: true, is_member: false, is_creator: false },
-      { id: open, name: 'Bravo', teams: 2, max_teams: 6, has_password: false, is_member: true, is_creator: false },
+      { id: locked, name: 'Alpha', teams: 1, max_teams: 12, has_password: true, is_member: false, is_creator: false },
+      { id: open, name: 'Bravo', teams: 2, max_teams: 12, has_password: false, is_member: true, is_creator: false },
     ]);
     expect((await list(alice)).find((l) => l.id === open)).toMatchObject({ is_member: true, is_creator: true });
   });

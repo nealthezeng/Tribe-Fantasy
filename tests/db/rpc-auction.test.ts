@@ -41,15 +41,12 @@ describe('open_auction', () => {
     await expect(openAuction(f)).rejects.toThrow('AUCTION_ALREADY_RUN');
   });
 
-  it('refuses when a league has more slots than healthy opted-in athletes, naming the league', async () => {
-    const f = await auctionFixture(8); // roster_size 4 by default
+  it('refuses only when no healthy opted-in athlete is left (C10)', async () => {
+    const f = await auctionFixture(2);
     await member(f.db, 'alice');
     await member(f.db, 'bob');
-    await openAuction(f); // 2 × 4 = 8 ≤ 8
     await injure(f, f.athletes[0]);
-    const err = await openAuction(f).catch((e: { message: string; detail?: string }) => e);
-    expect(err).toMatchObject({ message: 'NOT_ENOUGH_ATHLETES', detail: 'League A' });
-    await f.db.query(`update public.injuries set cleared_at = now()`);
+    await openAuction(f); // 2 teams × 6 players > 1 healthy athlete: fine with shares
     await as(f.db, f.admin, (tx) => rpc(tx, 'set_athlete_opt_in', { p_athlete: f.athletes[1], p_opted_in: false }));
     await expect(openAuction(f)).rejects.toThrow('NOT_ENOUGH_ATHLETES');
   });
@@ -156,7 +153,7 @@ describe('bid and roster visibility', () => {
 
     await runAuction(f);
     const roster = (uid: string) => as(f.db, uid, async (tx) => (await tx.query(`select 1 from public.roster_slots`)).rows.length);
-    expect(await roster(alice)).toBe(8);
+    expect(await roster(alice)).toBe(2); // both buys on A0
     expect(await roster(outsider)).toBe(0);
   });
 });
@@ -172,54 +169,24 @@ describe('run_auction', () => {
     await expect(runAuction(f)).rejects.toThrow('AUCTION_ALREADY_RUN');
     const st = await stageRow(f);
     expect(st.auction_run_at).not.toBeNull();
-    expect(st.auction_seed).toMatch(/^[0-9a-f-]{36}$/);
+    expect(st.auction_seed).toBeNull(); // no fill, so no seed
   });
 
-  it('awards the highest bid, ties to the earlier bid, and deducts winning bids', async () => {
-    const f = await auctionFixture();
+  it('keeps only the largest roster_size buys when the setting dropped after buying', async () => {
+    const f = await auctionFixture(8);
     const [alice, am] = await member(f.db, 'alice');
-    const [bob, bm] = await member(f.db, 'bob');
+    await member(f.db, 'bob');
     await grant(f);
     await openAuction(f);
-    const [a0, a1] = f.athletes;
-    await bid(f, alice, am, a0, 30);
-    await bid(f, bob, bm, a0, 40);
-    await bid(f, bob, bm, a1, 25);
-    await bid(f, alice, am, a1, 25);
-    await f.db.query(`update public.bids set placed_at = now() - interval '1 hour' where membership_id = $1 and athlete_id = $2`, [am, a1]);
-    await closeBids(f);
-    const res = await runAuction(f);
-    expect(res).toEqual({ by_bid: 2, by_fill: 6, empty: 0 });
-    const won = (await slots(f)).filter((s) => s.via === 'bid');
-    expect(won).toEqual(expect.arrayContaining([
-      { membership_id: bm, athlete_id: a0, price: 40, via: 'bid' },
-      { membership_id: am, athlete_id: a1, price: 25, via: 'bid' },
-    ]));
-    expect(await ledger(f, bm)).toEqual([{ kind: 'bid', amount: -40 }]);
-    expect(await ledger(f, am)).toEqual([{ kind: 'bid', amount: -25 }]);
-  });
-
-  it('skips bids a manager can no longer afford or has no room for', async () => {
-    const f = await auctionFixture(8, { roster_size: 2 });
-    const [alice, am] = await member(f.db, 'alice');
-    const [bob, bm] = await member(f.db, 'bob');
-    await grant(f); // 115 each
-    await openAuction(f);
     const [a0, a1, a2] = f.athletes;
-    await bid(f, alice, am, a0, 100);
-    await bid(f, alice, am, a1, 15); // bids may not total more than the balance (M8.5)
-    await bid(f, bob, bm, a1, 5);
-    await bid(f, bob, bm, a0, 1);
-    await bid(f, bob, bm, a2, 3);
-    await bid(f, bob, bm, f.athletes[3], 2); // roster full after a1 and a2
-    // Lower alice's balance after bidding: 5 left after a0, so the auction skips her 15 on a1.
-    await as(f.db, f.admin, (tx) => rpc(tx, 'adjust_credits', { p_membership: am, p_amount: -10, p_note: 'fix' }));
+    await bid(f, alice, am, a0, 30);
+    await bid(f, alice, am, a1, 20);
+    await bid(f, alice, am, a2, 10);
+    await settings(f, { roster_size: 2 });
     await closeBids(f);
-    await runAuction(f);
-    const won = (await slots(f)).filter((s) => s.via === 'bid').map((s) => [s.membership_id, s.athlete_id, s.price]);
-    expect(won).toEqual(expect.arrayContaining([[am, a0, 100], [bm, a1, 5], [bm, a2, 3]]));
-    expect(won).toHaveLength(3);
-    expect((await slots(f)).filter((s) => s.membership_id === bm)).toHaveLength(2);
+    expect(await runAuction(f)).toEqual({ by_bid: 2, empty: 2 });
+    expect((await slots(f)).map((s) => [s.athlete_id, s.price]).sort()).toEqual([[a0, 30], [a1, 20]].sort());
+    expect(await ledger(f, am)).toHaveLength(2);
   });
 
   it('skips a bid the manager can no longer afford after an adjustment lowers the balance', async () => {
@@ -237,15 +204,15 @@ describe('run_auction', () => {
     expect(await ledger(f, am)).toEqual([]);
   });
 
-  it('writes no ledger entry for a winning bid of 0', async () => {
+  it('ignores a buy of 0 credits: it would own nothing', async () => {
     const f = await auctionFixture(8, { min_bid: 0, roster_size: 1 });
     const [alice, am] = await member(f.db, 'alice');
     await grant(f);
     await openAuction(f);
     await bid(f, alice, am, f.athletes[0], 0);
     await closeBids(f);
-    await runAuction(f);
-    expect(await slots(f)).toEqual([{ membership_id: am, athlete_id: f.athletes[0], price: 0, via: 'bid' }]);
+    expect(await runAuction(f)).toEqual({ by_bid: 0, empty: 1 });
+    expect(await slots(f)).toEqual([]);
     expect(await ledger(f, am)).toEqual([]);
   });
 
@@ -258,77 +225,42 @@ describe('run_auction', () => {
     await as(f.db, f.admin, (tx) => rpc(tx, 'set_athlete_opt_in', { p_athlete: f.athletes[0], p_opted_in: false }));
     await closeBids(f);
     await runAuction(f);
-    const s = await slots(f);
-    expect(s).toHaveLength(1);
-    expect(s[0]).toMatchObject({ via: 'fill', price: 0 });
-    expect(s[0].athlete_id).not.toBe(f.athletes[0]);
-  });
-});
-
-describe('fill', () => {
-  it('never deals an injured athlete and leaves spots empty when healthy athletes run out', async () => {
-    const f = await auctionFixture(4, { roster_size: 2 });
-    const [, am] = await member(f.db, 'alice');
-    const [, bm] = await member(f.db, 'bob');
-    await openAuction(f); // 4 healthy athletes for 4 slots
-    await injure(f, f.athletes[0]); // injured after opening: the fill still skips them
-    await closeBids(f);
-    expect(await runAuction(f)).toEqual({ by_bid: 0, by_fill: 3, empty: 1 });
-    const s = await slots(f);
-    expect(s.map((x) => x.athlete_id)).not.toContain(f.athletes[0]);
-    expect(s.every((x) => x.via === 'fill' && x.price === 0)).toBe(true);
-    const counts = [am, bm].map((m) => s.filter((x) => x.membership_id === m).length).sort();
-    expect(counts).toEqual([1, 2]); // one per manager per pass
+    expect(await slots(f)).toEqual([]); // and no fill takes its place
+    expect(await ledger(f, am)).toEqual([]);
   });
 
-  it('still awards an injured athlete to a bid', async () => {
-    const f = await auctionFixture(8, { roster_size: 1 });
+  it('ignores a buy of your own athlete, and still sells an injured one', async () => {
+    const f = await auctionFixture(8, { allow_self_ownership: true });
     const [alice, am] = await member(f.db, 'alice');
     await grant(f);
     await openAuction(f);
-    await injure(f, f.athletes[0]);
-    await bid(f, alice, am, f.athletes[0], 5);
-    await closeBids(f);
-    await runAuction(f);
-    expect(await slots(f)).toEqual([{ membership_id: am, athlete_id: f.athletes[0], price: 5, via: 'bid' }]);
-  });
-
-  it('never fills a manager with their own athlete', async () => {
-    const f = await auctionFixture(2, { roster_size: 1 });
-    const [alice, am] = await member(f.db, 'alice');
     await f.db.query(`update public.athletes set user_id = $1 where id = $2`, [alice, f.athletes[0]]);
-    await openAuction(f);
+    await bid(f, alice, am, f.athletes[0], 5);
+    await settings(f, { allow_self_ownership: false }); // turned off after the buy
+    await injure(f, f.athletes[1]);
+    await bid(f, alice, am, f.athletes[1], 5);
     await closeBids(f);
     await runAuction(f);
-    expect(await slots(f)).toEqual([{ membership_id: am, athlete_id: f.athletes[1], price: 0, via: 'fill' }]);
+    expect(await slots(f)).toEqual([{ membership_id: am, athlete_id: f.athletes[1], price: 5, via: 'bid' }]);
   });
 
-  it('gives the same result for the same seed', async () => {
-    const f = await auctionFixture(8, { roster_size: 3 });
-    for (const n of ['alice', 'bob']) await member(f.db, n);
-    await openAuction(f);
-    await closeBids(f);
-    await runAuction(f);
-    const first = await slots(f);
-    await f.db.exec(`delete from public.roster_slots; update public.stages set auction_run_at = null`);
-    await runAuction(f);
-    expect(await slots(f)).toEqual(first);
-  });
-
-  it('allocates two leagues from one shared athlete pool independently', async () => {
-    const f = await auctionFixture(4, { roster_size: 2 });
+  it('pools each league separately', async () => {
+    const f = await auctionFixture(4);
     await as(f.db, f.admin, async (tx) => {
       const b = (await rpc(tx, 'create_league', { p_season: f.season, p_name: 'League B' })) as string;
       await rpc(tx, 'create_invite', { p_league: b, p_code: 'LEAGUE2', p_max_uses: 50, p_expires_at: null });
     });
-    for (const n of ['a1', 'a2']) await member(f.db, n);
-    for (const n of ['b1', 'b2']) await member(f.db, n, 'LEAGUE2');
+    const [a, am] = await member(f.db, 'a1');
+    const [b, bm] = await member(f.db, 'b1', 'LEAGUE2');
+    await grant(f);
     await openAuction(f);
+    await bid(f, a, am, f.athletes[0], 30);
+    await bid(f, b, bm, f.athletes[0], 10);
     await closeBids(f);
-    expect(await runAuction(f)).toEqual({ by_bid: 0, by_fill: 8, empty: 0 });
-    const perLeague = await f.db.query<{ n: number }>(
-      `select count(distinct athlete_id)::int as n from public.roster_slots group by league_id`);
-    expect(perLeague.rows).toEqual([{ n: 4 }, { n: 4 }]);
+    expect(await runAuction(f)).toEqual({ by_bid: 2, empty: 10 });
+    const shares = await f.db.query<{ membership_id: string; share: number }>(
+      'select membership_id, share::float8 as share from public.roster_slots order by share desc');
+    expect(shares.rows).toEqual([{ membership_id: am, share: 1 }, { membership_id: bm, share: 0.5 }]);
   });
 });
 

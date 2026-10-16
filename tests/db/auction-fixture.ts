@@ -52,7 +52,7 @@ export const openAuction = (f: AuctionFixture, closeAt: string | null = inAnHour
 export const closeBids = (f: AuctionFixture) =>
   f.db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [f.stage]);
 export const runAuction = (f: AuctionFixture) =>
-  as(f.db, f.admin, (tx) => rpc(tx, 'run_auction', { p_stage: f.stage })) as Promise<{ by_bid: number; by_fill: number; empty: number }>;
+  as(f.db, f.admin, (tx) => rpc(tx, 'run_auction', { p_stage: f.stage })) as Promise<{ by_bid: number; empty: number }>;
 
 export const bid = (f: AuctionFixture, uid: string, mid: string, athlete: string, amount: number | null) =>
   as(f.db, uid, (tx) => rpc(tx, 'place_bid', { p_stage: f.stage, p_membership: mid, p_athlete: athlete, p_amount: amount }));

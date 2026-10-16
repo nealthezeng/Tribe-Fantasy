@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { as, createUser, rpc } from './helpers';
-import { auctionFixture, injure, member, type AuctionFixture } from './auction-fixture';
+import { auctionFixture, member, type AuctionFixture } from './auction-fixture';
 import { makeKeeper } from './stats-fixture';
 
 let f: AuctionFixture;
 let keeper: string;
-let alice: string, aliceM: string, bob: string, bobM: string, carol: string, carolM: string;
+let alice: string, aliceM: string, bob: string, bobM: string, carolM: string;
 
 /** carol has the bye: three teams in league A. */
 const pairings = () => [
@@ -21,18 +21,13 @@ const finishLast = (game: string, who = keeper) =>
   as(f.db, who, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: [], p_provisional: {}, p_last: true })) as Promise<string | null>;
 const addNext = (game: string, p: unknown = pairings(), who = keeper) =>
   as(f.db, who, (tx) => rpc(tx, 'add_next_game', { p_game: game, p_pairings: p, p_provisional: { standings: 'y' } })) as Promise<string>;
+/** One athlete, or null to clear. A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself). */
 const setPick = (uid: string, mid: string, number: number, athlete: string | null) =>
-  as(f.db, uid, (tx) => rpc(tx, 'set_game_pick', { p_membership: mid, p_stage: f.stage, p_number: number, p_athlete: athlete }));
-const setBench = (uid: string, mid: string, athletes: string[]) =>
-  // A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself).
-  as(f.db, uid, (tx) => rpc(tx, 'set_bench', { p_membership: mid, p_stage: f.stage, p_athletes: `{${athletes.join(',')}}` }));
-const swap = (uid: string, mid: string, out: string, inn: string) =>
-  as(f.db, uid, (tx) => rpc(tx, 'swap_bench', { p_membership: mid, p_stage: f.stage, p_out: out, p_in: inn }));
+  as(f.db, uid, (tx) => rpc(tx, 'set_game_pick',
+    { p_membership: mid, p_stage: f.stage, p_number: number, p_athletes: athlete && `{${athlete}}` }));
 const game = async (number: number) => (await f.db.query<{ id: string; session_id: string | null; started: boolean; finished: boolean }>(
   `select id, session_id, started_at is not null as started, finished_at is not null as finished
    from public.games where stage_id = $1 and number = $2`, [f.stage, number])).rows[0];
-const benchOf = async (mid: string) => (await f.db.query<{ athlete_id: string }>(
-  `select athlete_id from public.roster_slots where membership_id = $1 and bench order by athlete_id`, [mid])).rows.map((r) => r.athlete_id);
 const audit = async (action: string) => (await f.db.query<{ details: Record<string, unknown> }>(
   'select details from public.audit_log where action = $1', [action])).rows;
 
@@ -42,9 +37,8 @@ beforeEach(async () => {
   await makeKeeper(f.db, keeper);
   [alice, aliceM] = await member(f.db, 'alice');
   [bob, bobM] = await member(f.db, 'bob');
-  [carol, carolM] = await member(f.db, 'carol');
-  // Rosters straight in (the auction is tested elsewhere): alice A0–A3 (A3 cheapest), bob A4–A7 (A4 cheapest),
-  // carol A8 alone (no bench).
+  [, carolM] = await member(f.db, 'carol');
+  // Rosters straight in (the auction is tested elsewhere): alice A0–A3, bob A4–A7, carol A8 alone.
   const rows: [string, number, number][] = [[aliceM, 0, 30], [aliceM, 1, 20], [aliceM, 2, 10], [aliceM, 3, 5],
     [bobM, 4, 1], [bobM, 5, 9], [bobM, 6, 9], [bobM, 7, 9], [carolM, 8, 50]];
   for (const [mid, a, price] of rows) {
@@ -95,15 +89,6 @@ describe('start_game / finish_game', () => {
     expect(s.rows[0]).toEqual({ kind: 'tournament', counts: true, created_by: keeper });
     await expect(start(g1)).rejects.toThrow('GAME_STARTED');
     await expect(start(g1, alice)).rejects.toThrow('FORBIDDEN');
-  });
-
-  it('fixes the default bench when game 1 starts, keeping a valid choice', async () => {
-    const g1 = await open();
-    await setBench(bob, bobM, [f.athletes[5]]);
-    await start(g1);
-    expect(await benchOf(aliceM)).toEqual([f.athletes[3]]); // cheapest
-    expect(await benchOf(bobM)).toEqual([f.athletes[5]]); // chosen
-    expect(await benchOf(carolM)).toEqual([]); // one athlete: no bench
   });
 
   it('finishes a live game into the next one with the given pairings, auditing the provisional inputs', async () => {
@@ -189,7 +174,7 @@ describe('set_game_pick', () => {
   it('checks the roster and the membership, and null clears', async () => {
     await expect(setPick(alice, aliceM, 1, f.athletes[4])).rejects.toThrow('NOT_ON_ROSTER');
     await expect(setPick(bob, aliceM, 1, f.athletes[0])).rejects.toThrow('NOT_MEMBER');
-    await setPick(alice, aliceM, 1, f.athletes[3]); // the bench is allowed: the scorer replaces it
+    await setPick(alice, aliceM, 1, f.athletes[3]);
     await setPick(alice, aliceM, 1, null);
     expect((await f.db.query('select 1 from public.game_picks')).rows).toEqual([]);
   });
@@ -230,63 +215,16 @@ describe('NOT_FOUND', () => {
     await expect(start(nope)).rejects.toThrow('NOT_FOUND');
     await expect(finish(nope)).rejects.toThrow('NOT_FOUND');
     const calls: [string, Record<string, unknown>][] = [
-      ['set_game_pick', { p_membership: aliceM, p_stage: nope, p_number: 1, p_athlete: f.athletes[0] }],
-      ['set_bench', { p_membership: aliceM, p_stage: nope, p_athletes: `{${f.athletes[0]}}` }],
-      ['swap_bench', { p_membership: aliceM, p_stage: nope, p_out: f.athletes[0], p_in: f.athletes[3] }],
+      ['set_game_pick', { p_membership: aliceM, p_stage: nope, p_number: 1, p_athletes: `{${f.athletes[0]}}` }],
     ];
     for (const [fn, args] of calls) await expect(as(f.db, alice, (tx) => rpc(tx, fn, args)), fn).rejects.toThrow('NOT_FOUND');
   });
 });
 
-describe('set_bench', () => {
-  it('sets exactly the bench count of the roster', async () => {
-    await setBench(alice, aliceM, [f.athletes[0]]);
-    expect(await benchOf(aliceM)).toEqual([f.athletes[0]]);
-    await setBench(alice, aliceM, [f.athletes[2]]);
-    expect(await benchOf(aliceM)).toEqual([f.athletes[2]]);
-    await expect(setBench(alice, aliceM, [])).rejects.toThrow('BENCH_SIZE');
-    await expect(setBench(alice, aliceM, [f.athletes[0], f.athletes[1]])).rejects.toThrow('BENCH_SIZE');
-    await expect(setBench(alice, aliceM, [f.athletes[0], f.athletes[0]])).rejects.toThrow('BENCH_SIZE');
-    await expect(setBench(alice, aliceM, [f.athletes[4]])).rejects.toThrow('NOT_ON_ROSTER');
-    await expect(setBench(bob, aliceM, [f.athletes[0]])).rejects.toThrow('NOT_MEMBER');
-    await setBench(carol, carolM, []); // a one-athlete roster has no bench
-    await as(f.db, carol, (tx) => rpc(tx, 'set_bench', { p_membership: carolM, p_stage: f.stage, p_athletes: null }));
-    expect(await benchOf(carolM)).toEqual([]); // NULL means no bench too
-  });
-
-  it('refuses once the tournament has started', async () => {
-    await start(await open());
-    await expect(setBench(alice, aliceM, [f.athletes[0]])).rejects.toThrow('TOURNAMENT_STARTED');
-  });
-});
-
-describe('swap_bench', () => {
-  it('swaps the bench in for an injured active athlete from the next game, once per stage', async () => {
-    await expect(swap(alice, aliceM, f.athletes[0], f.athletes[3])).rejects.toThrow('TOURNAMENT_NOT_STARTED');
-    const g1 = await open();
-    await start(g1); // alice's bench: A3 (default)
-    await expect(swap(alice, aliceM, f.athletes[0], f.athletes[3])).rejects.toThrow('NOT_INJURED');
-    await injure(f, f.athletes[0]);
-    await expect(swap(alice, aliceM, f.athletes[3], f.athletes[0])).rejects.toThrow('NOT_ACTIVE');
-    await expect(swap(alice, aliceM, f.athletes[0], f.athletes[1])).rejects.toThrow('NOT_ON_BENCH');
-    await expect(swap(bob, aliceM, f.athletes[0], f.athletes[3])).rejects.toThrow('NOT_MEMBER');
-    await swap(alice, aliceM, f.athletes[0], f.athletes[3]);
-    const rows = await f.db.query('select out_athlete, in_athlete, from_game from public.bench_swaps');
-    expect(rows.rows).toEqual([{ out_athlete: f.athletes[0], in_athlete: f.athletes[3], from_game: 2 }]);
-    await injure(f, f.athletes[1]);
-    await expect(swap(alice, aliceM, f.athletes[1], f.athletes[3])).rejects.toThrow('SWAP_USED');
-  });
-});
-
 describe('deletes', () => {
-  it('drops a deleted athlete\'s picks and swaps (cascade)', async () => {
+  it('drops a deleted athlete\'s picks (cascade)', async () => {
     await setPick(alice, aliceM, 1, f.athletes[0]);
     await f.db.query('delete from public.athletes where id = $1', [f.athletes[0]]);
     expect((await f.db.query('select 1 from public.game_picks')).rows).toEqual([]);
-    await start(await open());
-    await injure(f, f.athletes[1]);
-    await swap(alice, aliceM, f.athletes[1], f.athletes[3]);
-    await f.db.query('delete from public.athletes where id = $1', [f.athletes[3]]);
-    expect((await f.db.query('select 1 from public.bench_swaps')).rows).toEqual([]);
   });
 });
