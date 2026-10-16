@@ -1,4 +1,4 @@
-import { allocate, fillLeftovers, type Bid, type ManagerBudget } from './allocation';
+import { settleShares, type Bid } from './allocation';
 import { stageAllowance } from './points';
 import { hashSeed, mulberry32 } from './rng';
 import { parseSettings, type SeasonSettings } from './settings';
@@ -7,14 +7,14 @@ import { nextPairings, scoreTournaments, type TournamentGame, type TournamentInp
 export interface YearSimConfig {
   managers: number;
   athletes: number;
-  /** Tournaments in the year; each is one stage with a fresh auction. */
+  /** Tournaments in the year; each is one stage with fresh share buying. */
   stages: number;
   gamesPerStage: number;
   seed: string;
   settings?: unknown;
-  /** This manager (index) throws the last game of every tournament by starting their worst active athlete. */
+  /** This manager (index) throws the last game of every tournament by starting their worst players. */
   tanker?: number;
-  /** This manager (index) ignores tiredness and always starts their best active athlete. */
+  /** This manager (index) ignores tiredness and always starts their best players. */
   repeater?: number;
 }
 
@@ -37,10 +37,10 @@ const places = (r: TournamentResult) => Object.fromEntries(r.standings.map((x) =
 
 /**
  * A whole league year played by fake managers under the real rules, scored by the real scoreTournaments. Each
- * tournament: allowance from the standings so far → one sealed auction (allocate + fill) → each manager benches
- * the athlete they rate worst → games two hours apart, Swiss-paired by `nextPairings`; every manager starts the
- * active athlete with the best read × tiredness. Credits carry over. Tournaments are two weeks apart from 2027-01-09.
- * ponytail: no injuries, swaps, late joiners or missed picks; the DB dry run covers those.
+ * tournament: allowance from the standings so far → sealed share buying (settleShares) → games two hours apart,
+ * Swiss-paired by `nextPairings`; every manager starts the picks_per_game players with the best
+ * read × tiredness × share. Credits carry over. Tournaments are two weeks apart from 2027-01-09.
+ * ponytail: no injuries, late joiners or missed picks; the DB dry run covers those.
  */
 export function simulateYear(cfg: YearSimConfig): YearSimResult {
   const s = parseSettings(cfg.settings ?? {});
@@ -53,7 +53,7 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
   const start = Date.parse('2027-01-09T14:00:00Z'); // a Saturday
 
   const input: TournamentInput = {
-    settings: s, now: 0, games: [], pairings: [], slots: [], picks: [], swaps: [], sessions: [], statLines: [],
+    settings: s, now: 0, games: [], pairings: [], slots: [], picks: [], sessions: [], statLines: [],
     injuries: [], currentStageId: null, members: managerIds.map((id) => ({ id, createdAt: iso(start - 30 * DAY) })),
   };
   const balance = Object.fromEntries(managerIds.map((m) => [m, 0]));
@@ -68,7 +68,7 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
     const sofar = scoreTournaments({ ...input, now: day1 - 5 * DAY });
     for (const row of sofar.standings) balance[row.membershipId] += stageAllowance(row.rank, cfg.managers, s);
 
-    // Sealed auction: each manager bids on the players they rate best, more on the ones they rate higher.
+    // Sealed share buying: each manager buys into the roster_size players they rate best, more in the ones they rate higher.
     const read = stream(`read:${st}`);
     const perceived = Object.fromEntries(managerIds.map((m) => [m, Object.fromEntries(athleteIds.map((a) =>
       [a, skill[a] * (1 + readNoise[m] * (read() * 2 - 1))]))]));
@@ -76,32 +76,23 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
     for (const m of managerIds) {
       const ranked = [...athleteIds].sort((a, b) => perceived[m][b] - perceived[m][a]);
       const top = ranked.slice(0, s.roster_size).reduce((sum, a) => sum + perceived[m][a], 0);
-      ranked.slice(0, s.roster_size * 2).forEach((a, i) => bids.push({
+      ranked.slice(0, s.roster_size).forEach((a, i) => bids.push({
         id: `${stageId}:${m}:${a}`, managerId: m, athleteId: a,
         amount: Math.max(s.min_bid, Math.floor((balance[m] * 0.9 * perceived[m][a]) / top)),
         placedAt: iso(day1 - 4 * DAY + i * 1000 + Math.floor(read() * 999)),
       }));
     }
-    const budgets: ManagerBudget[] = managerIds.map((m) => ({ managerId: m, budget: balance[m], openSlots: s.roster_size }));
-    const run = allocate(bids, budgets, athleteIds);
-    const won = [...run.awards, ...fillLeftovers(run.remaining, run.unclaimed, `${cfg.seed}:${stageId}`)];
-    for (const m of managerIds) {
-      const mine = won.filter((aw) => aw.managerId === m);
-      const benchCount = Math.min(s.bench_size, Math.max(0, mine.length - 1));
-      const worst = [...mine].sort((a, b) => perceived[m][a.athleteId] - perceived[m][b.athleteId]).slice(0, benchCount)
-        .map((aw) => aw.athleteId);
-      for (const aw of mine) {
-        balance[m] -= aw.amount;
-        input.slots.push({ stageId, membershipId: m, athleteId: aw.athleteId, price: aw.amount, bench: worst.includes(aw.athleteId) });
-      }
+    for (const h of settleShares(bids, balance, s.min_shares, s.roster_size)) {
+      balance[h.managerId] -= h.amount;
+      input.slots.push({ stageId, membershipId: h.managerId, athleteId: h.athleteId, price: h.amount, share: h.share });
     }
 
-    // Games: pair, pick (best read × tiredness; the tanker starts their worst in the last game), play, verify.
+    // Games: pair, pick (best read × tiredness × share; the tanker starts their worst in the last game), play, verify.
     const stats = stream(`stats:${st}`);
     for (let n = 1; n <= cfg.gamesPerStage; n++) {
       const startsAt = day1 + (n - 1) * 2 * HOUR;
       const id = `${stageId}g${pad(n)}`;
-      for (const [home, away] of nextPairings({ ...input, now: startsAt - HOUR })) {
+      for (const [home, away] of nextPairings({ ...input, now: startsAt - HOUR, currentStageId: stageId })) {
         input.pairings.push({ gameId: id, home, away });
       }
       // Unstarted until played, as finish_game leaves it: a tournament whose games are all finished is over (t202).
@@ -110,11 +101,11 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
       const nextGame = scoreTournaments({ ...input, now: startsAt - HOUR, currentStageId: stageId }).next!;
       for (const side of nextGame.sides) {
         const m = side.membershipId;
-        if (side.active.length === 0) continue;
-        const value = (a: string) => perceived[m][a] * (managerIds.indexOf(m) === cfg.repeater ? 1 : side.rest[a]);
-        const byValue = [...side.active].sort((a, b) => value(b) - value(a));
-        const choice = n === cfg.gamesPerStage && managerIds.indexOf(m) === cfg.tanker ? byValue.at(-1)! : byValue[0];
-        input.picks.push({ stageId, number: n, membershipId: m, athleteId: choice });
+        const value = (a: string) => perceived[m][a] * side.share[a] * (managerIds.indexOf(m) === cfg.repeater ? 1 : side.rest[a]);
+        const byValue = [...side.players].sort((a, b) => value(b) - value(a));
+        const k = s.picks_per_game;
+        const choice = n === cfg.gamesPerStage && managerIds.indexOf(m) === cfg.tanker ? byValue.slice(-k) : byValue.slice(0, k);
+        for (const athleteId of choice) input.picks.push({ stageId, number: n, membershipId: m, athleteId });
       }
       const sessionId = `${id}:s`;
       Object.assign(g, { sessionId, startedAt: iso(startsAt), finishedAt: iso(startsAt + HOUR) });

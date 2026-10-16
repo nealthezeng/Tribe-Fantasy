@@ -27,6 +27,11 @@ describe('autoPick (tournament mode §2)', () => {
     expect(autoPick(['a1', 'a2'], { a1: 1, a2: 1 }, { a1: [1], a2: [5] }, s)).toBe('a2');
     expect(autoPick(['a2', 'a1'], { a1: 1, a2: 1 }, {}, s)).toBe('a1');
   });
+  it('breaks equal rest by share × recent average (a missing share = 1)', () => {
+    const history = { a1: [4], a2: [3] };
+    expect(autoPick(['a1', 'a2'], { a1: 1, a2: 1 }, history, s)).toBe('a1');
+    expect(autoPick(['a1', 'a2'], { a1: 1, a2: 1 }, history, s, { a1: 0.5 })).toBe('a2');
+  });
   it('forfeits when configured or when nothing is available', () => {
     expect(autoPick(['a1'], { a1: 1 }, {}, parseSettings({ default_pick: 'forfeit' }))).toBeNull();
     expect(autoPick([], {}, {}, s)).toBeNull();

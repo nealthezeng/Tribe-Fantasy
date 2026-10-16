@@ -38,10 +38,10 @@ export interface TournamentGame {
   opponent?: string | null;
 }
 export interface TournamentPairing { gameId: string; home: string; away: string | null }
-export interface TournamentSlot { stageId: string; membershipId: string; athleteId: string; price: number; bench: boolean }
-/** Keyed by game number, not game id: a pick can exist before its game does (pre-selection). */
+/** One team's buy in one player: `price` = credits paid, `share` = the part of him it owns (0, 1]. */
+export interface TournamentSlot { stageId: string; membershipId: string; athleteId: string; price: number; share: number }
+/** Keyed by game number, not game id: a pick can exist before its game does (pre-selection). One row per picked player. */
 export interface TournamentPick { stageId: string; number: number; membershipId: string; athleteId: string }
-export interface TournamentSwap { stageId: string; membershipId: string; outAthlete: string; inAthlete: string; fromGame: number }
 export interface TournamentSession { id: string; verifiedAt: string | null }
 
 /** Everything for ONE league of one season. `now` is epoch ms. */
@@ -53,7 +53,6 @@ export interface TournamentInput {
   members: YearMember[];
   slots: TournamentSlot[];
   picks: TournamentPick[];
-  swaps: TournamentSwap[];
   sessions: TournamentSession[];
   statLines: YearStatLine[];
   injuries: YearInjury[];
@@ -66,25 +65,29 @@ export interface TournamentInput {
  * void: started but its session was deleted (scores nothing, holds nothing back).
  */
 export type GameStatus = 'upcoming' | 'live' | 'pending' | 'final' | 'void';
-/** Why the athlete who plays isn't the manager's own pick. */
-export type GameNotice = 'missed' | 'injured' | 'inactive';
+/** Why a starter isn't the manager's own pick. */
+export type GameNotice = 'missed' | 'injured';
+/** An empty or injured pick slot and who filled it (`picked` null = no pick; `athleteId` null = nobody, a forfeit). */
+export interface Replacement { picked: string | null; athleteId: string | null; why: GameNotice }
 
 export interface TournamentSide {
   membershipId: string;
-  /** The manager's pick as made; null if none (or sealed: others' picks are hidden until the game starts). */
-  picked: string | null;
-  /** Who plays (or would, if the game started now). Null = forfeit. */
-  athleteId: string | null;
-  notice: GameNotice | null;
-  active: string[];
-  bench: string[];
-  /** Tiredness factor per active athlete for this game. */
+  /** Own picks as made, sorted; [] if none (or sealed: others' picks are hidden until the game starts). */
+  picked: string[];
+  /** Who plays (or would, if the game started now): ≤ picks_per_game; [] = forfeit. */
+  athleteIds: string[];
+  /** One per pick slot that isn't playing as picked. */
+  replacements: Replacement[];
+  /** The whole roster this tournament, sorted. */
+  players: string[];
+  /** Per player: share owned, tiredness and degradation for this game, and factor = share × rest × decay (decision 11). */
+  share: Record<string, number>;
   rest: Record<string, number>;
-  /** Factors for `athleteId`; null on a forfeit. */
-  tired: number | null;
-  decay: number | null;
-  /** Set on final games only. */
-  athleteScore: number | null;
+  decay: Record<string, number>;
+  factor: Record<string, number>;
+  /** Starters' raw game scores and athleteScore × factor; final games only. */
+  athleteScores: Record<string, number> | null;
+  points: Record<string, number> | null;
   score: number | null;
   delta: number | null;
   result: 'W' | 'L' | 'T' | null;
@@ -140,27 +143,37 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
 
   /** One manager's side of game `number` in `stageId`, as of `asOf`. */
   const sideOf = (membershipId: string, stageId: string, number: number, asOf: number): TournamentSide => {
-    const { active, bench } = lineup(input, membershipId, stageId, number);
+    const players = rosterOf(input, membershipId, stageId);
+    const share: Record<string, number> = {};
+    for (const x of input.slots) if (x.stageId === stageId && x.membershipId === membershipId) share[x.athleteId] = x.share;
     const rest: Record<string, number> = {};
-    for (const a of active) {
+    const decay: Record<string, number> = {};
+    const factor: Record<string, number> = {};
+    for (const a of players) {
       const last = lastStart.get(`${stageId}:${membershipId}:${a}`);
       rest[a] = tirednessMultiplier(last === undefined ? null : number - last, s);
+      decay[a] = stageMultiplier([...startedIn.get(pairKey(membershipId, a)) ?? []].filter((x) => x !== stageId).length, s);
+      factor[a] = share[a] * rest[a] * decay[a];
     }
-    const picked = input.picks.find((p) => p.stageId === stageId && p.number === number && p.membershipId === membershipId)
-      ?.athleteId ?? null;
-    let athleteId = picked;
-    let notice: GameNotice | null = null;
-    if (picked === null || !active.includes(picked) || injuredAt(picked, asOf)) {
-      notice = picked === null ? 'missed' : active.includes(picked) ? 'injured' : 'inactive';
-      const healthy = active.filter((a) => !injuredAt(a, asOf));
-      athleteId = autoPick(healthy.length > 0 ? healthy : active, rest, historyAsOf(asOf), s);
+    const picked = input.picks.filter((p) => p.stageId === stageId && p.number === number && p.membershipId === membershipId)
+      .map((p) => p.athleteId).sort();
+    // Own picks play unless injured at the start; a pick off the roster is ignored. Empty slots are auto-picked (C4).
+    const mine = picked.filter((a) => players.includes(a));
+    const athleteIds = mine.filter((a) => !injuredAt(a, asOf)).slice(0, s.picks_per_game);
+    const injured = mine.filter((a) => injuredAt(a, asOf));
+    const replacements: Replacement[] = [];
+    const history = historyAsOf(asOf);
+    for (let i = athleteIds.length; i < Math.min(s.picks_per_game, players.length); i++) {
+      const free = players.filter((a) => !athleteIds.includes(a));
+      const healthy = free.filter((a) => !injuredAt(a, asOf));
+      const athleteId = autoPick(healthy.length > 0 ? healthy : free, rest, history, s, share);
+      const was = injured.shift() ?? null;
+      replacements.push({ picked: was, athleteId, why: was === null ? 'missed' : 'injured' });
+      if (athleteId !== null) athleteIds.push(athleteId);
     }
-    const stages = athleteId === null ? null : startedIn.get(pairKey(membershipId, athleteId)) ?? new Set<string>();
     return {
-      membershipId, picked, athleteId, notice, active, bench, rest,
-      tired: athleteId === null ? null : rest[athleteId],
-      decay: stages === null ? null : stageMultiplier([...stages].filter((x) => x !== stageId).length, s),
-      athleteScore: null, score: null, delta: null, result: null,
+      membershipId, picked, athleteIds, replacements, players, share, rest, decay, factor,
+      athleteScores: null, points: null, score: null, delta: null, result: null,
     };
   };
 
@@ -187,10 +200,11 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     // A start counts for tiredness and degradation whatever happened in the game (spec §2), unless void.
     if (status !== 'upcoming' && status !== 'void') {
       for (const side of sides.values()) {
-        if (side.athleteId === null) continue;
-        lastStart.set(`${g.stageId}:${side.membershipId}:${side.athleteId}`, g.number);
-        const key = pairKey(side.membershipId, side.athleteId);
-        startedIn.set(key, (startedIn.get(key) ?? new Set()).add(g.stageId));
+        for (const a of side.athleteIds) {
+          lastStart.set(`${g.stageId}:${side.membershipId}:${a}`, g.number);
+          const key = pairKey(side.membershipId, a);
+          startedIn.set(key, (startedIn.get(key) ?? new Set()).add(g.stageId));
+        }
       }
     }
 
@@ -229,13 +243,11 @@ type Table = Map<string, Omit<YearStanding, 'membershipId' | 'rank' | 'place' | 
 function settleGame(g: TournamentGame, pairings: TournamentPairing[], sides: Map<string, TournamentSide>, lines: StatLine[],
   members: string[], table: Table, s: SeasonSettings): void {
   const multipliers: Record<string, number> = {};
-  for (const x of sides.values()) {
-    if (x.athleteId !== null) multipliers[pairKey(x.membershipId, x.athleteId)] = x.tired! * x.decay!;
-  }
+  for (const x of sides.values()) for (const a of x.athleteIds) multipliers[pairKey(x.membershipId, a)] = x.factor[a];
   const r = scoreWeek({
     settings: s,
     matchups: pairings.map((p, j) => ({ id: `${g.id}:${j}`, home: p.home, away: p.away })),
-    picks: Object.fromEntries([...sides.values()].map((x) => [x.membershipId, x.athleteId])),
+    picks: Object.fromEntries([...sides.values()].map((x) => [x.membershipId, x.athleteIds])),
     statLines: lines,
     multipliers,
     standings: members.map((m) => ({ managerId: m, points: table.get(m)!.points, totalScore: table.get(m)!.totalScore })),
@@ -243,7 +255,8 @@ function settleGame(g: TournamentGame, pairings: TournamentPairing[], sides: Map
   const apply = (sr: SideResult, other: SideResult | null) => {
     const result = other === null ? null
       : Math.abs(sr.score - other.score) < TIE_EPSILON ? 'T' : sr.score > other.score ? 'W' : 'L';
-    Object.assign(sides.get(sr.managerId)!, { athleteScore: sr.athleteScore, score: sr.score, delta: sr.delta, result });
+    const points = Object.fromEntries(sr.athleteIds.map((a) => [a, sr.athleteScores[a] * sr.multipliers[a]]));
+    Object.assign(sides.get(sr.managerId)!, { athleteScores: sr.athleteScores, points, score: sr.score, delta: sr.delta, result });
     const row = table.get(sr.managerId)!;
     const after = r.standings.find((x) => x.managerId === sr.managerId)!;
     row.points = after.points;
@@ -270,25 +283,9 @@ function standingsOf(table: Table): YearStanding[] {
   })).sort((a, b) => a.rank - b.rank || cmp(a.membershipId, b.membershipId));
 }
 
-/**
- * Active and bench athletes of one manager for game `number`. Bench = the flagged slots when they number
- * min(bench_size, roster − 1), else the cheapest (ties → lowest id). A swap from game ≤ `number` trades places.
- */
-export function lineup(input: Pick<TournamentInput, 'settings' | 'slots' | 'swaps'>, membershipId: string, stageId: string,
-  number: number): { active: string[]; bench: string[] } {
-  const slots = input.slots.filter((x) => x.stageId === stageId && x.membershipId === membershipId);
-  const size = Math.min(input.settings.bench_size, Math.max(0, slots.length - 1));
-  const flagged = slots.filter((x) => x.bench);
-  let bench = (flagged.length === size ? flagged
-    : [...slots].sort((a, b) => a.price - b.price || cmp(a.athleteId, b.athleteId)).slice(0, size)).map((x) => x.athleteId);
-  let active = slots.map((x) => x.athleteId).filter((a) => !bench.includes(a));
-  for (const w of input.swaps) {
-    if (w.stageId !== stageId || w.membershipId !== membershipId || w.fromGame > number) continue;
-    if (!active.includes(w.outAthlete) || !bench.includes(w.inAthlete)) continue;
-    active = [...active.filter((a) => a !== w.outAthlete), w.inAthlete];
-    bench = [...bench.filter((a) => a !== w.inAthlete), w.outAthlete];
-  }
-  return { active: active.sort(), bench: bench.sort() };
+/** One manager's roster (every player they own a share of) in `stageId`, sorted. */
+export function rosterOf(input: Pick<TournamentInput, 'slots'>, membershipId: string, stageId: string): string[] {
+  return [...new Set(input.slots.filter((x) => x.stageId === stageId && x.membershipId === membershipId).map((x) => x.athleteId))].sort();
 }
 
 /** Stat lines from a session's live taps (merged as on the tally screen), for provisional standings. */
@@ -300,28 +297,31 @@ export function liveStatLines(sessionId: string, taps: Tap[], s: SeasonSettings)
 
 /**
  * Swiss pairings for the league's next game (spec §2): provisional standings, then `swissPairings` over the
- * members who have joined by `now`, counting meetings (and byes) in every started game of the year.
+ * members who have joined by `now`, counting meetings (and byes) in this tournament's started games, then the season's (C11).
  * Callers pass verified lines where they exist and `liveStatLines` otherwise. Called while the game being
  * finished is still live (before `finish_game`), so that game counts too.
  */
 export function nextPairings(input: TournamentInput): Pairing[] {
-  const { order, meetings } = pairingInputs(input);
-  return swissPairings(order, meetings);
+  const { order, meetings, seasonMeetings } = pairingInputs(input);
+  return swissPairings(order, meetings, seasonMeetings);
 }
 
 /** What `nextPairings` feeds `swissPairings`: saved with the pairing so staff can re-run it (spec §7). */
-export function pairingInputs(input: TournamentInput): { order: string[]; meetings: Record<string, number> } {
+export function pairingInputs(input: TournamentInput):
+  { order: string[]; meetings: Record<string, number>; seasonMeetings: Record<string, number> } {
   const r = scoreTournaments(input, { provisional: true });
   const present = new Set(input.members.filter((m) => ms(m.createdAt) <= input.now).map((m) => m.id));
   const order = r.standings.filter((x) => present.has(x.membershipId))
     .sort((a, b) => b.points - a.points || b.totalScore - a.totalScore || cmp(a.membershipId, b.membershipId))
     .map((x) => x.membershipId);
-  const started = new Set(input.games.filter((g) => g.startedAt !== null).map((g) => g.id));
+  const started = new Map(input.games.filter((g) => g.startedAt !== null).map((g) => [g.id, g.stageId]));
   const meetings: Record<string, number> = {};
+  const seasonMeetings: Record<string, number> = {};
   for (const p of input.pairings) {
     if (!started.has(p.gameId)) continue;
     const k = meetingKey(p.home, p.away);
-    meetings[k] = (meetings[k] ?? 0) + 1;
+    seasonMeetings[k] = (seasonMeetings[k] ?? 0) + 1;
+    if (started.get(p.gameId) === input.currentStageId) meetings[k] = (meetings[k] ?? 0) + 1;
   }
-  return { order, meetings };
+  return { order, meetings, seasonMeetings };
 }

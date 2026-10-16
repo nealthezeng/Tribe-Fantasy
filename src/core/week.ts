@@ -11,18 +11,21 @@ export interface WeekMatchup {
 export interface WeekInput {
   settings: SeasonSettings;
   matchups: WeekMatchup[];
-  picks: Record<string, string | null>;
+  /** Starters per manager; [] = forfeit. */
+  picks: Record<string, string[]>;
   statLines: StatLine[];
-  /** Degradation per picked (manager, athlete), keyed by `pairKey`. See `stageMultiplier`. */
+  /** Factor per started (manager, athlete), keyed by `pairKey`: share × tiredness × degradation. */
   multipliers: Record<string, number>;
   standings: StandingRow[];
 }
 
 export interface SideResult {
   managerId: string;
-  athleteId: string | null;
-  athleteScore: number;
-  multiplier: number;
+  athleteIds: string[];
+  /** Keyed by athlete id. */
+  athleteScores: Record<string, number>;
+  multipliers: Record<string, number>;
+  /** Σ athleteScore × multiplier. */
   score: number;
   delta: number;
 }
@@ -55,13 +58,17 @@ export function scoreWeek(input: WeekInput): WeekResult {
   for (const id of linesByAthlete.keys()) scoreOf(id);
 
   const side = (managerId: string): SideResult => {
-    const athleteId = input.picks[managerId] ?? null;
-    if (athleteId === null) return { managerId, athleteId, athleteScore: 0, multiplier: 0, score: 0, delta: 0 };
-    const athleteScore = scoreOf(athleteId);
-    const multiplier = input.multipliers[pairKey(managerId, athleteId)];
-    // Gate from the M1+M2 reviews: a missing entry is a caller bug, never a silent 1.
-    if (multiplier === undefined) throw new Error(`No multiplier for ${pairKey(managerId, athleteId)}`);
-    return { managerId, athleteId, athleteScore, multiplier, score: athleteScore * multiplier, delta: 0 };
+    const athleteIds = input.picks[managerId] ?? [];
+    const r: SideResult = { managerId, athleteIds, athleteScores: {}, multipliers: {}, score: 0, delta: 0 };
+    for (const a of athleteIds) {
+      const multiplier = input.multipliers[pairKey(managerId, a)];
+      // Gate from the M1+M2 reviews: a missing entry is a caller bug, never a silent 1.
+      if (multiplier === undefined) throw new Error(`No multiplier for ${pairKey(managerId, a)}`);
+      r.athleteScores[a] = scoreOf(a);
+      r.multipliers[a] = multiplier;
+      r.score += r.athleteScores[a] * multiplier;
+    }
+    return r;
   };
 
   const ranks = rankSnapshot(input.standings);

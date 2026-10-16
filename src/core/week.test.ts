@@ -6,7 +6,7 @@ const s = parseSettings({ points_mode: 'fixed', normalize_mode: 'per_point' });
 const base = (over: Partial<WeekInput> = {}): WeekInput => ({
   settings: s,
   matchups: [{ id: 'x1', home: 'm1', away: 'm2' }, { id: 'x2', home: 'm3', away: null }],
-  picks: { m1: 'a1', m2: 'a2', m3: 'a3' },
+  picks: { m1: ['a1'], m2: ['a2'], m3: ['a3'] },
   statLines: [
     { athleteId: 'a1', sessionType: 'practice', pointsPlayed: 10, stats: { goal: 4 } },
     { athleteId: 'a2', sessionType: 'practice', pointsPlayed: 10, stats: { goal: 1 } },
@@ -20,7 +20,7 @@ describe('scoreWeek', () => {
   it('scores each side, decides the matchup and updates standings', () => {
     const r = scoreWeek(base());
     expect(r.athleteScores.a1).toBeCloseTo(1.2);
-    expect(r.matchups[0].home).toMatchObject({ managerId: 'm1', athleteId: 'a1', multiplier: 1, delta: 3 });
+    expect(r.matchups[0].home).toMatchObject({ managerId: 'm1', athleteIds: ['a1'], multipliers: { a1: 1 }, delta: 3 });
     expect(r.matchups[0].away).toMatchObject({ managerId: 'm2', delta: -1 });
     expect(r.matchups[1].away).toBeNull();
     const pts = Object.fromEntries(r.standings.map((row) => [row.managerId, row.points]));
@@ -30,8 +30,14 @@ describe('scoreWeek', () => {
 
   it('applies the degradation multiplier for the picked pair', () => {
     const r = scoreWeek(base({ multipliers: { ...base().multipliers, [pairKey('m1', 'a1')]: 0.9 } }));
-    expect(r.matchups[0].home.multiplier).toBeCloseTo(0.9);
+    expect(r.matchups[0].home.multipliers.a1).toBeCloseTo(0.9);
     expect(r.matchups[0].home.score).toBeCloseTo(1.2 * 0.9);
+  });
+
+  it('sums every starter: athlete score × its multiplier', () => {
+    const r = scoreWeek(base({ picks: { m1: ['a1', 'a2'], m2: ['a2'], m3: ['a3'] }, multipliers: { ...base().multipliers, 'm1:a1': 0.5, 'm1:a2': 1 } }));
+    expect(Object.keys(r.matchups[0].home.athleteScores)).toEqual(['a1', 'a2']);
+    expect(r.matchups[0].home.score).toBeCloseTo(1.2 * 0.5 + 0.3);
   });
 
   it('throws instead of defaulting when a started pair has no multiplier (gate)', () => {
@@ -39,8 +45,8 @@ describe('scoreWeek', () => {
   });
 
   it('treats a forfeited pick as a score of 0', () => {
-    const r = scoreWeek(base({ picks: { m1: null, m2: 'a2', m3: 'a3' } }));
-    expect(r.matchups[0].home).toMatchObject({ athleteId: null, score: 0, delta: -1 });
+    const r = scoreWeek(base({ picks: { m1: [], m2: ['a2'], m3: ['a3'] } }));
+    expect(r.matchups[0].home).toMatchObject({ athleteIds: [], score: 0, delta: -1 });
     expect(r.matchups[0].away!.delta).toBe(3);
   });
 
