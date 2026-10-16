@@ -42,7 +42,13 @@ League tab, and standings come out right. The tally screen stays untouched.
 10. **Timing:** build after the Oct 17–18 Feasterns tuning weekend. Live before CCCs share buying opens. **The user
     deletes the Feasterns tournament after tuning** (`delete_stage`), so no 1v1 tournament remains in the season.
     No code has to score old 1v1 tournaments.
-11. Out of scope: retuning any number (allowance, stat weights, tiredness, `min_shares`, upset_k), trades, a shared
+11. **Make the multiplier explicit (user, 2026-10-16).** Share × tiredness × degradation is now three factors, so
+    the app shows them cleanly wherever a player is chosen or scored. Before the game, each pick-card row shows the
+    player's combined factor for the next game (for example ×0.45), and its parts are one tap away (66% share ·
+    ×0.75 tired · ×0.9 repeat). After the game, each starter's line reads "game score × factor = points". The Rules
+    page explains the three factors once, with one worked example. The exact look is designed in the build (mockup
+    first, DESIGN.md rules).
+12. Out of scope: retuning any number (allowance, stat weights, tiredness, `min_shares`, upset_k), trades, a shared
     credit pool, PWA.
 
 ## 3. Calls made by Claude (user may overrule)
@@ -150,6 +156,10 @@ Paste before the push. The old live bundle keeps working until the push, except 
   - "Your picks" holds 2 names against "Their picks" (still hidden until the game starts).
   - Each roster row gets Pick / Your pick. A third pick is refused, and the UI asks you to clear one first.
   - Final scores show the side total. Game details list each starter's % and points.
+- **Score breakdown (decision 11):** a combined factor per player on the pick card, with its parts one tap away
+  (native `<details>` or a popover, no library). Per-starter "score × factor = points" in game details. The core
+  already returns per-athlete share, tired and decay, so the UI multiplies nothing itself: the core exposes the
+  combined factor too, so screens and scoring can't disagree.
 - **Rules page:** rewrite "Credits and the auction" as "Credits and shares", plus the picks and scoring sections (a
   2-player, share-weighted example). Numbers come from settings, as today. Update the FAQ "Who can see what?" and
   the email answer.
