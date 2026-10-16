@@ -264,6 +264,16 @@ details.factor[open] > summary::after { content: '▴'; }
 .parts b { color: var(--fg); font-weight: var(--fw-semi); }
 .calc { white-space: nowrap; }
 .hint { font-size: var(--fs-sm); color: var(--muted); }
+/* Settled shares: "Sam 67% · 40 credits", a bar (gold = yours, blue = other teams), then who else owns him. */
+.list li.own { display: grid; gap: var(--s2); justify-content: stretch; }
+.own .line { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); }
+.own .num { font-variant-numeric: tabular-nums; }
+.sharebar { height: 6px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; display: flex; }
+.sharebar > i { display: block; height: 100%; background: var(--gold); }
+.sharebar > i.other { background: var(--blue); opacity: 0.55; }
+.sharebar > i.other + i.other { opacity: 0.35; }
+.split { font-size: var(--fs-sm); color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px var(--s3); }
+.split b { color: var(--fg); font-weight: var(--fw-semi); }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
 .tiles > div { display: grid; gap: var(--s1); align-content: start; padding: var(--s3); background: var(--pane-bg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); }
 .tiles dt { font-size: var(--fs-sm); color: var(--muted); }

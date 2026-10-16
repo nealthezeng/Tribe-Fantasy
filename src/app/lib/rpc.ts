@@ -101,7 +101,7 @@ export const api = {
   deleteBid: (stageId: string, membershipId: string, athleteId: string) =>
     call<void>('delete_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId }),
   runAuction: (stageId: string) =>
-    call<{ by_bid: number; by_fill: number; empty: number }>('run_auction', { p_stage: stageId }),
+    call<{ by_bid: number; empty: number }>('run_auction', { p_stage: stageId }),
   openTournament: (stageId: string, pairings: GamePairing[]) =>
     call<string>('open_tournament', { p_stage: stageId, p_pairings: pairings }),
   startGame: (gameId: string) => call<string>('start_game', { p_game: gameId }),

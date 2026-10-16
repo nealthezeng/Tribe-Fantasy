@@ -26,7 +26,9 @@ vi.mock('../../lib/supabase', () => ({
   },
 }));
 
-vi.mock('../../lib/rpc', () => ({ api: { resetGame: vi.fn(), deleteStage: vi.fn() } }));
+vi.mock('../../lib/rpc', () => ({
+  api: { resetGame: vi.fn(), deleteStage: vi.fn(), runAuction: vi.fn(async () => ({ by_bid: 3, empty: 69 })), openAuction: vi.fn() },
+}));
 
 afterEach(() => {
   cleanup();
@@ -77,6 +79,25 @@ describe('StagesPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Check pairings', hidden: true }));
     await screen.findByText(/Game 2: matches/, undefined, { timeout: 2000 });
     expect(screen.getAllByText(/Game 2:/)).toHaveLength(1);
+  });
+
+  it('opens share buying with a "Buying closes" field', async () => {
+    db.stages = [{ id: 'Fall', name: 'Fall', starts_on: '2026-09-01', ends_on: '2026-09-10', bid_close_at: null, auction_run_at: null }];
+    render(<StagesPanel seasonId="se1" />);
+    await screen.findByLabelText('Buying closes');
+    expect(screen.getByRole('button', { name: 'Open share buying' })).toBeTruthy();
+    expect(screen.getByText('Share buying not open')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/\bbid|auction/i);
+  });
+
+  it('settles shares and reports buys settled and spots empty', async () => {
+    db.stages = [{ id: 'Fall', name: 'Fall', starts_on: '2026-09-01', ends_on: '2026-09-10', bid_close_at: '2026-09-01T00:00:00Z', auction_run_at: null }];
+    window.confirm = () => true;
+    render(<StagesPanel seasonId="se1" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Settle shares' }));
+    await screen.findByText('Fall: 3 buys settled, 69 spots empty.');
+    expect(api.runAuction).toHaveBeenCalledWith('Fall');
+    expect(document.body.textContent).not.toMatch(/\bbid|auction|random fill/i);
   });
 
   it('deletes a tournament from its Edit form after a confirm (t121)', async () => {

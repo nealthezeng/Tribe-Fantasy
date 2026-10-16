@@ -196,7 +196,7 @@ describe('LeagueLeave (t217)', () => {
     const onLeft = vi.fn();
     render(<LeagueLeave membershipId="m1" league={league({})} onLeft={onLeft} />);
     fireEvent.click(screen.getByRole('button', { name: 'Leave Huck Yeah' }));
-    expect((await screen.findByRole('alert')).textContent).toMatch(/bid/);
+    expect((await screen.findByRole('alert')).textContent).toMatch(/bought shares/);
     expect(onLeft).not.toHaveBeenCalled();
   });
 });

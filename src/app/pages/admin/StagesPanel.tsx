@@ -57,7 +57,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
       {!stages.data && !stages.error && <Loading />}
       {/* The real order of a tournament; game 1 is paired by the standings, and keepers run games from Tally. */}
       <ol className="steps" aria-label="Each tournament, in order">
-        <li>Grant allowance</li><li>Open auction</li><li>Run auction</li><li>Open tournament</li>
+        <li>Grant allowance</li><li>Open share buying</li><li>Settle shares</li><li>Open tournament</li>
       </ol>
       <ul className="list">
         {stages.data?.map((s) => (
@@ -99,8 +99,8 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
           {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
           {form.id && <button type="button" className="secondary" onClick={() => {
             const id = form.id!;
-            if (!window.confirm(`Delete ${form.name}? Its games and their stats, rosters and bids are deleted for good. `
-              + 'Credits spent in its auction go back to the teams; allowances stay, so granting an allowance again to a '
+            if (!window.confirm(`Delete ${form.name}? Its games and their stats, rosters and shares are deleted for good. `
+              + 'Credits spent on its shares go back to the teams; allowances stay, so granting an allowance again to a '
               + 're-created tournament would credit everyone twice. Take a backup first if you might want it back.')) return;
             void run(async () => {
               await api.deleteStage(id);
@@ -118,10 +118,10 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
 
 function auctionStatus(s: StageRow): string {
   switch (auctionPhase(s)) {
-    case 'not_open': return 'Auction not open';
-    case 'open': return `Bidding open · closes ${formatWhen(s.bid_close_at!)}`;
-    case 'closed': return `Bids closed ${formatWhen(s.bid_close_at!)} · ready to run`;
-    case 'run': return `Auction ran ${formatWhen(s.auction_run_at!)}`;
+    case 'not_open': return 'Share buying not open';
+    case 'open': return `Share buying open · closes ${formatWhen(s.bid_close_at!)}`;
+    case 'closed': return `Share buying closed ${formatWhen(s.bid_close_at!)} · ready to settle`;
+    case 'run': return `Shares settled ${formatWhen(s.auction_run_at!)}`;
   }
 }
 
@@ -133,12 +133,12 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
     return (
       <div className="row">
         <button onClick={() => {
-          if (!window.confirm(`Run the ${stage.name} auction? It can only run once.`)) return;
+          if (!window.confirm(`Settle ${stage.name} shares? It can only run once.`)) return;
           void run(async () => {
             const r = await api.runAuction(stage.id);
-            return `${stage.name}: awarded ${r.by_bid} by bid, ${r.by_fill} by random fill, ${r.empty} spots left empty.`;
+            return `${stage.name}: ${r.by_bid} ${r.by_bid === 1 ? 'buy' : 'buys'} settled, ${r.empty} ${r.empty === 1 ? 'spot' : 'spots'} empty.`;
           });
-        }}>Run auction</button>
+        }}>Settle shares</button>
       </div>
     );
   }
@@ -148,23 +148,23 @@ function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => 
       const closeIso = new Date(closeAt).toISOString();
       const prompt = phase === 'open'
         ? `Move the ${stage.name} close time to ${formatWhen(closeIso)}?`
-        : `Open the ${stage.name} auction? Bids close ${formatWhen(closeIso)}. It can't be cancelled.`;
+        : `Open share buying for ${stage.name}? It closes ${formatWhen(closeIso)}. It can't be cancelled.`;
       if (!window.confirm(prompt)) return;
       void run(async () => {
         await api.openAuction(stage.id, closeIso);
         setCloseAt('');
-        return `${stage.name}: bidding closes ${formatWhen(closeIso)}.`;
+        return `${stage.name}: share buying closes ${formatWhen(closeIso)}.`;
       });
     }}>
-      <label>Bids close<input type="datetime-local" required value={closeAt} onChange={(e) => setCloseAt(e.target.value)} /></label>
-      <button>{phase === 'open' ? 'Change close time' : 'Open auction'}</button>
+      <label>Buying closes<input type="datetime-local" required value={closeAt} onChange={(e) => setCloseAt(e.target.value)} /></label>
+      <button>{phase === 'open' ? 'Change close time' : 'Open share buying'}</button>
     </form>
   );
 }
 
 interface FinishAudit { entity_id: string; details: { pairings: GamePairing[]; provisional: LeaguePairingInput[] } }
 
-/** Open the stage's tournament once its auction has run; then staff can re-check every Swiss pairing a keeper made. */
+/** Open the stage's tournament once its shares are settled; then staff can re-check every Swiss pairing a keeper made. */
 function TournamentControls({ stage, current, seasonId, run }: {
   stage: StageRow; current: boolean; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
 }) {

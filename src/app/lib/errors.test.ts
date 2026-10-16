@@ -26,8 +26,8 @@ describe('errorMessage', () => {
   it('maps the M5 auction codes, naming the league that is short', () => {
     expect(errorMessage({ message: 'BID_CLOSED' })).toMatch(/has closed/);
     expect(errorMessage({ message: 'INSUFFICIENT_CREDITS' })).toMatch(/Not enough credits/);
-    expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES', details: 'League A' })).toMatch(/^League A has more roster spots/);
-    expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES' })).toMatch(/^A league has more roster spots/);
+    expect(errorMessage({ message: 'NOT_ENOUGH_ATHLETES' })).toBe('No healthy players are opted in.');
+    expect(errorMessage({ message: 'TOO_MANY_PLAYERS' }, '6')).toBe('You can buy shares in up to 6 players. Remove one first.');
   });
   it('has plain language for every code the tournament and shares migrations raise', async () => {
     const { readFileSync } = await import('node:fs');
