@@ -219,7 +219,7 @@ tbody tr:last-child td { border-bottom: 0; }
    Admin auction controls take their own line in a stage row. */
 .list li.bid-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .bid { display: grid; grid-template-columns: 4.5rem 4rem var(--tap); gap: var(--s2); align-items: center; }
-.bid button { padding-inline: var(--s2); }
+.bid input, .bid button { padding-inline: var(--s2); } /* "Credits" placeholder must fit the 4.5rem box (t251) */
 .bid small { grid-column: 1 / -1; text-align: right; }
 .icon { width: var(--tap); padding: 0; }
 .icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
@@ -495,7 +495,7 @@ details.factor[open] > summary::after { content: '▴'; }
 @media (max-width: 600px) {
   .card { padding: var(--s3); }
   .bid-header { margin: calc(-1 * var(--s3)) calc(-1 * var(--s3)) 0; padding-inline: var(--s3); }
-  .bid { grid-template-columns: 4rem 3.5rem var(--tap); }
+  .bid { grid-template-columns: 4.5rem 3.5rem var(--tap); }
   .hero { margin-inline: calc(-1 * var(--gutter)); border-radius: 0; border-inline: 0; --hero-x: var(--gutter); }
   .shell > .hero:first-child { margin-top: calc(-1 * var(--s5)); border-top: 0; } /* one black block with the top bar */
   .hero > .row { grid-column: 1 / -1; }

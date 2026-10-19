@@ -11,6 +11,11 @@ describe('defaultPick', () => {
     expect(defaultPick(['a3', 'a1'], { a1: [3], a3: [3] }, s)).toBe('a1');
     expect(defaultPick(['a2', 'a1'], {}, s)).toBe('a1');
   });
+  it('with no stats yet, prefers the bigger share, then the lowest id (t250)', () => {
+    expect(defaultPick(['a1', 'a2', 'a3'], {}, s, { a1: 20, a2: 35, a3: 35 })).toBe('a2');
+    expect(defaultPick(['a1', 'a2'], {}, s, { a2: 20 })).toBe('a2');
+  });
+
   it('forfeits when configured or when nothing is available', () => {
     expect(defaultPick(['a1'], {}, parseSettings({ default_pick: 'forfeit' }))).toBeNull();
     expect(defaultPick([], {}, s)).toBeNull();

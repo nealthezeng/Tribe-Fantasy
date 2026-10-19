@@ -3,6 +3,7 @@ import type { SeasonSettings } from './settings';
 /**
  * `history`: each athlete's game scores in chronological order, one entry per settled game (0 when they had no line).
  * `share`: the manager's share of each athlete, weighting the average; missing = 1.
+ * Ties (e.g. no game has stats yet, so every average is 0) go to the bigger share, then the lowest id.
  */
 export function defaultPick(
   available: string[],
@@ -15,12 +16,13 @@ export function defaultPick(
     const recent = (history[id] ?? []).slice(-3);
     return recent.length ? (share[id] ?? 1) * recent.reduce((a, b) => a + b, 0) / recent.length : 0;
   };
-  return [...available].sort((a, b) => avg(b) - avg(a) || (a < b ? -1 : a > b ? 1 : 0))[0];
+  const sh = (id: string) => share[id] ?? 1;
+  return [...available].sort((a, b) => avg(b) - avg(a) || sh(b) - sh(a) || (a < b ? -1 : a > b ? 1 : 0))[0];
 }
 
 /**
  * Tournament mode §2 / M13 C4: the most rested candidate (highest tiredness multiplier), then `defaultPick`'s order
- * (share × recent average, then lowest id).
+ * (share × recent average, then bigger share, then lowest id).
  * `tiredness` must cover every candidate.
  */
 export function autoPick(

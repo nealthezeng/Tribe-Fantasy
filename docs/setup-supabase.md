@@ -291,11 +291,12 @@ Admin → Wallets; fix them with **Record a donation**. A refund = **Adjust cred
 safe to paste early: it drops the 4-argument `set_game_pick` the old bundle calls, and the old League tab reads
 `roster_slots.bench`, which it removes. Paste and push together.
 
-1. After the Oct 17–18 tuning weekend, **delete the Feasterns tournament** (Admin → Tournaments → Delete). Left in,
+1. **Take a backup first**: Admin → Backup, download the JSON and the CSVs, plus Stats → **Download CSV**. Deleting
+   a tournament wipes its stats, and the app can't restore a backup (see Rollback), so this is the only copy of the
+   tuning-weekend stats and the bench-era data.
+2. After the Oct 17–18 tuning weekend, **delete the Feasterns tournament** (Admin → Tournaments → Delete). Left in,
    its 1v1 games would be re-scored as 2v2 with auto-picked second starters. Delete refunds what was spent.
-2. **No game running** (nothing live on Tally; no keeper mid-game).
-3. **Take a backup**: Admin → Backup, download the JSON and the CSVs. The app can't restore it (see Rollback), but it is
-   the only copy of the bench-era data once 0023 runs.
+3. **No game running** (nothing live on Tally; no keeper mid-game).
 4. Pre-paste checks, in the SQL Editor:
    - It must list `roster_slots_stage_id_league_id_athlete_id_key` and `game_picks_pkey`, because 0023 drops them by
      those names:
@@ -321,10 +322,11 @@ safe to paste early: it drops the 4-argument `set_game_pick` the old bundle call
 8. Admin → Settings: set `roster_size` **6** and `max_members` **12** for the live season. Stored values beat the new
    defaults (today they are 4 and 6). `min_shares` (20) and `picks_per_game` (2) come from the defaults.
 9. Anon probe (the anon key, no sign-in): `set_game_pick` called with `p_athletes` returns **42501**, and `set_bench`
-   returns **404** (PGRST202, the function is gone). Then signed in: the League tab loads, the **Buy shares** card
-   shows, and the pick card shows 2 picks.
-10. Then Admin → Tournaments: **Open share buying** (close at least a day before the tournament), and after the close
-    **Settle shares**, then **Open tournament**.
+   returns **404** (PGRST202, the function is gone). Then signed in, right after the push: the League tab loads and
+   shows a "<tournament> shares" card marked **Not open yet** (no Buy shares list or pick card yet, that is expected).
+10. Then Admin → Tournaments: **Open share buying** (close at least a day before the tournament). Check: the League
+    tab now shows the **Buy shares** list. After the close **Settle shares**, then **Open tournament**. Check: the pick
+    card shows **Pick 2**.
 
 **Rollback.** 0023 is not reversible by a code revert: the bench data, the bench swaps and the old one-pick game shape
 are gone, every old slot became a whole share, and a code revert alone would break the site against the new schema.
