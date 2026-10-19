@@ -8,7 +8,8 @@ import { mergeTaps, type Tap } from './taps';
 import { tirednessMultiplier } from './tiredness';
 import { pairKey, scoreWeek, type SideResult } from './week';
 
-export interface YearMember { id: string; createdAt: string }
+/** `removedAt`: the account was removed (spec M14 §5.3); from then on the team forfeits every paired game and is left out of pairing. */
+export interface YearMember { id: string; createdAt: string; removedAt: string | null }
 export interface YearStatLine { sessionId: string; athleteId: string; stats: Record<string, number>; pointsPlayed: number }
 /** Confirmed injuries only; unconfirmed reports have no game effect. */
 export interface YearInjury { athleteId: string; confirmedAt: string; clearedAt: string | null }
@@ -38,8 +39,14 @@ export interface TournamentGame {
   opponent?: string | null;
 }
 export interface TournamentPairing { gameId: string; home: string; away: string | null }
-/** One team's buy in one player: `price` = credits paid, `share` = the part of him it owns (0, 1]. */
-export interface TournamentSlot { stageId: string; membershipId: string; athleteId: string; price: number; share: number }
+/**
+ * One team's buy in one player: `price` = credits paid, `share` = the part of him it owns (0, 1].
+ * Counts for game n when `fromGame <= n` and (`untilGame` null or n < `untilGame`); a player can have an ended row and a live one.
+ */
+export interface TournamentSlot {
+  stageId: string; membershipId: string; athleteId: string; price: number; share: number; fromGame: number; untilGame: number | null;
+}
+export const slotLive = (x: TournamentSlot, number: number): boolean => x.fromGame <= number && (x.untilGame === null || number < x.untilGame);
 /** Keyed by game number, not game id: a pick can exist before its game does (pre-selection). One row per picked player. */
 export interface TournamentPick { stageId: string; number: number; membershipId: string; athleteId: string }
 export interface TournamentSession { id: string; verifiedAt: string | null }
@@ -141,11 +148,14 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
   const startedIn = new Map<string, Set<string>>(); // pairKey → stages with a start
   const table: Table = new Map(input.members.map((m) => [m.id, { points: 0, totalScore: 0, wins: 0, losses: 0, ties: 0 }]));
 
+  const removedAtOf = new Map(input.members.map((m) => [m.id, m.removedAt]));
+  const isRemoved = (id: string, at: number) => { const r = removedAtOf.get(id) ?? null; return r !== null && ms(r) <= at; };
+
   /** One manager's side of game `number` in `stageId`, as of `asOf`. */
   const sideOf = (membershipId: string, stageId: string, number: number, asOf: number): TournamentSide => {
-    const players = rosterOf(input, membershipId, stageId);
+    const players = isRemoved(membershipId, asOf) ? [] : rosterOf(input, membershipId, stageId, number);
     const share: Record<string, number> = {};
-    for (const x of input.slots) if (x.stageId === stageId && x.membershipId === membershipId) share[x.athleteId] = x.share;
+    for (const x of input.slots) if (x.stageId === stageId && x.membershipId === membershipId && slotLive(x, number)) share[x.athleteId] = x.share;
     const rest: Record<string, number> = {};
     const decay: Record<string, number> = {};
     const factor: Record<string, number> = {};
@@ -230,7 +240,8 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
   if (input.currentStageId !== null && !over) {
     const stageId = input.currentStageId;
     const number = 1 + Math.max(0, ...input.games.filter((g) => g.stageId === stageId && g.startedAt !== null).map((g) => g.number));
-    const withRoster = [...new Set(input.slots.filter((x) => x.stageId === stageId).map((x) => x.membershipId))].sort();
+    const withRoster = [...new Set(input.slots.filter((x) => x.stageId === stageId && slotLive(x, number)).map((x) => x.membershipId))]
+      .filter((m) => !isRemoved(m, now)).sort();
     next = { stageId, number, sides: withRoster.map((m) => sideOf(m, stageId, number, now)) };
   }
 
@@ -283,9 +294,10 @@ function standingsOf(table: Table): YearStanding[] {
   })).sort((a, b) => a.rank - b.rank || cmp(a.membershipId, b.membershipId));
 }
 
-/** One manager's roster (every player they own a share of) in `stageId`, sorted. */
-export function rosterOf(input: Pick<TournamentInput, 'slots'>, membershipId: string, stageId: string): string[] {
-  return [...new Set(input.slots.filter((x) => x.stageId === stageId && x.membershipId === membershipId).map((x) => x.athleteId))].sort();
+/** One manager's roster (every player they own a share of at game `number`) in `stageId`, sorted. */
+export function rosterOf(input: Pick<TournamentInput, 'slots'>, membershipId: string, stageId: string, number: number): string[] {
+  return [...new Set(input.slots.filter((x) => x.stageId === stageId && x.membershipId === membershipId && slotLive(x, number))
+    .map((x) => x.athleteId))].sort();
 }
 
 /** Stat lines from a session's live taps (merged as on the tally screen), for provisional standings. */
@@ -310,7 +322,7 @@ export function nextPairings(input: TournamentInput): Pairing[] {
 export function pairingInputs(input: TournamentInput):
   { order: string[]; meetings: Record<string, number>; seasonMeetings: Record<string, number> } {
   const r = scoreTournaments(input, { provisional: true });
-  const present = new Set(input.members.filter((m) => ms(m.createdAt) <= input.now).map((m) => m.id));
+  const present = new Set(input.members.filter((m) => ms(m.createdAt) <= input.now && (m.removedAt === null || ms(m.removedAt) > input.now)).map((m) => m.id));
   const order = r.standings.filter((x) => present.has(x.membershipId))
     .sort((a, b) => b.points - a.points || b.totalScore - a.totalScore || cmp(a.membershipId, b.membershipId))
     .map((x) => x.membershipId);

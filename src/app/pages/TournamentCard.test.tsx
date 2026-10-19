@@ -18,7 +18,7 @@ vi.mock('../lib/rpc', () => ({ api: { setGamePick: vi.fn() } }));
 
 const NAMES: Record<string, string> = { a1: 'Ash', a2: 'Avery', a3: 'Alex', a4: 'Arlo', b1: 'Bea', b2: 'Quinn', b3: 'Blake', b4: 'Bryn' };
 const roster = (m: string, ids: string[], shares = [1, 1, 1, 1]) =>
-  ids.map((athlete_id, i) => ({ stage_id: 'S1', membership_id: m, athlete_id, price: [30, 20, 10, 5][i], share: shares[i] }));
+  ids.map((athlete_id, i) => ({ stage_id: 'S1', membership_id: m, athlete_id, price: [30, 20, 10, 5][i], share: shares[i], from_game: 1, until_game: null }));
 /** Two teams of four players before the tournament opens. */
 const base = (): TournamentRows => ({
   settings: {},
@@ -26,7 +26,7 @@ const base = (): TournamentRows => ({
     auction_run_at: '2026-11-04T00:00:00Z' }],
   games: [],
   pairings: [],
-  members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00Z' }, { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00Z' }],
+  members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00Z', removed_at: null }, { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00Z', removed_at: null }],
   slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4']), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
   picks: [],
   sessions: [],
@@ -104,7 +104,7 @@ describe('TournamentCard', () => {
       games: [{ id: 'g0', stage_id: 'S0', number: 1, session_id: 'p0', started_at: '2026-10-03T14:00:00Z', finished_at: '2026-10-03T15:00:00Z',
         opponent: null }, ...r.games],
       pairings: [{ game_id: 'g0', home: 'm1', away: 'm2' }, ...r.pairings],
-      slots: [{ stage_id: 'S0', membership_id: 'm1', athlete_id: 'a1', price: 10, share: 1 },
+      slots: [{ stage_id: 'S0', membership_id: 'm1', athlete_id: 'a1', price: 10, share: 1, from_game: 1, until_game: null },
         ...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 0.4, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
       picks: [{ stage_id: 'S0', game_number: 1, membership_id: 'm1', athlete_id: 'a1' }, ...r.picks],
       sessions: [{ id: 'p0', verified_at: '2026-10-03T16:00:00Z' }, ...r.sessions],

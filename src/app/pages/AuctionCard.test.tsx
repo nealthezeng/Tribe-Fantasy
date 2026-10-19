@@ -244,7 +244,7 @@ describe('AuctionCard', () => {
     function settled() {
       db.stages = [closed as unknown as Row];
       db.athletes = [player(1, 'Sam'), player(2, 'Pat')];
-      db.memberships = [{ id: 'm1', team_name: 'Test Zeal' }, { id: 'm2', team_name: 'Money' }];
+      db.memberships = [{ id: 'm1', team_name: 'Test Zeal', removed_at: null }, { id: 'm2', team_name: 'Money', removed_at: null }];
       db.roster_slots = [slot('m1', 1, 100, 2 / 3), slot('m2', 1, 50, 1 / 3), slot('m1', 2, 40, 1)];
     }
 

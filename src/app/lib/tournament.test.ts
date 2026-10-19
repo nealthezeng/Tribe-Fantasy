@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, mergeStandings, needsYou, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, mergeStandings, needsYou, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -32,10 +32,10 @@ const rows: TournamentRows = {
   games: [{ id: 'g1', stage_id: 'S1', number: 1, session_id: 'p1', started_at: T, finished_at: '2026-11-07T15:00:00+00:00', opponent: null },
     { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }],
   pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
-  members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00+00:00' },
-    { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00+00:00' }],
-  slots: [{ stage_id: 'S1', membership_id: 'm1', athlete_id: 'a1', price: 10, share: 0.5 },
-    { stage_id: 'S1', membership_id: 'm2', athlete_id: 'b1', price: 5, share: 0.25 }],
+  members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00+00:00', removed_at: null },
+    { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00+00:00', removed_at: null }],
+  slots: [{ stage_id: 'S1', membership_id: 'm1', athlete_id: 'a1', price: 10, share: 0.5, from_game: 1, until_game: null },
+    { stage_id: 'S1', membership_id: 'm2', athlete_id: 'b1', price: 5, share: 0.25, from_game: 1, until_game: null }],
   picks: [{ stage_id: 'S1', game_number: 1, membership_id: 'm1', athlete_id: 'a1' }],
   sessions: [{ id: 'p1', verified_at: '2026-11-07T20:00:00+00:00' }],
   lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 7 }],
@@ -55,7 +55,7 @@ describe('toTournamentInput', () => {
     expect(input.games[0]).toEqual({ id: 'g1', stageId: 'S1', number: 1, sessionId: 'p1', startedAt: T,
       finishedAt: '2026-11-07T15:00:00+00:00', opponent: null });
     expect(input.picks).toEqual([{ stageId: 'S1', number: 1, membershipId: 'm1', athleteId: 'a1' }]);
-    expect(input.slots[0]).toEqual({ stageId: 'S1', membershipId: 'm1', athleteId: 'a1', price: 10, share: 0.5 });
+    expect(input.slots[0]).toEqual({ stageId: 'S1', membershipId: 'm1', athleteId: 'a1', price: 10, share: 0.5, fromGame: 1, untilGame: null });
     expect(input.statLines).toEqual([{ sessionId: 'p1', athleteId: 'a1', stats: { goal: 1 }, pointsPlayed: 7 }]);
     expect(input.injuries).toEqual([{ athleteId: 'b1', confirmedAt: '2026-10-10T00:00:00+00:00', clearedAt: '2026-10-12T00:00:00+00:00' }]);
     expect(input.currentStageId).toBe('S1');
@@ -96,6 +96,22 @@ describe('buildLeagueTournament', () => {
     expect(y.team.get('m1')).toBe('Zeal');
     expect(y.athlete.get('b1')).toBe('Sam');
     expect(y.injured.size).toBe(0);
+  });
+
+  it('labels a removed team and maps the slot ranges', () => {
+    const removed = { ...rows, members: [rows.members[0], { ...rows.members[1], removed_at: '2026-11-08T00:00:00+00:00' }],
+      slots: [{ ...rows.slots[0], from_game: 2, until_game: 5 }, rows.slots[1]] };
+    const y = buildLeagueTournament(removed, Date.parse('2026-11-08T00:00:00Z'));
+    expect(y.team.get('m2')).toBe('Flow (removed)');
+    expect(y.input.members[1].removedAt).toBe('2026-11-08T00:00:00+00:00');
+    expect(y.input.slots[0]).toMatchObject({ fromGame: 2, untilGame: 5 });
+  });
+});
+
+describe('teamLabel', () => {
+  it('marks only removed teams', () => {
+    expect(teamLabel({ team_name: 'Zeal', removed_at: null })).toBe('Zeal');
+    expect(teamLabel({ team_name: 'Zeal', removed_at: '2026-11-08T00:00:00Z' })).toBe('Zeal (removed)');
   });
 });
 

@@ -7,12 +7,13 @@ import {
 } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
+import { teamLabel } from '../lib/tournament';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance as sumLedger, credits, pct } from '../lib/wallet';
 
 interface Athlete { id: string; name: string; user_id: string | null; opted_in: boolean }
-interface Team { id: string; team_name: string }
+interface Team { id: string; team_name: string; removed_at: string | null }
 
 /**
  * Share buying for one team, in the stage pickAuctionStage chooses. While it's open it's a card with a sticky
@@ -38,8 +39,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       supabase!.from('injuries').select('athlete_id').is('cleared_at', null).not('confirmed_at', 'is', null),
       supabase!.from('bids').select('membership_id, athlete_id, amount').eq('stage_id', stage.id).eq('league_id', leagueId)
         .order('amount', { ascending: false }),
-      supabase!.from('roster_slots').select('membership_id, athlete_id, price, share').eq('stage_id', stage.id).eq('league_id', leagueId),
-      supabase!.from('memberships').select('id, team_name').eq('league_id', leagueId).order('team_name'),
+      supabase!.from('roster_slots').select('membership_id, athlete_id, price, share').eq('stage_id', stage.id).eq('league_id', leagueId).is('until_game', null),
+      supabase!.from('memberships').select('id, team_name, removed_at').eq('league_id', leagueId).order('team_name'),
       // Fetched fresh (not passed as a prop) so a donation credited while the tab is open doesn't leave the client
       // refusing buys with a stale balance.
       supabase!.from('credit_ledger').select('amount').eq('membership_id', membershipId),
@@ -180,7 +181,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
 
         {phase === 'run' && (() => {
           const roster = slots.filter((s) => s.membership_id === membershipId);
-          const team = new Map(teams.map((t) => [t.id, t.team_name]));
+          const team = new Map(teams.map((t) => [t.id, teamLabel(t)]));
           return (
             <>
               <h3>Your players</h3>
@@ -228,7 +229,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
                 : bids.filter((b) => b.membership_id === t.id).map((b) => ({ athlete_id: b.athlete_id, price: b.amount, share: null }));
               return (
                 <details key={t.id}>
-                  <summary>{t.team_name} <span className="muted">· {held.length} {held.length === 1 ? 'player' : 'players'}</span></summary>
+                  <summary>{teamLabel(t)} <span className="muted">· {held.length} {held.length === 1 ? 'player' : 'players'}</span></summary>
                   <ul className="list">
                     {held.map((h) => (
                       <li key={h.athlete_id}>

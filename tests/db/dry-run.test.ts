@@ -92,7 +92,7 @@ beforeAll(async () => {
     const input = toTournamentInput(await readRows(), Date.now());
     for (const [i, t] of teams.entries()) {
       if (n === 3 && i === 2) continue;
-      const roster = rosterOf(input, t.mid, f.stage);
+      const roster = rosterOf(input, t.mid, f.stage, n);
       const mine = i === 0 && n === 2 ? [f.athletes[0], f.athletes[3]] : n === 3 ? roster.slice(-2) : roster.slice(0, 2);
       await pick(t, n, i === 5 && n === 1 ? mine.slice(0, 1) : mine);
     }

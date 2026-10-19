@@ -22,7 +22,7 @@ const verifiedAt = (g: TournamentGame) => g.finishedAt;
 const goals = (sessionId: string, athleteId: string, n: number): YearStatLine =>
   ({ sessionId, athleteId, stats: { goal: n }, pointsPlayed: 0 });
 const roster = (stageId: string, m: string, ids: string[], shares: number[] = []) =>
-  ids.map((athleteId, i) => ({ stageId, membershipId: m, athleteId, price: 10, share: shares[i] ?? 1 }));
+  ids.map((athleteId, i) => ({ stageId, membershipId: m, athleteId, price: 10, share: shares[i] ?? 1, fromGame: 1, untilGame: null }));
 const pick = (number: number, membershipId: string, athleteId: string, stageId = 'S1') => ({ stageId, number, membershipId, athleteId });
 
 /** Two teams, three games of S1, one pick each. m1 roster a1–a3, m2 b1–b3. */
@@ -33,7 +33,7 @@ const base = (over: Partial<TournamentInput> = {}): TournamentInput => {
     now: NOW,
     games,
     pairings: games.map((g) => ({ gameId: g.id, home: 'm1', away: 'm2' })),
-    members: [{ id: 'm1', createdAt: '2026-10-01T00:00:00Z' }, { id: 'm2', createdAt: '2026-10-01T00:00:00Z' }],
+    members: [{ id: 'm1', createdAt: '2026-10-01T00:00:00Z', removedAt: null }, { id: 'm2', createdAt: '2026-10-01T00:00:00Z', removedAt: null }],
     slots: [...roster('S1', 'm1', ['a1', 'a2', 'a3']), ...roster('S1', 'm2', ['b1', 'b2', 'b3'])],
     picks: [pick(1, 'm1', 'a1'), pick(1, 'm2', 'b1'), pick(2, 'm1', 'a2'), pick(2, 'm2', 'b2'), pick(3, 'm1', 'a3'), pick(3, 'm2', 'b3')],
     sessions: games.filter((g) => g.sessionId !== null).map((g) => ({ id: g.sessionId!, verifiedAt: verifiedAt(g) })),
@@ -208,7 +208,7 @@ describe('scoreTournaments', () => {
     const r = scoreTournaments(base({
       games: [g1],
       pairings: [{ gameId: g1.id, home: 'm1', away: 'm2' }, { gameId: g1.id, home: 'm3', away: null }],
-      members: ['m1', 'm2', 'm3'].map((id) => ({ id, createdAt: '2026-10-01T00:00:00Z' })),
+      members: ['m1', 'm2', 'm3'].map((id) => ({ id, createdAt: '2026-10-01T00:00:00Z', removedAt: null })),
       slots: [...base().slots, ...roster('S1', 'm3', ['c1', 'c2', 'c3'])],
       statLines: [goals('S1s1', 'a1', 4), goals('S1s1', 'b1', 2), goals('S1s1', 'c1', 3), goals('S1s1', 'c2', 3), goals('S1s1', 'c3', 3)],
     }));
@@ -272,7 +272,7 @@ describe('nextPairings', () => {
     return base({
       games: [g1],
       pairings: [{ gameId: g1.id, home: 'm1', away: 'm2' }, { gameId: g1.id, home: 'm3', away: 'm4' }],
-      members: ['m1', 'm2', 'm3', 'm4'].map((id) => ({ id, createdAt: '2026-10-01T00:00:00Z' })),
+      members: ['m1', 'm2', 'm3', 'm4'].map((id) => ({ id, createdAt: '2026-10-01T00:00:00Z', removedAt: null })),
       slots: [...roster('S1', 'm1', ['a1']), ...roster('S1', 'm2', ['b1']), ...roster('S1', 'm3', ['c1']), ...roster('S1', 'm4', ['d1'])],
       picks: [],
       sessions: [{ id: g1.sessionId!, verifiedAt: null }],
@@ -290,9 +290,9 @@ describe('nextPairings', () => {
 
   it('leaves out a team that joins after now, and gives an odd count a bye', () => {
     const f = four();
-    const late = nextPairings({ ...f, members: [...f.members, { id: 'm5', createdAt: '2027-06-01T00:00:00Z' }] });
+    const late = nextPairings({ ...f, members: [...f.members, { id: 'm5', createdAt: '2027-06-01T00:00:00Z', removedAt: null }] });
     expect(late.flat()).not.toContain('m5');
-    const joined = nextPairings({ ...f, members: [...f.members, { id: 'm5', createdAt: '2026-10-02T00:00:00Z' }] });
+    const joined = nextPairings({ ...f, members: [...f.members, { id: 'm5', createdAt: '2026-10-02T00:00:00Z', removedAt: null }] });
     // m5 (0 points, never paired) ties the losers; the lowest-placed team without a bye sits out.
     expect(joined).toHaveLength(3);
     expect(joined.filter(([, b]) => b === null)).toHaveLength(1);
@@ -322,6 +322,76 @@ describe('nextPairings', () => {
     const r = nextPairings({ ...f, games: [...f.games, ghost],
       pairings: [...f.pairings, { gameId: ghost.id, home: 'm1', away: 'm4' }, { gameId: ghost.id, home: 'm2', away: 'm3' }] });
     expect(r).toEqual([['m1', 'm4'], ['m2', 'm3']]);
+  });
+});
+
+describe('slot ranges and removed teams (M14)', () => {
+  const ranged = (m: string, athleteId: string, fromGame: number, untilGame: number | null) =>
+    ({ stageId: 'S1', membershipId: m, athleteId, price: 10, share: 1, fromGame, untilGame });
+  const withRemoved = (id: string, removedAt: string | null) => (x: { id: string; createdAt: string; removedAt: string | null }) =>
+    (x.id === id ? { ...x, removedAt } : x);
+
+  it('slot ending at game 3 still scores games 1–2', () => {
+    // a1 is m1's only player, until game 3; goals in games 1 and 2, none in 3.
+    const r = scoreTournaments(base({
+      slots: [ranged('m1', 'a1', 1, 3), ...roster('S1', 'm2', ['b1', 'b2', 'b3'])],
+      picks: [pick(1, 'm1', 'a1'), pick(2, 'm1', 'a1'), pick(3, 'm1', 'a1')],
+      statLines: [goals('S1s1', 'a1', 4), goals('S1s2', 'a1', 2), goals('S1s3', 'a1', 9)],
+    }));
+    expect(side(r, 'S1g1', 'm1')).toMatchObject({ players: ['a1'], athleteIds: ['a1'], score: 4 });
+    expect(side(r, 'S1g2', 'm1')).toMatchObject({ players: ['a1'], score: 1 }); // 2 goals × 0.5 rest (started game 1)
+    expect(side(r, 'S1g3', 'm1')).toMatchObject({ players: [], athleteIds: [], score: 0 });
+  });
+
+  it('slot starting at game 2 is not on the game-1 roster', () => {
+    const r = scoreTournaments(base({ slots: [ranged('m1', 'a1', 2, null), ...roster('S1', 'm2', ['b1', 'b2', 'b3'])] }));
+    expect(side(r, 'S1g1', 'm1').players).toEqual([]);
+    expect(side(r, 'S1g2', 'm1').players).toEqual(['a1']);
+  });
+
+  it('a removed team forfeits its paired game', () => {
+    const r = scoreTournaments(base({ members: base().members.map(withRemoved('m1', iso(T0 + 3 * H))) }));
+    expect(side(r, 'S1g1', 'm1').score).toBe(4); // played before it was removed
+    expect(side(r, 'S1g2', 'm1')).toMatchObject({ players: [], athleteIds: [], score: 0 });
+    expect(side(r, 'S1g2', 'm2').score).toBe(3);
+  });
+
+  const nextBase = () => {
+    const g1 = game(1, 'S1', { finishedAt: null });
+    return base({
+      games: [g1],
+      pairings: [{ gameId: g1.id, home: 'm1', away: 'm2' }, { gameId: g1.id, home: 'm3', away: 'm4' }],
+      members: ['m1', 'm2', 'm3', 'm4'].map((id) => ({ id, createdAt: '2026-10-01T00:00:00Z', removedAt: null })),
+      slots: [...roster('S1', 'm1', ['a1']), ...roster('S1', 'm2', ['b1']), ...roster('S1', 'm3', ['c1']), ...roster('S1', 'm4', ['d1'])],
+      picks: [],
+      sessions: [{ id: g1.sessionId!, verifiedAt: null }],
+      statLines: [goals('S1s1', 'a1', 5), goals('S1s1', 'b1', 1), goals('S1s1', 'c1', 1), goals('S1s1', 'd1', 4)],
+      now: Date.parse(g1.startedAt!) + H,
+      currentStageId: 'S1',
+    });
+  };
+
+  it('nextPairings leaves out removed teams', () => {
+    const f = nextBase();
+    const gone = { ...f, members: f.members.map(withRemoved('m4', iso(f.now - 1))) };
+    const { order } = pairingInputs(gone);
+    expect(order).not.toContain('m4');
+    expect(nextPairings(gone).flat()).not.toContain('m4');
+    expect(pairingInputs({ ...f, members: f.members.map(withRemoved('m4', iso(f.now + H))) }).order).toContain('m4');
+  });
+
+  it('next.sides leaves out removed teams', () => {
+    const f = nextBase();
+    const ids = (input: TournamentInput) => scoreTournaments(input).next!.sides.map((x) => x.membershipId);
+    expect(ids({ ...f, members: f.members.map(withRemoved('m2', iso(f.now - 1))) })).toEqual(['m1', 'm3', 'm4']);
+    expect(ids(f)).toEqual(['m1', 'm2', 'm3', 'm4']);
+  });
+
+  it('next.sides uses the slots live at the next game', () => {
+    const f = nextBase();
+    const slots = [ranged('m1', 'a1', 1, 2), ranged('m1', 'a2', 2, null), ...f.slots.filter((x) => x.membershipId !== 'm1')];
+    const sides = scoreTournaments({ ...f, slots }).next!.sides;
+    expect(sides.find((x) => x.membershipId === 'm1')!.players).toEqual(['a2']); // game 1 started, so game 2 is next: a1 ended at 2, a2 starts at 2
   });
 });
 

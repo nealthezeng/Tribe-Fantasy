@@ -27,8 +27,8 @@ export interface TournamentRows {
   games: GameRow[];
   /** This league's pairings only. */
   pairings: { game_id: string; home: string; away: string | null }[];
-  members: { id: string; team_name: string; created_at: string }[];
-  slots: { stage_id: string; membership_id: string; athlete_id: string; price: number; share: number }[];
+  members: { id: string; team_name: string; created_at: string; removed_at: string | null }[];
+  slots: { stage_id: string; membership_id: string; athlete_id: string; price: number; share: number; from_game: number; until_game: number | null }[];
   picks: { stage_id: string; game_number: number; membership_id: string; athlete_id: string }[];
   /** Every session a game links to: a game whose session is missing is void. */
   sessions: { id: string; verified_at: string | null }[];
@@ -46,6 +46,10 @@ function playingStage(stages: AuctionStage[], now: number): AuctionStage | null 
   return s && today <= s.ends_on ? s : null;
 }
 
+/** A team's name, marked when its account was removed. */
+export const teamLabel = (m: { team_name: string; removed_at: string | null }): string =>
+  m.removed_at === null ? m.team_name : `${m.team_name} (removed)`;
+
 export function toTournamentInput(rows: TournamentRows, now: number): TournamentInput {
   const settings = parseSettings(rows.settings);
   const athletes = new Set(rows.athletes.map((a) => a.id));
@@ -59,8 +63,8 @@ export function toTournamentInput(rows: TournamentRows, now: number): Tournament
       id: g.id, stageId: g.stage_id, number: g.number, sessionId: g.session_id, startedAt: g.started_at, finishedAt: g.finished_at, opponent: g.opponent,
     })),
     pairings: rows.pairings.map((p) => ({ gameId: p.game_id, home: p.home, away: p.away })),
-    members: rows.members.map((m) => ({ id: m.id, createdAt: m.created_at })),
-    slots: rows.slots.map((x) => ({ stageId: x.stage_id, membershipId: x.membership_id, athleteId: x.athlete_id, price: x.price, share: x.share })),
+    members: rows.members.map((m) => ({ id: m.id, createdAt: m.created_at, removedAt: m.removed_at })),
+    slots: rows.slots.map((x) => ({ stageId: x.stage_id, membershipId: x.membership_id, athleteId: x.athlete_id, price: x.price, share: x.share, fromGame: x.from_game, untilGame: x.until_game })),
     picks: rows.picks.map((p) => ({ stageId: p.stage_id, number: p.game_number, membershipId: p.membership_id, athleteId: p.athlete_id })),
     sessions: rows.sessions.map((s) => ({ id: s.id, verifiedAt: s.verified_at })),
     statLines: [
@@ -94,7 +98,7 @@ export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): L
     settings: input.settings,
     input,
     result: scoreTournaments(input),
-    team: new Map(rows.members.map((m) => [m.id, m.team_name])),
+    team: new Map(rows.members.map((m) => [m.id, teamLabel(m)])),
     athlete: new Map(rows.athletes.map((a) => [a.id, a.name])),
     stage: new Map(rows.stages.map((x) => [x.id, x.name])),
     stageDates: new Map(rows.stages.map((x) => [x.id, { starts_on: x.starts_on, ends_on: x.ends_on }])),
@@ -132,8 +136,8 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
   const [season, stages, members, slots, picks, injuries, athletes] = await Promise.all([
     rowsOf<{ settings: unknown }>(sb.from('seasons').select('settings').eq('id', seasonId)),
     rowsOf<AuctionStage>(sb.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)),
-    rowsOf<TournamentRows['members'][number]>(sb.from('memberships').select('id, team_name, created_at').eq('league_id', leagueId)),
-    rowsOf<TournamentRows['slots'][number]>(sb.from('roster_slots').select('stage_id, membership_id, athlete_id, price, share').eq('league_id', leagueId)),
+    rowsOf<TournamentRows['members'][number]>(sb.from('memberships').select('id, team_name, created_at, removed_at').eq('league_id', leagueId)),
+    rowsOf<TournamentRows['slots'][number]>(sb.from('roster_slots').select('stage_id, membership_id, athlete_id, price, share, from_game, until_game').eq('league_id', leagueId)),
     // ponytail: unpaged, fine below 1000 picks a league-year (12 teams × 2 picks × ~20 games ≈ 480); page it if that grows.
     rowsOf<TournamentRows['picks'][number]>(sb.from('game_picks').select('stage_id, game_number, membership_id, athlete_id').eq('league_id', leagueId)),
     rowsOf<InjuryRow>(sb.from('injuries').select('athlete_id, confirmed_at, cleared_at').not('confirmed_at', 'is', null)),
@@ -195,7 +199,7 @@ export async function seasonPairings(seasonId: string, now = Date.now()): Promis
   return {
     pairings: provisional.flatMap(toPairings),
     provisional,
-    team: new Map(loaded.flatMap(({ rows }) => rows.members.map((m) => [m.id, m.team_name] as const))),
+    team: new Map(loaded.flatMap(({ rows }) => rows.members.map((m) => [m.id, teamLabel(m)] as const))),
     league: new Map(leagues.map((l) => [l.id, l.name])),
   };
 }

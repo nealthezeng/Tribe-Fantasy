@@ -54,7 +54,7 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
 
   const input: TournamentInput = {
     settings: s, now: 0, games: [], pairings: [], slots: [], picks: [], sessions: [], statLines: [],
-    injuries: [], currentStageId: null, members: managerIds.map((id) => ({ id, createdAt: iso(start - 30 * DAY) })),
+    injuries: [], currentStageId: null, members: managerIds.map((id) => ({ id, createdAt: iso(start - 30 * DAY), removedAt: null })),
   };
   const balance = Object.fromEntries(managerIds.map((m) => [m, 0]));
   const placesByStage: Record<string, number>[] = [];
@@ -84,7 +84,7 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
     }
     for (const h of settleShares(bids, balance, s.min_shares, s.roster_size)) {
       balance[h.managerId] -= h.amount;
-      input.slots.push({ stageId, membershipId: h.managerId, athleteId: h.athleteId, price: h.amount, share: h.share });
+      input.slots.push({ stageId, membershipId: h.managerId, athleteId: h.athleteId, price: h.amount, share: h.share, fromGame: 1, untilGame: null });
     }
 
     // Games: pair, pick (best read × tiredness × share; the tanker starts their worst in the last game), play, verify.
