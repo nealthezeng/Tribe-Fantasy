@@ -360,6 +360,45 @@ begin
   return jsonb_build_object('teams', cardinality(mids), 'donations', donations);
 end $$;
 
+-- As 0016, but a removed team never gets email (its membership has no account to send to).
+create or replace function private.wants_email(p_membership uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select case when exists (select 1 from public.memberships where id = p_membership and removed_at is not null) then false
+    else coalesce((select p.notify_email from public.memberships m join public.profiles p on p.id = m.user_id
+                   where m.id = p_membership), true) end
+$$;
+
+-- As 0014, plus a slot clean-up. Un-starting game k makes k the next game again, so slots edited "from the next game"
+-- while k+1 was next now apply from k: a slot that started at or after k and had already ended goes, a slot that
+-- started earlier ends at k instead of k+1, and a slot waiting to start at k+1 starts at k.
+create or replace function public.reset_game(p_game uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare g public.games; s public.sessions; next_deleted boolean; taps int; lines int;
+begin
+  perform private.require_admin();
+  select * into g from public.games where id = p_game for update;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  if g.started_at is null then raise exception 'GAME_NOT_STARTED'; end if;
+  perform 1 from public.games where stage_id = g.stage_id order by number for update; -- lock the siblings so start_game(N+1) can't commit mid-reset
+  if exists (select 1 from public.games where stage_id = g.stage_id and number > g.number and started_at is not null) then
+    raise exception 'NOT_LATEST_GAME';
+  end if;
+  select * into s from public.sessions where id = g.session_id;
+  select count(*) into taps from public.stat_taps where session_id = g.session_id;
+  select count(*) into lines from public.stat_lines where session_id = g.session_id;
+  delete from public.games where stage_id = g.stage_id and number = g.number + 1;
+  next_deleted := found;
+  update public.games set started_at = null, finished_at = null, session_id = null where id = p_game;
+  delete from public.sessions where id = g.session_id;
+  -- In this order, so until_game > from_game holds after every statement.
+  delete from public.roster_slots where stage_id = g.stage_id and until_game > g.number and from_game >= g.number;
+  update public.roster_slots set until_game = g.number where stage_id = g.stage_id and until_game > g.number;
+  update public.roster_slots set from_game = g.number where stage_id = g.stage_id and from_game > g.number;
+  perform private.audit('reset_game', 'game', p_game::text, jsonb_build_object(
+    'stage_id', g.stage_id, 'number', g.number, 'session_id', g.session_id, 'verified', s.verified_at is not null,
+    'taps', taps, 'lines', lines, 'next_game_deleted', next_deleted));
+end $$;
+
 -- Admins read sealed rows: share buys before buying closes, picks before the game starts. The existing "any role"
 -- clause (keepers, treasurers) stays limited to after close / after start.
 drop policy bids_read on public.bids;

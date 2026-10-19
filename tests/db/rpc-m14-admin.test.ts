@@ -187,6 +187,40 @@ describe('roster readers', () => {
   });
 });
 
+describe('reset_game after a share edit', () => {
+  const reset = (game: string) => as(f.db, f.admin, (tx) => rpc(tx, 'reset_game', { p_game: game }));
+
+  it('the edit applies from the game that is played next, and later edits work', async () => {
+    await settle();
+    const g1 = await open();
+    await start(g1); // next game 2
+    await setShare(A(0), 40); // bought row ends at 2, admin row starts at 2
+    await reset(g1); // next game is 1 again
+    const rows = (await slotRows()).filter((r) => r.athlete_id === A(0));
+    expect(rows).toEqual([{ athlete_id: A(0), share: 0.4, price: 0, via: 'admin', from_game: 1, until_game: null }]);
+    await pick(aliceM, 1, [A(0), A(1)]); // on the edited roster for game 1
+    await setShare(A(0), 0);
+    expect((await slotRows()).filter((r) => r.athlete_id === A(0))).toEqual([]);
+    await expect(pick(aliceM, 1, [A(0)])).rejects.toThrow('NOT_ON_ROSTER');
+    await setShare(A(0), 30); // no unique violation
+    expect(await live(aliceM, A(0))).toEqual([expect.objectContaining({ share: 0.3, from_game: 1, via: 'admin' })]);
+    await pick(aliceM, 1, [A(0)]);
+  });
+
+  it('a slot that started earlier ends at the replayed game instead', async () => {
+    await settle();
+    const g1 = await open();
+    await start(g1);
+    const g2 = (await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: pairings(), p_provisional: {} }))) as string;
+    await start(g2); // next game 3
+    await setShare(A(0), 40); // bought row (from 1) ends at 3, admin row from 3
+    await reset(g2); // next game 2 again
+    expect((await slotRows()).filter((r) => r.athlete_id === A(0))).toEqual([
+      expect.objectContaining({ price: 20, via: 'bid', from_game: 1, until_game: 2 }),
+      expect.objectContaining({ share: 0.4, via: 'admin', from_game: 2, until_game: null })]);
+  });
+});
+
 describe('admin_rename_team', () => {
   const rename = (mid: string, name: string, who = f.admin) =>
     as(f.db, who, (tx) => rpc(tx, 'admin_rename_team', { p_membership: mid, p_name: name }));
@@ -323,8 +357,7 @@ describe('admin_remove_user', () => {
 describe('removed-team rules', () => {
   it('check_pairings accepts pairings without the removed team', async () => {
     const [carol, carolM] = await member(f.db, 'carol');
-    const g1 = await open().catch(() => null);
-    expect(g1).toBeNull(); // carol is a live team and missing from the pairings
+    await expect(open()).rejects.toThrow('PAIRINGS_INVALID'); // carol is a live team and missing from the pairings
     const all = [...pairings(), { league_id: f.league, home: carolM, away: null }];
     const game = (await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: all }))) as string;
     await start(game);
@@ -371,6 +404,28 @@ describe('removed-team rules', () => {
     expect(await teams()).toBe(2);
     await removeUser(alice);
     expect(await teams()).toBe(1);
+  });
+});
+
+describe('removed teams get no email', () => {
+  it('queues no bid reminder for a removed team', async () => {
+    await grant(f);
+    await openAuction(f, new Date(Date.now() + 23 * 3_600_000).toISOString());
+    await removeUser(alice);
+    await f.db.query('select private.queue_bid_reminders()');
+    const rows = await f.db.query<{ membership_id: string }>('select membership_id from private.outbox');
+    expect(rows.rows.map((r) => r.membership_id)).toEqual([bobM]);
+  });
+
+  it('queues no pick notice for a removed team', async () => {
+    const [, carolM] = await member(f.db, 'carol');
+    await settle();
+    await f.db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
+      values ($1, $2, $3, $4, 10, 'bid')`, [f.stage, carolM, f.league, A(4)]); // so carol owes a pick
+    await removeUser(alice);
+    await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: bobM, away: carolM }] }));
+    const rows = await f.db.query<{ membership_id: string }>(`select membership_id from private.outbox where kind = 'pick_next'`);
+    expect(rows.rows.map((r) => r.membership_id).sort()).toEqual([bobM, carolM].sort());
   });
 });
 
