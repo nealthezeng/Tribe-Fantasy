@@ -50,7 +50,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   picks_per_game: 2,
   min_bid: 1,
   allow_self_ownership: false,
-  stat_weights: { goal: 3, assist: 3, block: 3, callahan: 8, turnover: -2 },
+  stat_weights: { goal: 3, assist: 3, block: 5, callahan: 8, turnover: -1 }, // fitted to the Feasterns stats (2026-10-19)
   normalize_mode: 'none',
   normalize_per_points: 1,
   min_points_denominator: 5,

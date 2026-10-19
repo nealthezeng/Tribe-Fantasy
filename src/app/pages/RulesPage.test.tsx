@@ -22,9 +22,10 @@ describe('RulesPage', () => {
     expect(text).toContain('2 Goal by a player you own half of, started the game before: 12 × 50% × 0.5 = 3');
     // Split example under the 200-share floor: 100 + 50 credits leave a quarter of the player unowned.
     expect(text).toContain('he has 200 shares: you own 50%, they own 25%, and the other 25% scores for nobody.');
-    // Stat points already include the tournament ×2: a goal is +6, a turnover −4.
+    // Stat points already include the tournament ×2: a goal is +6, a D +10, a turnover −2.
     expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+6');
-    expect(screen.getByText('Turnover').parentElement?.textContent).toBe('Turnover-4');
+    expect(screen.getByText('D').parentElement?.textContent).toBe('D+10');
+    expect(screen.getByText('Turnover').parentElement?.textContent).toBe('Turnover-2');
     expect(text).not.toMatch(/practice/i);
     expect(text).toContain('Picks lock when a stat keeper starts the game');
     expect(text).toContain('Each roster holds up to 6 players');

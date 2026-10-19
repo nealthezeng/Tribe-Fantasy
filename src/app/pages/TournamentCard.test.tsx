@@ -233,10 +233,10 @@ describe('TournamentCard', () => {
       });
       fireEvent.click(screen.getByText(/Game 1 · Fall beta/));
       expect([...card().querySelectorAll('.by')].map((el) => el.textContent)).toEqual(['Zeal', 'Flow']);
-      // (3 goals x 3 - 2 turnovers x 2) x 2 for a tournament = 10, and Zeal owns half of Ash.
+      // (3 goals x 3 - 2 turnovers x 1) x 2 for a tournament = 14, and Zeal owns half of Ash.
       const ash = [...card().querySelectorAll('li')].find((li) => li.textContent?.startsWith('Ash'))!;
       expect(ash.querySelector('small')?.textContent).toBe('Ash · 3 Goal, 2 Turnover');
-      expect(ash.querySelector('.calc')?.textContent).toBe('10 × 0.5 = 5');
+      expect(ash.querySelector('.calc')?.textContent).toBe('14 × 0.5 = 7');
       expect(card().textContent).toContain("You didn't pick, so");
       expect(card().textContent).toContain("Flow didn't pick, so"); // not "You": the viewer is Zeal
     });

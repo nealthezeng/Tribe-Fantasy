@@ -15,7 +15,7 @@ describe('parseSettings', () => {
     expect(DEFAULT_SETTINGS.max_members).toBe(12);
     expect(DEFAULT_SETTINGS.roster_size).toBe(6);
     expect(DEFAULT_SETTINGS.normalize_mode).toBe('none');
-    expect(DEFAULT_SETTINGS.stat_weights).toEqual({ goal: 3, assist: 3, block: 3, callahan: 8, turnover: -2 });
+    expect(DEFAULT_SETTINGS.stat_weights).toEqual({ goal: 3, assist: 3, block: 5, callahan: 8, turnover: -1 });
     expect(DEFAULT_SETTINGS.tap_merge_seconds).toBe(10);
     expect(DEFAULT_SETTINGS.normalize_per_points).toBe(1);
     expect(DEFAULT_SETTINGS.points_mode).toBe('rank_weighted');

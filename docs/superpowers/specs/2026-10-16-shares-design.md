@@ -197,8 +197,9 @@ Paste before the push. The old live bundle keeps working until the push, except 
 ## 9. Out of scope
 
 Retuning, trades, a credit pool across teams, a second (1v1) scoring path, Swiss changes, PWA (t246–t249), the
-Rules-page stat-weight mismatch seen on 2026-10-16 (block 5 in Settings, D +6 on Rules). That mismatch gets its own
-board task.
+Rules-page stat-weight mismatch seen on 2026-10-16 (block 5 in Settings, D +6 on Rules). Triaged 2026-10-19: not a bug,
+the +6 was the signed-out page showing the code defaults; the defaults are now block 5, turnover -1 (fitted to the
+Feasterns stats), so signed-out and signed-in agree.
 
 ## 10. Amendment 2026-10-19: `min_shares` 20 → 200 (user decision)
 

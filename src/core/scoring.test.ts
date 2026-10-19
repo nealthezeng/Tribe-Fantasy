@@ -14,7 +14,7 @@ const line = (over: Partial<StatLine> = {}): StatLine => ({
 describe('rawScore', () => {
   it('weights each stat and ignores unknown stats', () => {
     expect(rawScore({ goal: 2, assist: 1, layout: 5 }, s.stat_weights)).toBe(9);
-    expect(rawScore({ goal: 1, turnover: 1 }, s.stat_weights)).toBe(1);
+    expect(rawScore({ goal: 1, turnover: 1 }, s.stat_weights)).toBe(2);
   });
 });
 
@@ -34,7 +34,7 @@ describe('athleteWeekScore', () => {
 
   it('floors the denominator so tiny or zero points played stay finite', () => {
     expect(athleteWeekScore([line({ pointsPlayed: 0, stats: { goal: 1 } })], s)).toBeCloseTo(3 / 5);
-    expect(athleteWeekScore([line({ pointsPlayed: 0, stats: { turnover: 4 } })], s)).toBeCloseTo(-8 / 5);
+    expect(athleteWeekScore([line({ pointsPlayed: 0, stats: { turnover: 4 } })], s)).toBeCloseTo(-4 / 5);
   });
 
   it('supports raw totals and other scales', () => {
