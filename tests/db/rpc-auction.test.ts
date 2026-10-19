@@ -5,6 +5,7 @@ import {
   type AuctionFixture,
 } from './auction-fixture';
 
+import { makeKeeper } from './stats-fixture';
 const settings = (f: AuctionFixture, s: object) =>
   as(f.db, f.admin, (tx) => rpc(tx, 'update_season_settings', { p_season: f.season, p_settings: s }));
 const stageRow = async (f: AuctionFixture) =>
@@ -134,18 +135,21 @@ describe('place_bid and delete_bid', () => {
 });
 
 describe('bid and roster visibility', () => {
-  it('keeps bids sealed until close, then shows them to the league only', async () => {
+  it('keeps bids sealed until close, then shows them to the league and staff (admins see them any time)', async () => {
     const f = await auctionFixture();
     const [alice, am] = await member(f.db, 'alice');
     const [bob, bm] = await member(f.db, 'bob');
     const outsider = await createUser(f.db, 'out@x.test');
+    const keeper = await createUser(f.db, 'keeper@x.test');
+    await makeKeeper(f.db, keeper);
     await grant(f);
     await openAuction(f);
     await bid(f, alice, am, f.athletes[0], 10);
     await bid(f, bob, bm, f.athletes[0], 20);
     const seen = (uid: string) => as(f.db, uid, async (tx) => (await tx.query(`select amount from public.bids order by amount`)).rows);
     expect(await seen(alice)).toEqual([{ amount: 10 }]);
-    expect(await seen(f.admin)).toEqual([]); // staff can't peek either
+    expect(await seen(keeper)).toEqual([]); // other staff can't peek
+    expect(await seen(f.admin)).toEqual([{ amount: 10 }, { amount: 20 }]); // admins can (M14)
     await closeBids(f);
     expect(await seen(alice)).toEqual([{ amount: 10 }, { amount: 20 }]);
     expect(await seen(f.admin)).toEqual([{ amount: 10 }, { amount: 20 }]);

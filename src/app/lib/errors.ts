@@ -75,6 +75,10 @@ const MESSAGES: Record<string, string> = {
   NOT_ON_ROSTER: "That player isn't on your roster this tournament.",
   STANDINGS_MISSING: "The standings didn't include every team. Reload and try again.",
   NOT_ENOUGH_ATHLETES: 'No healthy players are opted in.',
+  SHARES_NOT_SETTLED: 'Close share buying for this tournament first.',
+  INVALID_PERCENT: 'Shares are 1–100%.',
+  TEAM_REMOVED: 'That team was removed.',
+  CANNOT_REMOVE_SELF: "You can't remove your own account.",
 };
 
 /**

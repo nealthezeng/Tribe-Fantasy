@@ -9,7 +9,7 @@ import { makeKeeper, tap } from './stats-fixture';
 const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues',
   'donation_leaderboard', 'my_donate_anonymously'];
 /** Staff-only reads: refused for non-staff like any staff RPC, but they change nothing, so no audit row. */
-const STAFF_READS = ['list_venmo_receipts'];
+const STAFF_READS = ['list_venmo_receipts', 'list_users'];
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
   'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
@@ -116,6 +116,11 @@ describe('RPC gate', () => {
         p_provisional: {} })],
       ['set_game_opponent', keeper, () => ({ p_game: c.game, p_name: 'Duke' })],
       ['reset_game', admin, () => ({ p_game: c.game })],
+      // M14 admin powers. c.membership's team is the player's; the share goes on the gate athlete.
+      ['admin_set_share', admin, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete, p_percent: 30 })],
+      ['admin_rename_team', admin, () => ({ p_membership: c.membership, p_name: 'Pats II' })],
+      ['admin_set_display_name', admin, () => ({ p_user: player, p_name: 'Pat Two' })],
+      ['admin_remove_user', admin, () => ({ p_user: c.spareUser })],
       ['delete_stage', admin, () => ({ p_stage: c.stage })],
       ['rename_season', admin, () => ({ p_season: c.season, p_name: 'Gate season' })],
       // c.season has a donation (refused), so delete a fresh one.
@@ -149,6 +154,7 @@ describe('RPC gate', () => {
         c.empty = (await as(db, keeper, (tx) =>
           rpc(tx, 'create_session', { p_season: c.season, p_kind: 'practice', p_held_on: '2026-11-17', p_counts: true }))) as string;
       }
+      if (name === 'admin_remove_user') c.spareUser = await createUser(db, 'spare@x.test');
       if (name === 'delete_season') {
         c.spareSeason = (await as(db, admin, (tx) => rpc(tx, 'create_season', { p_name: 'Spare', p_settings: {} }))) as string;
       }
