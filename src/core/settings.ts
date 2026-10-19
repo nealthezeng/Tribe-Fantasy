@@ -46,7 +46,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   allowance_gap: 30,
   max_members: 12,
   roster_size: 6,
-  min_shares: 20,
+  min_shares: 200,
   picks_per_game: 2,
   min_bid: 1,
   allow_self_ownership: false,

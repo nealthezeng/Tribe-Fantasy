@@ -17,7 +17,7 @@ League tab, and standings come out right. The tally screen stays untouched.
 
 1. **Shares replace bids.** Before each tournament, teams put credits on players during a sealed window, the way
    the auction works today. At close, for each player in each league:
-   `shares = max(min_shares, total credits put on that player in that league)`, with `min_shares` = 20. A team owns
+   `shares = max(min_shares, total credits put on that player in that league)`, with `min_shares` = 200 (was 20; see §10). A team owns
    `its credits / shares`.
    Example: 100 + 50 → 150 shares, owned 2/3 and 1/3. A lone 1-credit buy → 1/20, and the other 19/20 is owned by
    nobody.
@@ -77,7 +77,7 @@ League tab, and standings come out right. The tally screen stays untouched.
   `stage` stayed `stage` when players started seeing "tournament". Only player-facing and admin-facing text changes.
 - **C7 Admin labels:** "Open auction" → "Open share buying", "Run auction" → "Settle shares". The "Bids close"
   field becomes "Buying closes".
-- **C8 New settings** `min_shares` (int 1–100000, default 20) and `picks_per_game` (int 1–5, default 2). New
+- **C8 New settings** `min_shares` (int 1–100000, default 200, §10) and `picks_per_game` (int 1–5, default 2). New
   check: `picks_per_game ≤ roster_size`. Defaults change to `roster_size` 6 and `max_members` 12.
   `exclusive_ownership` and `bench_size` are removed: shares are never exclusive, and `parseSettings` rejects
   unknown keys, so 0023 strips both from stored settings. A setting for `picks_per_game` also keeps 1-pick test
@@ -199,3 +199,12 @@ Paste before the push. The old live bundle keeps working until the push, except 
 Retuning, trades, a credit pool across teams, a second (1v1) scoring path, Swiss changes, PWA (t246–t249), the
 Rules-page stat-weight mismatch seen on 2026-10-16 (block 5 in Settings, D +6 on Rules). That mismatch gets its own
 board task.
+
+## 10. Amendment 2026-10-19: `min_shares` 20 → 200 (user decision)
+
+Simulation (12 teams × 6, 23 athletes, 300 seeds, defaults otherwise) showed the §7 pitfall is real: at 20 a lone
+~20-credit buy gets a whole player while a star split 12 ways gives ~1/12 each, so the manager who reads players best
+won 2.3% of years (chance 8.3%) and the noisiest won 17%. Turning the split off made reading pay. Sweep: 50 → 5.7%,
+100 → 11%, 200 → 17% (noisiest 4.7%), 400/800 → ~13%. Default is now 200 in `DEFAULT_SETTINGS` and the 0023 SQL
+fallback. Uncontested players are no longer whole: below 200 credits in the pool the unbought part scores for nobody.
+Caveat: simulated managers buy naively (no guessing what others buy).

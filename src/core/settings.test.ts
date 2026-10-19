@@ -81,7 +81,7 @@ describe('parseSettings', () => {
   });
 
   it('has the share defaults and no bench or exclusive ownership (M13)', () => {
-    expect(DEFAULT_SETTINGS).toMatchObject({ roster_size: 6, max_members: 12, min_shares: 20, picks_per_game: 2 });
+    expect(DEFAULT_SETTINGS).toMatchObject({ roster_size: 6, max_members: 12, min_shares: 200, picks_per_game: 2 });
     expect(DEFAULT_SETTINGS).not.toHaveProperty('bench_size');
     expect(DEFAULT_SETTINGS).not.toHaveProperty('exclusive_ownership');
     expect(DEFAULT_SETTINGS.tiredness_multipliers).toEqual([0.5, 0.75]);

@@ -320,7 +320,7 @@ safe to paste early: it drops the 4-argument `set_game_pick` the old bundle call
    `roster_slots.bench`) and Pick fails.
 7. Hard-reload any open admin or keeper tabs. The old settings editor saves every key and can't hold the new ones.
 8. Admin → Settings: set `roster_size` **6** and `max_members` **12** for the live season. Stored values beat the new
-   defaults (today they are 4 and 6). `min_shares` (20) and `picks_per_game` (2) come from the defaults.
+   defaults (today they are 4 and 6). `min_shares` (200) and `picks_per_game` (2) come from the defaults.
 9. Anon probe (the anon key, no sign-in): `set_game_pick` called with `p_athletes` returns **42501**, and `set_bench`
    returns **404** (PGRST202, the function is gone). Then signed in, right after the push: the League tab loads and
    shows a "<tournament> shares" card marked **Not open yet** (no Buy shares list or pick card yet, that is expected).

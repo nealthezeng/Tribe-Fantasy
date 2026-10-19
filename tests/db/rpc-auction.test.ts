@@ -245,7 +245,7 @@ describe('run_auction', () => {
   });
 
   it('pools each league separately', async () => {
-    const f = await auctionFixture(4);
+    const f = await auctionFixture(4, { min_shares: 20 }); // under a 200 floor pooling wouldn't show
     await as(f.db, f.admin, async (tx) => {
       const b = (await rpc(tx, 'create_league', { p_season: f.season, p_name: 'League B' })) as string;
       await rpc(tx, 'create_invite', { p_league: b, p_code: 'LEAGUE2', p_max_uses: 50, p_expires_at: null });

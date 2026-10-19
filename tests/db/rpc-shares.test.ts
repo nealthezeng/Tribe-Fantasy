@@ -15,7 +15,7 @@ const spent = async (f: AuctionFixture, mid: string) => (await f.db.query<{ amou
 
 describe('run_auction', () => {
   it('splits a player by credits', async () => {
-    const f = await auctionFixture(8);
+    const f = await auctionFixture(8, { min_shares: 20 }); // a floor the 150 credits on a1 clear
     const [alice, am] = await member(f.db, 'alice');
     const [bob, bm] = await member(f.db, 'bob');
     await grant(f);
@@ -49,7 +49,7 @@ describe('run_auction', () => {
     await as(f.db, f.admin, (tx) => rpc(tx, 'adjust_credits', { p_membership: am, p_amount: -40, p_note: 'fix' })); // 60 left
     await closeBids(f);
     await runAuction(f); // 50 fits (10 left), 40 doesn't, 5 does
-    expect((await slotsOf(f)).map((x) => [x.athlete_id, x.price, x.share])).toEqual([[a0, 50, 1], [a2, 5, 0.25]]);
+    expect((await slotsOf(f)).map((x) => [x.athlete_id, x.price, x.share])).toEqual([[a0, 50, 0.25], [a2, 5, 0.025]]); // default min_shares 200
     expect(await spent(f, am)).toEqual([-50, -5]);
   });
 });

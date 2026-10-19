@@ -24,6 +24,7 @@ export function RulesPage() {
   const tired = S.tiredness_multipliers[0] ?? 1;
   const pool = Math.max(S.min_shares, 150); // the split example: 100 and 50 credits on one player
   const pct = (credits: number) => Math.round((100 * credits) / pool);
+  const unowned = 100 - pct(100) - pct(50);
 
   // Points examples in a full league: an even game, an upset and a favourite winning.
   const size = S.max_members;
@@ -73,7 +74,8 @@ export function RulesPage() {
           <li>Buys are sealed: nobody sees anyone's buys until buying closes. Then every buy is shown to the league.</li>
           <li>Every credit you put in is spent. A player has {S.min_shares} shares, or one per credit if the league puts
             more than that on him. You own your credits' worth. Put 100 credits on Sam while another team puts 50, and he
-            has {pool} shares: you own {pct(100)}%, they own {pct(50)}%.</li>
+            has {pool} shares: you own {pct(100)}%, they own {pct(50)}%{unowned > 0 && <>, and the other {unowned}% scores
+            for nobody</>}.</li>
           <li>Nobody loses a player, and nobody is dealt one. A team that buys into fewer than {S.roster_size} players
             plays the tournament with fewer.</li>
           <li>You can't own yourself.</li>

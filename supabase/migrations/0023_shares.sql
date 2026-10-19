@@ -131,7 +131,7 @@ begin
   if st.bid_close_at is null then raise exception 'AUCTION_NOT_OPEN'; end if;
   if st.auction_run_at is not null then raise exception 'AUCTION_ALREADY_RUN'; end if;
   if now() < st.bid_close_at then raise exception 'AUCTION_NOT_CLOSED'; end if;
-  min_shares := private.setting_num(st.season_id, 'min_shares', 20);
+  min_shares := private.setting_num(st.season_id, 'min_shares', 200);
   roster := private.setting_num(st.season_id, 'roster_size', 6);
   allow_self := private.setting_bool(st.season_id, 'allow_self_ownership', false);
 

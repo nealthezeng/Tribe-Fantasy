@@ -134,14 +134,14 @@ const sideOf = (n: number, mid: string) =>
   result.games.find((g) => g.game.number === n)!.matchups.flatMap((m) => [m.home, m.away]).find((x) => x?.membershipId === mid)!;
 
 describe('dry run: one tournament, six managers', () => {
-  it('settled the shares: A0 split 2/3 and 1/3, Ben\'s overspend dropped, every credit charged, none overspent', async () => {
+  it('settled the shares: A0 50 and 25 under the 200 floor, Ben\'s overspend dropped, every credit charged, none overspent', async () => {
     const slots = rows.slots;
     expect(slots).toHaveLength(14);
     const a0 = slots.filter((x) => x.athlete_id === f.athletes[0]).map((x) => [team(x.membership_id), x.price, x.share]).sort();
-    expect(a0).toEqual([['Ava', 50, expect.closeTo(2 / 3, 6)], ['Cal', 25, expect.closeTo(1 / 3, 6)]]);
+    expect(a0).toEqual([['Ava', 50, 0.25], ['Cal', 25, 0.125]]);
     expect(slots.filter((x) => x.membership_id === teams[1].mid).map((x) => x.athlete_id).sort())
       .toEqual([f.athletes[1], f.athletes[4]].sort());
-    expect(slots.find((x) => x.athlete_id === f.athletes[3])?.share).toBe(10 / 20); // a lone buy under min_shares
+    expect(slots.find((x) => x.athlete_id === f.athletes[3])?.share).toBe(10 / 200); // a lone buy under min_shares (default 200)
     const balances = await q<{ membership_id: string; b: number }>(
       'select membership_id, sum(amount)::int as b from public.credit_ledger group by 1');
     for (const r of balances) {
