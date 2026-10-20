@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
 import { liveStatLines, nextPairings, pairingInputs, scoreTournaments, type TournamentGame, type TournamentInput, type YearStatLine } from './tournament';
 
-// Fixed points (upset_k 0: win +3, loss −1), 1 point per goal, no tournament doubling, no decay or tiredness: easy arithmetic.
-const s = parseSettings({ upset_k: 0, stat_weights: { goal: 1 }, session_multipliers: { practice: 1, tournament: 1 },
+// Fixed points (upset_k 0: win +3, loss −1), 1 point per goal, no decay or tiredness: easy arithmetic.
+const s = parseSettings({ upset_k: 0, stat_weights: { goal: 1 },
   decay_mode: 'none', tiredness_multipliers: [] });
 /** The 1-pick games most tests below were written for, with tiredness on. */
 const one = { ...s, picks_per_game: 1, tiredness_multipliers: [0.5, 0.75] };

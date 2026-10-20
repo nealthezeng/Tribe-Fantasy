@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseSettings } from './settings';
+import { DEFAULT_SETTINGS, parseSettings } from './settings';
 import { athleteWeekScore, rawScore, type StatLine } from './scoring';
 
 const s = parseSettings({ normalize_mode: 'per_point' });
 const line = (over: Partial<StatLine> = {}): StatLine => ({
   athleteId: 'a1',
-  sessionType: 'practice',
   pointsPlayed: 10,
   stats: { goal: 2, assist: 1 }, // raw = 2*3 + 1*3 = 9
   ...over,
@@ -23,13 +22,12 @@ describe('athleteWeekScore', () => {
     expect(athleteWeekScore([line()], s)).toBeCloseTo(0.9);
   });
 
-  it('doubles tournament stats', () => {
-    expect(athleteWeekScore([line({ sessionType: 'tournament' })], s)).toBeCloseTo(1.8);
+  it('scores a game as plain weights × counts (no tournament multiplier)', () => {
+    expect(athleteWeekScore([{ athleteId: 'a', pointsPlayed: 0, stats: { goal: 2 } }], DEFAULT_SETTINGS)).toBe(6);
   });
 
-  it('divides mixed weeks by total (unweighted) points played', () => {
-    const score = athleteWeekScore([line(), line({ sessionType: 'tournament' })], s);
-    expect(score).toBeCloseTo((9 + 18) / 20);
+  it('divides a multi-game week by total points played', () => {
+    expect(athleteWeekScore([line(), line()], s)).toBeCloseTo((9 + 9) / 20);
   });
 
   it('floors the denominator so tiny or zero points played stay finite', () => {

@@ -86,11 +86,11 @@ describe('buildLeagueTournament', () => {
   it('scores the year and carries names for the UI', () => {
     const y = buildLeagueTournament(rows, Date.parse('2026-11-10T12:00:00Z')); // game 1's stats locked, tournament not over
     expect(y.result.games.map((g) => g.status)).toEqual(['final', 'upcoming']);
-    // Tournament ×2: goal 3 × 2 = 6. m2 never picked, so b1 played for them (and scored 0).
+    // Goal = 3. m2 never picked, so b1 played for them (and scored 0).
     const [m] = y.result.games[0].matchups;
     expect(m.away).toMatchObject({ membershipId: 'm2', picked: [], athleteIds: ['b1'], score: 0,
       replacements: [{ picked: null, athleteId: 'b1', why: 'missed' }] });
-    expect(m.home).toMatchObject({ athleteIds: ['a1'], athleteScores: { a1: 6 }, factor: { a1: 0.5 }, points: { a1: 3 }, score: 3 });
+    expect(m.home).toMatchObject({ athleteIds: ['a1'], athleteScores: { a1: 3 }, factor: { a1: 0.5 }, points: { a1: 1.5 }, score: 1.5 });
     expect(y.result.standings[0]).toMatchObject({ membershipId: 'm1', wins: 1, place: 1 });
     expect(y.result.next).toMatchObject({ stageId: 'S1', number: 2 });
     expect(y.team.get('m1')).toBe('Zeal');

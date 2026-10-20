@@ -1,8 +1,7 @@
-import type { SeasonSettings, SessionType } from './settings';
+import type { SeasonSettings } from './settings';
 
 export interface StatLine {
   athleteId: string;
-  sessionType: SessionType;
   pointsPlayed: number;
   stats: Record<string, number>;
 }
@@ -19,7 +18,7 @@ export function athleteWeekScore(lines: StatLine[], s: SeasonSettings): number {
   let weighted = 0;
   let points = 0;
   for (const l of lines) {
-    weighted += (s.session_multipliers[l.sessionType] ?? 1) * rawScore(l.stats, s.stat_weights);
+    weighted += rawScore(l.stats, s.stat_weights);
     points += l.pointsPlayed;
   }
   if (s.normalize_mode === 'none') return weighted;

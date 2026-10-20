@@ -8,8 +8,8 @@ const base = (over: Partial<WeekInput> = {}): WeekInput => ({
   matchups: [{ id: 'x1', home: 'm1', away: 'm2' }, { id: 'x2', home: 'm3', away: null }],
   picks: { m1: ['a1'], m2: ['a2'], m3: ['a3'] },
   statLines: [
-    { athleteId: 'a1', sessionType: 'practice', pointsPlayed: 10, stats: { goal: 4 } },
-    { athleteId: 'a2', sessionType: 'practice', pointsPlayed: 10, stats: { goal: 1 } },
+    { athleteId: 'a1', pointsPlayed: 10, stats: { goal: 4 } },
+    { athleteId: 'a2', pointsPlayed: 10, stats: { goal: 1 } },
   ],
   multipliers: { 'm1:a1': 1, 'm2:a2': 1, 'm3:a3': 1 },
   standings: ['m1', 'm2', 'm3'].map((managerId) => ({ managerId, points: 0, totalScore: 0 })),
@@ -64,7 +64,7 @@ describe('scoreWeek', () => {
   });
 
   it('scores unpicked athletes that played, for default-pick history', () => {
-    const extra = { athleteId: 'a9', sessionType: 'practice' as const, pointsPlayed: 10, stats: { goal: 4 } };
+    const extra = { athleteId: 'a9', pointsPlayed: 10, stats: { goal: 4 } };
     const r = scoreWeek(base({ statLines: [...base().statLines, extra] }));
     expect(r.athleteScores.a9).toBeCloseTo(1.2);
   });

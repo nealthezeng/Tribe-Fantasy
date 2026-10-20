@@ -28,9 +28,9 @@ describe('parseSettings', () => {
     expect(s.win_points).toBe(DEFAULT_SETTINGS.win_points);
   });
 
-  it('merges a partial session_multipliers map over the defaults', () => {
-    const s = parseSettings({ session_multipliers: { tournament: 3 } });
-    expect(s.session_multipliers).toEqual({ practice: 1, tournament: 3 });
+  it('ignores the retired session_multipliers key (old stored settings keep loading)', () => {
+    const s = parseSettings({ session_multipliers: { practice: 1, tournament: 2 } });
+    expect(s).not.toHaveProperty('session_multipliers');
   });
 
   it('replaces stat_weights wholesale so stats can be removed', () => {
@@ -132,8 +132,8 @@ describe('parseSettings', () => {
     expect(() => parseSettings({ toString: 'x' })).toThrow(/unknown setting "toString"/);
   });
 
-  it('rejects unknown session types in session_multipliers', () => {
-    expect(() => parseSettings({ session_multipliers: { tournamnet: 3 } })).toThrow(/unknown session type "tournamnet"/);
+  it('still rejects a genuinely unknown key', () => {
+    expect(() => parseSettings({ sesion_multipliers: {} })).toThrow(/unknown setting "sesion_multipliers"/);
   });
 });
 

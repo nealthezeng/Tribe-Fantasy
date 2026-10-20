@@ -131,7 +131,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
   const linesBySession = new Map<string, StatLine[]>();
   for (const l of input.statLines) {
     const list = linesBySession.get(l.sessionId) ?? [];
-    list.push({ athleteId: l.athleteId, sessionType: 'tournament', pointsPlayed: l.pointsPlayed, stats: l.stats });
+    list.push({ athleteId: l.athleteId, pointsPlayed: l.pointsPlayed, stats: l.stats });
     linesBySession.set(l.sessionId, list);
   }
   const injuredAt = (a: string, at: number) => input.injuries.some(

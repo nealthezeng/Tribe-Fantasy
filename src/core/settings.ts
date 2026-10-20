@@ -1,4 +1,3 @@
-export type SessionType = 'practice' | 'tournament';
 
 export interface SeasonSettings {
   credits_per_dollar: number;
@@ -19,7 +18,6 @@ export interface SeasonSettings {
   normalize_mode: 'per_point' | 'none';
   normalize_per_points: number;
   min_points_denominator: number;
-  session_multipliers: Record<SessionType, number>;
   absent_score: number;
   points_mode: 'fixed' | 'rank_weighted';
   win_points: number;
@@ -54,7 +52,6 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   normalize_mode: 'none',
   normalize_per_points: 1,
   min_points_denominator: 5,
-  session_multipliers: { practice: 1, tournament: 2 },
   absent_score: 0,
   points_mode: 'rank_weighted',
   win_points: 3,
@@ -133,7 +130,6 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   normalize_mode: oneOf('per_point', 'none'),
   normalize_per_points: num(0.001, 1000),
   min_points_denominator: num(1, 1000),
-  session_multipliers: numberMap,
   absent_score: num(-1000, 1000),
   points_mode: oneOf('fixed', 'rank_weighted'),
   win_points: num(0, 1000),
@@ -157,6 +153,9 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
+/** Settings that old stored rows still carry but nothing reads any more: accepted, then dropped. */
+const RETIRED_KEYS = ['session_multipliers'];
+
 export function parseSettings(input: unknown): SeasonSettings {
   const base = structuredClone(DEFAULT_SETTINGS);
   if (input === undefined || input === null) return base;
@@ -164,22 +163,10 @@ export function parseSettings(input: unknown): SeasonSettings {
 
   const issues: string[] = [];
   for (const key of Object.keys(input)) {
-    if (!Object.hasOwn(CHECKS, key)) issues.push(`unknown setting "${key}"`);
-  }
-
-  // Validate session_multipliers keys before merging
-  if (isPlainObject(input.session_multipliers)) {
-    for (const key of Object.keys(input.session_multipliers)) {
-      if (key !== 'practice' && key !== 'tournament') {
-        issues.push(`session_multipliers has unknown session type "${key}"`);
-      }
-    }
+    if (!Object.hasOwn(CHECKS, key) && !RETIRED_KEYS.includes(key)) issues.push(`unknown setting "${key}"`);
   }
 
   const merged = { ...base, ...structuredClone(input) } as Record<string, unknown>;
-  if (isPlainObject(input.session_multipliers)) {
-    merged.session_multipliers = { ...base.session_multipliers, ...input.session_multipliers };
-  }
 
   for (const [key, check] of Object.entries(CHECKS)) {
     const problem = check(merged[key]);

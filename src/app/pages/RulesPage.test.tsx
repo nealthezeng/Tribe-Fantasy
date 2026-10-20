@@ -17,15 +17,15 @@ describe('RulesPage', () => {
   it('computes its numbers from the default settings', () => {
     render(<RulesPage />);
     const text = document.body.textContent ?? '';
-    // Allowance: 100 for first, 130 for last. Example: 2 goals = 12, a half share, started the game before (×0.5).
+    // Allowance: 100 for first, 130 for last. Example: 2 goals = 6, a half share, started the game before (×0.5).
     expect(text).toContain('100 for the team in first, up to 130 for the team in last');
-    expect(text).toContain('2 Goal by a player you own half of, started the game before: 12 × 50% × 0.5 = 3');
+    expect(text).toContain('2 Goal by a player you own half of, started the game before: 6 × 50% × 0.5 = 1.5');
     // Split example under the 200-share floor: 100 + 50 credits leave a quarter of the player unowned.
     expect(text).toContain('he has 200 shares: you own 50%, they own 25%, and the other 25% scores for nobody.');
-    // Stat points already include the tournament ×2: a goal is +6, a D +10, a turnover −2.
-    expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+6');
-    expect(screen.getByText('D').parentElement?.textContent).toBe('D+10');
-    expect(screen.getByText('Turnover').parentElement?.textContent).toBe('Turnover-2');
+    // Stat points are the weights as stored: a goal is +3, a D +5, a turnover −1.
+    expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+3');
+    expect(screen.getByText('D').parentElement?.textContent).toBe('D+5');
+    expect(screen.getByText('Turnover').parentElement?.textContent).toBe('Turnover-1');
     expect(text).not.toMatch(/practice/i);
     expect(text).toContain('Picks lock when a stat keeper starts the game');
     expect(text).toContain('Each roster holds up to 6 players');
@@ -93,8 +93,8 @@ describe('RulesPage', () => {
     current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ stat_weights: { goal: 3, block: 5, turnover: -1 } }) };
     render(<RulesPage />);
     expect(await screen.findByText(/Spring 2027's settings/)).toBeTruthy();
-    // D: 5 × 2 = +10. Example: 2 goals × 3 × 2 = 12.
-    expect(screen.getByText('D').parentElement?.textContent).toBe('D+10');
-    expect(document.body.textContent).toContain('12 × 50% × 0.5 = 3');
+    // D: +5. Example: 2 goals × 3 = 6.
+    expect(screen.getByText('D').parentElement?.textContent).toBe('D+5');
+    expect(document.body.textContent).toContain('6 × 50% × 0.5 = 1.5');
   });
 });

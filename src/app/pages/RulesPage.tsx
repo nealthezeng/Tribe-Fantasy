@@ -18,9 +18,7 @@ export function RulesPage() {
   const season = useLoad(loadCurrentSeason, []).data;
   const S = season?.settings ?? DEFAULT_SETTINGS;
 
-  // Every scored game is a tournament game, so the tournament multiplier is folded into each stat's points.
-  const mult = S.session_multipliers.tournament ?? 1;
-  const gameScore = athleteWeekScore([{ athleteId: 'x', sessionType: 'tournament', pointsPlayed: 0, stats: game }], S);
+  const gameScore = athleteWeekScore([{ athleteId: 'x', pointsPlayed: 0, stats: game }], S);
   const tired = S.tiredness_multipliers[0] ?? 1;
   const pool = Math.max(S.min_shares, 150); // the split example: 100 and 50 credits on one player
   const pct = (credits: number) => Math.round((100 * credits) / pool);
@@ -122,7 +120,7 @@ export function RulesPage() {
             <thead><tr><th>Stat</th><th>Points</th></tr></thead>
             <tbody>
               {Object.entries(S.stat_weights).map(([k, w]) => (
-                <tr key={k}><td>{statLabel(k)}</td><td>{signed(w * mult)}</td></tr>
+                <tr key={k}><td>{statLabel(k)}</td><td>{signed(w)}</td></tr>
               ))}
             </tbody>
           </table>
