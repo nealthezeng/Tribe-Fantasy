@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Loading } from '../components/Loading';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import {
-  downloadText, formatDay, gameTitles, loadCurrentSeason, SESSION_COLUMNS, sessionState, statLabel, titleOf, toCsv, type SessionRow,
+  downloadText, loadCurrentSeason, SESSION_COLUMNS, statLabel, toCsv, type SessionRow,
 } from '../lib/stats';
+import { loadTournamentStats, totals } from '../lib/statsTable';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
+import { StatTable, TournamentSwitch } from './StatTable';
 
 export const STATE_PILL = {
   open: <span className="pill warn">Not verified</span>,
@@ -17,22 +19,22 @@ export const STATE_PILL = {
 
 export function StatsPage() {
   const { isAdmin, isKeeper } = useAuth();
+  const [params] = useSearchParams();
+  const wanted = params.get('t');
   const [error, setError] = useState<string | null>(null);
   const data = useLoad(async () => {
     const season = await loadCurrentSeason();
-    if (!season) return null;
-    const { data, error } = await supabase!.from('sessions').select(SESSION_COLUMNS)
-      .eq('season_id', season.id).order('held_on', { ascending: false });
-    if (error) throw error;
-    const sessions = (data ?? []) as SessionRow[];
-    return { season, sessions, games: await gameTitles(sessions.map((s) => s.id)) };
-  }, []);
+    return season && { season, ...await loadTournamentStats(season.id, wanted) };
+  }, [wanted]);
+  const season = data.data?.season;
 
   async function exportCsv() {
-    if (!data.data) return;
+    if (!season) return;
     setError(null);
     try {
-      const { season, sessions } = data.data;
+      const found = await supabase!.from('sessions').select(SESSION_COLUMNS).eq('season_id', season.id).order('held_on', { ascending: false });
+      if (found.error) throw found.error;
+      const sessions = (found.data ?? []) as SessionRow[];
       const sessionIds = sessions.map((s) => s.id);
       const athletes = await supabase!.from('athletes').select('id, name').eq('season_id', season.id);
       if (athletes.error) throw athletes.error;
@@ -68,37 +70,32 @@ export function StatsPage() {
     }
   }
 
-  if (data.error) return <p className="error" role="alert">{data.error}</p>;
-  if (data.data === undefined) return <Loading />;
-  if (data.data === null) return <p>No season yet.</p>;
-  const { season, sessions, games } = data.data;
+  const weights = season?.settings.stat_weights;
+  const { stage, stages } = data.data ?? {};
   return (
     <section className="page">
       <div className="head">
-        <h1>Stats <small>{season.name}</small></h1>
+        <h1>Stats {season && <small>{season.name}</small>}</h1>
         {isKeeper && (
           <div className="row">
             <Link to="/tally" className="button secondary">Tally</Link>
-            {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
+            {isAdmin && season && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
           </div>
         )}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      {sessions.length === 0 && <p className="muted">No games yet.</p>}
-      <ul className="list">
-        {sessions.map((s) => (
-          <li key={s.id}>
-            <span>
-              <Link className="title" to={`/stats/${s.id}`}>{titleOf(s, games)}</Link>
-              {games.has(s.id) && <> <small>{formatDay(s.held_on)}</small></>}
-            </span>
-            <span className="meta">
-              {!s.counts && <span className="pill">Not counted</span>}
-              {STATE_PILL[sessionState(s, season.settings.stat_lock_hours)]}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {data.error && <p className="error" role="alert">{data.error}</p>}
+      {!data.error && data.data === undefined && <Loading />}
+      {data.data === null && <p>No season yet.</p>}
+      {data.data && !stage && <p className="muted">No tournaments yet.</p>}
+      {data.data && stage && weights && (
+        <>
+          <TournamentSwitch stages={stages!} stage={stage} />
+          {data.data.lines.length === 0
+            ? <p className="muted">No stats yet for {stage.name}.</p>
+            : <StatTable stats={Object.keys(weights)} rows={totals(data.data.lines, data.data.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
+        </>
+      )}
     </section>
   );
 }

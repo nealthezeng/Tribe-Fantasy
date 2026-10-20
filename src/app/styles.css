@@ -175,6 +175,13 @@ th, td { padding: var(--s2); border-bottom: 1px solid var(--line); text-align: r
 th { font-size: var(--fs-xs); font-weight: var(--fw-semi); color: var(--muted); }
 th:first-child, td:first-child { text-align: left; padding-left: 0; }
 tbody tr:last-child td { border-bottom: 0; }
+/* Wide stat tables scroll sideways inside .table-wrap; the player column stays put. --surface is opaque in both themes (--pane-bg is a gradient). */
+.table-wrap th:first-child, .table-wrap td:first-child { position: sticky; left: 0; background: var(--surface); padding-right: var(--s2); }
+.page > .table-wrap :is(th, td):first-child { background: var(--bg); } /* on the bare page, not in a card */
+th .linklike { padding: 0; color: inherit; font: inherit; text-decoration: none; }
+th[aria-sort] .linklike { color: var(--fg); }
+th[aria-sort='descending'] .linklike::after { content: ' ↓'; }
+th[aria-sort='ascending'] .linklike::after { content: ' ↑'; }
 
 /* Tally board: big neutral buttons with big counts, readable in sunlight. Attendance and injury sit apart. */
 .tally-bar { position: sticky; top: 0; z-index: 1; display: grid; gap: var(--s1); margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); }

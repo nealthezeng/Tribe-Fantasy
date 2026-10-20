@@ -1,7 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { parseSettings } from '../../core/settings';
-import { rawScore } from '../../core/scoring';
 import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
@@ -10,7 +9,9 @@ import { gameTitles, SESSION_COLUMNS, sessionState, statLabel, titleOf, type Ses
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { rowToTap, type StatTapRow } from '../tally/queue';
+import { totals } from '../lib/statsTable';
 import { STATE_PILL } from './StatsPage';
+import { StatTable } from './StatTable';
 
 interface LineRow { athlete_id: string; stats: Record<string, number> }
 interface AttendanceRow { athlete_id: string; status: 'present' | 'absent' }
@@ -60,6 +61,8 @@ export function SessionPage() {
   const { session, title, settings, names, lines, attendance, taps, people } = data.data;
   const state = sessionState(session, settings.stat_lock_hours);
   const stats = Object.keys(settings.stat_weights);
+  const ofCounts = (counts: Record<string, Record<string, number>>) =>
+    totals(Object.entries(counts).map(([athlete_id, stats]) => ({ athlete_id, stats })), names, settings.stat_weights);
   const name = (athleteId: string) => names.get(athleteId) ?? 'Unknown';
   // Keepers can't verify a game they tallied (VERIFIER_TAPPED); admins can (t120).
   const iTapped = !isAdmin && taps.some((t) => t.keeperId === auth?.user.id);
@@ -110,7 +113,7 @@ export function SessionPage() {
       {state !== 'open' && (
         <div className="card">
           <h2>Stats</h2>
-          <StatTable stats={stats} rows={lines.map((l) => ({ athlete: name(l.athlete_id), counts: l.stats, score: rawScore(l.stats, settings.stat_weights) }))} />
+          <StatTable stats={stats} rows={totals(lines, names, settings.stat_weights)} />
           {isKeeper && state === 'verified' && (
             <button className="secondary" disabled={busy} onClick={() => void run(() => api.reopenSession(id))}>Reopen tally</button>
           )}
@@ -123,7 +126,7 @@ export function SessionPage() {
       {isKeeper && state === 'open' && merge && (
         <div className="card">
           <h2>Totals to verify</h2>
-          <StatTable stats={stats} rows={Object.entries(merge.counts).map(([a, c]) => ({ athlete: name(a), counts: c, score: rawScore(c, settings.stat_weights) }))} />
+          <StatTable stats={stats} rows={ofCounts(merge.counts)} />
           {merge.merged.length > 0 && (
             <>
               <h3>Counted once ({merge.merged.length})</h3>
@@ -137,8 +140,7 @@ export function SessionPage() {
           {keepers.map((k) => (
             <details key={k}>
               <summary>Tallied by {people.get(k) ?? 'a keeper'}</summary>
-              <StatTable stats={stats} rows={Object.entries(mergeTaps(taps.filter((t) => t.keeperId === k), 0).counts)
-                .map(([a, c]) => ({ athlete: name(a), counts: c, score: rawScore(c, settings.stat_weights) }))} />
+              <StatTable stats={stats} rows={ofCounts(mergeTaps(taps.filter((t) => t.keeperId === k), 0).counts)} />
             </details>
           ))}
           {iTapped ? (
@@ -167,30 +169,6 @@ export function SessionPage() {
         <p><button className="secondary" disabled={busy} onClick={() => void remove()}>Delete these stats</button></p>
       )}
     </section>
-  );
-}
-
-function StatTable({ stats, rows }: {
-  stats: string[]; rows: { athlete: string; counts: Record<string, number>; score: number }[];
-}) {
-  if (rows.length === 0) return <p className="muted">No stats recorded.</p>;
-  return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr><th>Player</th>{stats.map((s) => <th key={s}>{statLabel(s)}</th>)}<th>Pts</th></tr>
-        </thead>
-        <tbody>
-          {[...rows].sort((a, b) => a.athlete.localeCompare(b.athlete)).map((r) => (
-            <tr key={r.athlete}>
-              <td>{r.athlete}</td>
-              {stats.map((s) => <td key={s}>{r.counts[s] ?? 0}</td>)}
-              <td>{r.score}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
