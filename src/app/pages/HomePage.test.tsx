@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreditsPage } from './Credits';
@@ -94,6 +94,8 @@ describe('TeamSwitch mouse wheel', () => {
   it('scrolls across the leagues, and lets the page scroll once at the end', async () => {
     show();
     const group = await screen.findByRole('group', { name: 'League' });
+    // The switch commits before the passive effect that adds its wheel listener; flush it, or a loaded machine spins first.
+    await act(async () => {});
     Object.defineProperties(group, { scrollWidth: { value: 600 }, clientWidth: { value: 300 } }); // jsdom has no layout
     const spin = (deltaY: number) => {
       const e = new WheelEvent('wheel', { deltaY, cancelable: true });
