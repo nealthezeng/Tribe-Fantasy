@@ -26,6 +26,19 @@ export interface LeagueListing {
   is_creator: boolean;
 }
 
+export type Role = 'admin' | 'stat_keeper' | 'treasurer';
+
+/** A row of list_users() (admin only). display_name is null for an account with no profile. */
+export interface UserRow {
+  id: string;
+  email: string;
+  display_name: string | null;
+  roles: Role[];
+  teams: { membership_id: string; league: string; team: string; season: string }[];
+  athlete: { id: string; name: string } | null;
+  donations: { count: number; dollars: number };
+}
+
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('NOT_CONFIGURED');
   const { data, error } = await supabase.rpc(fn, args);
@@ -67,8 +80,13 @@ export const api = {
     call<void>('set_athlete_opt_in', { p_athlete: athleteId, p_opted_in: optedIn }),
   renameAthlete: (athleteId: string, name: string) => call<void>('rename_athlete', { p_athlete: athleteId, p_name: name }),
   deleteAthlete: (athleteId: string, force = false) => call<void>('delete_athlete', { p_athlete: athleteId, p_force: force }),
-  grantRole: (userId: string, role: 'stat_keeper') => call<void>('grant_role', { p_user: userId, p_role: role }),
-  revokeRole: (userId: string, role: 'stat_keeper') => call<void>('revoke_role', { p_user: userId, p_role: role }),
+  grantRole: (userId: string, role: Role) => call<void>('grant_role', { p_user: userId, p_role: role }),
+  revokeRole: (userId: string, role: Role) => call<void>('revoke_role', { p_user: userId, p_role: role }),
+  /** Admin: every account with email, roles, teams, linked player and donation totals. */
+  listUsers: () => call<UserRow[]>('list_users', {}),
+  adminSetDisplayName: (userId: string, name: string) => call<void>('admin_set_display_name', { p_user: userId, p_name: name }),
+  /** Admin: the account can't sign in; its teams stay marked removed. Can't be undone. */
+  adminRemoveUser: (userId: string) => call<{ teams: number; donations: number }>('admin_remove_user', { p_user: userId }),
   linkAthleteUser: (athleteId: string, userId: string | null) =>
     call<void>('link_athlete_user', { p_athlete: athleteId, p_user: userId }),
   saveTaps: (sessionId: string, clientNow: string, taps: QueuedTap[]) =>

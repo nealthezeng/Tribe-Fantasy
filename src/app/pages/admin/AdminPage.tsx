@@ -8,14 +8,14 @@ import { BackupPanel } from './BackupPanel';
 import { LeaguesPanel } from './LeaguesPanel';
 import { SeasonsPanel } from './SeasonsPanel';
 import { SettingsEditor } from './SettingsEditor';
-import { StaffPanel } from './StaffPanel';
 import { StagesPanel } from './StagesPanel';
+import { UsersPanel } from './UsersPanel';
 import { WalletsPanel } from './WalletsPanel';
 
 /** Most-used first. Each tab mounts fresh, so Wallets always shows balances after a grant on Tournaments. */
 const TABS = [
-  ['stages', 'Tournaments'], ['leagues', 'Leagues'], ['wallets', 'Wallets'],
-  ['athletes', 'Athletes'], ['keepers', 'Keepers'], ['settings', 'Settings'], ['backup', 'Backup'],
+  ['stages', 'Tournaments'], ['leagues', 'Leagues'], ['users', 'Users'], ['wallets', 'Wallets'],
+  ['athletes', 'Athletes'], ['settings', 'Settings'], ['backup', 'Backup'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -36,7 +36,7 @@ export function AdminPage() {
         ))}
         <span className="ink" aria-hidden="true" />
       </nav>
-      {tab === 'keepers' ? <StaffPanel /> : !seasonId ? (
+      {tab === 'users' ? <UsersPanel /> : !seasonId ? (
         <p className="notice">Create a season first.</p>
       ) : (
         <Fragment key={seasonId}>

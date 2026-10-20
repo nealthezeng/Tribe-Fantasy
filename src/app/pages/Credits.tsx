@@ -10,7 +10,7 @@ import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
 
 const AMOUNTS = [5, 10, 20];
 const THANKS_FOR = 7 * 24 * 3600_000; // a donation is thanked for a week, or until the next credit change
-const usd = (d: number) => `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
+export const usd = (d: number) => `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
 const TERMS = 'No cash value, no refunds, no guaranteed prize.';
 
 export interface Donate { code: string; handle: string; creditsPerDollar: number }
