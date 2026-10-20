@@ -3,8 +3,9 @@ import { Link, Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
 import {
-  countLeagues, fmt, loadLeagueTournament, loadSeasonStandings, mergeStandings, record, type LeagueTournament, type OverallStanding,
+  countLeagues, fmt, loadLeagueTournament, loadSeasonStandings, mergeStandings, pastTournaments, record, type LeagueTournament, type OverallStanding,
 } from '../lib/tournament';
+import { formatDay } from '../lib/stats';
 import { useLoad } from '../lib/useLoad';
 import { loadMyTeams, TeamSwitch, useTeamChoice, type MembershipRow } from './HomePage';
 
@@ -31,7 +32,32 @@ export function LeaderboardsPage() {
 function Board({ m }: { m: MembershipRow }) {
   const { data: y, error } = useLoad(() => loadLeagueTournament(m.leagues!.season_id, m.league_id), [m.id]);
   if (!y) return error ? <p className="error" role="alert">{error}</p> : <Loading />;
-  return <Standings y={y} membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues!.name} seasonId={m.leagues!.season_id} />;
+  return (
+    <>
+      <Standings y={y} membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues!.name} seasonId={m.leagues!.season_id} />
+      <PastTournaments y={y} membershipId={m.id} />
+    </>
+  );
+}
+
+/** Each finished tournament of the league, newest first, opening to its ranked teams (no per-game list). */
+function PastTournaments({ y, membershipId }: { y: LeagueTournament; membershipId: string }) {
+  const past = pastTournaments(y);
+  if (past.length === 0) return null;
+  return (
+    <article className="card" aria-label="Past tournaments">
+      <h2>Past tournaments</h2>
+      {past.map((t) => (
+        <details key={t.stageId}>
+          <summary>
+            <strong>{t.name}</strong> <small>{formatDay(t.starts_on)} – {formatDay(t.ends_on)}</small>
+            {t.waiting && <> <span className="pill warn">Waiting on stats</span></>}
+          </summary>
+          <RankList rows={t.rows} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} />
+        </details>
+      ))}
+    </article>
+  );
 }
 
 /**

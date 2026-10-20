@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -274,5 +274,35 @@ describe('fmt and record', () => {
   it('formats points and records', () => {
     expect(fmt(2.345)).toBe('2.35'); expect(record({ wins: 2, losses: 1, ties: 0 })).toBe('2–1');
     expect(record({ wins: 2, losses: 1, ties: 1 })).toBe('2–1–1');
+  });
+});
+
+describe('pastTournaments', () => {
+  const side = (membershipId: string, delta: number, score: number, result: 'W' | 'L' | 'T' | null) => ({ membershipId, delta, score, result });
+  const game = (stageId: string, number: number, status: string, matchups: unknown[] = []) => ({ game: { id: `${stageId}-${number}`, stageId, number }, status, matchups });
+  const names = new Map([['m1', 'Zeal'], ['m2', 'Flow'], ['m3', 'Bye'], ['m4', 'Late']]);
+  const build = (next: { stageId: string } | null) => ({
+    result: { standings: [], next, games: [
+      game('S1', 1, 'final', [{ home: side('m1', 3, 40, 'W'), away: side('m2', -1, 30, 'L') }, { home: side('m3', 1, 0, null), away: null }]),
+      game('S1', 2, 'pending'),
+      game('S1', 3, 'upcoming'),
+      game('S2', 1, 'final', [{ home: side('m4', 2, 20, 'W'), away: side('m1', 0, 10, 'L') }]),
+    ] },
+    team: names, owner: new Map(), stage: new Map([['S1', 'Warmup'], ['S2', 'Feast']]),
+    stageDates: new Map([['S1', { starts_on: '2026-10-10', ends_on: '2026-10-11' }], ['S2', { starts_on: '2026-11-07', ends_on: '2026-11-08' }]]),
+  }) as unknown as LeagueTournament;
+
+  it('lists finished tournaments newest first, leaving out the one being played', () => {
+    expect(pastTournaments(build({ stageId: 'S2' })).map((t) => t.stageId)).toEqual(['S1']);
+  });
+  it("ranks a tournament's teams by the points its final games gave, byes included, late joiners absent", () => {
+    const [s1] = pastTournaments(build({ stageId: 'S2' }));
+    expect(s1).toMatchObject({ name: 'Warmup', starts_on: '2026-10-10', ends_on: '2026-10-11', waiting: true });
+    expect(s1.rows.map((r) => [r.membershipId, r.points, record(r)])).toEqual([['m1', 3, '1–0'], ['m3', 1, '0–0'], ['m2', -1, '0–1']]);
+  });
+  it('lists every played tournament between tournaments (no next game)', () => {
+    const all = pastTournaments(build(null));
+    expect(all.map((t) => t.stageId)).toEqual(['S2', 'S1']);
+    expect(all[0].waiting).toBe(false);
   });
 });

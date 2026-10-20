@@ -1,7 +1,7 @@
 import { parseSettings, type SeasonSettings } from '../../core/settings';
 import { swissPairings } from '../../core/swiss';
 import {
-  liveStatLines, pairingInputs, scoreTournaments, type TournamentInput, type TournamentResult,
+  liveStatLines, pairingInputs, scoreTournaments, type GameOutcome, type TournamentInput, type TournamentResult,
 } from '../../core/tournament';
 import { rowToTap, type StatTapRow } from '../tally/queue';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, pickPlayingStage, type AuctionStage } from './auction';
@@ -294,6 +294,41 @@ export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament
     place: 1 + rows.filter((o) => ahead(o, r)).length,
     tied: rows.some((o) => o !== r && o.points === r.points && o.totalScore === r.totalScore),
   })).sort((a, b) => a.place - b.place || a.team.localeCompare(b.team) || a.league.localeCompare(b.league));
+}
+
+export interface PastTournament { stageId: string; name: string; starts_on: string; ends_on: string; waiting: boolean; rows: OverallStanding[] }
+
+/**
+ * Tournaments with a started game, except the one being played, newest first. Each ranks its teams by the points its
+ * final games gave (byes included; a team that joined later is absent), ties by total score. `waiting`: a game still
+ * live or pending.
+ */
+export function pastTournaments(y: Pick<LeagueTournament, 'result' | 'team' | 'owner' | 'stage' | 'stageDates'>): PastTournament[] {
+  const byStage = new Map<string, GameOutcome[]>();
+  for (const g of y.result.games) {
+    if (g.status !== 'upcoming' && g.game.stageId !== y.result.next?.stageId) byStage.set(g.game.stageId, [...(byStage.get(g.game.stageId) ?? []), g]);
+  }
+  return [...byStage].map(([stageId, games]) => {
+    const table = new Map<string, { membershipId: string; points: number; totalScore: number; wins: number; losses: number; ties: number }>();
+    for (const g of games.filter((x) => x.status === 'final')) {
+      for (const { home, away } of g.matchups) {
+        for (const side of [home, away]) {
+          if (!side) continue;
+          const r = table.get(side.membershipId) ?? { membershipId: side.membershipId, points: 0, totalScore: 0, wins: 0, losses: 0, ties: 0 };
+          r.points += side.delta ?? 0;
+          r.totalScore += side.score ?? 0;
+          if (side.result === 'W') r.wins++;
+          else if (side.result === 'L') r.losses++;
+          else if (side.result === 'T') r.ties++;
+          table.set(side.membershipId, r);
+        }
+      }
+    }
+    // mergeStandings only reads the standings rows and the name maps.
+    const rows = mergeStandings([{ name: '', y: { result: { standings: [...table.values()] } as unknown as TournamentResult, team: y.team, owner: y.owner } }]);
+    return { stageId, name: y.stage.get(stageId) ?? '', ...y.stageDates.get(stageId)!, rows,
+      waiting: games.some((g) => g.status === 'live' || g.status === 'pending') };
+  }).sort((a, b) => b.starts_on.localeCompare(a.starts_on));
 }
 
 export const countLeagues = async (seasonId: string) => (await leaguesOf(seasonId)).length;

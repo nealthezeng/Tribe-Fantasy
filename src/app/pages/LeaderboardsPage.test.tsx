@@ -120,6 +120,34 @@ describe('team links', () => {
   });
 });
 
+describe('past tournaments', () => {
+  /** Warmup (Oct 10): one final game, one pending; Fall beta is the one being played. */
+  const played = (): TournamentRows => ({
+    ...base(),
+    stages: [{ id: 'S0', name: 'Warmup', starts_on: '2026-10-10', ends_on: '2026-10-11', bid_close_at: '2026-10-05T00:00:00Z', auction_seed: null,
+      auction_run_at: '2026-10-06T00:00:00Z' }, base().stages[0]],
+    games: [{ id: 'g1', stage_id: 'S0', number: 1, session_id: 'p1', started_at: '2026-10-10T14:00:00Z', finished_at: '2026-10-10T15:00:00Z', opponent: null },
+      { id: 'g2', stage_id: 'S0', number: 2, session_id: 'p2', started_at: '2026-10-10T16:00:00Z', finished_at: null, opponent: null }],
+    pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
+    sessions: [{ id: 'p1', verified_at: '2026-10-10T20:00:00Z' }, { id: 'p2', verified_at: null }],
+  });
+
+  it('shows past tournaments under the standings, each opening to its results', async () => {
+    rows.current = played();
+    show();
+    fireEvent.click(await screen.findByText(/Warmup/));
+    const card = within(screen.getByRole('article', { name: 'Past tournaments' }));
+    expect(card.getByRole('link', { name: 'Flow' })).toBeTruthy();
+    expect(card.getByText('Waiting on stats')).toBeTruthy();
+  });
+
+  it('shows no past tournaments card before any tournament is over', async () => {
+    show();
+    await standings();
+    expect(screen.queryByText('Past tournaments')).toBeNull();
+  });
+});
+
 describe('Standings toggle (t226)', () => {
   const row = (membershipId: string, team: string, league: string, place: number, tied = false, owner = ''): OverallStanding =>
     ({ membershipId, team, owner, league, points: 10 - place, totalScore: 0, wins: 2, losses: 1, ties: 0, place, tied });
