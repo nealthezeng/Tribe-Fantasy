@@ -67,6 +67,14 @@ describe('LeagueBrowser', () => {
     expect([d.stageId, d.nextGame]).toEqual(['S1', 2]);
   });
 
+  it('does not let the editor target a finished tournament while a newer one is still unsettled', async () => {
+    setup();
+    ROWS.league.games[1].started_at = '2026-11-07T15:10:00Z';
+    ROWS.league.games[1].finished_at = '2026-11-07T16:00:00Z';
+    const d = await loadLeagueAdminData('se', 'L');
+    expect([d.stageId, d.nextGame, d.stageSettled]).toEqual(['S1', null, false]);
+  });
+
   it("shows each team's owner, balance, record, roster shares, picks and buys, and the games' pairings", async () => {
     setup();
     const close = vi.fn();

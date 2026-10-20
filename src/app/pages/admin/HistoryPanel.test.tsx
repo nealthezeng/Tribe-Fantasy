@@ -52,6 +52,14 @@ describe('HistoryPanel', () => {
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
   });
 
+  it('shows Automatic for a null actor (a system write), not Removed user', async () => {
+    DB.audit = [mk(1, null, 'record_donation')];
+    render(<HistoryPanel />);
+    const item = (await screen.findAllByRole('listitem'))[0];
+    expect(within(item).getByText('Automatic')).toBeTruthy();
+    expect(within(item).queryByText('Removed user')).toBeNull();
+  });
+
   it('loads the next 50 on Load more', async () => {
     DB.audit = Array.from({ length: 60 }, (_, i) => mk(60 - i, 'u9', 'delete_stage'));
     render(<HistoryPanel />);

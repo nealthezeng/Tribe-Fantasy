@@ -16,6 +16,22 @@ interface Athlete { id: string; name: string; user_id: string | null; opted_in: 
 interface Team { id: string; team_name: string; removed_at: string | null }
 
 /**
+ * One row per (team, player): the price paid summed over every row (an admin edit ends the bought row and adds a
+ * price-0 live one), the share from the live row (until_game null). Pairs with no live row are gone.
+ */
+function collapseSlots(rows: (SlotRow & { until_game: number | null })[]): SlotRow[] {
+  const by = new Map<string, SlotRow & { live: boolean }>();
+  for (const r of rows) {
+    const k = `${r.membership_id}:${r.athlete_id}`;
+    const cur = by.get(k) ?? { membership_id: r.membership_id, athlete_id: r.athlete_id, price: 0, share: 0, live: false };
+    cur.price += r.price;
+    if (r.until_game == null) { cur.share = r.share; cur.live = true; }
+    by.set(k, cur);
+  }
+  return [...by.values()].filter((r) => r.live);
+}
+
+/**
  * Share buying for one team, in the stage pickAuctionStage chooses. While it's open it's a card with a sticky
  * header (players, credits left); otherwise it's collapsed.
  */
@@ -39,7 +55,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       supabase!.from('injuries').select('athlete_id').is('cleared_at', null).not('confirmed_at', 'is', null),
       supabase!.from('bids').select('membership_id, athlete_id, amount').eq('stage_id', stage.id).eq('league_id', leagueId)
         .order('amount', { ascending: false }),
-      supabase!.from('roster_slots').select('membership_id, athlete_id, price, share').eq('stage_id', stage.id).eq('league_id', leagueId).is('until_game', null),
+      supabase!.from('roster_slots').select('membership_id, athlete_id, price, share, until_game').eq('stage_id', stage.id).eq('league_id', leagueId),
       supabase!.from('memberships').select('id, team_name, removed_at').eq('league_id', leagueId).order('team_name'),
       // Fetched fresh (not passed as a prop) so a donation credited while the tab is open doesn't leave the client
       // refusing buys with a stale balance.
@@ -54,7 +70,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       athletes: (athletes.data ?? []) as Athlete[],
       injured: new Set((injuries.data ?? []).map((i) => i.athlete_id as string)),
       bids: (bids.data ?? []) as BidRow[],
-      slots: (slots.data ?? []) as SlotRow[],
+      slots: collapseSlots((slots.data ?? []) as (SlotRow & { until_game: number | null })[]),
       teams: (teams.data ?? []) as Team[],
       balance: sumLedger((ledger.data ?? []) as { amount: number }[]),
     };

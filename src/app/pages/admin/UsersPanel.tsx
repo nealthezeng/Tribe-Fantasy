@@ -10,6 +10,7 @@ export type { UserRow };
 
 const ROLES: [Role, string][] = [['admin', 'admin'], ['stat_keeper', 'stat keeper'], ['treasurer', 'treasurer']];
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+const roleWord = (r: string) => cap(r.replace('_', ' '));
 const who = (u: UserRow) => u.display_name ?? u.email;
 
 /** What removing this account touches, in full: nothing here can be undone. */
@@ -26,6 +27,8 @@ export function removeMessage(u: UserRow): string {
   const d = u.donations;
   if (d.count > 0) parts.push(`Their ${d.count} ${d.count === 1 ? 'donation' : 'donations'} (${usd(d.dollars)}) ${d.count === 1 ? 'stays' : 'stay'} in the records.`);
   if (u.athlete) parts.push(`Their player profile ${u.athlete.name} stays, unlinked.`);
+  if (u.roles.length > 0) parts.push(`Their roles (${u.roles.map(roleWord).join(', ')}) go.`);
+  if (t.length > 0) parts.push('Any buys in open share buying are cancelled.');
   parts.push("They can't sign in. This can't be undone.");
   return parts.join(' ');
 }
@@ -83,15 +86,16 @@ export function UsersPanel() {
               <span className="meta">
                 <span className="title">{who(u)}</span>
                 {u.display_name && <span className="muted">{u.email}</span>}
+                {u.athlete && <span className="muted">Player: {u.athlete.name}</span>}
                 {u.teams.length > 0 && <span className="muted">{u.teams.map((m) => `${m.team} (${m.league})`).join(', ')}</span>}
               </span>
             )}
-            {u.roles.length > 0 && <span className="meta">{u.roles.map((r) => <span key={r} className="pill info">{cap(r.replace('_', ' '))}</span>)}</span>}
+            {u.roles.length > 0 && <span className="meta">{u.roles.map((r) => <span key={r} className="pill info">{roleWord(r)}</span>)}</span>}
             <div className="user-actions">
               {ROLES.map(([role, label]) => {
                 const has = u.roles.includes(role);
                 return (
-                  <button key={role} className="secondary" aria-label={has ? `Remove ${label} from ${who(u)}` : `Make ${who(u)} ${label}`}
+                  <button key={role} className="secondary" aria-label={`${has ? 'Remove' : 'Make'} ${label}: ${who(u)}`}
                     onClick={() => void run(() => (has ? api.revokeRole(u.id, role) : api.grantRole(u.id, role)))}>
                     {has ? `Remove ${label}` : `Make ${label}`}
                   </button>

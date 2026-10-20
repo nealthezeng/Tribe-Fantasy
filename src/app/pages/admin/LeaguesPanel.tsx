@@ -3,6 +3,7 @@ import { Loading } from '../../components/Loading';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
+import { teamLabel } from '../../lib/tournament';
 import { useLoad } from '../../lib/useLoad';
 import { passwordProblem } from '../LeaguesPage';
 import { LeagueBrowser } from './LeagueBrowser';
@@ -11,7 +12,7 @@ interface LeagueRow {
   id: string;
   name: string;
   created_by: string | null;
-  memberships: { id: string; team_name: string }[];
+  memberships: { id: string; team_name: string; removed_at: string | null }[];
 }
 
 /** Every league of the season, with who made it (t215). Anyone creates leagues on /leagues/new; admins delete here. */
@@ -21,7 +22,7 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
   const leagues = useLoad(async () => {
     const { data, error } = await supabase!
       .from('leagues')
-      .select('id, name, created_by, memberships(id, team_name)')
+      .select('id, name, created_by, memberships(id, team_name, removed_at)')
       .eq('season_id', seasonId)
       .order('name');
     if (error) throw error;
@@ -37,7 +38,7 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
     // Locked or public: only the current season's list says (the hash itself is private). Older seasons show neither.
     const locked = new Map((await api.listLeagues()).map((l) => [l.id, l.has_password]));
     return rows.map((l) => ({
-      ...l, creator: l.created_by ? names.get(l.created_by) ?? 'Unknown' : 'An admin', locked: locked.get(l.id),
+      ...l, live: l.memberships.filter((m) => m.removed_at === null).length, creator: l.created_by ? names.get(l.created_by) ?? 'Removed user' : 'An admin', locked: locked.get(l.id),
     }));
   }, [seasonId]);
 
@@ -68,8 +69,8 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
                 <span className="title">{l.name}</span>
                 {l.locked !== undefined && <span className={l.locked ? 'pill' : 'pill info'}>{l.locked ? 'Password' : 'Public'}</span>}
               </span>
-              <span className="muted">by {l.creator} · {l.memberships.length} {l.memberships.length === 1 ? 'team' : 'teams'}</span>
-              {l.memberships.length > 0 && <small>{l.memberships.map((m) => m.team_name).join(', ')}</small>}
+              <span className="muted">by {l.creator} · {l.live} {l.live === 1 ? 'team' : 'teams'}</span>
+              {l.memberships.length > 0 && <small>{l.memberships.map(teamLabel).join(', ')}</small>}
             </div>
             <div className="row">
               <button className="secondary" aria-label={`Open ${l.name}`} onClick={() => setOpen(l.id)}>Open</button>

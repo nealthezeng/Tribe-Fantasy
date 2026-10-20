@@ -93,7 +93,7 @@ export function TeamAdmin({ data, membershipId, onChanged }: { data: LeagueAdmin
           <label>Player
             <select value={player} onChange={(e) => setPlayer(e.target.value)}>
               <option value="">Choose</option>
-              {data.players.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {data.players.filter((a) => !roster.some((p) => p.id === a.id)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
           <label>Percent

@@ -6,8 +6,10 @@ import { LeaguesPanel } from './LeaguesPanel';
 
 const ROWS: Record<string, unknown[]> = {
   leagues: [
-    { id: 'l1', name: 'Huck Yeah', created_by: 'u1', memberships: [{ id: 'm1', team_name: 'Zips' }, { id: 'm2', team_name: 'Hucks' }] },
+    { id: 'l1', name: 'Huck Yeah', created_by: 'u1', memberships: [{ id: 'm1', team_name: 'Zips', removed_at: null }, { id: 'm2', team_name: 'Hucks', removed_at: null }] },
     { id: 'l2', name: 'League A', created_by: null, memberships: [] },
+    { id: 'l3', name: 'Ghost League', created_by: 'gone', memberships: [
+      { id: 'm3', team_name: 'Live', removed_at: null }, { id: 'm4', team_name: 'Left', removed_at: '2026-10-19T00:00:00Z' }] },
   ],
   profiles: [{ id: 'u1', display_name: 'Alice' }],
 };
@@ -38,6 +40,12 @@ describe('LeaguesPanel (t215)', () => {
     expect(screen.getByText('by An admin · 0 teams')).toBeTruthy();
     expect(screen.getByText('Zips, Hucks')).toBeTruthy();
     expect(screen.queryByText(/invite/i)).toBeNull();
+  });
+
+  it('counts live teams only, marks removed teams, and reads Removed user for a creator whose profile is gone', async () => {
+    render(<LeaguesPanel seasonId="s1" />);
+    expect(await screen.findByText('by Removed user · 1 team')).toBeTruthy();
+    expect(screen.getByText('Live, Left (removed)')).toBeTruthy();
   });
 
   it("sets or removes any league's password, so admins can lock a league they aren't in (review fix)", async () => {

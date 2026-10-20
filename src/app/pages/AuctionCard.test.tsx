@@ -262,6 +262,21 @@ describe('AuctionCard', () => {
       expect(document.body.textContent).toContain('Test Zeal · 2 players');
     });
 
+    it('after an admin edits a played slot, shows what was paid across rows with the live share; ended-only pairs are hidden', async () => {
+      settled();
+      const ended = (m: string, p: number, price: number, share: number, until: number) =>
+        ({ ...slot(m, p, price, share), until_game: until }) as unknown as Row;
+      const live = (m: string, p: number, price: number, share: number) =>
+        ({ ...slot(m, p, price, share), until_game: null }) as unknown as Row;
+      db.roster_slots = [ended('m1', 1, 20, 0.5, 2), live('m1', 1, 0, 0.4), ended('m1', 2, 40, 1, 2)];
+      renderCard();
+      await screen.findByText('Your players');
+      const sam = screen.getAllByText('Sam')[0].closest('li')!;
+      expect(sam.textContent).toContain('40%');
+      expect(sam.textContent).toContain('20 credits');
+      expect(screen.queryByText('Pat')).toBeNull();
+    });
+
     it('shows a sliver of a share as 0.3%, never 0%', async () => {
       settled();
       db.roster_slots = [slot('m1', 1, 1, 0.003), slot('m2', 1, 299, 0.997)];

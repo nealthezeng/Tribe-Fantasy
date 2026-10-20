@@ -31,18 +31,20 @@ describe('removeMessage', () => {
   it('names the team, donations and player', () => {
     expect(removeMessage(ALEX)).toBe(
       "Remove Alex Kim (alex@x.test)? Their team Gimp Zeal leaves League A: it keeps the points it has, forfeits its remaining games and stops being paired. "
-      + 'Their 2 donations ($30) stay in the records. Their player profile Alex Kim stays, unlinked. They can\'t sign in. This can\'t be undone.');
+      + 'Their 2 donations ($30) stay in the records. Their player profile Alex Kim stays, unlinked. '
+      + 'Their roles (Stat keeper) go. Any buys in open share buying are cancelled. They can\'t sign in. This can\'t be undone.');
   });
   it('says teams for two, and drops sentences for what is absent', () => {
     const two = { ...ALEX, athlete: null, donations: { count: 0, dollars: 0 }, teams: [
       ALEX.teams[0], { membership_id: 'm2', league: 'League B', team: 'Money', season: 'Fall' }] };
     expect(removeMessage(two)).toBe(
       "Remove Alex Kim (alex@x.test)? Their teams Gimp Zeal (League A) and Money (League B) leave their leagues: they keep the points they have, "
-      + "forfeit their remaining games and stop being paired. They can't sign in. This can't be undone.");
+      + "forfeit their remaining games and stop being paired. Their roles (Stat keeper) go. Any buys in open share buying are cancelled. They can't sign in. This can't be undone.");
     const three = { ...two, teams: [...two.teams, { membership_id: 'm3', league: 'Lc', team: 'C', season: 'Fall' }] };
     expect(removeMessage({ ...three, teams: [{ ...three.teams[0], team: 'A', league: 'La' }, { ...three.teams[1], team: 'B', league: 'Lb' }, three.teams[2]] }))
       .toContain('Their teams A (La), B (Lb) and C (Lc) leave their leagues');
     expect(removeMessage({ ...ALEX, athlete: null, donations: { count: 1, dollars: 10 } })).toContain('Their 1 donation ($10) stays in the records.');
+    expect(removeMessage({ ...ALEX, roles: ['stat_keeper', 'admin'], teams: [] })).toContain('Their roles (Stat keeper, Admin) go. They can');
     expect(removeMessage(BARE)).toBe("Remove bo@x.test? They can't sign in. This can't be undone.");
   });
 });
@@ -54,12 +56,22 @@ describe('UsersPanel (M14 T5)', () => {
     expect(within(alex).getByText('alex@x.test')).toBeTruthy();
     expect(within(alex).getByText('Gimp Zeal (League A)')).toBeTruthy();
     expect(within(alex).getByText('Stat keeper')).toBeTruthy();
+    expect(within(alex).getByText('Player: Alex Kim')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'bo@' } });
     expect(screen.queryByText('Alex Kim')).toBeNull();
     expect(screen.getByText('bo@x.test')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Search people'), { target: { value: 'alex k' } });
     expect(screen.getByText('Alex Kim')).toBeTruthy();
     expect(screen.queryByText('bo@x.test')).toBeNull();
+  });
+
+  it('every role button label starts with its visible text (WCAG 2.5.3)', async () => {
+    render(<UsersPanel />);
+    const alex = await row('Alex Kim');
+    for (const b of within(alex).getAllByRole('button')) {
+      const label = b.getAttribute('aria-label');
+      if (label) expect(label.startsWith(b.textContent!)).toBe(true);
+    }
   });
 
   it('Remove asks the exact confirm and only removes on OK', async () => {
@@ -82,20 +94,20 @@ describe('UsersPanel (M14 T5)', () => {
   it('role buttons grant and revoke stat keeper, treasurer and admin', async () => {
     render(<UsersPanel />);
     const alex = await row('Alex Kim');
-    fireEvent.click(within(alex).getByRole('button', { name: 'Remove stat keeper from Alex Kim' }));
+    fireEvent.click(within(alex).getByRole('button', { name: 'Remove stat keeper: Alex Kim' }));
     await waitFor(() => expect(api.revokeRole).toHaveBeenCalledWith('u1', 'stat_keeper'));
-    fireEvent.click(within(alex).getByRole('button', { name: 'Make Alex Kim treasurer' }));
+    fireEvent.click(within(alex).getByRole('button', { name: 'Make treasurer: Alex Kim' }));
     await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith('u1', 'treasurer'));
-    fireEvent.click(within(alex).getByRole('button', { name: 'Make Alex Kim admin' }));
+    fireEvent.click(within(alex).getByRole('button', { name: 'Make admin: Alex Kim' }));
     await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith('u1', 'admin'));
-    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin from Me Admin' }));
+    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin: Me Admin' }));
     await waitFor(() => expect(api.revokeRole).toHaveBeenCalledWith('me', 'admin'));
   });
 
   it('shows the sentence when the last admin cannot be revoked', async () => {
     vi.mocked(api.revokeRole).mockRejectedValueOnce({ message: 'LAST_ADMIN' });
     render(<UsersPanel />);
-    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin from Me Admin' }));
+    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin: Me Admin' }));
     expect((await screen.findByRole('alert')).textContent).toBe("You can't remove the last admin.");
   });
 

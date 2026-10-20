@@ -87,7 +87,7 @@ export function HistoryPanel() {
             {rows.length === 0 && <li className="muted">Nothing here yet.</li>}
             {rows.map((r) => (
               <li key={r.id}>
-                <span>{describeAudit(r, names.data!)}<br /><small>{names.data!.get(r.actor ?? '') ?? 'Removed user'}</small></span>
+                <span>{describeAudit(r, names.data!)}<br /><small>{r.actor === null ? 'Automatic' : names.data!.get(r.actor) ?? 'Removed user'}</small></span>
                 <small>{new Date(r.at).toLocaleString()}</small>
               </li>
             ))}

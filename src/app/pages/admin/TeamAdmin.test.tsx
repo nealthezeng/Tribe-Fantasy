@@ -44,6 +44,14 @@ describe('TeamAdmin', () => {
     await waitFor(() => expect(changed).toHaveBeenCalled());
   });
 
+  it('does not offer players the team already holds in the Add picker', () => {
+    render(<TeamAdmin data={data()} membershipId="m1" onChanged={vi.fn()} />);
+    const options = Array.from(screen.getByLabelText('Player').querySelectorAll('option')).map((o) => o.textContent);
+    expect(options).not.toContain('Ash');
+    expect(options).not.toContain('Avery');
+    expect(options).toContain('Bea');
+  });
+
   it('edits a percent in place and removes with × (no confirm: it can be added back)', async () => {
     const changed = vi.fn();
     const confirm = vi.spyOn(window, 'confirm');

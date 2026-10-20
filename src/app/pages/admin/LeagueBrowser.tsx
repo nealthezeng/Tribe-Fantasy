@@ -50,6 +50,10 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
   for (const e of ledger) balances.set(e.membership_id, (balances.get(e.membership_id) ?? 0) + e.amount);
   const next = y.result.next;
   const stageId = next?.stageId ?? pickPlayingStage(stages, todayLocal())?.id ?? null;
+  const chosen = stages.find((s) => s.id === stageId);
+  // A finished tournament (no game left) with a newer one still unsettled: edits would land after its last game and
+  // do nothing, so the editor says to close share buying first.
+  const finishedBehindNewer = !next && !!chosen && stages.some((n) => n.auction_run_at === null && n.starts_on > chosen.starts_on);
   return {
     leagueName: leagues[0]?.name ?? 'League',
     y,
@@ -58,7 +62,7 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
     sealedBuys: bids.map((b) => ({ membershipId: b.membership_id, athleteId: b.athlete_id, amount: b.amount })),
     players,
     stageId,
-    stageSettled: stages.some((s) => s.id === stageId && s.auction_run_at !== null),
+    stageSettled: chosen?.auction_run_at != null && !finishedBehindNewer,
     nextGame: next?.number ?? null,
   };
 }

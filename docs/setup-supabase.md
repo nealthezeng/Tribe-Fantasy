@@ -352,10 +352,16 @@ keeps working on top of 0024, so there is no rush between paste and push.
      ```sql
      select policyname from pg_policies where policyname in ('bids_read', 'game_picks_read');
      ```
+   - It must return `t` (0024's account removal deletes from `auth.users` as the `postgres` role):
+     ```sql
+     select has_table_privilege('postgres', 'auth.users', 'DELETE');
+     ```
 3. SQL Editor: paste and run `supabase/migrations/0024_admin_powers.sql`. One transaction (`begin;` … `commit;`), so
    an error leaves nothing half-applied. If the editor offers "Run and enable RLS", choose **Run without RLS**
    (no new table).
 4. **Push to main** (ff merge of `m14-admin`), then wait for CI and Deploy.
+   Then **tell keepers and admins to hard-reload any open tabs before the first account removal or share edit**
+   (a stale old-bundle tab has the same problem as a code revert, see Rollback).
 5. Anon probe (the anon key, no sign-in), POST to `/rest/v1/rpc/<name>`: `admin_set_share` with the body
    `{"p_stage":null,"p_membership":null,"p_athlete":null,"p_percent":null}` and `admin_remove_user` with `{"p_user":null}`
    each return **42501**. The arguments must be named like that: an empty body returns **404** (PGRST202, no function
@@ -368,5 +374,8 @@ keeps working on top of 0024, so there is no rush between paste and push.
    - Admin → History: the removal shows as "Removed account <name>".
 
 **Rollback.** 0024 is mostly additive (new columns, new functions, looser constraints), so a code revert of the app
-is safe on top of it. Removing an account is permanent: the sign-in is deleted and nothing restores it. A removed
+is safe ONLY before anyone removes an account or edits a share (the old bundle works between paste and push). After
+that, the old bundle pairs removed teams (`check_pairings` fails with PAIRINGS_INVALID, so keepers cannot Finish) and
+ignores `from_game`/`until_game` (finished games get rescored). The way back is then forward-fix SQL, not a revert.
+Removing an account is permanent: the sign-in is deleted and nothing restores it. A removed
 person can only sign up again as a new account, without their old team.
