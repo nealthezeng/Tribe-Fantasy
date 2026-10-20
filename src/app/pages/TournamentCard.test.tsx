@@ -175,6 +175,13 @@ describe('TournamentCard', () => {
     expect(picks().queryByText(/If you don't pick/)).toBeNull();
   });
 
+  it('names both owners under the matchup headline', async () => {
+    await show({ ...afterGame1(), members: [{ ...base().members[0], user_id: 'u1' }, { ...base().members[1], user_id: 'u2' }],
+      profiles: [{ id: 'u1', display_name: 'Neal Zeng' }, { id: 'u2', display_name: 'Ethan Park' }] });
+    expect(await screen.findByText('Neal Zeng')).toBeTruthy();
+    expect(await screen.findByText('Ethan Park')).toBeTruthy();
+  });
+
   it("shows the next opponent, the tiredness of last game's starter, and never the opponent's sealed pick", async () => {
     await show(afterGame1());
     expect(screen.getByRole('heading', { name: 'Game 2 · Fall beta' })).toBeTruthy();
@@ -329,7 +336,7 @@ describe('TournamentCard', () => {
 
 describe('Standings toggle (t226)', () => {
   const row = (membershipId: string, team: string, league: string, place: number, tied = false): OverallStanding =>
-    ({ membershipId, team, league, points: 10 - place, totalScore: 0, wins: 2, losses: 1, ties: 0, place, tied });
+    ({ membershipId, team, owner: '', league, points: 10 - place, totalScore: 0, wins: 2, losses: 1, ties: 0, place, tied });
   afterEach(() => { overall.leagues = 1; });
 
   it('has no toggle while the season has one league', async () => {

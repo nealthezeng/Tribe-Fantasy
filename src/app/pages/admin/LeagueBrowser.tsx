@@ -30,14 +30,12 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
   const [y, leagues, members, stages, players] = await Promise.all([
     loadLeagueTournament(seasonId, leagueId),
     rowsOf<{ name: string }>(sb.from('leagues').select('name').eq('id', leagueId)),
-    rowsOf<{ id: string; user_id: string | null }>(sb.from('memberships').select('id, user_id').eq('league_id', leagueId)),
+    rowsOf<{ id: string }>(sb.from('memberships').select('id').eq('league_id', leagueId)),
     rowsOf<AuctionStage>(sb.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)),
     rowsOf<{ id: string; name: string }>(sb.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name')),
   ]);
-  const userIds = members.flatMap((m) => (m.user_id ? [m.user_id] : []));
   const open = stages.find((s) => auctionPhase(s) === 'open');
-  const [profiles, ledger, bids] = await Promise.all([
-    rowsOf<{ id: string; display_name: string }>(userIds.length ? sb.from('profiles').select('id, display_name').in('id', userIds) : null),
+  const [ledger, bids] = await Promise.all([
     members.length
       ? fetchAll<{ membership_id: string; amount: number }>((from, to) => sb.from('credit_ledger').select('membership_id, amount')
         .in('membership_id', members.map((m) => m.id)).order('id').range(from, to))
@@ -45,7 +43,6 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
     rowsOf<{ membership_id: string; athlete_id: string; amount: number }>(open
       ? sb.from('bids').select('membership_id, athlete_id, amount').eq('stage_id', open.id).eq('league_id', leagueId) : null),
   ]);
-  const names = new Map(profiles.map((p) => [p.id, p.display_name]));
   const balances = new Map(members.map((m) => [m.id, 0]));
   for (const e of ledger) balances.set(e.membership_id, (balances.get(e.membership_id) ?? 0) + e.amount);
   const next = y.result.next;
@@ -57,7 +54,7 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
   return {
     leagueName: leagues[0]?.name ?? 'League',
     y,
-    owners: new Map(members.map((m) => [m.id, m.user_id ? names.get(m.user_id) ?? 'Unknown' : 'Removed user'])),
+    owners: y.owner,
     balances,
     sealedBuys: bids.map((b) => ({ membershipId: b.membership_id, athleteId: b.athlete_id, amount: b.amount })),
     players,

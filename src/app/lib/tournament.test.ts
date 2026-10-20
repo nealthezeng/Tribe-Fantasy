@@ -108,6 +108,20 @@ describe('buildLeagueTournament', () => {
   });
 });
 
+describe('owner names', () => {
+  it('maps each team to its owner: a profile name, "" without a profile, "Removed user" without an account', () => {
+    const T0 = '2026-10-01T00:00:00+00:00';
+    const y = buildLeagueTournament({ ...rows, members: [
+      { id: 'm1', team_name: 'Zeal', created_at: T0, removed_at: null, user_id: 'u1' },
+      { id: 'm2', team_name: 'Huck', created_at: T0, removed_at: null, user_id: 'u2' },
+      { id: 'm3', team_name: 'Gone', created_at: T0, removed_at: '2026-11-08T00:00:00+00:00', user_id: null },
+    ], profiles: [{ id: 'u1', display_name: 'Neal Zeng' }] });
+    expect(y.owner.get('m1')).toBe('Neal Zeng');
+    expect(y.owner.get('m2')).toBe('');
+    expect(y.owner.get('m3')).toBe('Removed user');
+  });
+});
+
 describe('teamLabel', () => {
   it('marks only removed teams', () => {
     expect(teamLabel({ team_name: 'Zeal', removed_at: null })).toBe('Zeal');
@@ -170,6 +184,7 @@ describe('mergeStandings', () => {
     y: {
       result: { standings: rows.map(([m, points, totalScore]) => ({ membershipId: m, points, totalScore, wins: 1, losses: 0, ties: 0 })) },
       team: new Map(rows.map(([m]) => [m, `Team ${m}`])),
+      owner: new Map(rows.map(([m]) => [m, `Owner ${m}`])),
     } as unknown as LeagueTournament,
   });
   it('ranks every league together by points, then total score, with ties sharing a place', () => {
@@ -178,6 +193,7 @@ describe('mergeStandings', () => {
       ['b1', 'B', 1, false], ['a1', 'A', 2, false], ['a2', 'A', 3, true], ['b2', 'B', 3, true],
     ]);
     expect(out[0].team).toBe('Team b1');
+    expect(out[0].owner).toBe('Owner b1');
   });
 });
 

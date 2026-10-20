@@ -117,6 +117,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
           {teamName}
           {them && <> <span className="vs">vs</span> {y.team.get(them.membershipId)}</>}
         </h2>
+        {them && <p className="owners"><span>{y.owner.get(membershipId)}</span><span>{y.owner.get(them.membershipId)}</span></p>}
         <p className="strip">
           {focus ? <>
             <span>{y.stage.get(focus.stageId)}</span>

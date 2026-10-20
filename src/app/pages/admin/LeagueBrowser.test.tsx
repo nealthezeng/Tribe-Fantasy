@@ -27,7 +27,7 @@ const at = (m: string, ids: string[], share: number) =>
 const stage = (id: string, extra: object) => ({ id, name: id, starts_on: '2026-11-01', ends_on: '2026-11-08', bid_close_at: '2026-11-03T00:00:00Z',
   auction_seed: null, auction_run_at: '2026-11-04T00:00:00Z', ...extra });
 const member = (id: string, team_name: string, removed_at: string | null = null) =>
-  ({ id, team_name, created_at: '2026-10-01T00:00:00Z', removed_at });
+  ({ id, team_name, created_at: '2026-10-01T00:00:00Z', removed_at, user_id: id === 'm1' ? 'u1' : null });
 
 /** Gimp Zeal (Alice) and Money (removed account); S1 is playing, S2's share buying is open and holds one sealed buy. */
 function setup() {
@@ -38,6 +38,7 @@ function setup() {
       { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }],
     pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
     members: [member('m1', 'Gimp Zeal'), member('m2', 'Money', '2026-11-05T00:00:00Z')],
+    profiles: [{ id: 'u1', display_name: 'Alice Kim' }],
     slots: [...at('m1', ['a1', 'a2'], 0.25), ...at('m2', ['b1'], 0.5)],
     // Sealed until game 2 starts; only an admin's read returns them.
     picks: [{ stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' }],
@@ -46,8 +47,7 @@ function setup() {
   };
   ROWS.current = {
     leagues: [{ name: 'Huck Yeah' }],
-    memberships: [{ id: 'm1', user_id: 'u1' }, { id: 'm2', user_id: null }],
-    profiles: [{ id: 'u1', display_name: 'Alice Kim' }],
+    memberships: [{ id: 'm1' }, { id: 'm2' }],
     credit_ledger: [{ membership_id: 'm1', amount: 100 }, { membership_id: 'm1', amount: -15 }, { membership_id: 'm2', amount: 40 }],
     stages: ROWS.league.stages,
     bids: [{ membership_id: 'm2', athlete_id: 'b1', amount: 12 }],

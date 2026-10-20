@@ -27,7 +27,9 @@ export interface TournamentRows {
   games: GameRow[];
   /** This league's pairings only. */
   pairings: { game_id: string; home: string; away: string | null }[];
-  members: { id: string; team_name: string; created_at: string; removed_at: string | null }[];
+  members: { id: string; team_name: string; created_at: string; removed_at: string | null; user_id?: string | null }[];
+  /** The members' accounts' names. */
+  profiles?: { id: string; display_name: string }[];
   slots: { stage_id: string; membership_id: string; athlete_id: string; price: number; share: number; from_game: number; until_game: number | null }[];
   picks: { stage_id: string; game_number: number; membership_id: string; athlete_id: string }[];
   /** Every session a game links to: a game whose session is missing is void. */
@@ -84,6 +86,8 @@ export interface LeagueTournament {
   input: TournamentInput;
   result: TournamentResult;
   team: Map<string, string>;
+  /** membershipId → the owner's display name: "Removed user" once the account is gone, "" without a profile. */
+  owner: Map<string, string>;
   athlete: Map<string, string>;
   stage: Map<string, string>;
   /** Each stage's dates, for the League header. */
@@ -94,11 +98,13 @@ export interface LeagueTournament {
 
 export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): LeagueTournament {
   const input = toTournamentInput(rows, now);
+  const names = new Map((rows.profiles ?? []).map((p) => [p.id, p.display_name]));
   return {
     settings: input.settings,
     input,
     result: scoreTournaments(input),
     team: new Map(rows.members.map((m) => [m.id, teamLabel(m)])),
+    owner: new Map(rows.members.map((m) => [m.id, m.user_id === null ? 'Removed user' : names.get(m.user_id ?? '') ?? ''])),
     athlete: new Map(rows.athletes.map((a) => [a.id, a.name])),
     stage: new Map(rows.stages.map((x) => [x.id, x.name])),
     stageDates: new Map(rows.stages.map((x) => [x.id, { starts_on: x.starts_on, ends_on: x.ends_on }])),
@@ -136,7 +142,7 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
   const [season, stages, members, slots, picks, injuries, athletes] = await Promise.all([
     rowsOf<{ settings: unknown }>(sb.from('seasons').select('settings').eq('id', seasonId)),
     rowsOf<AuctionStage>(sb.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)),
-    rowsOf<TournamentRows['members'][number]>(sb.from('memberships').select('id, team_name, created_at, removed_at').eq('league_id', leagueId)),
+    rowsOf<TournamentRows['members'][number]>(sb.from('memberships').select('id, team_name, created_at, removed_at, user_id').eq('league_id', leagueId)),
     rowsOf<TournamentRows['slots'][number]>(sb.from('roster_slots').select('stage_id, membership_id, athlete_id, price, share, from_game, until_game').eq('league_id', leagueId)),
     // ponytail: unpaged, fine below 1000 picks a league-year (12 teams × 2 picks × ~20 games ≈ 480); page it if that grows.
     rowsOf<TournamentRows['picks'][number]>(sb.from('game_picks').select('stage_id, game_number, membership_id, athlete_id').eq('league_id', leagueId)),
@@ -144,6 +150,9 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
     rowsOf<TournamentRows['athletes'][number]>(sb.from('athletes').select('id, name').eq('season_id', seasonId)),
   ]);
   if (season.length === 0) throw new Error('NOT_FOUND');
+  const userIds = members.flatMap((m) => (m.user_id ? [m.user_id] : []));
+  const profiles = await rowsOf<NonNullable<TournamentRows['profiles']>[number]>(
+    userIds.length ? sb.from('profiles').select('id, display_name').in('id', userIds) : null);
   const stageIds = stages.map((x) => x.id);
   const games = await rowsOf<GameRow>(stageIds.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', stageIds) : null);
   const gameIds = games.map((g) => g.id);
@@ -165,7 +174,7 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
       : [],
   ]);
   return {
-    settings: season[0].settings, stages, games, pairings, members, slots, picks, sessions, lines, taps: tapRows,
+    settings: season[0].settings, stages, games, pairings, members, profiles, slots, picks, sessions, lines, taps: tapRows,
     injuries, athletes,
   };
 }
@@ -264,7 +273,7 @@ export async function seasonRanks(seasonId: string, stageId: string): Promise<{ 
 }
 
 export interface OverallStanding {
-  membershipId: string; team: string; league: string;
+  membershipId: string; team: string; owner: string; league: string;
   points: number; totalScore: number; wins: number; losses: number; ties: number; place: number; tied: boolean;
 }
 
@@ -272,9 +281,9 @@ export interface OverallStanding {
  * Leagues' standings as one ranked list, by the leagues' own rule: points, then total score; equal on both = tied.
  * Tied teams list by name, so one league's Standings and the all-leagues view order them alike (t226).
  */
-export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament, 'result' | 'team'> }[]): OverallStanding[] {
+export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament, 'result' | 'team' | 'owner'> }[]): OverallStanding[] {
   const rows = leagues.flatMap(({ name, y }) => y.result.standings.map(({ membershipId, points, totalScore, wins, losses, ties }) =>
-    ({ membershipId, team: y.team.get(membershipId) ?? '', league: name, points, totalScore, wins, losses, ties })));
+    ({ membershipId, team: y.team.get(membershipId) ?? '', owner: y.owner.get(membershipId) ?? '', league: name, points, totalScore, wins, losses, ties })));
   const ahead = (o: typeof rows[number], r: typeof rows[number]) =>
     o.points > r.points || (o.points === r.points && o.totalScore > r.totalScore);
   return rows.map((r) => ({
