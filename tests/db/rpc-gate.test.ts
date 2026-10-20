@@ -18,6 +18,8 @@ const MEMBER_CALLABLE = [
   'create_my_league', 'delete_league', 'join_open_league', 'rename_league', 'set_league_password',
   // Leave league (t217): only your own team.
   'leave_league',
+  // Owner rename (t311): only your own, not-removed team.
+  'rename_my_team',
   // Donors list (Credits page): your own profile only.
   'set_donate_anonymously',
 ];
@@ -73,6 +75,7 @@ describe('RPC gate', () => {
       ['create_league', admin, () => ({ p_season: c.season, p_name: 'L' }), (r) => (c.league = r as string)],
       ['create_invite', admin, () => ({ p_league: c.league, p_code: 'GATE01', p_max_uses: 5, p_expires_at: null })],
       ['join_league', player, () => ({ p_code: 'GATE01', p_team_name: 'Pats' }), (r) => (c.membership = r as string)],
+      ['rename_my_team', player, () => ({ p_membership: c.membership, p_name: 'Pats Two' })],
       ['create_stage', admin, () => ({ p_season: c.season, p_name: 'Fall', p_starts_on: '2026-10-18', p_ends_on: '2026-11-08',
         p_tournament: null }), (r) => (c.stage = r as string)],
       ['update_stage', admin, () => ({ p_stage: c.stage, p_name: 'Fall beta', p_starts_on: '2026-10-18',

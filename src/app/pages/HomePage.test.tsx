@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreditsPage } from './Credits';
+import { api } from '../lib/rpc';
 import { HomePage } from './HomePage';
 
 vi.mock('../auth/AuthProvider', () => ({
@@ -27,7 +28,7 @@ vi.mock('../lib/tournament', async (orig) => ({
   loadNeedsYou: (id: string) => Promise.resolve(id === 'b'),
 }));
 vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), donationLeaderboard: () => Promise.resolve([]),
-  myDonateAnonymously: () => Promise.resolve(false) } }));
+  myDonateAnonymously: () => Promise.resolve(false), renameMyTeam: vi.fn() } }));
 // The team itself (matchup, auction, standings) has its own tests.
 vi.mock('./TournamentCard', () => ({ TournamentCard: ({ teamName }: { teamName: string }) => <h2>{teamName}</h2> }));
 
@@ -47,6 +48,35 @@ describe('HomePage with several teams (t229, t240)', () => {
     expect(switcher().getByRole('button', { name: /League b/ }).getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByRole('heading', { name: 'Flow' })).toBeTruthy();
     expect(localStorage.getItem('league-team')).toBe('b');
+  });
+});
+
+describe('Rename your team from League settings (t311)', () => {
+  // listLeagues is [] here, so there is no listing: no manage or leave, and the rename form must still show.
+  const open = async () => { show(); fireEvent.click(await screen.findByText('League settings')); };
+  const rename = (v: string) => {
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: v } });
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }));
+  };
+  beforeEach(() => vi.mocked(api.renameMyTeam).mockReset().mockResolvedValue(undefined));
+
+  it('renames the chosen team, trimmed; unchanged or blank is not offered', async () => {
+    await open();
+    const button = screen.getByRole('button', { name: 'Rename' }) as HTMLButtonElement;
+    expect((screen.getByLabelText('Team name') as HTMLInputElement).value).toBe('Zeal');
+    expect(button.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Team name'), { target: { value: '  ' } });
+    expect(button.disabled).toBe(true);
+    rename(' Spark ');
+    await waitFor(() => expect(api.renameMyTeam).toHaveBeenCalledWith('a', 'Spark'));
+  });
+
+  it('shows a taken name as an error and keeps the form', async () => {
+    vi.mocked(api.renameMyTeam).mockRejectedValueOnce({ message: 'TEAM_NAME_TAKEN' });
+    await open();
+    rename('Flow');
+    expect((await screen.findByRole('alert')).textContent).toBe('Another team in this league already has that name.');
+    expect((screen.getByLabelText('Team name') as HTMLInputElement).value).toBe('Flow');
   });
 });
 

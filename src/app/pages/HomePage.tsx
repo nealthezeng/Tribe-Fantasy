@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase';
 import { inSeason, loadCurrentSeason } from '../lib/stats';
 import { loadNeedsYou } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
+import { errorMessage } from '../lib/errors';
 import { LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
 import type { Donate } from './Credits';
 import team800 from '../assets/team-800.jpg';
@@ -193,18 +194,47 @@ function Team({ m, uid }: { m: MembershipRow; uid: string }) {
   );
 }
 
-/** Rename / password / delete for the league's creator or an admin, and Leave: rare, so folded at the bottom (t227). */
+/** Your team's name (t311). Undo is renaming back. */
+function RenameTeam({ m, onChanged }: { m: MembershipRow; onChanged: () => void }) {
+  const [name, setName] = useState(m.team_name);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const trimmed = name.trim();
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.renameMyTeam(m.id, trimmed);
+      onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <form className="row" onSubmit={(e) => void save(e)}>
+      <label>Team name<input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} /></label>
+      <button className="secondary" disabled={busy || !trimmed || trimmed === m.team_name}>Rename</button>
+      {error && <p className="error" role="alert">{error}</p>}
+    </form>
+  );
+}
+
+/** Rename your team; plus rename / password / delete for the league's creator or an admin, and Leave: rare, so folded at the bottom (t227). */
 function LeagueSettings({ m, isAdmin, listed, onChanged }: { m: MembershipRow; isAdmin: boolean; listed?: LeagueListing[]; onChanged: () => void }) {
   const listing = listed?.find((l) => l.id === m.league_id);
-  if (!listing) return null;
   const donated = m.credit_ledger.some((e) => e.kind === 'donation');
-  const leave = donated ? null : <LeagueLeave membershipId={m.id} league={listing} onLeft={onChanged} />;
-  const manage = listing.is_creator || isAdmin;
-  if (!manage && !leave) return null;
+  const leave = listing && !donated ? <LeagueLeave membershipId={m.id} league={listing} onLeft={onChanged} /> : null;
+  const manage = listing && (listing.is_creator || isAdmin);
   return (
     <details className="settings">
       <summary>League settings</summary>
-      {manage ? <ManageLeague league={listing} onChanged={onChanged}>{leave}</ManageLeague> : leave}
+      <div className="stack">
+        <RenameTeam m={m} onChanged={onChanged} />
+        {listing && manage ? <ManageLeague league={listing} onChanged={onChanged}>{leave}</ManageLeague> : leave}
+      </div>
     </details>
   );
 }

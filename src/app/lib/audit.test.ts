@@ -20,6 +20,7 @@ describe('describeAudit', () => {
     expect(describeAudit(row('admin_remove_user', { user: 'u1', email: 'a@x.test', display_name: null, teams: [], donations: 0 }), names))
       .toBe('Removed account a@x.test');
     expect(describeAudit(row('admin_rename_team', { old: 'Old', new: 'New' }), names)).toBe('Renamed team Old → New');
+    expect(describeAudit(row('rename_my_team', { old: 'Zeal', new: 'Flow' }), names)).toBe('Renamed team Zeal → Flow');
     expect(describeAudit(row('admin_set_display_name', { user: 'u1', old: 'Al', new: 'Alex Kim' }), names)).toBe('Renamed Al → Alex Kim');
   });
   it('humanises any other action', () => {
