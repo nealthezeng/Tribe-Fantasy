@@ -20,6 +20,8 @@ const db = vi.hoisted(() => ({
   memberships: [] as Row[],
   credit_ledger: [{ amount: 115 }] as Row[],
 }));
+/** Tables whose rows the card has read, in the order it read them. */
+const served = vi.hoisted(() => [] as string[]);
 
 vi.mock('../lib/supabase', () => ({
   supabase: {
@@ -32,7 +34,10 @@ vi.mock('../lib/supabase', () => ({
         not: () => builder,
         order: () => builder,
         single: () => Promise.resolve({ data: rows()[0], error: null }),
-        then: (resolve: (v: { data: Row[]; error: null }) => void) => resolve({ data: rows(), error: null }),
+        then: (resolve: (v: { data: Row[]; error: null }) => void) => {
+          served.push(table);
+          resolve({ data: rows(), error: null });
+        },
       };
       return builder;
     },
@@ -58,6 +63,7 @@ vi.mock('../lib/tournament', async (orig) => ({
 afterEach(cleanup);
 
 beforeEach(() => {
+  served.length = 0;
   db.stages = [];
   db.seasons = [{ settings: {} }];
   db.athletes = [];
@@ -77,20 +83,46 @@ const openStage: AuctionStage = {
 };
 const athlete = (id: string, name: string) => ({ id, name, user_id: null, opted_in: true });
 
-function renderCard() {
+function renderCard(show: 'open' | 'closed' = 'open') {
   return render(
     <MemoryRouter>
       <AuctionCard membershipId="m1" leagueId="l1" seasonId="se1" userId="u1" joinedAt="2026-09-01T00:00:00Z"
-        teamName="Test Zeal" getCredits />
+        teamName="Test Zeal" getCredits show={show} />
     </MemoryRouter>,
   );
 }
+
+/** The card's load reads the ledger last, so once that's been served the load has finished. */
+const loaded = () => waitFor(() => expect(served).toContain('credit_ledger'));
+const closedStage = { ...openStage, bid_close_at: '2026-10-10T00:00:00Z' } as unknown as Row;
 
 describe('AuctionCard', () => {
   it('renders nothing when there is no stage yet', async () => {
     const { container } = renderCard();
     await new Promise((r) => setTimeout(r, 0));
     expect(container.textContent).toBe('');
+  });
+
+  it('shows nothing on League once buying has closed', async () => {
+    db.stages = [closedStage];
+    const { container } = renderCard('open');
+    await loaded();
+    expect(container.textContent).toBe('');
+    expect(loadLeagueTournament).not.toHaveBeenCalled();
+  });
+
+  it('shows the closed shares card (every team\'s split) where show="closed"', async () => {
+    db.stages = [closedStage];
+    renderCard('closed');
+    expect(await screen.findByText('Every team')).toBeTruthy();
+  });
+
+  it('shows nothing on Leaderboards while buying is open', async () => {
+    db.stages = [openStage as unknown as Row];
+    const { container } = renderCard('closed');
+    await loaded();
+    expect(container.textContent).toBe('');
+    expect(loadLeagueTournament).not.toHaveBeenCalled();
   });
 
   it('shows the combined header with nothing bought yet, list open, no separate team card', async () => {
@@ -214,7 +246,7 @@ describe('AuctionCard', () => {
 
   it('shows a collapsed shares card before buying opens', async () => {
     db.stages = [{ id: 's1', name: 'Fall', starts_on: '2026-10-18', bid_close_at: null, auction_seed: null, auction_run_at: null } as Row];
-    renderCard();
+    renderCard('closed');
     await waitFor(() => expect(document.querySelector('details.card')).not.toBeNull());
     const details = document.querySelector('details.card')!;
     expect(details.hasAttribute('open')).toBe(false);
@@ -282,7 +314,7 @@ describe('AuctionCard', () => {
 
     it('lists your players as name, %, credits with the split across the league', async () => {
       settled();
-      renderCard();
+      renderCard('closed');
       await screen.findByText('Your players');
       const sam = screen.getAllByText('Sam')[0].closest('li')!; // [1] is the same player under Every team
       expect(sam.textContent).toContain('67%');
@@ -301,7 +333,7 @@ describe('AuctionCard', () => {
       const live = (m: string, p: number, price: number, share: number) =>
         ({ ...slot(m, p, price, share), until_game: null }) as unknown as Row;
       db.roster_slots = [ended('m1', 1, 20, 0.5, 2), live('m1', 1, 0, 0.4), ended('m1', 2, 40, 1, 2)];
-      renderCard();
+      renderCard('closed');
       await screen.findByText('Your players');
       const sam = screen.getAllByText('Sam')[0].closest('li')!;
       expect(sam.textContent).toContain('40%');
@@ -312,7 +344,7 @@ describe('AuctionCard', () => {
     it('shows a sliver of a share as 0.3%, never 0%', async () => {
       settled();
       db.roster_slots = [slot('m1', 1, 1, 0.003), slot('m2', 1, 299, 0.997)];
-      renderCard();
+      renderCard('closed');
       await screen.findByText('Your players');
       expect(screen.getAllByText('Sam')[0].closest('li')!.textContent).toContain('0.3%');
       expect(document.body.textContent).not.toContain('You own 0%');
@@ -320,7 +352,7 @@ describe('AuctionCard', () => {
 
     it('has no Random fill, and no player-facing bid or auction wording', async () => {
       settled();
-      renderCard();
+      renderCard('closed');
       await screen.findByText('Your players');
       expect(screen.queryByText(/Random fill/)).toBeNull();
       expect(screen.queryByText(/\bbid|auction/i)).toBeNull();

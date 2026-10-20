@@ -25,6 +25,25 @@ vi.mock('./HomePage', async (orig) => ({
   loadMyTeams: () => Promise.resolve(myTeams.current),
 }));
 
+// The closed shares card under the standings reads its stage and members from here.
+vi.mock('../lib/supabase', () => {
+  const tables: Record<string, unknown[]> = {
+    get stages() { return rows.current.stages; },
+    get memberships() { return rows.current.members; },
+    seasons: [{ settings: {} }],
+  };
+  const from = (name: string) => {
+    const data = tables[name] ?? [];
+    const q = {
+      select: () => q, eq: () => q, is: () => q, not: () => q, order: () => q,
+      single: () => Promise.resolve({ data: data[0], error: null }),
+      then: (resolve: (v: unknown) => void) => resolve({ data, error: null }),
+    };
+    return q;
+  };
+  return { supabase: { from } };
+});
+
 const team = (id: string, team_name: string, league: string): MembershipRow => ({
   id, team_name, league_id: `L-${id}`, created_at: '2026-10-01T00:00:00Z', donation_code: 'X', credit_ledger: [],
   leagues: { name: league, season_id: 'se', seasons: { name: 'Spring', settings: {} } },
@@ -85,6 +104,13 @@ describe('LeaderboardsPage', () => {
     auth.signedIn = false;
     render(<MemoryRouter><Routes><Route index element={<LeaderboardsPage />} /><Route path="login" element={<p>sign in page</p>} /></Routes></MemoryRouter>);
     expect(screen.getByText('sign in page')).toBeTruthy();
+  });
+
+  it('shows the closed shares card below the standings', async () => {
+    show();
+    const every = await screen.findByText('Every team');
+    const article = await screen.findByRole('article', { name: 'Standings' });
+    expect(article.compareDocumentPosition(every) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('keeps showing the standings between tournaments (T4)', async () => {

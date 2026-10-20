@@ -36,11 +36,13 @@ function collapseSlots(rows: (SlotRow & { until_game: number | null })[]): SlotR
  * Share buying for one team, in the stage pickAuctionStage chooses. While it's open it's a card with a sticky
  * header (players, credits left); otherwise it's collapsed.
  */
-export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, getCredits }: {
+export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt, teamName, getCredits, show }: {
   membershipId: string; leagueId: string; seasonId: string; userId: string; joinedAt: string;
   teamName: string;
   /** While buying and the season takes donations, "Get more credits" links to the Credits page. */
   getCredits?: boolean;
+  /** 'open': the buy card, only while buying is open (League). 'closed': the collapsed card, only otherwise (Leaderboards). */
+  show: 'open' | 'closed';
 }) {
   // A refused buy's message shows on that player's row.
   const [error, setError] = useState<{ athleteId: string; text: string } | null>(null);
@@ -108,6 +110,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
   if (!data) return null; // loading, or no stage yet
   const { stage, settings, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
   const phase = auctionPhase(stage, now);
+  if ((phase === 'open') !== (show === 'open')) return null;
   const name = new Map(athletes.map((a) => [a.id, a.name]));
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);
@@ -153,37 +156,37 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
         <BidList open={mine.length === 0} loud={mine.length === 0}
           summary={<>Buy shares <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} players</span></>}>
           <WithTournament seasonId={seasonId} leagueId={leagueId}>{(tournament) => (
-          <ul className="list">
-            {/* Players you've bought first, so your buys are findable among the rest (t237). A player who opted out
-                after you bought stays until you remove him: he still counts toward the limit. */}
-            {athletes.filter((a) => a.opted_in || mine.some((b) => b.athlete_id === a.id))
-              .sort((a, b) => Number(!!pinned?.has(b.id)) - Number(!!pinned?.has(a.id)))
-              .map((a) => {
-              const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
-              // Rounded as the Rules page does; no chip until (or unless) the tournament has loaded.
-              const factor = tournament ? +repeatFactor(tournament.result, membershipId, a.id, stage.id, settings).toFixed(2) : 1;
-              return (
-                <li key={a.id} className="bid-row">
-                  <span className="meta">
-                    <span className="title">{a.name}</span>
-                    {factor < 1 && (
-                      <span className="pill warn" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
+            <ul className="list">
+              {/* Players you've bought first, so your buys are findable among the rest (t237). A player who opted out
+                  after you bought stays until you remove him: he still counts toward the limit. */}
+              {athletes.filter((a) => a.opted_in || mine.some((b) => b.athlete_id === a.id))
+                .sort((a, b) => Number(!!pinned?.has(b.id)) - Number(!!pinned?.has(a.id)))
+                .map((a) => {
+                const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
+                // Rounded as the Rules page does; no chip until (or unless) the tournament has loaded.
+                const factor = tournament ? +repeatFactor(tournament.result, membershipId, a.id, stage.id, settings).toFixed(2) : 1;
+                return (
+                  <li key={a.id} className="bid-row">
+                    <span className="meta">
+                      <span className="title">{a.name}</span>
+                      {factor < 1 && (
+                        <span className="pill warn" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
+                      )}
+                      {injured.has(a.id) && <span className="pill bad">Injured</span>}
+                      {!a.opted_in && <span className="pill">Opted out</span>}
+                    </span>
+                    {a.user_id === userId ? <span className="muted">That's you</span> : (
+                      <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}
+                        cap={bid === null && mine.length >= rosterSize ? rosterSize : undefined}
+                        available={balance - total + (bid ?? 0)} onOverBudget={overBudget}
+                        error={error?.athleteId === a.id ? error.text : null}
+                        onSave={(amount) => act(a.id, () => api.placeBid(stage.id, membershipId, a.id, amount))}
+                        onRemove={() => act(a.id, () => api.deleteBid(stage.id, membershipId, a.id))} />
                     )}
-                    {injured.has(a.id) && <span className="pill bad">Injured</span>}
-                    {!a.opted_in && <span className="pill">Opted out</span>}
-                  </span>
-                  {a.user_id === userId ? <span className="muted">That's you</span> : (
-                    <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}
-                      cap={bid === null && mine.length >= rosterSize ? rosterSize : undefined}
-                      available={balance - total + (bid ?? 0)} onOverBudget={overBudget}
-                      error={error?.athleteId === a.id ? error.text : null}
-                      onSave={(amount) => act(a.id, () => api.placeBid(stage.id, membershipId, a.id, amount))}
-                      onRemove={() => act(a.id, () => api.deleteBid(stage.id, membershipId, a.id))} />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
           )}</WithTournament>
         </BidList>
       </article>

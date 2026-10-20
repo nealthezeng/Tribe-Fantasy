@@ -6,6 +6,7 @@ import {
   countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, type LeagueTournament, type OverallStanding,
 } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
+import { AuctionCard } from './AuctionCard';
 import { loadMyTeams, TeamSwitch, useTeamChoice, type MembershipRow } from './HomePage';
 import { fmt, record } from './TournamentCard';
 
@@ -24,15 +25,21 @@ export function LeaderboardsPage() {
       {!data && !error && <Loading />}
       {data?.length === 0 && <p><Link to="/leagues">Join a league</Link></p>}
       {data && data.length > 1 && <TeamSwitch teams={data} current={m} onPick={pick} />}
-      {m?.leagues && <Board key={m.id} m={m} />}
+      {m?.leagues && <Board key={m.id} m={m} uid={uid!} />}
     </section>
   );
 }
 
-function Board({ m }: { m: MembershipRow }) {
+function Board({ m, uid }: { m: MembershipRow; uid: string }) {
   const { data: y, error } = useLoad(() => loadLeagueTournament(m.leagues!.season_id, m.league_id), [m.id]);
   if (!y) return error ? <p className="error" role="alert">{error}</p> : <Loading />;
-  return <Standings y={y} membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues!.name} seasonId={m.leagues!.season_id} />;
+  return (
+    <>
+      <Standings y={y} membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues!.name} seasonId={m.leagues!.season_id} />
+      <AuctionCard show="closed" membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues!.season_id} userId={uid}
+        joinedAt={m.created_at} teamName={m.team_name} />
+    </>
+  );
 }
 
 /**
