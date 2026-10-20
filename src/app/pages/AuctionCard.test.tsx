@@ -138,7 +138,8 @@ describe('AuctionCard', () => {
     renderCard();
     await screen.findByText(/^Closes in/);
     const row = (n: string) => within(screen.getByText(n).closest('li')!);
-    expect(row('Ari Banks').getByText('×0.9').getAttribute('aria-label')).toContain('Repeat factor ×0.9');
+    // The repeat data loads apart from the buy list: wait for it.
+    expect((await row('Ari Banks').findByText('×0.9')).getAttribute('aria-label')).toContain('Repeat factor ×0.9');
     expect(row('Bo Castellanos').queryByText(/^×/)).toBeNull();
   });
 
