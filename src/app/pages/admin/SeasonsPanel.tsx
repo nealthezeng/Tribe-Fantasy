@@ -107,7 +107,7 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
         onDeleted();
       }); }}>
         <p className="muted">
-          Deleting removes every tournament, league, team, athlete, stat, bid and credit in {season.name}. It can't be
+          Deleting removes every tournament, league, team, athlete, stat, share and credit in {season.name}. It can't be
           undone: download a backup first (Backup tab). {after}
         </p>
         <div className="row">

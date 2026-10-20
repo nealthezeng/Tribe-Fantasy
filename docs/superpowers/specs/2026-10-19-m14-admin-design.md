@@ -154,3 +154,20 @@ errors.ts) → share-buying words, per DESIGN.md "Words".
 - Test plan: PGlite DB tests for every RPC + RLS change, app tests for each new panel, core tests for forfeit/bye and
   roster-at-start scoring.
 - Go-live runbook entry in docs/setup-supabase.md (0024).
+
+## 9. Amendments made during the build
+
+- `list_users` stays out of the rpc-gate read helpers, so the player/keeper FORBIDDEN loops cover it.
+- `admin_set_share` checks `opted_in` only when adding or editing a share, not when removing one.
+- Removed donors merge into one "Removed user" row on the Donors list.
+- `admin_rename_team` caps names at 40 characters (the team-name rule), not 60 as §5.2 says.
+- `reset_game` itself is redefined in 0024: undoing a game moves share edits made after it back to the replayed game
+  (shorten `until_game`, delete emptied rows, pull later `from_game` down). A bought row that began at or after the
+  replayed game is deleted with its price, so a later tournament delete refunds slightly less; fix with Adjust credits.
+- Removed teams are excluded from email (`wants_email`) so dead rows don't take outbox batch slots.
+- Submitting a blank or invalid percent in the share form never means "remove": only the Take button removes.
+- Multi-team removal copy: "Their teams A, B and C leave their leagues: they keep the points they have, forfeit their
+  remaining games and stop being paired."; one donation reads "Their 1 donation ($x) stays in the records."
+- The account button reads "Remove account" with per-person aria-labels; the error alert sits above the list.
+- `admin_set_display_name` raises NOT_FOUND for an account with no profile, so the Users list hides Rename there.
+

@@ -44,6 +44,7 @@ describe('SeasonsPanel (t213)', () => {
     const onSelect = vi.fn();
     render(<SeasonsPanel selected="s2" onSelect={onSelect} />);
     const del = await screen.findByRole('button', { name: 'Delete season', hidden: true });
+    expect(document.body.textContent).toContain('stat, share and credit in Spring 2027');
     expect(screen.getByText(/Everyone will see Fall 2026 as the current season/)).toBeTruthy();
     const confirm = screen.getByLabelText('Type Spring 2027 to confirm');
     fireEvent.change(confirm, { target: { value: 'spring 2027' } });

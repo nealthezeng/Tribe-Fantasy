@@ -50,7 +50,8 @@ describe('AthletesPanel remove (t81)', () => {
     await clickRemove();
     await waitFor(() => expect(api.deleteAthlete).toHaveBeenCalledWith('a1', true));
     expect(confirm).toHaveBeenCalledTimes(2);
-    expect(confirm.mock.calls[1][0]).toMatch(/change past results and standings/);
+    expect(confirm.mock.calls[1][0]).toMatch(/stats, shares, roster spots or picks.*refunds share-buying credits.*change past results and standings/);
+    expect(confirm.mock.calls[1][0]).not.toMatch(/bid|auction/i);
     expect(screen.queryByRole('alert')).toBeNull();
   });
 

@@ -6,6 +6,9 @@ describe('errorMessage', () => {
     expect(errorMessage({ message: 'ALREADY_MEMBER' })).toMatch(/already in this league/);
     expect(errorMessage(new Error('FORBIDDEN'))).toMatch(/permission/);
   });
+  it('says shares, not bids, when a player is in use', () => {
+    expect(errorMessage({ message: 'ATHLETE_IN_USE' })).toBe("This player has stats, shares or picks, so they weren't removed. Opt them out instead.");
+  });
   it('maps the open-league codes (t215)', () => {
     for (const code of ['NO_SEASON', 'INVALID_PASSWORD', 'WRONG_PASSWORD', 'CREATE_LIMIT', 'NOT_LEAGUE_OWNER',
       'LEAGUE_HAS_TEAMS', 'LEAGUE_HAS_DONATIONS', 'TEAM_HAS_DONATIONS', 'TEAM_HAS_BIDS', 'TEAM_HAS_GAMES']) {

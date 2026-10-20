@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { useInk } from '../../lib/useInk';
 import { AthletesPanel } from './AthletesPanel';
 import { BackupPanel } from './BackupPanel';
+import { HistoryPanel } from './HistoryPanel';
 import { LeaguesPanel } from './LeaguesPanel';
 import { SeasonsPanel } from './SeasonsPanel';
 import { SettingsEditor } from './SettingsEditor';
@@ -15,7 +16,7 @@ import { WalletsPanel } from './WalletsPanel';
 /** Most-used first. Each tab mounts fresh, so Wallets always shows balances after a grant on Tournaments. */
 const TABS = [
   ['stages', 'Tournaments'], ['leagues', 'Leagues'], ['users', 'Users'], ['wallets', 'Wallets'],
-  ['athletes', 'Athletes'], ['settings', 'Settings'], ['backup', 'Backup'],
+  ['athletes', 'Athletes'], ['settings', 'Settings'], ['history', 'History'], ['backup', 'Backup'],
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
@@ -45,6 +46,7 @@ export function AdminPage() {
           {tab === 'wallets' && <WalletsPanel seasonId={seasonId} />}
           {tab === 'athletes' && <AthletesPanel seasonId={seasonId} />}
           {tab === 'settings' && <SettingsEditor seasonId={seasonId} />}
+          {tab === 'history' && <HistoryPanel seasonId={seasonId} />}
           {tab === 'backup' && <BackupPanel seasonId={seasonId} />}
         </Fragment>
       )}

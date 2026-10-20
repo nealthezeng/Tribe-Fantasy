@@ -165,6 +165,12 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   640px the chips wrap onto a second row rather than hide past an edge a mouse can't scroll (t126). Admin shows one section
   at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
   chips are see-through so the pill shows while it moves). Admin opens on the newest season.
+- **Admin Users / League browser / History** (M14): Users is one `.card` list with Search people, a role button per
+  role, Rename and a red-worded "Remove account" whose confirm names every team, donation and profile it touches.
+  The league browser (Leagues → Open) shows each team with its owner and roster; each share is a percent field with Save and an X to remove it,
+  and a removed team is read-only. Admin changes never move credits. History is a `.card > ul.list`: one plain-words
+  line per audit row ("Gave Sam Grossberg 25% to Gimp Zeal"), actor and time as small text, a filter by action and
+  "Load more" for the next 50. Removed people show as "Removed user"; a removed team keeps its name.
 - **League tab, matchup first** (`Matchup` in `TournamentCard.tsx`): per team, the game that matters now (live,
   else next, else last played) as a `.display` headline "TEAM vs OPPONENT" (`--fs-matchup`, shrinks on phones; the
   page `h1` is `.sr-only` once you have a team). Under it a `.strip` of facts: tournament, a `.chip` with the dates,

@@ -332,3 +332,39 @@ safe to paste early: it drops the 4-argument `set_game_pick` the old bundle call
 are gone, every old slot became a whole share, and a code revert alone would break the site against the new schema.
 The app cannot restore a backup either (Admin → Backup only exports; its `roster_slots` rows carry a `bench` column the
 new schema no longer has). Going back means a forward-fix migration, or hand-written SQL that uses the backup as data.
+
+## M14 admin powers (after 0001–0023): go-live runbook
+
+`0024_admin_powers.sql` adds free share edits, account removal that keeps the team, team renames, display-name fixes,
+the user list and admin reads of sealed buys and picks. **Paste it BEFORE the push**: the new bundle calls the new RPCs
+and selects `roster_slots.from_game` and `memberships.removed_at`, which only exist after the paste. The old bundle
+keeps working on top of 0024, so there is no rush between paste and push.
+
+1. **Take a backup first**: Admin → Backup, JSON and CSVs. Account removal (below) is the one change you cannot undo.
+2. Pre-paste checks, in the SQL Editor:
+   - It must list `memberships_user_id_fkey`, `stat_taps_keeper_id_fkey`, `roster_slots_via_check` and
+     `roster_slots_stage_id_membership_id_athlete_id_key`, because 0024 drops and re-adds them by those names:
+     ```sql
+     select conname from pg_constraint
+     where conrelid in ('public.memberships'::regclass, 'public.stat_taps'::regclass, 'public.roster_slots'::regclass);
+     ```
+   - It must list `bids_read` and `game_picks_read` (0024 replaces both so admins can read sealed rows):
+     ```sql
+     select policyname from pg_policies where policyname in ('bids_read', 'game_picks_read');
+     ```
+3. SQL Editor: paste and run `supabase/migrations/0024_admin_powers.sql`. One transaction (`begin;` … `commit;`), so
+   an error leaves nothing half-applied. If the editor offers "Run and enable RLS", choose **Run without RLS**
+   (no new table).
+4. **Push to main** (ff merge of `m14-admin`), then wait for CI and Deploy.
+5. Anon probe (the anon key, no sign-in): `admin_set_share` and `admin_remove_user` each return **42501** (401 on
+   some gateways), never a result.
+6. Signed in as admin, after the deploy:
+   - Admin → Leagues → Open a league: owners are shown beside each team.
+   - Admin → Users: every account lists with its email.
+   - Admin → Users: **remove a THROWAWAY account** (sign up a spare email first). This proves `delete from auth.users`
+     works on the hosted project. Its team (if any) stays, marked "(removed)".
+   - Admin → History: the removal shows as "Removed account <name>".
+
+**Rollback.** 0024 is mostly additive (new columns, new functions, looser constraints), so a code revert of the app
+is safe on top of it. Removing an account is permanent: the sign-in is deleted and nothing restores it. A removed
+person can only sign up again as a new account, without their old team.

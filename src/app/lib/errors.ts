@@ -7,7 +7,7 @@ const MESSAGES: Record<string, string> = {
   INVALID_SETTINGS: 'Those season settings are not valid.',
   LEAGUE_EXISTS: 'That season already has a league with this name.',
   ATHLETE_EXISTS: 'An athlete with that name is already in this season.',
-  ATHLETE_IN_USE: "This athlete has stats, bids or picks, so they weren't removed. Opt them out instead.",
+  ATHLETE_IN_USE: "This player has stats, shares or picks, so they weren't removed. Opt them out instead.",
   NO_PROFILE: 'Set your display name first.',
   INVALID_TEAM_NAME: 'Team names must be 1–40 characters.',
   ALREADY_MEMBER: "You're already in this league.",

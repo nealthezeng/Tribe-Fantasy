@@ -43,7 +43,7 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
 
   async function remove(l: LeagueRow) {
     const teams = l.memberships.length;
-    if (!window.confirm(`Delete ${l.name}? Its ${teams} ${teams === 1 ? 'team' : 'teams'}, their credits, bids and rosters go with it. `
+    if (!window.confirm(`Delete ${l.name}? Its ${teams} ${teams === 1 ? 'team' : 'teams'}, their credits, shares and rosters go with it. `
       + "This can't be undone.")) return;
     setError(null);
     try {

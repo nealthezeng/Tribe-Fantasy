@@ -75,5 +75,6 @@ describe('LeaguesPanel (t215)', () => {
     fireEvent.click(del);
     await waitFor(() => expect(api.deleteLeague).toHaveBeenCalledWith('l1'));
     expect(confirm.mock.calls[0][0]).toMatch(/^Delete Huck Yeah\? Its 2 teams/);
+    expect(confirm.mock.calls[0][0]).not.toMatch(/bid|auction/i);
   });
 });

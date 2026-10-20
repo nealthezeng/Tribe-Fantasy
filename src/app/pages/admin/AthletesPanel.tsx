@@ -57,8 +57,8 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
       } catch (err) {
         // Has history: only an explicit second yes wipes it (t81).
         if ((err as { message?: string })?.message !== 'ATHLETE_IN_USE') throw err;
-        if (!window.confirm(`${a.name} has stats, bids, roster spots or picks. Deleting removes all of it, refunds `
-          + 'auction credits, and can change past results and standings. Delete anyway?')) return;
+        if (!window.confirm(`${a.name} has stats, shares, roster spots or picks. Deleting removes all of it, refunds `
+          + 'share-buying credits, and can change past results and standings. Delete anyway?')) return;
         await api.deleteAthlete(a.id, true);
       }
     });
