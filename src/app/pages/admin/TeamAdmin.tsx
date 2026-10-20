@@ -47,7 +47,7 @@ function ShareRow({ name, team, share, disabled, set }: {
   return (
     <li>
       <span>{name}</span>
-      <form className="bid" onSubmit={(e) => { e.preventDefault(); set(+value); }}>
+      <form className="bid" onSubmit={(e) => { e.preventDefault(); if (isPercent(value)) set(+value); }}>
         <input type="number" inputMode="numeric" min={1} max={100} step={1} value={value} onChange={(e) => setValue(e.target.value)}
           aria-label={`${name} percent`} aria-invalid={!isPercent(value)} />
         <button disabled={disabled || same || !isPercent(value)}>Save</button>
@@ -74,6 +74,7 @@ export function TeamAdmin({ data, membershipId, onChanged }: { data: LeagueAdmin
   const set = (athlete: string, p: number | null) => act(() => api.adminSetShare(stageId!, membershipId, athlete, p));
   async function add(e: FormEvent) {
     e.preventDefault();
+    if (!player || !isPercent(percent)) return;
     if (await set(player, +percent)) { setPlayer(''); setPercent(''); }
   }
   const trimmed = name.trim();

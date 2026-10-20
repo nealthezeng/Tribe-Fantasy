@@ -57,6 +57,26 @@ describe('TeamAdmin', () => {
     await waitFor(() => expect(changed).toHaveBeenCalledTimes(2));
   });
 
+  it('never sends 0 or a bad percent, even when the form is submitted directly', () => {
+    render(<TeamAdmin data={data()} membershipId="m1" onChanged={() => {}} />);
+    const box = screen.getByLabelText('Ash percent') as HTMLInputElement;
+    const save = screen.getAllByRole('button', { name: 'Save' })[0] as HTMLButtonElement;
+    expect(save.disabled).toBe(true); // same as the current share
+    for (const v of ['', '0', '101', '2.5']) {
+      fireEvent.change(box, { target: { value: v } });
+      fireEvent.submit(box.form!);
+    }
+    fireEvent.change(screen.getByLabelText('Player'), { target: { value: 'a4' } });
+    for (const v of ['', '0', '101', '2.5']) {
+      fireEvent.change(screen.getByLabelText('Percent'), { target: { value: v } });
+      fireEvent.submit(screen.getByLabelText('Percent').closest('form')!);
+    }
+    fireEvent.change(screen.getByLabelText('Percent'), { target: { value: '25' } });
+    fireEvent.submit(screen.getByLabelText('Percent').closest('form')!);
+    expect(api.adminSetShare).toHaveBeenCalledTimes(1);
+    expect(api.adminSetShare).toHaveBeenCalledWith('S1', 'm1', 'a4', 25);
+  });
+
   it('warns past the roster size and keeps Add enabled', () => {
     render(<TeamAdmin data={data(7)} membershipId="m1" onChanged={() => {}} />);
     expect(screen.getByText('7 of 6 players')).toBeTruthy();
