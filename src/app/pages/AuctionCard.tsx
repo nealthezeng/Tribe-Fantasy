@@ -8,7 +8,7 @@ import {
 } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { loadLeagueTournament, teamLabel } from '../lib/tournament';
+import { loadLeagueTournament, teamLabel, type LeagueTournament } from '../lib/tournament';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance as sumLedger, credits, pct } from '../lib/wallet';
@@ -77,9 +77,6 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       balance: sumLedger((ledger.data ?? []) as { amount: number }[]),
     };
   }, [seasonId, leagueId, membershipId]);
-  // The repeat chips' data, loaded apart from the buy list so a bid's reload() never re-runs it and a failure only
-  // drops the chips. ponytail: a second league load on the League tab; share the TournamentCard's if it ever matters.
-  const tournament = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]).data;
 
   // Re-render while buying is open so the countdown moves and the card flips to "closed" on time.
   const [now, setNow] = useState(Date.now);
@@ -155,6 +152,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
         )}
         <BidList open={mine.length === 0} loud={mine.length === 0}
           summary={<>Buy shares <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} players</span></>}>
+          <WithTournament seasonId={seasonId} leagueId={leagueId}>{(tournament) => (
           <ul className="list">
             {/* Players you've bought first, so your buys are findable among the rest (t237). A player who opted out
                 after you bought stays until you remove him: he still counts toward the limit. */}
@@ -169,7 +167,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
                   <span className="meta">
                     <span className="title">{a.name}</span>
                     {factor < 1 && (
-                      <span className="repeat" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
+                      <span className="pill warn" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
                     )}
                     {injured.has(a.id) && <span className="pill bad">Injured</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}
@@ -186,6 +184,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               );
             })}
           </ul>
+          )}</WithTournament>
         </BidList>
       </article>
     );
@@ -274,6 +273,17 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       </details>
     </>
   );
+}
+
+/**
+ * The repeat chips' data, loaded only while the buy list is on screen and apart from the card's own load, so a bid's
+ * reload() never re-runs it and a failure only drops the chips (`tournament` stays undefined).
+ * ponytail: a second league load on the League tab; share the TournamentCard's if it ever matters.
+ */
+function WithTournament({ seasonId, leagueId, children }: {
+  seasonId: string; leagueId: string; children: (tournament: LeagueTournament | undefined) => ReactNode;
+}) {
+  return <>{children(useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]).data)}</>;
 }
 
 /** Starts open or closed once, on mount: a later `open` change (your first buy) must not snap it shut. */
