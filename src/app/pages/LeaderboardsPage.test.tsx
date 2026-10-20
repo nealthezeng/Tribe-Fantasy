@@ -57,7 +57,7 @@ const base = (): TournamentRows => ({
   pairings: [],
   members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00Z', removed_at: null, user_id: 'u1' },
     { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00Z', removed_at: null, user_id: 'u2' }],
-  profiles: [{ id: 'u1', display_name: 'Neal Zeng' }, { id: 'u2', display_name: 'Ethan Park' }],
+  profiles: [{ id: 'u1', display_name: 'Neal Zeng' }, { id: 'u2', display_name: 'Sam Sample' }],
   slots: [], picks: [], sessions: [], lines: [], taps: [], injuries: [], athletes: [],
 });
 
@@ -74,7 +74,7 @@ describe('LeaderboardsPage', () => {
     show();
     const row = (await screen.findByText('Zeal (you)')).closest('li')!;
     expect(row.querySelector('small')?.textContent).toBe('Neal Zeng · 0–0');
-    expect((await standings()).getByText('Flow').closest('li')?.querySelector('small')?.textContent).toBe('Ethan Park · 0–0');
+    expect((await standings()).getByText('Flow').closest('li')?.querySelector('small')?.textContent).toBe('Sam Sample · 0–0');
   });
 
   it('shows just the record when an owner has no name (no stray separator)', async () => {
@@ -134,12 +134,12 @@ describe('Standings toggle (t226)', () => {
 
   it('switches to every team of the season, with leagues and owners, and back', async () => {
     overall.leagues = 2;
-    overall.current = [row('b1', 'Flow', 'League B', 1, false, 'Ethan Park'), row('m1', 'Zeal', 'League A', 2, true), row('b2', 'Huck', 'League B', 2, true)];
+    overall.current = [row('b1', 'Flow', 'League B', 1, false, 'Sam Sample'), row('m1', 'Zeal', 'League A', 2, true), row('b2', 'Huck', 'League B', 2, true)];
     show();
     await allLeagues();
     await waitFor(async () => expect(await items()).toHaveLength(3));
     expect((await items()).map((li) => li.textContent)).toEqual([
-      '1FlowLeague B · Ethan Park · 2–19 points', 'T2Zeal (you)League A · 2–18 points', 'T2HuckLeague B · 2–18 points']);
+      '1FlowLeague B · Sam Sample · 2–19 points', 'T2Zeal (you)League A · 2–18 points', 'T2HuckLeague B · 2–18 points']);
     expect(document.querySelector('.ranks [aria-current]')?.textContent).toContain('Zeal');
     fireEvent.click(screen.getByRole('button', { name: 'League A' }));
     expect(await items()).toHaveLength(2);

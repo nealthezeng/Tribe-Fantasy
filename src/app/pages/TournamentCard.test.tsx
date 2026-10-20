@@ -175,9 +175,9 @@ describe('TournamentCard', () => {
 
   it('puts each owner under its own team name in the headline', async () => {
     await show({ ...afterGame1(), members: [{ ...base().members[0], user_id: 'u1' }, { ...base().members[1], user_id: 'u2' }],
-      profiles: [{ id: 'u1', display_name: 'Neal Zeng' }, { id: 'u2', display_name: 'Ethan Park' }] });
-    expect(await screen.findByRole('heading', { name: 'Zeal Neal Zeng vs Flow Ethan Park' })).toBeTruthy();
-    expect(owners()).toEqual([['Zeal', 'Neal Zeng'], ['Flow', 'Ethan Park']]);
+      profiles: [{ id: 'u1', display_name: 'Neal Zeng' }, { id: 'u2', display_name: 'Sam Sample' }] });
+    expect(await screen.findByRole('heading', { name: 'Zeal Neal Zeng vs Flow Sam Sample' })).toBeTruthy();
+    expect(owners()).toEqual([['Zeal', 'Neal Zeng'], ['Flow', 'Sam Sample']]);
   });
 
   it('reads "Removed user" for a removed opponent and renders nothing for an owner without a profile', async () => {

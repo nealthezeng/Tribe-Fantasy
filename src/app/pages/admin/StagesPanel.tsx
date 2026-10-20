@@ -187,7 +187,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
           if (!window.confirm(`Open the ${stage.name} tournament? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
           await api.openTournament(stage.id, p.pairings);
           games.reload();
-          return `${stage.name}: game 1 is paired. Keepers start it on the Tally tab.`;
+          return `${stage.name}: game 1 is paired. Keepers start it from Stats → Tally.`;
         })}>Open tournament</button>
       </div>
     );
@@ -203,7 +203,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
     void run(async () => {
       await api.resetGame(g.id);
       games.reload();
-      return `${stage.name}: game ${g.number} undone. Keepers can start it again on the Tally tab.`;
+      return `${stage.name}: game ${g.number} undone. Keepers can start it again from Stats → Tally.`;
     });
   };
   const number = new Map(games.data.map((g) => [g.id, g.number]));

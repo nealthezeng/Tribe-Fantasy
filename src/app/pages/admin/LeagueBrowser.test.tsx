@@ -38,7 +38,7 @@ function setup() {
       { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }],
     pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
     members: [member('m1', 'Gimp Zeal'), member('m2', 'Money', '2026-11-05T00:00:00Z')],
-    profiles: [{ id: 'u1', display_name: 'Alice Kim' }],
+    profiles: [{ id: 'u1', display_name: 'Pat Example' }],
     slots: [...at('m1', ['a1', 'a2'], 0.25), ...at('m2', ['b1'], 0.5)],
     // Sealed until game 2 starts; only an admin's read returns them.
     picks: [{ stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' }],
@@ -60,7 +60,7 @@ describe('LeagueBrowser', () => {
   it('loads owners, balances, the open buys and the players for the editor', async () => {
     setup();
     const d = await loadLeagueAdminData('se', 'L');
-    expect([...d.owners]).toEqual([['m1', 'Alice Kim'], ['m2', 'Removed user']]);
+    expect([...d.owners]).toEqual([['m1', 'Pat Example'], ['m2', 'Removed user']]);
     expect([...d.balances]).toEqual([['m1', 85], ['m2', 40]]);
     expect(d.sealedBuys).toEqual([{ membershipId: 'm2', athleteId: 'b1', amount: 12 }]);
     expect(d.players).toEqual(ROWS.league.athletes);
@@ -82,7 +82,7 @@ describe('LeagueBrowser', () => {
     expect(await screen.findByRole('heading', { name: 'Huck Yeah' })).toBeTruthy();
 
     const zeal = within(screen.getByRole('article', { name: 'Gimp Zeal' }));
-    expect(zeal.getByText('Alice Kim')).toBeTruthy();
+    expect(zeal.getByText('Pat Example')).toBeTruthy();
     expect(zeal.getByText('85 credits')).toBeTruthy();
     expect((zeal.getByLabelText('Ash percent') as HTMLInputElement).value).toBe('25');
     expect((zeal.getByLabelText('Avery percent') as HTMLInputElement).value).toBe('25');

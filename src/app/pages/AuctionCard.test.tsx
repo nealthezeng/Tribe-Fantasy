@@ -92,8 +92,11 @@ function renderCard(show: 'open' | 'closed' = 'open') {
   );
 }
 
-/** The card's load reads the ledger last, so once that's been served the load has finished. */
-const loaded = () => waitFor(() => expect(served).toContain('credit_ledger'));
+/** The card's load reads the ledger last; the request being seen is not the render, so also wait one macrotask for setData and the render. */
+const loaded = async () => {
+  await waitFor(() => expect(served).toContain('credit_ledger'));
+  await new Promise((r) => setTimeout(r, 0));
+};
 const closedStage = { ...openStage, bid_close_at: '2026-10-10T00:00:00Z' } as unknown as Row;
 
 describe('AuctionCard', () => {

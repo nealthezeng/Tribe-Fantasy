@@ -29,7 +29,7 @@ const readRows = async (): Promise<TournamentRows> => ({
     from public.stages where season_id = $1`, [f.season]),
   games: await q(`select id, stage_id, number, session_id, ${iso('started_at')}, ${iso('finished_at')} from public.games`),
   pairings: await q('select game_id, home, away from public.game_pairings where league_id = $1', [f.league]),
-  members: await q(`select id, team_name, ${iso('created_at')}, ${iso('removed_at')} from public.memberships where league_id = $1`, [f.league]),
+  members: await q(`select id, team_name, ${iso('created_at')}, ${iso('removed_at')}, user_id from public.memberships where league_id = $1`, [f.league]),
   slots: await q('select stage_id, membership_id, athlete_id, price, share::float8 as share, from_game, until_game from public.roster_slots'),
   picks: await q('select stage_id, game_number, membership_id, athlete_id from public.game_picks'),
   sessions: await q(`select id, ${iso('verified_at')} from public.sessions where id in (select session_id from public.games)`),

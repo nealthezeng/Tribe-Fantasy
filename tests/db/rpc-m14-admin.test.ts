@@ -247,10 +247,10 @@ describe('admin_set_display_name', () => {
     as(f.db, who, (tx) => rpc(tx, 'admin_set_display_name', { p_user: user, p_name: name }));
 
   it("sets another user's name and logs old and new", async () => {
-    await setName(alice, ' Alice Kim ');
+    await setName(alice, ' Pat Example ');
     expect((await f.db.query<{ display_name: string }>('select display_name from public.profiles where id = $1', [alice])).rows[0].display_name)
-      .toBe('Alice Kim');
-    expect((await audit('admin_set_display_name'))[0].details).toEqual({ user: alice, old: 'alice', new: 'Alice Kim' });
+      .toBe('Pat Example');
+    expect((await audit('admin_set_display_name'))[0].details).toEqual({ user: alice, old: 'alice', new: 'Pat Example' });
   });
 
   it('refuses empty names, non-admins and users without a profile', async () => {
