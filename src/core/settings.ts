@@ -1,4 +1,3 @@
-
 export interface SeasonSettings {
   credits_per_dollar: number;
   donations_enabled: boolean;
@@ -48,7 +47,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   picks_per_game: 2,
   min_bid: 1,
   allow_self_ownership: false,
-  stat_weights: { goal: 3, assist: 3, block: 5, callahan: 8, turnover: -1 }, // fitted to the Feasterns stats (2026-10-19)
+  stat_weights: { goal: 3, assist: 3, block: 5, callahan: 12, turnover: -1 }, // fitted to the Feasterns stats (2026-10-19); callahan = G3 + D5 + 4 bonus (user, 2026-10-20)
   normalize_mode: 'none',
   normalize_per_points: 1,
   min_points_denominator: 5,
@@ -60,7 +59,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   upset_k: 0.5,
   standings_floor: null,
   decay_mode: 'exponential',
-  decay_grace_stages: 1,
+  decay_grace_stages: 0,
   decay_rate: 0.9,
   decay_floor: 0.6,
   tiredness_multipliers: [0.5, 0.75],

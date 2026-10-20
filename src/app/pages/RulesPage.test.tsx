@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseSettings } from '../../core/settings';
 import type { CurrentSeason } from '../lib/stats';
@@ -82,6 +82,13 @@ describe('RulesPage', () => {
     render(<RulesPage />);
     expect(document.body.textContent).toContain("Your buys together can't be more than your credits");
     expect(document.body.textContent).toContain('Every credit you put in is spent');
+  });
+
+  it('shows Callahan at +12 and the repeat factor from the first repeat', () => {
+    render(<RulesPage />);
+    expect(screen.getByText('Callahan').parentElement?.textContent).toBe('Callahan+12');
+    const decay = screen.getByRole('heading', { name: 'Starting the same player every tournament' }).closest('article')!;
+    expect(within(decay).getByRole('cell', { name: '1' }).nextElementSibling?.textContent).toBe('×0.9');
   });
 
   it('heads the standings-points table for the league size', () => {

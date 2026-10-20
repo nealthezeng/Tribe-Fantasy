@@ -161,7 +161,7 @@ export function RulesPage() {
           <table>
             <thead><tr><th>Earlier tournaments you started them</th><th>Their stats count</th></tr></thead>
             <tbody>
-              {[0, 1, 2, 3, 4, 6].map((k) => (
+              {[0, 1, 2, 3, 4, 5].map((k) => (
                 <tr key={k}><td>{k}</td><td>×{n(stageMultiplier(k, S))}</td></tr>
               ))}
             </tbody>
