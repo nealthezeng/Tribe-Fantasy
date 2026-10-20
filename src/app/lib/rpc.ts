@@ -53,6 +53,10 @@ export const api = {
   setLeaguePassword: (leagueId: string, password: string | null) =>
     call<void>('set_league_password', { p_league: leagueId, p_password: password }),
   deleteLeague: (leagueId: string) => call<void>('delete_league', { p_league: leagueId }),
+  /** Admin: give a team `percent` (1–100) of a player for free, change it, or take it away (null). Never touches credits. */
+  adminSetShare: (stage: string, membership: string, athlete: string, percent: number | null) =>
+    call<void>('admin_set_share', { p_stage: stage, p_membership: membership, p_athlete: athlete, p_percent: percent }),
+  adminRenameTeam: (membership: string, name: string) => call<void>('admin_rename_team', { p_membership: membership, p_name: name }),
   /** Your own team only; refused once it has donated, bid, or played (t217). */
   leaveLeague: (membershipId: string) => call<void>('leave_league', { p_membership: membershipId }),
   createSeason: (name: string, settings: object) => call<string>('create_season', { p_name: name, p_settings: settings }),

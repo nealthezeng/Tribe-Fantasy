@@ -76,8 +76,8 @@ describe('LeagueBrowser', () => {
     const zeal = within(screen.getByRole('article', { name: 'Gimp Zeal' }));
     expect(zeal.getByText('Alice Kim')).toBeTruthy();
     expect(zeal.getByText('85 credits')).toBeTruthy();
-    expect(zeal.getByText('Ash · 25%')).toBeTruthy();
-    expect(zeal.getByText('Avery · 25%')).toBeTruthy();
+    expect((zeal.getByLabelText('Ash percent') as HTMLInputElement).value).toBe('25');
+    expect((zeal.getByLabelText('Avery percent') as HTMLInputElement).value).toBe('25');
     expect(zeal.getByText('Picks for Game 2: Avery')).toBeTruthy();
 
     const money = within(screen.getByRole('article', { name: 'Money (removed)' }));

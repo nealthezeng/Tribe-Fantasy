@@ -1,4 +1,3 @@
-import { rosterOf, slotLive } from '../../../core/tournament';
 import { Loading } from '../../components/Loading';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickPlayingStage, type AuctionStage } from '../../lib/auction';
 import { gameLabel, todayLocal } from '../../lib/stats';
@@ -6,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { fetchAll, loadLeagueTournament, rowsOf, type LeagueTournament } from '../../lib/tournament';
 import { useLoad } from '../../lib/useLoad';
 import { credits } from '../../lib/wallet';
+import { liveRoster, TeamAdmin } from './TeamAdmin';
 
 /** Everything the admin sees inside a league, sealed information included. The team editor (M14 T4) reads this too. */
 export interface LeagueAdminData {
@@ -20,6 +20,8 @@ export interface LeagueAdminData {
   players: { id: string; name: string }[];
   /** The tournament whose rosters and next game are shown. */
   stageId: string | null;
+  /** True once share buying for that tournament is settled: only then can shares be given or changed. */
+  stageSettled: boolean;
   nextGame: number | null;
 }
 
@@ -47,6 +49,7 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
   const balances = new Map(members.map((m) => [m.id, 0]));
   for (const e of ledger) balances.set(e.membership_id, (balances.get(e.membership_id) ?? 0) + e.amount);
   const next = y.result.next;
+  const stageId = next?.stageId ?? pickPlayingStage(stages, todayLocal())?.id ?? null;
   return {
     leagueName: leagues[0]?.name ?? 'League',
     y,
@@ -54,7 +57,8 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
     balances,
     sealedBuys: bids.map((b) => ({ membershipId: b.membership_id, athleteId: b.athlete_id, amount: b.amount })),
     players,
-    stageId: next?.stageId ?? pickPlayingStage(stages, todayLocal())?.id ?? null,
+    stageId,
+    stageSettled: stages.some((s) => s.id === stageId && s.auction_run_at !== null),
     nextGame: next?.number ?? null,
   };
 }
@@ -63,7 +67,7 @@ const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}
 
 /** One league as its members see it, plus what is sealed from them: owners, balances, rosters, buys and next picks. */
 export function LeagueBrowser({ seasonId, leagueId, onClose }: { seasonId: string; leagueId: string; onClose: () => void }) {
-  const { data, error } = useLoad(() => loadLeagueAdminData(seasonId, leagueId), [seasonId, leagueId]);
+  const { data, error, reload } = useLoad(() => loadLeagueAdminData(seasonId, leagueId), [seasonId, leagueId]);
   return (
     <div className="page">
       <div className="head">
@@ -72,24 +76,17 @@ export function LeagueBrowser({ seasonId, leagueId, onClose }: { seasonId: strin
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {!data && !error && <Loading />}
-      {data && <Teams d={data} />}
+      {data && <Teams d={data} onChanged={reload} />}
     </div>
   );
 }
 
-function Teams({ d }: { d: LeagueAdminData }) {
-  const { y, stageId, nextGame } = d;
+function Teams({ d, onChanged }: { d: LeagueAdminData; onChanged: () => void }) {
+  const { y, stageId } = d;
   const athlete = (id: string) => y.athlete.get(id) ?? 'A player';
   const games = y.result.games.filter((g) => g.game.stageId === stageId);
   const gameName = (n: number) => gameLabel(n, games.find((g) => g.game.number === n)?.game.opponent);
   const next = y.result.next;
-  // With no next game (between tournaments) every slot not yet ended still counts.
-  const upTo = nextGame ?? Infinity;
-  const roster = (m: string) => (stageId === null ? [] : rosterOf(y.input, m, stageId, upTo).map((id) => ({
-    id,
-    share: y.input.slots.filter((x) => x.stageId === stageId && x.membershipId === m && x.athleteId === id && slotLive(x, upTo))
-      .reduce((sum, x) => sum + x.share, 0),
-  })));
   const pairing = (g: (typeof games)[number]) => (g.matchups.length === 0 ? 'Not paired yet' : g.matchups.map((m) => (m.away
     ? `${y.team.get(m.home.membershipId)} vs ${y.team.get(m.away.membershipId)}` : `${y.team.get(m.home.membershipId)} has a bye`)).join(' · '));
   return (
@@ -110,6 +107,7 @@ function Teams({ d }: { d: LeagueAdminData }) {
       )}
       {y.result.standings.map((s) => {
         const team = y.team.get(s.membershipId) ?? 'A team';
+        const removed = y.input.members.find((m) => m.id === s.membershipId)?.removedAt != null;
         const picked = next?.sides.find((x) => x.membershipId === s.membershipId)?.picked ?? [];
         return (
           <article key={s.membershipId} className="card team-card" aria-label={team}>
@@ -121,9 +119,11 @@ function Teams({ d }: { d: LeagueAdminData }) {
               <span>{s.tied ? 'T' : ''}{s.place} of {y.result.standings.length} · {record(s)}</span>
               <strong className="num">{credits(d.balances.get(s.membershipId) ?? 0)}</strong>
             </p>
-            <ul className="list">
-              {roster(s.membershipId).map((p) => <li key={p.id}>{athlete(p.id)} · {Math.round(p.share * 100)}%</li>)}
-            </ul>
+            {removed ? (
+              <ul className="list">
+                {liveRoster(d, s.membershipId).map((p) => <li key={p.id}>{athlete(p.id)} · {Math.round(p.share * 100)}%</li>)}
+              </ul>
+            ) : <TeamAdmin data={d} membershipId={s.membershipId} onChanged={onChanged} />}
             {next && <p>{picked.length ? `Picks for ${gameName(next.number)}: ${picked.map(athlete).join(', ')}` : `No picks for ${gameName(next.number)}`}</p>}
           </article>
         );
