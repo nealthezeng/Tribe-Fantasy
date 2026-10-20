@@ -25,25 +25,6 @@ vi.mock('./HomePage', async (orig) => ({
   loadMyTeams: () => Promise.resolve(myTeams.current),
 }));
 
-// The closed shares card under the standings reads its stage and members from here.
-vi.mock('../lib/supabase', () => {
-  const tables: Record<string, unknown[]> = {
-    get stages() { return rows.current.stages; },
-    get memberships() { return rows.current.members; },
-    seasons: [{ settings: {} }],
-  };
-  const from = (name: string) => {
-    const data = tables[name] ?? [];
-    const q = {
-      select: () => q, eq: () => q, is: () => q, not: () => q, order: () => q,
-      single: () => Promise.resolve({ data: data[0], error: null }),
-      then: (resolve: (v: unknown) => void) => resolve({ data, error: null }),
-    };
-    return q;
-  };
-  return { supabase: { from } };
-});
-
 const team = (id: string, team_name: string, league: string): MembershipRow => ({
   id, team_name, league_id: `L-${id}`, created_at: '2026-10-01T00:00:00Z', donation_code: 'X', credit_ledger: [],
   leagues: { name: league, season_id: 'se', seasons: { name: 'Spring', settings: {} } },
@@ -106,17 +87,36 @@ describe('LeaderboardsPage', () => {
     expect(screen.getByText('sign in page')).toBeTruthy();
   });
 
-  it('shows the closed shares card below the standings', async () => {
+  it('has no shares card any more', async () => {
     show();
-    const every = await screen.findByText('Every team');
-    const article = await screen.findByRole('article', { name: 'Standings' });
-    expect(article.compareDocumentPosition(every) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await standings();
+    expect(screen.queryByText('Every team')).toBeNull();
+    expect(screen.queryByText(/shares/i)).toBeNull();
   });
 
   it('keeps showing the standings between tournaments (T4)', async () => {
     rows.current = { ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] };
     show();
     expect((await standings()).getByText('Flow')).toBeTruthy();
+  });
+});
+
+describe('team links', () => {
+  it("links team names to their pages; in All leagues only your league's rows", async () => {
+    render(<HashRouter><LeaderboardsPage /></HashRouter>);
+    expect((await screen.findByRole('link', { name: 'Flow' })).getAttribute('href')).toBe('#/team/m2');
+    expect(screen.getByRole('link', { name: 'Zeal (you)' }).getAttribute('href')).toBe('#/team/m1');
+    overall.leagues = 2;
+    overall.current = [
+      { membershipId: 'm2', team: 'Flow', owner: '', league: 'League A', points: 5, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 1, tied: false },
+      { membershipId: 'b1', team: 'Team a', owner: '', league: 'League B', points: 4, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 2, tied: false },
+    ];
+    cleanup();
+    render(<HashRouter><LeaderboardsPage /></HashRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
+    expect(await screen.findByText('Team a')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Team a' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Flow' }).getAttribute('href')).toBe('#/team/m2');
   });
 });
 

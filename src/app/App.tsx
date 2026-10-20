@@ -15,6 +15,7 @@ import { SessionPage } from './pages/SessionPage';
 import { StatsPage } from './pages/StatsPage';
 import { PlayerPage } from './pages/PlayerPage';
 import { TallyPage } from './pages/TallyPage';
+import { TeamPage } from './pages/TeamPage';
 
 const router = createHashRouter([
   {
@@ -32,6 +33,7 @@ const router = createHashRouter([
       { path: 'stats', element: <StatsPage /> },
       { path: 'stats/:id', element: <SessionPage /> },
       { path: 'player/:athleteId', element: <PlayerPage /> },
+      { path: 'team/:membershipId', element: <TeamPage /> },
       { path: 'me', element: <MePage /> },
       { path: 'credits', element: <CreditsPage /> },
       { path: 'rules', element: <RulesPage /> },

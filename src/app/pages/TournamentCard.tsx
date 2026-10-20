@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
@@ -82,8 +83,8 @@ function focusGame(y: LeagueTournament, membershipId: string) {
 }
 
 /** A team name in the headline, its owner in small text under it (nothing when the account has no profile). */
-const HeadSide = ({ name, owner }: { name?: string; owner?: string }) => (
-  <span className="side">{name}{owner && <> <small className="owner">{owner}</small></>}</span>
+const HeadSide = ({ id, name, owner }: { id: string; name?: string; owner?: string }) => (
+  <span className="side"><Link className="team-link" to={`/team/${id}`}>{name}</Link>{owner && <> <small className="owner">{owner}</small></>}</span>
 );
 
 const RESULT = { W: 'Won', L: 'Lost', T: 'Tied' } as const;
@@ -114,9 +115,9 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
       <div className="matchup">
         <h2 className="display">
           {them ? <>
-            <HeadSide name={teamName} owner={y.owner.get(membershipId)} />
+            <HeadSide id={membershipId} name={teamName} owner={y.owner.get(membershipId)} />
             {' '}<span className="vs">vs</span>{' '}
-            <HeadSide name={y.team.get(them.membershipId)} owner={y.owner.get(them.membershipId)} />
+            <HeadSide id={them.membershipId} name={y.team.get(them.membershipId)} owner={y.owner.get(them.membershipId)} />
           </> : teamName}
         </h2>
         <p className="strip">
@@ -215,7 +216,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
     <div className="stack">
       <h2>{title}</h2>
       <p>
-        {them ? <>You play <strong>{y.team.get(them.membershipId)}</strong>.</>
+        {them ? <>You play <strong><Link className="team-link" to={`/team/${them.membershipId}`}>{y.team.get(them.membershipId)}</Link></strong>.</>
           : them === null ? 'You have a bye this game.'
             : 'Opponent TBD.'}
       </p>
@@ -247,7 +248,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
 }
 
 /** What a player's points count for this game (decision 11): one number, its parts one tap away. The core multiplies. */
-function Factor({ side, id }: { side: TournamentSide; id: string }) {
+export function Factor({ side, id }: { side: TournamentSide; id: string }) {
   return (
     <details className="factor">
       <summary aria-label={`Counts ×${sig(side.factor[id])}`}>×{sig(side.factor[id])}</summary>

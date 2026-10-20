@@ -70,6 +70,14 @@ describe('TournamentCard', () => {
     expect(screen.getByText(/vs UNC · Fall beta/)).toBeTruthy();
   });
 
+  it('links both teams in the matchup headline and the opponent on the pick card', async () => {
+    await show(afterGame1());
+    const hrefs = (name: string) => screen.getAllByRole('link', { name }).map((a) => a.getAttribute('href'));
+    expect(hrefs('Zeal')).toEqual(['/team/m1']);
+    expect(hrefs('Flow')).toEqual(['/team/m2', '/team/m2']); // headline, "You play"
+    expect(picks().getByRole('link', { name: 'Flow' }).getAttribute('href')).toBe('/team/m2');
+  });
+
   it('pre-selects two players for game 1, then refuses a third until one is cleared', async () => {
     await show(base());
     expect(screen.getByText('Opponent TBD.')).toBeTruthy();

@@ -188,8 +188,8 @@ function Team({ m, uid }: { m: MembershipRow; uid: string }) {
   return (
     <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
       teamName={m.team_name} subtitle={subtitle}>
-      <AuctionCard show="open" membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
-        joinedAt={m.created_at} teamName={m.team_name} getCredits={donateFor(m) !== null} />
+      <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
+        teamName={m.team_name} getCredits={donateFor(m) !== null} />
     </TournamentCard>
   );
 }

@@ -6,7 +6,6 @@ import {
   countLeagues, fmt, loadLeagueTournament, loadSeasonStandings, mergeStandings, record, type LeagueTournament, type OverallStanding,
 } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
-import { AuctionCard } from './AuctionCard';
 import { loadMyTeams, TeamSwitch, useTeamChoice, type MembershipRow } from './HomePage';
 
 /** The Leaderboards tab: the standings of the team chosen on the League tab (same remembered choice and switch). */
@@ -24,21 +23,15 @@ export function LeaderboardsPage() {
       {!data && !error && <Loading />}
       {data?.length === 0 && <p><Link to="/leagues">Join a league</Link></p>}
       {data && data.length > 1 && <TeamSwitch teams={data} current={m} onPick={pick} />}
-      {m?.leagues && <Board key={m.id} m={m} uid={uid!} />}
+      {m?.leagues && <Board key={m.id} m={m} />}
     </section>
   );
 }
 
-function Board({ m, uid }: { m: MembershipRow; uid: string }) {
+function Board({ m }: { m: MembershipRow }) {
   const { data: y, error } = useLoad(() => loadLeagueTournament(m.leagues!.season_id, m.league_id), [m.id]);
   if (!y) return error ? <p className="error" role="alert">{error}</p> : <Loading />;
-  return (
-    <>
-      <Standings y={y} membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues!.name} seasonId={m.leagues!.season_id} />
-      <AuctionCard show="closed" membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues!.season_id} userId={uid}
-        joinedAt={m.created_at} teamName={m.team_name} />
-    </>
-  );
+  return <Standings y={y} membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues!.name} seasonId={m.leagues!.season_id} />;
 }
 
 /**
@@ -64,7 +57,7 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
           </div>
         )}
       </div>
-      {rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} />
+      {rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} linkable={new Set(y.team.keys())} />
         : season.error ? <p className="error" role="alert">{season.error}</p> : <Loading />}
     </article>
   );
@@ -74,7 +67,11 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
  * Ranked rows: place, team (league, owner and record under it), points; a leaderboard from day one, all tied at first (t239).
  * A long list shows the top 5 (with everyone tied with 5th) and your row, if that hides at least 4 teams.
  */
-function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[]; membershipId: string; showLeague: boolean }) {
+function RankList({ rows, membershipId, showLeague, linkable }: {
+  rows: OverallStanding[]; membershipId: string; showLeague: boolean;
+  /** Membership ids whose names link to their team page (your own league's; other leagues' teams stay plain text). */
+  linkable?: Set<string>;
+}) {
   const [open, setOpen] = useState(false);
   const top = rows.filter((r) => r.place <= (rows[Math.min(4, rows.length - 1)]?.place ?? 0) || r.membershipId === membershipId);
   const cut = !open && rows.length - top.length >= 4;
@@ -91,7 +88,9 @@ function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[];
               <li aria-current={me ? 'true' : undefined}>
                 <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
                 <span className="who">
-                  <strong>{r.team}{me && ' (you)'}</strong>
+                  <strong>
+                    {linkable?.has(r.membershipId) ? <Link className="team-link" to={`/team/${r.membershipId}`}>{r.team}{me && ' (you)'}</Link> : <>{r.team}{me && ' (you)'}</>}
+                  </strong>
                   <small>{[showLeague && r.league, r.owner, record(r)].filter(Boolean).join(' · ')}</small>
                 </span>
                 <span className="points">{fmt(r.points)}<span className="sr-only"> points</span></span>
