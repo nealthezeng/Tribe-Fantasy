@@ -151,16 +151,15 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
   ]);
   if (season.length === 0) throw new Error('NOT_FOUND');
   const userIds = members.flatMap((m) => (m.user_id ? [m.user_id] : []));
-  const profiles = await rowsOf<NonNullable<TournamentRows['profiles']>[number]>(
-    userIds.length ? sb.from('profiles').select('id, display_name').in('id', userIds) : null);
   const stageIds = stages.map((x) => x.id);
   const games = await rowsOf<GameRow>(stageIds.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', stageIds) : null);
   const gameIds = games.map((g) => g.id);
   const sessionIds = games.flatMap((g) => (g.session_id ? [g.session_id] : []));
-  const [pairings, sessions] = await Promise.all([
+  const [pairings, sessions, profiles] = await Promise.all([
     rowsOf<TournamentRows['pairings'][number]>(gameIds.length
       ? sb.from('game_pairings').select('game_id, home, away').eq('league_id', leagueId).in('game_id', gameIds) : null),
     rowsOf<TournamentRows['sessions'][number]>(sessionIds.length ? sb.from('sessions').select('id, verified_at').in('id', sessionIds) : null),
+    rowsOf<NonNullable<TournamentRows['profiles']>[number]>(userIds.length ? sb.from('profiles').select('id, display_name').in('id', userIds) : null),
   ]);
   const open = sessions.filter((s) => s.verified_at === null).map((s) => s.id);
   const [lines, tapRows] = await Promise.all([

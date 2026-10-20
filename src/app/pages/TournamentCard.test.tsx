@@ -175,11 +175,21 @@ describe('TournamentCard', () => {
     expect(picks().queryByText(/If you don't pick/)).toBeNull();
   });
 
-  it('names both owners under the matchup headline', async () => {
+  const owners = () => [...document.querySelectorAll('.display .side')].map((el) => [el.firstChild?.textContent, el.querySelector('.owner')?.textContent ?? null]);
+
+  it('puts each owner under its own team name in the headline', async () => {
     await show({ ...afterGame1(), members: [{ ...base().members[0], user_id: 'u1' }, { ...base().members[1], user_id: 'u2' }],
       profiles: [{ id: 'u1', display_name: 'Neal Zeng' }, { id: 'u2', display_name: 'Ethan Park' }] });
-    expect(await screen.findByText('Neal Zeng')).toBeTruthy();
-    expect(await screen.findByText('Ethan Park')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Zeal Neal Zeng vs Flow Ethan Park' })).toBeTruthy();
+    expect(owners()).toEqual([['Zeal', 'Neal Zeng'], ['Flow', 'Ethan Park']]);
+  });
+
+  it('reads "Removed user" for a removed opponent and renders nothing for an owner without a profile', async () => {
+    await show({ ...afterGame1(), members: [{ ...base().members[0], user_id: 'u1' }, { ...base().members[1], user_id: null, removed_at: '2026-11-08T00:00:00Z' }],
+      profiles: [] });
+    expect(await screen.findByText('Removed user')).toBeTruthy();
+    expect(owners()).toEqual([['Zeal', null], ['Flow (removed)', 'Removed user']]);
+    expect(document.body.textContent).not.toContain('undefined');
   });
 
   it("shows the next opponent, the tiredness of last game's starter, and never the opponent's sealed pick", async () => {

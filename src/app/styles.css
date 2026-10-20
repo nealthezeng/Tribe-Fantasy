@@ -231,8 +231,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .display { overflow-wrap: anywhere; font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); font-stretch: normal; font-size: var(--fs-matchup); line-height: 0.9; }
 .vs { font-family: var(--font-sans); font-weight: var(--fw-semi); font-size: var(--fs-sm); text-transform: lowercase; letter-spacing: normal; color: var(--muted); }
 .display .vs { vertical-align: 0.6em; padding-inline: var(--s1); }
-.owners { display: flex; gap: var(--s3); font-size: var(--fs-sm); color: var(--muted); }
-.owners span:last-child { margin-left: auto; text-align: end; }
+.display .side { display: inline-block; vertical-align: top; }
+.owner { display: block; font-family: var(--font-sans); font-weight: var(--fw-regular); font-size: var(--fs-sm); text-transform: none; letter-spacing: normal; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
 .strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); font-size: var(--fs-sm); color: var(--muted); }
 .strip strong { color: var(--fg); }
 .chip { border: 1px solid var(--line-strong); border-radius: var(--radius-xs); padding: 0 var(--s2); color: var(--fg); font-weight: var(--fw-semi); }

@@ -87,6 +87,11 @@ function focusGame(y: LeagueTournament, membershipId: string) {
   return last ? { stageId: last.game.stageId, number: last.game.number, g: last } : null;
 }
 
+/** A team name in the headline, its owner in small text under it (nothing when the account has no profile). */
+const HeadSide = ({ name, owner }: { name?: string; owner?: string }) => (
+  <span className="side">{name}{owner && <> <small className="owner">{owner}</small></>}</span>
+);
+
 const RESULT = { W: 'Won', L: 'Lost', T: 'Tied' } as const;
 
 function Matchup({ y, membershipId, teamName, subtitle }: {
@@ -114,10 +119,12 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
     <>
       <div className="matchup">
         <h2 className="display">
-          {teamName}
-          {them && <> <span className="vs">vs</span> {y.team.get(them.membershipId)}</>}
+          {them ? <>
+            <HeadSide name={teamName} owner={y.owner.get(membershipId)} />
+            {' '}<span className="vs">vs</span>{' '}
+            <HeadSide name={y.team.get(them.membershipId)} owner={y.owner.get(them.membershipId)} />
+          </> : teamName}
         </h2>
-        {them && <p className="owners"><span>{y.owner.get(membershipId)}</span><span>{y.owner.get(them.membershipId)}</span></p>}
         <p className="strip">
           {focus ? <>
             <span>{y.stage.get(focus.stageId)}</span>
