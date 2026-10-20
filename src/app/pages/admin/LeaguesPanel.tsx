@@ -5,6 +5,7 @@ import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
 import { passwordProblem } from '../LeaguesPage';
+import { LeagueBrowser } from './LeagueBrowser';
 
 interface LeagueRow {
   id: string;
@@ -16,6 +17,7 @@ interface LeagueRow {
 /** Every league of the season, with who made it (t215). Anyone creates leagues on /leagues/new; admins delete here. */
 export function LeaguesPanel({ seasonId }: { seasonId: string }) {
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
   const leagues = useLoad(async () => {
     const { data, error } = await supabase!
       .from('leagues')
@@ -52,6 +54,7 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
     }
   }
 
+  if (open) return <LeagueBrowser seasonId={seasonId} leagueId={open} onClose={() => setOpen(null)} />;
   return (
     <div className="card">
       <h2>Leagues</h2>
@@ -68,7 +71,10 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
               <span className="muted">by {l.creator} · {l.memberships.length} {l.memberships.length === 1 ? 'team' : 'teams'}</span>
               {l.memberships.length > 0 && <small>{l.memberships.map((m) => m.team_name).join(', ')}</small>}
             </div>
-            <button className="secondary" aria-label={`Delete ${l.name}`} onClick={() => void remove(l)}>Delete</button>
+            <div className="row">
+              <button className="secondary" aria-label={`Open ${l.name}`} onClick={() => setOpen(l.id)}>Open</button>
+              <button className="secondary" aria-label={`Delete ${l.name}`} onClick={() => void remove(l)}>Delete</button>
+            </div>
             <PasswordForm league={l} onSaved={leagues.reload} />
           </li>
         ))}

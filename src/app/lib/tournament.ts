@@ -120,7 +120,7 @@ export async function fetchAll<T>(page: (from: number, to: number) => PromiseLik
 }
 
 /** A query's rows, or none when `q` is null (an `.in()` over an empty list). */
-async function rowsOf<T>(q: PromiseLike<{ data: unknown; error: unknown }> | null): Promise<T[]> {
+export async function rowsOf<T>(q: PromiseLike<{ data: unknown; error: unknown }> | null): Promise<T[]> {
   if (!q) return [];
   const { data, error } = await q;
   if (error) throw error;

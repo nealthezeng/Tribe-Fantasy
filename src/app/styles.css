@@ -366,6 +366,8 @@ details.factor[open] > summary::after { content: '▴'; }
    full width. A grid, not a wrapping flex row, so Delete never drifts with the length of the text. */
 .list li.league-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--s2) var(--s3); padding-block: var(--s3); }
 .league-row .who { display: grid; gap: var(--s1); }
+/* Admin league browser (M14): a team's name with its owner under it. */
+.team-card .who { display: grid; gap: var(--s1); }
 .list li.league-row > form { grid-column: 1 / -1; }
 .list li.league-row > form > input { flex-basis: 100%; }
 .list li.league-row > form > button { flex: 1 1 0; }
