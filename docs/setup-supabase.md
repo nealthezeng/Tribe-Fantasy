@@ -379,3 +379,19 @@ that, the old bundle pairs removed teams (`check_pairings` fails with PAIRINGS_I
 ignores `from_game`/`until_game` (finished games get rescored). The way back is then forward-fix SQL, not a revert.
 Removing an account is permanent: the sign-in is deleted and nothing restores it. A removed
 person can only sign up again as a new account, without their old team.
+
+## M15 P3 owner team rename (after 0001–0024)
+
+`0025_rename_my_team.sql` adds one function, `rename_my_team`, so it is safe any time before the deploy.
+
+1. Between tournaments, SQL Editor: paste and run `supabase/migrations/0025_rename_my_team.sql`. If the editor offers
+   "Run and enable RLS", choose **Run without RLS** (no new table).
+2. Push (deploy).
+3. Anon probe (the anon key, no sign-in):
+   `curl -X POST "$URL/rest/v1/rpc/rename_my_team" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_membership":null,"p_name":"x"}'`
+   It should return **42501** (permission denied).
+4. Rename a test team in League settings, then rename it back. Admin → History shows both.
+5. Rollback: revert the code; the function can stay.
+
+What owners can do: rename their own team any time, 1–40 characters, unique in the league. Admins still rename any team
+in Admin → Leagues, and see owner renames in History.

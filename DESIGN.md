@@ -135,7 +135,8 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   on its own (checked on a real iPhone, t128), so there is no safe-area padding. Keepers reach the tally from a
   Tally button in the Stats page head and from a Tally button on each open game under "All stats"
   (`/tally?game=<id>` opens that board directly), not from a tab. The dock is hidden while the
-  tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that.
+  tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that. Deep routes light their tab:
+  `/stats/*`, `/player/*` and `/tally` light Stats, `/team/*` lights Leaderboards; Me, Credits, Rules and Admin light none.
 - **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
   and *Sign out*. The avatar gets a baby blue ring while you're on Me.
 - **`.page`**: a page's outer stack (16px gaps, a little extra space under the heading).
@@ -182,7 +183,8 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Place "N `.of` M",
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
   game" card (the pick), the Buy shares card (only while buying is open), the games, the Join / Create `.more`
-  links, and last a muted `details.settings` "League settings" fold holding Manage league and Leave.
+  links, and last a muted `details.settings` "League settings" fold. It always renders for your team and opens
+  with Rename team first (`rename_my_team`: 1–40 characters, unique in the league), then Manage league and Leave.
 - **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; each button is named by
   its **league** (the team name is the headline below). The choice is remembered on the device and shared with the
   Credits page. Long rows scroll sideways rather than squeeze. Only the current season's teams are listed (all of them
@@ -212,9 +214,6 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   Pick / Your pick (green `.picked`, with "· Clear") fills one of the 2 slots; with both full the other Pick
   buttons are off and a `.hint` says to clear one. A `.notice` names any starter who isn't your own pick (missed or
   injured). There is no Tired pill and no bench.
-- **Settled shares** (Buy shares card after the close): "Your players", each an `li.own`: name, "66% · 100
-  credits", a **share bar** (`.sharebar`: gold `i` = your share, blue `i.other` = other teams) and a `.split` line of
-  who else owns him with their %. "Every team" is a fold of what each team bought (credits before settling, % after).
 - **Score breakdown** (opened game, `SideDetail`): the side total, then one line per starter, "name · stats" and a
   `.calc` "game score × factor = points" ("10 × 0.45 = 4.5"); the side score is the sum. A forfeit side (no players)
   says "Forfeit". The scoreboard holds two names a side.
@@ -230,7 +229,21 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   muted on your row, "Anonymous" for hidden names, then a "Show me as Anonymous" `label.check` that flips at once and
   rolls back on a failed save. Hidden with donations off.
 - **Leaderboards tab** (`LeaderboardsPage`, `/leaderboards`): the team chosen on the League tab (same `.team-switch`, same
-  remembered choice), then its Standings card, then the closed "Every team" shares fold (until team pages arrive).
+  remembered choice), then its Standings card, then the Past tournaments card.
+- **Past tournaments** (`PastTournaments`, Leaderboards): one `details` per tournament with a started game, except the one
+  being played, newest first. The summary holds the name, the dates and, while a game is live or pending, a "Waiting on
+  stats" `.pill.warn`; it wraps under a long name at 375px. Open, it is a ranked list like Standings (points gained in
+  the final games, byes included, ties by total score), or "No results yet." when no game counted. No per-game list.
+- **Team page** (`TeamPage`, `/team/:membershipId`): the team name as the heading with "Leaderboards" back link, the owner
+  and league ("Neal Zeng · League A") under it, the next game as on the pick card ("vs Duke · Fall beta"), then its
+  players A→Z, each with the `Factor` chip (total multiplier for that game, the × popover shows the parts). No picks,
+  credits or prices. No next game: "No tournament on. Players show once the next tournament's shares are settled."
+  No roster: "No players this tournament." A removed team reads "(removed)" and "No players." Only that league's
+  members (current season) and staff can open it; anyone else, an unknown id or a malformed one sees "You can only see
+  teams in your league." with a Leaderboards link.
+- **Team links**: a team name links to its page from Leaderboards standings rows (in All leagues only your own league's
+  rows), past-tournament rows, both names in the League matchup headline and "You play X" on the pick card. Not game
+  cards. Links inherit the text colour and underline on hover and focus.
 - **Standings** (`.ranks`, on Leaderboards): a ranked list. Rank and points in the display face, the rank muted and yours in
   `--gold-text`; the team with its owner's real name and record under it ("Neal Zeng · 2–1"; "League · Neal Zeng · 2–1" in All leagues). A `.segmented` [league]
   [All leagues] toggle shows only when the season has 2+ leagues. It's a leaderboard from day one: before any game
