@@ -63,6 +63,7 @@ export function TeamSwitch({ teams, current, onPick }: { teams: MembershipRow[];
       const left = dots.some((d) => d.right <= box.left + 1);
       const right = dots.some((d) => d.left >= box.right - 1);
       setGlow((g) => (g.left === left && g.right === right ? g : { left, right }));
+      return dots.length > 0 && dots.every((d) => d.right <= box.left + 1 || d.left >= box.right - 1); // all out of sight
     };
     // A mouse wheel over the switch scrolls across the leagues; at either end the page scrolls as usual.
     const wheel = (e: WheelEvent) => {
@@ -73,7 +74,12 @@ export function TeamSwitch({ teams, current, onPick }: { teams: MembershipRow[];
       e.preventDefault();
       el.scrollLeft += d;
     };
-    check();
+    const allHidden = check();
+    // Once the dots load: if the chosen team doesn't need you and no dot shows, bring the first one into view (never on scroll).
+    const chosen = el.querySelector('[aria-pressed="true"]');
+    if (needs && allHidden && !chosen?.querySelector('.needs')) {
+      el.querySelector('.needs')?.closest('button')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); // ?. : jsdom has none
+    }
     el.addEventListener('scroll', check, { passive: true });
     el.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('resize', check);

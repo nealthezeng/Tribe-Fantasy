@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreditsPage } from './Credits';
 import { HomePage } from './HomePage';
 
@@ -60,6 +60,33 @@ describe('TeamSwitch edge glow', () => {
     const group = await screen.findByRole('group', { name: 'League' });
     await waitFor(() => expect(group.parentElement!.className).toBe('team-switch-wrap glow-right'));
     spy.mockRestore();
+  });
+});
+
+describe('TeamSwitch scrolls to a team that needs you (t303)', () => {
+  // jsdom has no layout or scrollIntoView: the switch is 0–300px wide and every dot sits at 500px, past its right edge.
+  const layout = () => vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    return (this.classList.contains('needs') ? { left: 500, right: 508 } : { left: 0, right: 300 }) as DOMRect;
+  });
+  const scrollSpy = vi.fn();
+  beforeEach(() => { scrollSpy.mockClear(); HTMLElement.prototype.scrollIntoView = scrollSpy; layout(); });
+  afterEach(() => { vi.restoreAllMocks(); Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView'); });
+
+  it('scrolls the needing team into view when the chosen one does not need you', async () => {
+    show();
+    await screen.findByRole('group', { name: 'League' });
+    await waitFor(() => expect(switcher().getAllByRole('button').map((b) => b.textContent)).toEqual(['League a', 'League b (needs you)']));
+    await waitFor(() => expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' }));
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+    expect(scrollSpy.mock.contexts[0]).toBe(switcher().getByRole('button', { name: /League b/ }));
+  });
+
+  it('leaves the switch alone when the chosen team is the one that needs you', async () => {
+    localStorage.setItem('league-team', 'b');
+    show();
+    await screen.findByRole('group', { name: 'League' });
+    await waitFor(() => expect(switcher().getAllByRole('button').map((b) => b.textContent)).toEqual(['League a', 'League b (needs you)']));
+    expect(scrollSpy).not.toHaveBeenCalled();
   });
 });
 
