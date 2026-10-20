@@ -133,7 +133,8 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   `--sticky-bg` bar of equal 48px tabs, the gold marker on its top edge, and the page padded by `--dock-height` so
   nothing hides under it (focused inputs scroll clear of it too). Safari keeps the dock clear of the iPhone home bar
   on its own (checked on a real iPhone, t128), so there is no safe-area padding. Keepers reach the tally from a
-  Tally button in the Stats page head, not a tab. The dock is hidden while the
+  Tally button in the Stats page head and from a Tally button on each open game under "All stats"
+  (`/tally?game=<id>` opens that board directly), not from a tab. The dock is hidden while the
   tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that.
 - **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
   and *Sign out*. The avatar gets a baby blue ring while you're on Me.
@@ -245,6 +246,12 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   alumni, cropped to the people (`src/app/assets/team-800.jpg` / `team-1600.jpg`, srcset), bleeding to the panel's
   edges with its sky and grass masked into the dark, and a one-line thank-you caption under it.
 - **Tables** (`.table-wrap`): 14px tabular figures, right-aligned numbers, first column left, divider rows.
+- **Stat table** (`.stat-table`, `StatTable.tsx`; Stats and the player page): headers are `.linklike` sort buttons with
+  `aria-sort` and an arrow (points high-first by default, Player A to Z, a second tap flips); they keep their look on
+  hover and press. The table scrolls sideways inside `.table-wrap` while the player column stays put (sticky), so that
+  column needs an opaque fill: `--bg` on the page, `--card-solid` (the card glass flattened, in `tokens.css`) inside a `.card`.
+  "All stats" is a `details` fold under it listing the tournament's games, each opening its game page; it opens by itself
+  for keepers while a game is open.
 
 ## Tally board
 
