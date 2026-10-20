@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseSettings } from '../../core/settings';
@@ -71,6 +71,9 @@ describe('TallyBoard after a NOT_FOUND batch (t203)', () => {
     hide();
     await screen.findByText(/1 tap not saved: the player was deleted by an admin/);
     expect(loadQueue('k1', GAME).map((t) => t.id)).toEqual(['t1', 't3']);
+    // The banner commits before the passive effect that refreshes the board's queueRef; flush it, or a loaded machine
+    // lets the second hide() re-send all three taps from the stale ref.
+    await act(async () => {});
     hide();
     await waitFor(() => expect(api.saveTaps).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.saveTaps).mock.calls[1][2].map((t) => t.id)).toEqual(['t1', 't3']);
