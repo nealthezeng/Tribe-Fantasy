@@ -4,9 +4,9 @@ import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
 import {
-  downloadText, loadCurrentSeason, SESSION_COLUMNS, statLabel, toCsv, type SessionRow,
+  downloadText, loadCurrentSeason, SESSION_COLUMNS, sessionState, statLabel, toCsv, type SessionRow,
 } from '../lib/stats';
-import { loadTournamentStats, totals } from '../lib/statsTable';
+import { loadTournamentStats, totals, type StatsGame } from '../lib/statsTable';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { StatTable, TournamentSwitch } from './StatTable';
@@ -76,12 +76,7 @@ export function StatsPage() {
     <section className="page">
       <div className="head">
         <h1>Stats {season && <small>{season.name}</small>}</h1>
-        {isKeeper && (
-          <div className="row">
-            <Link to="/tally" className="button secondary">Tally</Link>
-            {isAdmin && season && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
-          </div>
-        )}
+        {isKeeper && <Link to="/tally" className="button secondary">Tally</Link>}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {data.error && <p className="error" role="alert">{data.error}</p>}
@@ -94,8 +89,29 @@ export function StatsPage() {
           {data.data.lines.length === 0
             ? <p className="muted">No stats yet for {stage.name}.</p>
             : <StatTable stats={Object.keys(weights)} rows={totals(data.data.lines, data.data.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
+          <details className="card" open={isKeeper && data.data.games.some((g) => g.session_id && !g.verified_at)}>
+            <summary>All stats</summary>
+            {data.data.games.length === 0 && <p className="muted">No games yet.</p>}
+            <ul className="list">
+              {data.data.games.map((g) => <GameItem key={g.id} g={g} lockHours={season!.settings.stat_lock_hours} keeper={isKeeper} />)}
+            </ul>
+            {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
+          </details>
         </>
       )}
     </section>
+  );
+}
+
+function GameItem({ g, lockHours, keeper }: { g: StatsGame; lockHours: number; keeper: boolean }) {
+  const title = `Game ${g.number}${g.opponent ? ` vs ${g.opponent}` : ''}`;
+  return (
+    <li>
+      <span className="meta">
+        <span className="title">{g.session_id ? <Link to={`/stats/${g.session_id}`}>{title}</Link> : title}</span>
+        {g.session_id ? STATE_PILL[sessionState(g, lockHours)] : <span className="muted">Not started</span>}
+      </span>
+      {keeper && g.session_id && !g.verified_at && <Link className="button" to={`/tally?game=${g.session_id}`} aria-label={`Tally ${title}`}>Tally</Link>}
+    </li>
   );
 }

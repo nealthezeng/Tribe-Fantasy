@@ -57,7 +57,7 @@ export function SessionPage() {
 
   if (data.error) return <p className="error" role="alert">{data.error}</p>;
   if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
-  if (data.data === null) return <p>That game's stats aren't here any more. <Link to="/stats">All games</Link></p>;
+  if (data.data === null) return <p>That game's stats aren't here any more. <Link to="/stats">Stats</Link></p>;
   const { session, title, settings, names, lines, attendance, taps, people } = data.data;
   const state = sessionState(session, settings.stat_lock_hours);
   const stats = Object.keys(settings.stat_weights);
@@ -100,7 +100,7 @@ export function SessionPage() {
 
   return (
     <section className="page">
-      <p><Link to="/stats">← All games</Link></p>
+      <p><Link to="/stats">← Stats</Link></p>
       <div className="stack">
         <h1>{title}</h1>
         <p className="meta">
@@ -148,7 +148,7 @@ export function SessionPage() {
           ) : (
             <button disabled={busy} onClick={() => void verify()}>{busy ? 'Verifying…' : 'Verify these totals'}</button>
           )}
-          <p><Link to="/tally">Back to tallying</Link></p>
+          <p><Link to={`/tally?game=${id}`}>Back to tallying</Link></p>
         </div>
       )}
 

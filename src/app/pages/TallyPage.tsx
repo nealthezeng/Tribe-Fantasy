@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate } from 'react-router';
+import { Link, Navigate, useSearchParams } from 'react-router';
 import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
 import { loadOwnedAthletes } from '../lib/auction';
@@ -20,7 +20,8 @@ import {
 
 export function TallyPage() {
   const { session, isKeeper, loading } = useAuth();
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams(); // ?game= deep-links straight to a board
+  const sessionId = params.get('game');
   const season = useLoad(loadCurrentSeason, []);
   if (loading) return <p className="muted" role="status">Loading…</p>;
   if (!session || !isKeeper) return <Navigate to="/" replace />;
@@ -28,9 +29,9 @@ export function TallyPage() {
   if (season.data === null) return <p>No season yet.</p>;
   if (!season.data) return <p className="muted" role="status">Loading…</p>;
   return sessionId ? (
-    <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setSessionId(null)} />
+    <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setParams({})} />
   ) : (
-    <SessionPicker season={season.data} keeperId={session.user.id} onPick={setSessionId} />
+    <SessionPicker season={season.data} keeperId={session.user.id} onPick={(id) => setParams({ game: id })} />
   );
 }
 

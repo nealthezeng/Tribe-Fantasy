@@ -23,9 +23,10 @@ vi.mock('../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
       const rows = table === 'sessions' ? [session('game', 'tournament'), session(DRILL, 'practice')]
-        : table === 'games' ? [{ session_id: 'game', number: 2 }] : [];
+        : table === 'games' ? [{ session_id: 'game', number: 2 }] : table === 'athletes' ? [{ id: 'a', name: 'Alice' }] : [];
       const builder = {
-        select: () => builder, or: () => builder, order: () => builder, in: () => builder, eq: () => builder,
+        single: () => Promise.resolve({ data: rows[0], error: null }),
+        select: () => builder, is: () => builder, or: () => builder, order: () => builder, in: () => builder, eq: () => builder,
         then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
       };
       return builder;
@@ -53,5 +54,12 @@ describe('TallyPage session list', () => {
     render(<MemoryRouter><TallyPage /></MemoryRouter>);
     const drill = (await screen.findByText('Sat, Nov 7 · Practice')).closest('li')!;
     expect(drill.textContent).toContain('1 unsaved');
+  });
+});
+
+describe('TallyPage deep link', () => {
+  it('opens the board for ?game= straight away', async () => {
+    render(<MemoryRouter initialEntries={['/tally?game=game']}><TallyPage /></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: '← Games' })).toBeTruthy();
   });
 });

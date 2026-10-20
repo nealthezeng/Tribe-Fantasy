@@ -6,10 +6,11 @@ import { StatsPage } from './StatsPage';
 
 const m = vi.hoisted(() => ({
   isKeeper: true,
-  season: { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 } } } as { id: string; name: string; settings: unknown } | null,
+  isAdmin: false,
+  season: { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } } as { id: string; name: string; settings: unknown } | null,
   load: vi.fn(),
 }));
-vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: false, isKeeper: m.isKeeper }) }));
+vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper }) }));
 vi.mock('../lib/stats', async (orig) => ({
   ...(await orig<typeof import('../lib/stats')>()),
   loadCurrentSeason: () => Promise.resolve(m.season),
@@ -27,7 +28,8 @@ const lines = [
 afterEach(cleanup);
 beforeEach(() => {
   m.isKeeper = true;
-  m.season = { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 } } };
+  m.isAdmin = false;
+  m.season = { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } };
   m.load.mockReset();
   m.load.mockResolvedValue({ stages: [stage('S2'), stage('S1')], stage: stage('S2'), games: [], lines, names });
   window.location.hash = '#/stats';
@@ -89,5 +91,65 @@ describe('StatsPage Tally link (t308)', () => {
     show();
     await screen.findByRole('cell', { name: 'Bo' });
     expect(screen.queryByRole('link', { name: 'Tally' })).toBeNull();
+  });
+});
+
+describe('StatsPage All stats fold (t306, t307)', () => {
+  const game = (number: number, session_id: string | null, opponent: string | null, verified_at: string | null) => ({
+    id: `g${number}`, stage_id: 'S2', number, session_id, started_at: null, finished_at: null, opponent,
+    label: opponent ? `vs ${opponent}` : `Game ${number}`, verified_at,
+  });
+  const games = [game(1, 's1', 'Duke', '2020-01-01T00:00:00Z'), game(2, 's2', null, null), game(3, null, null, null)];
+  const withGames = (g = games, l = lines) =>
+    m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games: g, lines: l, names });
+  const fold = () => screen.getByText('All stats').closest('details')!;
+
+  it('lists the tournament games under All stats, each opening its game page', async () => {
+    withGames();
+    show();
+    expect((await screen.findByRole('link', { name: 'Game 1 vs Duke' })).getAttribute('href')).toBe('#/stats/s1');
+    expect(screen.getByRole('link', { name: 'Game 2' }).getAttribute('href')).toBe('#/stats/s2');
+    expect(screen.getByText('Game 3').closest('li')!.textContent).toContain('Not started');
+    expect(screen.getByText('Game 1 vs Duke').closest('li')!.textContent).toContain('Locked');
+  });
+
+  it('gives keepers a Tally button on open games only, with the fold open', async () => {
+    withGames();
+    show();
+    expect((await screen.findByRole('link', { name: 'Tally Game 2' })).getAttribute('href')).toBe('#/tally?game=s2');
+    expect(screen.queryByRole('link', { name: 'Tally Game 1 vs Duke' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Tally Game 3' })).toBeNull();
+    expect(fold().open).toBe(true);
+  });
+
+  it('leaves the fold closed when nothing is open to tally', async () => {
+    withGames([games[0], games[2]]);
+    show();
+    await screen.findByText('All stats');
+    expect(fold().open).toBe(false);
+  });
+
+  it('shows a manager no Tally buttons, and the fold closed', async () => {
+    m.isKeeper = false;
+    withGames();
+    show();
+    await screen.findByText('All stats');
+    expect(screen.queryByRole('link', { name: /^Tally/ })).toBeNull();
+    expect(fold().open).toBe(false);
+  });
+
+  it('keeps Download CSV for admins inside All stats', async () => {
+    m.isAdmin = true;
+    withGames();
+    show();
+    const csv = await screen.findByRole('button', { name: 'Download CSV' });
+    expect(fold().contains(csv)).toBe(true);
+  });
+
+  it('says no stats yet while the only game is live, and still offers Tally', async () => {
+    withGames([games[1]], []);
+    show();
+    expect(await screen.findByText('No stats yet for Tourney S2.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Tally Game 2' })).toBeTruthy();
   });
 });
