@@ -127,12 +127,13 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
 ## Components
 
 - **Top bar** (`.topbar`): black. Brand on the left, the account avatar on the right, and tabs: League, Stats,
-  Tally (keepers). From 640px the tabs sit in the bar; tabs are muted until hovered, the current tab is white, and
+  Leaderboards (the same three for everyone signed in). From 640px the tabs sit in the bar; tabs are muted until hovered, the current tab is white, and
   one 3px gold `.ink` marker glides under it when you switch (`useInk` in `src/app/lib/useInk.ts` measures the
   current tab). **On phones (under 640px) the same tabs dock at the bottom** within thumb reach (M9 t92): a frosted
   `--sticky-bg` bar of equal 48px tabs, the gold marker on its top edge, and the page padded by `--dock-height` so
   nothing hides under it (focused inputs scroll clear of it too). Safari keeps the dock clear of the iPhone home bar
-  on its own (checked on a real iPhone, t128), so there is no safe-area padding. The dock is hidden while the
+  on its own (checked on a real iPhone, t128), so there is no safe-area padding. Keepers reach the tally from a
+  Tally button in the Stats page head, not a tab. The dock is hidden while the
   tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that.
 - **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
   and *Sign out*. The avatar gets a baby blue ring while you're on Me.
@@ -160,7 +161,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   `role="status"` and a hidden "Loading…" for screen readers (M9 t99). Me and the tally pages still show plain
   `.muted` "Loading…" text.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
-  as background). Used for attendance, the Standings league / All leagues toggle and the team switcher.
+  as background). Used for attendance, the Standings league / All leagues toggle (Leaderboards) and the team switcher.
 - **`.subnav`**: admin's sticky row of rounded tabs (`aria-pressed`): on phones one row you swipe sideways; from
   640px the chips wrap onto a second row rather than hide past an edge a mouse can't scroll (t126). Admin shows one section
   at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
@@ -173,12 +174,13 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   "Load more" for the next 50. Removed people show as "Removed user"; a removed team keeps its name.
 - **League tab, matchup first** (`Matchup` in `TournamentCard.tsx`): per team, the game that matters now (live,
   else next, else last played) as a `.display` headline "TEAM vs OPPONENT" (`--fs-matchup`, shrinks on phones; the
-  page `h1` is `.sr-only` once you have a team). Under it a `.strip` of facts: tournament, a `.chip` with the dates,
+  page `h1` is `.sr-only` once you have a team). Each name (`.side`) has its owner's real name under it in small muted
+  sans text (`.owner`); no line when the owner has no display name, "Removed user" for a removed account. Under it a `.strip` of facts: tournament, a `.chip` with the dates,
   game number, and the state (a red `.live` dot whose ring pulses, Next up, Waiting on stats, or Won/Lost ±points).
   Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
   final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Place "N `.of` M",
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
-  game" card (the pick), the Buy shares card, the Standings card, the games, the Join / Create `.more`
+  game" card (the pick), the Buy shares card (only while buying is open), the games, the Join / Create `.more`
   links, and last a muted `details.settings` "League settings" fold holding Manage league and Leave.
 - **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; each button is named by
   its **league** (the team name is the headline below). The choice is remembered on the device and shared with the
@@ -186,6 +188,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   if none are this season's, t240). A gold `.needs` dot marks a team that needs you: fewer picks than a game takes (2, or your whole roster if smaller)
   for its next game, or open share buying you haven't bought in. When a dotted league is scrolled out of sight, that edge of the switch glows gold and
   pulses (`.team-switch-wrap.glow-left` / `.glow-right`; steady with reduced motion).
+  When the chosen team doesn't need you and every dotted league is scrolled out of sight, the first one scrolls into view once the dots load (once, never on scroll); the glow stays.
   A mouse wheel over the switch scrolls it sideways; at either end the page scrolls.
 - **Game cards** (`.games` / `details.game`, M9 t93): each played game is a small black `.game-score` scoreboard of
   your matchup (both teams, scores once final, the loser muted; "Bye" or "Not playing" otherwise) with the caption
@@ -225,8 +228,10 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   total first, as a plain divided `.list` of "N. Name … $X" (not `.ranks`: no standings place; equal totals list by name), "(you)"
   muted on your row, "Anonymous" for hidden names, then a "Show me as Anonymous" `label.check` that flips at once and
   rolls back on a failed save. Hidden with donations off.
-- **Standings** (`.ranks`): a ranked list. Rank and points in the display face, the rank muted and yours in
-  `--gold-text`; the team with "League · W–L" under it (the league only in All leagues). A `.segmented` [league]
+- **Leaderboards tab** (`LeaderboardsPage`, `/leaderboards`): the team chosen on the League tab (same `.team-switch`, same
+  remembered choice), then its Standings card, then the closed "Every team" shares fold (until team pages arrive).
+- **Standings** (`.ranks`, on Leaderboards): a ranked list. Rank and points in the display face, the rank muted and yours in
+  `--gold-text`; the team with its owner's real name and record under it ("Neal Zeng · 2–1"; "League · Neal Zeng · 2–1" in All leagues). A `.segmented` [league]
   [All leagues] toggle shows only when the season has 2+ leagues. It's a leaderboard from day one: before any game
   counts every row reads T1 · 0–0 · 0 (the user's call, t239). A long list keeps the top 5, everyone tied with 5th and your row,
   and only cuts when that hides 4+ teams; the gap row says "N more teams" to screen readers. Ties list by team name.
