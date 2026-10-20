@@ -347,6 +347,8 @@ details.factor[open] > summary::after { content: '▴'; }
 /* A row of equal-width buttons that never wraps unevenly. */
 .actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
 .actions button { padding-inline: var(--s2); white-space: nowrap; }
+/* Admin user row: five buttons wrap under the name instead of squeezing into one line. */
+.user-actions { display: flex; flex-wrap: wrap; gap: var(--s2); flex: 1 1 100%; }
 /* Admin athlete row. Phone: name, then the account picker, then the actions, each full width.
    Wider: one line. Editing the name takes the whole first line. */
 .list li.athlete { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: var(--s2) var(--s3); }

@@ -39,6 +39,10 @@ describe('removeMessage', () => {
     expect(removeMessage(two)).toBe(
       "Remove Alex Kim (alex@x.test)? Their teams Gimp Zeal (League A) and Money (League B) leave their leagues: they keep the points they have, "
       + "forfeit their remaining games and stop being paired. They can't sign in. This can't be undone.");
+    const three = { ...two, teams: [...two.teams, { membership_id: 'm3', league: 'Lc', team: 'C', season: 'Fall' }] };
+    expect(removeMessage({ ...three, teams: [{ ...three.teams[0], team: 'A', league: 'La' }, { ...three.teams[1], team: 'B', league: 'Lb' }, three.teams[2]] }))
+      .toContain('Their teams A (La), B (Lb) and C (Lc) leave their leagues');
+    expect(removeMessage({ ...ALEX, athlete: null, donations: { count: 1, dollars: 10 } })).toContain('Their 1 donation ($10) stays in the records.');
     expect(removeMessage(BARE)).toBe("Remove bo@x.test? They can't sign in. This can't be undone.");
   });
 });
@@ -62,42 +66,57 @@ describe('UsersPanel (M14 T5)', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     render(<UsersPanel />);
     const alex = await row('Alex Kim');
-    fireEvent.click(within(alex).getByRole('button', { name: 'Remove' }));
+    fireEvent.click(within(alex).getByRole('button', { name: /^Remove account/ }));
     expect(confirm).toHaveBeenCalledWith(removeMessage(ALEX));
     expect(api.adminRemoveUser).not.toHaveBeenCalled();
-    fireEvent.click(within(alex).getByRole('button', { name: 'Remove' }));
+    fireEvent.click(within(alex).getByRole('button', { name: /^Remove account/ }));
     await waitFor(() => expect(api.adminRemoveUser).toHaveBeenCalledWith('u1'));
   });
 
   it('cannot remove yourself', async () => {
     render(<UsersPanel />);
     const me = await row('Me Admin');
-    expect((within(me).getByRole('button', { name: 'Remove' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(me).getByRole('button', { name: /^Remove account/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('role buttons grant and revoke stat keeper, treasurer and admin', async () => {
     render(<UsersPanel />);
     const alex = await row('Alex Kim');
-    fireEvent.click(within(alex).getByRole('button', { name: 'Remove stat keeper' }));
+    fireEvent.click(within(alex).getByRole('button', { name: 'Remove stat keeper from Alex Kim' }));
     await waitFor(() => expect(api.revokeRole).toHaveBeenCalledWith('u1', 'stat_keeper'));
-    fireEvent.click(within(alex).getByRole('button', { name: 'Make treasurer' }));
+    fireEvent.click(within(alex).getByRole('button', { name: 'Make Alex Kim treasurer' }));
     await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith('u1', 'treasurer'));
-    fireEvent.click(within(alex).getByRole('button', { name: 'Make admin' }));
+    fireEvent.click(within(alex).getByRole('button', { name: 'Make Alex Kim admin' }));
     await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith('u1', 'admin'));
-    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin' }));
+    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin from Me Admin' }));
     await waitFor(() => expect(api.revokeRole).toHaveBeenCalledWith('me', 'admin'));
   });
 
   it('shows the sentence when the last admin cannot be revoked', async () => {
     vi.mocked(api.revokeRole).mockRejectedValueOnce({ message: 'LAST_ADMIN' });
     render(<UsersPanel />);
-    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin' }));
+    fireEvent.click(within(await row('Me Admin')).getByRole('button', { name: 'Remove admin from Me Admin' }));
     expect((await screen.findByRole('alert')).textContent).toBe("You can't remove the last admin.");
+  });
+
+  it('shows the error when a remove fails', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(api.adminRemoveUser).mockRejectedValueOnce({ message: 'NOT_FOUND' });
+    render(<UsersPanel />);
+    fireEvent.click(within(await row('Alex Kim')).getByRole('button', { name: /^Remove account/ }));
+    expect((await screen.findByRole('alert')).textContent).toMatch(/no longer there/);
+  });
+
+  it('offers no Rename on a person with no profile name', async () => {
+    render(<UsersPanel />);
+    const bo = await row('bo@x.test');
+    expect(within(bo).queryByRole('button', { name: /^Rename/ })).toBeNull();
+    expect(within(bo).getByRole('button', { name: 'Remove account bo@x.test' })).toBeTruthy();
   });
 
   it('edits a display name', async () => {
     render(<UsersPanel />);
-    fireEvent.click(within(await row('Alex Kim')).getByRole('button', { name: 'Rename' }));
+    fireEvent.click(within(await row('Alex Kim')).getByRole('button', { name: 'Rename Alex Kim' }));
     fireEvent.change(screen.getByLabelText('New name for Alex Kim'), { target: { value: 'Alexander Kim' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(api.adminSetDisplayName).toHaveBeenCalledWith('u1', 'Alexander Kim'));

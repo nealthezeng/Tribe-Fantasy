@@ -67,10 +67,11 @@ export function UsersPanel() {
     <div className="card">
       <h2>Users <small>{users.data?.length ?? 0}</small></h2>
       <label>Search people<input type="search" value={search} onChange={(e) => setSearch(e.target.value)} /></label>
+      {(error || users.error) && <p className="error" role="alert">{error ?? users.error}</p>}
       {!users.data && !users.error && <Loading />}
       <ul className="list">
         {shown?.map((u) => (
-          <li key={u.id} className="user">
+          <li key={u.id}>
             {editing?.id === u.id ? (
               <form className="row" onSubmit={rename} onKeyDown={(e) => e.key === 'Escape' && setEditing(null)}>
                 <input aria-label={`New name for ${who(u)}`} required maxLength={60} autoFocus value={editing.name}
@@ -86,22 +87,25 @@ export function UsersPanel() {
               </span>
             )}
             {u.roles.length > 0 && <span className="meta">{u.roles.map((r) => <span key={r} className="pill info">{cap(r.replace('_', ' '))}</span>)}</span>}
-            <div className="actions">
+            <div className="user-actions">
               {ROLES.map(([role, label]) => {
                 const has = u.roles.includes(role);
                 return (
-                  <button key={role} className="secondary" onClick={() => void run(() => (has ? api.revokeRole(u.id, role) : api.grantRole(u.id, role)))}>
+                  <button key={role} className="secondary" aria-label={has ? `Remove ${label} from ${who(u)}` : `Make ${who(u)} ${label}`}
+                    onClick={() => void run(() => (has ? api.revokeRole(u.id, role) : api.grantRole(u.id, role)))}>
                     {has ? `Remove ${label}` : `Make ${label}`}
                   </button>
                 );
               })}
-              <button className="secondary" onClick={() => setEditing({ id: u.id, name: u.display_name ?? '' })}>Rename</button>
-              <button className="secondary" disabled={u.id === session?.user.id} onClick={() => remove(u)}>Remove</button>
+              {/* No profile yet: the name is asked at first sign-in, and admin_set_display_name would say NOT_FOUND. */}
+              {u.display_name !== null && (
+                <button className="secondary" aria-label={`Rename ${u.display_name}`} onClick={() => setEditing({ id: u.id, name: u.display_name ?? '' })}>Rename</button>
+              )}
+              <button className="secondary" aria-label={`Remove account ${who(u)}`} disabled={u.id === session?.user.id} onClick={() => remove(u)}>Remove account</button>
             </div>
           </li>
         ))}
       </ul>
-      {(error || users.error) && <p className="error" role="alert">{error ?? users.error}</p>}
     </div>
   );
 }
