@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loading } from '../../components/Loading';
 import { AUDIT_ACTIONS, describeAudit, humaniseAction, type AuditRow } from '../../lib/audit';
 import { errorMessage } from '../../lib/errors';
@@ -16,12 +16,12 @@ async function page(action: string, from: number): Promise<AuditRow[]> {
   return (data ?? []) as AuditRow[];
 }
 
-/** Every admin action, newest first. Names come from the live tables, so a removed team still shows its name. */
-async function loadNames(seasonId: string): Promise<Map<string, string>> {
+/** Names come from the live tables (every season), so a removed team still shows its name. */
+async function loadNames(): Promise<Map<string, string>> {
   const sb = supabase!;
   const [p, m, a] = await Promise.all([
     sb.from('profiles').select('id, display_name'), sb.from('memberships').select('id, team_name'),
-    sb.from('athletes').select('id, name').eq('season_id', seasonId),
+    sb.from('athletes').select('id, name'),
   ]);
   for (const r of [p, m, a]) if (r.error) throw r.error;
   return new Map<string, string>([
@@ -31,30 +31,41 @@ async function loadNames(seasonId: string): Promise<Map<string, string>> {
   ]);
 }
 
-export function HistoryPanel({ seasonId }: { seasonId: string }) {
-  const names = useLoad(() => loadNames(seasonId), [seasonId]);
+export function HistoryPanel() {
+  const names = useLoad(() => loadNames(), []);
   const [action, setAction] = useState('');
   const [rows, setRows] = useState<AuditRow[] | null>(null);
   const [more, setMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  // Bumped on every filter change: a page that comes back for an older filter is dropped.
+  const token = useRef(0);
 
   useEffect(() => {
-    let live = true;
+    const mine = ++token.current;
     setRows(null);
+    setLoading(false);
     page(action, 0).then(
-      (r) => { if (live) { setRows(r); setMore(r.length === PAGE); setError(null); } },
-      (e) => { if (live) setError(errorMessage(e)); },
+      (r) => { if (mine === token.current) { setRows(r); setMore(r.length === PAGE); setError(null); } },
+      (e) => { if (mine === token.current) setError(errorMessage(e)); },
     );
-    return () => { live = false; };
   }, [action]);
 
   async function loadMore() {
+    const mine = token.current;
+    setLoading(true);
     try {
       const r = await page(action, rows!.length);
-      setRows((cur) => [...cur!, ...r]);
+      if (mine !== token.current) return;
+      setRows((cur) => {
+        const seen = new Set(cur!.map((x) => x.id));
+        return [...cur!, ...r.filter((x) => !seen.has(x.id))];
+      });
       setMore(r.length === PAGE);
     } catch (e) {
-      setError(errorMessage(e));
+      if (mine === token.current) setError(errorMessage(e));
+    } finally {
+      if (mine === token.current) setLoading(false);
     }
   }
 
@@ -81,7 +92,7 @@ export function HistoryPanel({ seasonId }: { seasonId: string }) {
               </li>
             ))}
           </ul>
-          {more && <button className="secondary" onClick={() => void loadMore()}>Load more</button>}
+          {more && <button className="secondary" disabled={loading} onClick={() => void loadMore()}>Load more</button>}
         </>
       )}
     </div>

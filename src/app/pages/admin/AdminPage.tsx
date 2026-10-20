@@ -46,7 +46,7 @@ export function AdminPage() {
           {tab === 'wallets' && <WalletsPanel seasonId={seasonId} />}
           {tab === 'athletes' && <AthletesPanel seasonId={seasonId} />}
           {tab === 'settings' && <SettingsEditor seasonId={seasonId} />}
-          {tab === 'history' && <HistoryPanel seasonId={seasonId} />}
+          {tab === 'history' && <HistoryPanel />}
           {tab === 'backup' && <BackupPanel seasonId={seasonId} />}
         </Fragment>
       )}

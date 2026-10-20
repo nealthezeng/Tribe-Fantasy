@@ -10,8 +10,16 @@ export const AUDIT_ACTIONS = [
   'delete_league', 'delete_athlete', 'delete_season',
 ];
 
+/** Names for actions whose code name says "bid" or "auction", and the M14 ones, so the filter matches the rows. */
+const LABELS: Record<string, string> = {
+  open_auction: 'Open share buying', run_auction: 'Settle shares', place_bid: 'Buy shares', delete_bid: 'Delete share buy',
+  admin_set_share: 'Change shares', admin_remove_user: 'Remove account', admin_rename_team: 'Rename team',
+  admin_set_display_name: 'Rename person',
+};
+
 /** "delete_stage" → "Delete stage"; the admin_ prefix is noise in a list only admins read. */
 export function humaniseAction(action: string): string {
+  if (LABELS[action]) return LABELS[action];
   const s = action.replace(/^admin_/, '').replace(/_/g, ' ');
   return s[0].toUpperCase() + s.slice(1);
 }

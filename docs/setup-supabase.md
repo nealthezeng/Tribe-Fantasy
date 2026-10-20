@@ -356,8 +356,10 @@ keeps working on top of 0024, so there is no rush between paste and push.
    an error leaves nothing half-applied. If the editor offers "Run and enable RLS", choose **Run without RLS**
    (no new table).
 4. **Push to main** (ff merge of `m14-admin`), then wait for CI and Deploy.
-5. Anon probe (the anon key, no sign-in): `admin_set_share` and `admin_remove_user` each return **42501** (401 on
-   some gateways), never a result.
+5. Anon probe (the anon key, no sign-in), POST to `/rest/v1/rpc/<name>`: `admin_set_share` with the body
+   `{"p_stage":null,"p_membership":null,"p_athlete":null,"p_percent":null}` and `admin_remove_user` with `{"p_user":null}`
+   each return **42501**. The arguments must be named like that: an empty body returns **404** (PGRST202, no function
+   with that argument list), which proves nothing about the grant.
 6. Signed in as admin, after the deploy:
    - Admin → Leagues → Open a league: owners are shown beside each team.
    - Admin → Users: every account lists with its email.

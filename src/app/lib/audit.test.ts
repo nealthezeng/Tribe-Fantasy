@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeAudit, type AuditRow } from './audit';
+import { AUDIT_ACTIONS, describeAudit, humaniseAction, type AuditRow } from './audit';
 
 const names = new Map([['a1', 'Sam Grossberg'], ['m1', 'Gimp Zeal'], ['u1', 'Alex Kim']]);
 const row = (action: string, details: Record<string, unknown>): AuditRow =>
@@ -25,4 +25,11 @@ describe('describeAudit', () => {
   it('humanises any other action', () => {
     expect(describeAudit(row('delete_stage', {}), names)).toBe('Delete stage');
   });
+  it('uses share-buying words for bid and auction actions', () => {
+    const l = (a: string) => describeAudit(row(a, {}), names);
+    expect([l('open_auction'), l('run_auction'), l('place_bid'), l('delete_bid')])
+      .toEqual(['Open share buying', 'Settle shares', 'Buy shares', 'Delete share buy']);
+    for (const a of AUDIT_ACTIONS) expect(humaniseAction(a)).not.toMatch(/bid|auction/i);
+  });
 });
+
