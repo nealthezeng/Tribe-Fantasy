@@ -300,6 +300,13 @@ describe('pastTournaments', () => {
     expect(s1).toMatchObject({ name: 'Warmup', starts_on: '2026-10-10', ends_on: '2026-10-11', waiting: true });
     expect(s1.rows.map((r) => [r.membershipId, r.points, record(r)])).toEqual([['m1', 3, '1–0'], ['m3', 1, '0–0'], ['m2', -1, '0–1']]);
   });
+  it('lists a tournament whose only started game is void, with no rows', () => {
+    const y = build(null);
+    y.result.games.push(game('S3', 1, 'void') as never);
+    y.stage.set('S3', 'Void cup');
+    y.stageDates.set('S3', { starts_on: '2026-12-01', ends_on: '2026-12-02' });
+    expect(pastTournaments(y)[0]).toMatchObject({ stageId: 'S3', rows: [], waiting: false });
+  });
   it('lists every played tournament between tournaments (no next game)', () => {
     const all = pastTournaments(build(null));
     expect(all.map((t) => t.stageId)).toEqual(['S2', 'S1']);

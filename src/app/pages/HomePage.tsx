@@ -233,7 +233,7 @@ function LeagueSettings({ m, isAdmin, listed, onChanged }: { m: MembershipRow; i
       <summary>League settings</summary>
       <div className="stack">
         <RenameTeam m={m} onChanged={onChanged} />
-        {listing && manage ? <ManageLeague league={listing} onChanged={onChanged}>{leave}</ManageLeague> : leave}
+        {manage ? <ManageLeague league={listing} onChanged={onChanged}>{leave}</ManageLeague> : leave}
       </div>
     </details>
   );

@@ -141,6 +141,14 @@ describe('past tournaments', () => {
     expect(card.getByText('Waiting on stats')).toBeTruthy();
   });
 
+  it('says no results yet for a past tournament whose only game was voided', async () => {
+    const r = played();
+    rows.current = { ...r, games: [{ ...r.games[0], session_id: null }], pairings: [r.pairings[0]] };
+    show();
+    fireEvent.click(await screen.findByText(/Warmup/));
+    expect(within(screen.getByRole('article', { name: 'Past tournaments' })).getByText('No results yet.')).toBeTruthy();
+  });
+
   it('shows no past tournaments card before any tournament is over', async () => {
     show();
     await standings();

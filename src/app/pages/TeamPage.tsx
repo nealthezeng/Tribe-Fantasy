@@ -12,14 +12,17 @@ interface TeamRow { league_id: string; removed_at: string | null; leagues: { nam
 
 /**
  * One team's page: its name, owner and just its players with each one's total multiplier for the team's next game.
- * Members of the league (current season) and staff only. RLS shows a member every membership of their leagues but
- * rosters only of their own, so anyone else gets the message, not an empty roster.
+ * Members of the league (current season) and staff only. Any league member can read every league's memberships, but
+ * rosters only of their own leagues (staff: all), so the page gates on league membership.
  */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function TeamPage() {
   const { membershipId = '' } = useParams();
   const { session, loading, isAdmin, isKeeper } = useAuth();
   const uid = session?.user.id;
   const { data, error } = useLoad(async () => {
+    if (!UUID.test(membershipId)) return null; // a uuid column rejects anything else with a raw Postgres error
     const { data: row, error } = await supabase!.from('memberships').select('league_id, removed_at, leagues(name, season_id)')
       .eq('id', membershipId).maybeSingle();
     if (error) throw error;
@@ -53,7 +56,7 @@ export function TeamPage() {
       {!next ? <p className="muted">No tournament on. Players show once the next tournament's shares are settled.</p> : (
         <>
           <p className="muted">
-            For {gameLabel(next.number, games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number)?.game.opponent)}
+            {gameLabel(next.number, games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number)?.game.opponent)}
             {' · '}{y.stage.get(next.stageId)}
           </p>
           {!side ? <p className="muted">{team.removed_at ? 'No players.' : 'No players this tournament.'}</p> : (

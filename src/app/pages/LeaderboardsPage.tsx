@@ -45,7 +45,7 @@ function PastTournaments({ y, membershipId }: { y: LeagueTournament; membershipI
   const past = pastTournaments(y);
   if (past.length === 0) return null;
   return (
-    <article className="card" aria-label="Past tournaments">
+    <article className="card past" aria-label="Past tournaments">
       <h2>Past tournaments</h2>
       {past.map((t) => (
         <details key={t.stageId}>
@@ -53,7 +53,8 @@ function PastTournaments({ y, membershipId }: { y: LeagueTournament; membershipI
             <strong>{t.name}</strong> <small>{formatDay(t.starts_on)} – {formatDay(t.ends_on)}</small>
             {t.waiting && <> <span className="pill warn">Waiting on stats</span></>}
           </summary>
-          <RankList rows={t.rows} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} />
+          {t.rows.length === 0 ? <p className="muted">No results yet.</p>
+            : <RankList rows={t.rows} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} />}
         </details>
       ))}
     </article>

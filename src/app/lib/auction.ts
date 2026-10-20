@@ -27,7 +27,6 @@ export function pickPlayingStage<T extends Pick<AuctionStage, 'id' | 'starts_on'
 }
 
 export interface BidRow { membership_id: string; athlete_id: string; amount: number }
-export interface SlotRow { membership_id: string; athlete_id: string; price: number; share: number }
 
 export type AuctionPhase = 'not_open' | 'open' | 'closed' | 'run';
 
