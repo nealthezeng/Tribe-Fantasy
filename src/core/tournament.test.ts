@@ -387,6 +387,16 @@ describe('slot ranges and removed teams (M14)', () => {
     expect(ids(f)).toEqual(['m1', 'm2', 'm3', 'm4']);
   });
 
+  it('one removed member is out of both pairing and next.sides, and one never removed is in both', () => {
+    const f = nextBase();
+    const sides = (input: TournamentInput) => scoreTournaments(input).next!.sides.map((x) => x.membershipId);
+    const gone = { ...f, members: f.members.map(withRemoved('m3', iso(f.now))) }; // removed exactly now
+    expect(pairingInputs(gone).order).not.toContain('m3');
+    expect(sides(gone)).not.toContain('m3');
+    expect(pairingInputs(f).order).toContain('m3');
+    expect(sides(f)).toContain('m3');
+  });
+
   it('next.sides uses the slots live at the next game', () => {
     const f = nextBase();
     const slots = [ranged('m1', 'a1', 1, 2), ranged('m1', 'a2', 2, null), ...f.slots.filter((x) => x.membershipId !== 'm1')];

@@ -105,6 +105,8 @@ export interface NextGame { stageId: string; number: number; sides: TournamentSi
 export interface TournamentResult { games: GameOutcome[]; standings: YearStanding[]; next: NextGame | null }
 
 const ms = Date.parse;
+/** True once a removal at `removedAt` (null = never removed) has happened by `at`. */
+const removedBy = (removedAt: string | null, at: number): boolean => removedAt !== null && ms(removedAt) <= at;
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
@@ -149,7 +151,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
   const table: Table = new Map(input.members.map((m) => [m.id, { points: 0, totalScore: 0, wins: 0, losses: 0, ties: 0 }]));
 
   const removedAtOf = new Map(input.members.map((m) => [m.id, m.removedAt]));
-  const isRemoved = (id: string, at: number) => { const r = removedAtOf.get(id) ?? null; return r !== null && ms(r) <= at; };
+  const isRemoved = (id: string, at: number) => removedBy(removedAtOf.get(id) ?? null, at);
 
   /** One manager's side of game `number` in `stageId`, as of `asOf`. */
   const sideOf = (membershipId: string, stageId: string, number: number, asOf: number): TournamentSide => {
@@ -322,7 +324,7 @@ export function nextPairings(input: TournamentInput): Pairing[] {
 export function pairingInputs(input: TournamentInput):
   { order: string[]; meetings: Record<string, number>; seasonMeetings: Record<string, number> } {
   const r = scoreTournaments(input, { provisional: true });
-  const present = new Set(input.members.filter((m) => ms(m.createdAt) <= input.now && (m.removedAt === null || ms(m.removedAt) > input.now)).map((m) => m.id));
+  const present = new Set(input.members.filter((m) => ms(m.createdAt) <= input.now && !removedBy(m.removedAt, input.now)).map((m) => m.id));
   const order = r.standings.filter((x) => present.has(x.membershipId))
     .sort((a, b) => b.points - a.points || b.totalScore - a.totalScore || cmp(a.membershipId, b.membershipId))
     .map((x) => x.membershipId);

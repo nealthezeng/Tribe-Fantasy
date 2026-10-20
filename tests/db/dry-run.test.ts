@@ -22,15 +22,15 @@ const START = 115; // everyone ties before the first game: (100 + 130) / 2
 const q = async <T,>(sql: string, params: unknown[] = []) => (await f.db.query<T>(sql, params)).rows;
 const iso = (col: string) => `to_json(${col}) #>> '{}' as ${col.split('.').pop()}`;
 
-/** Every row the way loadLeagueRows reads them for staff (with live taps). */
+/** Every row the way loadLeagueRows reads them for staff (with live taps). Mirror loadLeagueRows' column lists. */
 const readRows = async (): Promise<TournamentRows> => ({
   settings: (await q<{ settings: unknown }>('select settings from public.seasons where id = $1', [f.season]))[0].settings,
   stages: await q(`select id, name, starts_on::text, ends_on::text, ${iso('bid_close_at')}, auction_seed, ${iso('auction_run_at')}
     from public.stages where season_id = $1`, [f.season]),
   games: await q(`select id, stage_id, number, session_id, ${iso('started_at')}, ${iso('finished_at')} from public.games`),
   pairings: await q('select game_id, home, away from public.game_pairings where league_id = $1', [f.league]),
-  members: await q(`select id, team_name, ${iso('created_at')} from public.memberships where league_id = $1`, [f.league]),
-  slots: await q('select stage_id, membership_id, athlete_id, price, share::float8 as share from public.roster_slots'),
+  members: await q(`select id, team_name, ${iso('created_at')}, ${iso('removed_at')} from public.memberships where league_id = $1`, [f.league]),
+  slots: await q('select stage_id, membership_id, athlete_id, price, share::float8 as share, from_game, until_game from public.roster_slots'),
   picks: await q('select stage_id, game_number, membership_id, athlete_id from public.game_picks'),
   sessions: await q(`select id, ${iso('verified_at')} from public.sessions where id in (select session_id from public.games)`),
   lines: await q('select session_id, athlete_id, stats, points_played from public.stat_lines'),
