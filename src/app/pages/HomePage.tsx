@@ -174,12 +174,12 @@ export function HomePage() {
   );
 }
 
-/** One team: matchup, what to do now, standings, games. Credits have their own page (/credits). */
+/** One team: matchup, what to do now, games. Credits have their own page (/credits). */
 function Team({ m, uid }: { m: MembershipRow; uid: string }) {
   if (!m.leagues) return null;
   const subtitle = [m.leagues.name, m.leagues.seasons?.name].filter(Boolean).join(' · ');
   return (
-    <TournamentCard membershipId={m.id} leagueId={m.league_id} leagueName={m.leagues.name} seasonId={m.leagues.season_id}
+    <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
       teamName={m.team_name} subtitle={subtitle}>
       <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
         joinedAt={m.created_at} teamName={m.team_name} getCredits={donateFor(m) !== null} />

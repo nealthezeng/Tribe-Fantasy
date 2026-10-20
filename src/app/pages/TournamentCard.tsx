@@ -1,19 +1,17 @@
-import { Fragment, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
-import {
-  countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, type LeagueTournament, type OverallStanding,
-} from '../lib/tournament';
+import { loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
 
-const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
+export const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
 /** 2–1, or 2–1–1 with ties. */
-const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}–${r.losses}${r.ties ? `–${r.ties}` : ''}`;
+export const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}–${r.losses}${r.ties ? `–${r.ties}` : ''}`;
 /** An athlete's name, or `none` when nobody plays. */
 const athleteName = (y: LeagueTournament, id: string | null, none = 'nobody') => (id ? y.athlete.get(id) ?? 'A player' : none);
 /** Two significant figures, so a sliver of a share never reads 0: 0.45, 0.0033. */
@@ -27,11 +25,10 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 
 /**
  * One team on the League tab, in the order a manager needs it: the matchup headline, what to do now (the next pick,
- * then `children`: the auction), the standings, then the games played as cards.
- * Standings show all season, between tournaments too.
+ * then `children`: the auction), then the games played as cards. The standings are on the Leaderboards tab.
  */
-export function TournamentCard({ membershipId, leagueId, leagueName, seasonId, teamName, subtitle, children }: {
-  membershipId: string; leagueId: string; leagueName: string; seasonId: string; teamName: string; subtitle: string;
+export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, children }: {
+  membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string;
   children?: ReactNode;
 }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]);
@@ -50,13 +47,13 @@ export function TournamentCard({ membershipId, leagueId, leagueName, seasonId, t
   return (
     <>
       <Matchup y={data} membershipId={membershipId} teamName={teamName} subtitle={subtitle} />
+      {error && <p className="error" role="alert">{error}</p>}
       {next && (
         <article className="card" aria-label="Next game">
           <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />
         </article>
       )}
       {children}
-      <Standings y={data} membershipId={membershipId} leagueId={leagueId} leagueName={leagueName} seasonId={seasonId} error={error} />
       {played.length > 0 && (
         <section className="stack" aria-label={`${teamName} games`}>
           <h2>Games</h2>
@@ -286,71 +283,6 @@ function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: 
     lines.push(played ? `${team ?? 'You'} didn't pick, so ${who} played.` : `If you don't pick, ${who} ${fill.length === 1 ? 'plays' : 'play'}.`);
   }
   return <>{lines.map((t) => <p key={t} className="notice">{t}</p>)}</>;
-}
-
-/**
- * The league's standings as a ranked list. While the season has 2+ leagues, a toggle swaps in every team of the
- * season ranked together (t223, t226); that view loads on first use and reuses this league's data.
- */
-function Standings({ y, membershipId, leagueId, leagueName, seasonId, error }: {
-  y: LeagueTournament; membershipId: string; leagueId: string; leagueName: string; seasonId: string; error: string | null;
-}) {
-  const [all, setAll] = useState(false);
-  const [wanted, setWanted] = useState(false); // stays true once asked for, so toggling back doesn't refetch
-  const leagues = useLoad(() => countLeagues(seasonId), [seasonId]);
-  const season = useLoad(async () => (wanted ? loadSeasonStandings(seasonId, { leagueId, y }) : undefined), [wanted, seasonId, leagueId]);
-  const rows = all ? season.data : mergeStandings([{ name: leagueName, y }]);
-  return (
-    <article className="card" aria-label="Standings">
-      <div className="head">
-        <h2>Standings</h2>
-        {(leagues.data ?? 0) > 1 && (
-          <div className="segmented" role="group" aria-label="Standings for">
-            <button type="button" aria-pressed={!all} onClick={() => setAll(false)}>{leagueName}</button>
-            <button type="button" aria-pressed={all} onClick={() => { setAll(true); setWanted(true); }}>All leagues</button>
-          </div>
-        )}
-      </div>
-      {error && <p className="error" role="alert">{error}</p>}
-      {rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} />
-        : season.error ? <p className="error" role="alert">{season.error}</p> : <Loading />}
-    </article>
-  );
-}
-
-/**
- * Ranked rows: place, team (league and record under it), points; a leaderboard from day one, all tied at first (t239).
- * A long list shows the top 5 (with everyone tied with 5th) and your row, if that hides at least 4 teams.
- */
-function RankList({ rows, membershipId, showLeague }: { rows: OverallStanding[]; membershipId: string; showLeague: boolean }) {
-  const [open, setOpen] = useState(false);
-  const top = rows.filter((r) => r.place <= (rows[Math.min(4, rows.length - 1)]?.place ?? 0) || r.membershipId === membershipId);
-  const cut = !open && rows.length - top.length >= 4;
-  const shown = cut ? top : rows;
-  return (
-    <>
-      <ol className="ranks">
-        {shown.map((r, i) => {
-          const me = r.membershipId === membershipId;
-          const skipped = i > 0 ? rows.indexOf(r) - rows.indexOf(shown[i - 1]) - 1 : 0;
-          return (
-            <Fragment key={r.membershipId}>
-              {skipped > 0 && <li className="gap"><span aria-hidden="true">···</span><span className="sr-only">{skipped} more {skipped === 1 ? 'team' : 'teams'}</span></li>}
-              <li aria-current={me ? 'true' : undefined}>
-                <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
-                <span className="who">
-                  <strong>{r.team}{me && ' (you)'}</strong>
-                  <small>{showLeague && `${r.league} · `}{record(r)}</small>
-                </span>
-                <span className="points">{fmt(r.points)}<span className="sr-only"> points</span></span>
-              </li>
-            </Fragment>
-          );
-        })}
-      </ol>
-      {cut && <button type="button" className="secondary" onClick={() => setOpen(true)}>Show all {rows.length} teams</button>}
-    </>
-  );
 }
 
 const STATUS: Record<GameOutcome['status'], [string, string]> = {

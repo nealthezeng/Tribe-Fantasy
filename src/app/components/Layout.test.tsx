@@ -30,6 +30,11 @@ describe('Layout', () => {
     expect(document.getElementById('account-menu')!.contains(adminLinks()[0])).toBe(true);
   });
 
+  it('has three tabs, League, Stats and Leaderboards, for a keeper too (no Tally tab)', () => {
+    renderLayout();
+    expect(within(screen.getByRole('navigation', { name: 'Main' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['League', 'Stats', 'Leaderboards']);
+  });
+
   it('shows no Admin link to a non-admin', () => {
     auth.isAdmin = false;
     renderLayout();

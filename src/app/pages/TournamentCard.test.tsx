@@ -3,16 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
-import { buildLeagueTournament, type OverallStanding, type TournamentRows } from '../lib/tournament';
+import { buildLeagueTournament, type TournamentRows } from '../lib/tournament';
 import { TournamentCard } from './TournamentCard';
 
 const rows = vi.hoisted(() => ({ current: null as unknown as TournamentRows }));
-const overall = vi.hoisted(() => ({ current: [] as OverallStanding[], leagues: 1 }));
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
   loadLeagueTournament: () => Promise.resolve(buildLeagueTournament(rows.current, Date.parse('2026-11-07T16:30:00Z'))),
-  loadSeasonStandings: () => Promise.resolve(overall.current),
-  countLeagues: () => Promise.resolve(overall.leagues),
 }));
 vi.mock('../lib/rpc', () => ({ api: { setGamePick: vi.fn() } }));
 
@@ -58,12 +55,11 @@ beforeEach(() => {
 });
 const show = async (r: TournamentRows) => {
   rows.current = r;
-  render(<MemoryRouter><TournamentCard membershipId="m1" leagueId="L" leagueName="League A" seasonId="se" teamName="Zeal" subtitle="League A" /></MemoryRouter>);
-  await screen.findByRole('heading', { name: 'Standings' });
+  render(<MemoryRouter><TournamentCard membershipId="m1" leagueId="L" seasonId="se" teamName="Zeal" subtitle="League A" /></MemoryRouter>);
+  await waitFor(() => expect(screen.queryByRole('status')).toBeNull()); // loaded
 };
 /** The pick list in the Next game card (game cards below repeat players' names). */
 const picks = () => within(screen.getByRole('article', { name: 'Next game' }));
-const standings = () => within(screen.getByRole('article', { name: 'Standings' }));
 
 describe('TournamentCard', () => {
   it('names games after the real opponent once a keeper sets it (t123)', async () => {
@@ -208,10 +204,10 @@ describe('TournamentCard', () => {
     expect(screen.getByText(/Waiting on stats/)).toBeTruthy(); // game 1, finished but not verified
   });
 
-  it('keeps showing the standings between tournaments, with nothing to pick (T4)', async () => {
+  it('has no standings on the League tab any more (they moved to Leaderboards), and nothing to pick between tournaments (T4)', async () => {
     // No games and no playing stage: the next auction hasn't run.
     await show({ ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] });
-    expect(standings().getByText('Flow')).toBeTruthy();
+    expect(screen.queryByRole('article', { name: 'Standings' })).toBeNull();
     expect(document.querySelector('.strip')?.textContent).toContain('No games yet');
     expect(screen.queryByRole('heading', { name: 'Games' })).toBeNull(); // nothing played: no empty section
     expect(screen.queryByRole('button', { name: /^Pick / })).toBeNull();
@@ -321,7 +317,6 @@ describe('TournamentCard', () => {
       expect(document.querySelector('.score-side.lost')?.textContent).toContain('Bea');
       expect(document.querySelector('.score-side')?.textContent).toMatch(/^You played[\d.]+Ash\w+$/); // two starters
       expect(screen.getByText('Record').nextElementSibling?.textContent).toBe('1–0');
-      expect(standings().getAllByRole('listitem').map((li) => li.textContent)).toEqual([expect.stringMatching(/^1Zeal \(you\)1–0/), expect.stringMatching(/^2Flow0–1/)]);
     });
 
     it('says Bye and shows no scoreboard when the team sits out', async () => {
@@ -341,55 +336,5 @@ describe('TournamentCard', () => {
       expect(screen.getByText('Your pick is injured')).toBeTruthy();
       expect(document.querySelector('.score-side.picked')).toBeNull();
     });
-  });
-});
-
-describe('Standings toggle (t226)', () => {
-  const row = (membershipId: string, team: string, league: string, place: number, tied = false): OverallStanding =>
-    ({ membershipId, team, owner: '', league, points: 10 - place, totalScore: 0, wins: 2, losses: 1, ties: 0, place, tied });
-  afterEach(() => { overall.leagues = 1; });
-
-  it('has no toggle while the season has one league', async () => {
-    await show(base());
-    expect(screen.queryByRole('button', { name: 'All leagues' })).toBeNull();
-  });
-
-  it('switches to every team of the season, with leagues, and back', async () => {
-    overall.leagues = 2;
-    overall.current = [row('b1', 'Flow', 'League B', 1), row('m1', 'Zeal', 'League A', 2, true), row('b2', 'Huck', 'League B', 2, true)];
-    await show(base());
-    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
-    await waitFor(() => expect(standings().getAllByRole('listitem')).toHaveLength(3));
-    expect(standings().getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      '1FlowLeague B · 2–19 points', 'T2Zeal (you)League A · 2–18 points', 'T2HuckLeague B · 2–18 points']);
-    expect(document.querySelector('.ranks [aria-current]')?.textContent).toContain('Zeal');
-    fireEvent.click(screen.getByRole('button', { name: 'League A' }));
-    expect(standings().getAllByRole('listitem')).toHaveLength(2);
-  });
-
-  it('shows a long list as the top 5 and your row, then all of it on request', async () => {
-    overall.leagues = 2;
-    overall.current = [...'abcdefghijk'.split('').map((c, i) => row(c, `Team ${c}`, 'League B', i + 1)), row('m1', 'Zeal', 'League A', 12)];
-    await show(base());
-    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
-    await waitFor(() => expect(standings().getByText(/Zeal/)).toBeTruthy());
-    expect(standings().getAllByRole('listitem')).toHaveLength(7); // 5, the gap ('6 more teams'), yours
-    expect(standings().getByText('6 more teams')).toBeTruthy();
-    fireEvent.click(standings().getByRole('button', { name: 'Show all 12 teams' }));
-    expect(standings().getAllByRole('listitem')).toHaveLength(12);
-  });
-
-  it('never cuts inside a tie, and is a leaderboard before any game counts (t239)', async () => {
-    overall.leagues = 2;
-    overall.current = [...'abcdefghi'.split('').map((c) => row(c, `Team ${c}`, 'League B', 1, true)), row('m1', 'Zeal', 'League A', 10)];
-    await show(base());
-    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
-    await waitFor(() => expect(standings().getAllByRole('listitem')).toHaveLength(10)); // all tied with 5th: no cut
-    cleanup();
-    overall.current = [{ ...row('m1', 'Zeal', 'League A', 1, true), wins: 0, losses: 0 }, { ...row('b1', 'Flow', 'League B', 1, true), wins: 0, losses: 0 }];
-    await show(base());
-    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
-    await waitFor(() => expect(standings().getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'T1Zeal (you)League A · 0–0', 'T1FlowLeague B · 0–0'].map((t) => expect.stringContaining(t))));
   });
 });

@@ -16,7 +16,7 @@ export const STATE_PILL = {
 } as const;
 
 export function StatsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isKeeper } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const data = useLoad(async () => {
     const season = await loadCurrentSeason();
@@ -76,7 +76,12 @@ export function StatsPage() {
     <section className="page">
       <div className="head">
         <h1>Stats <small>{season.name}</small></h1>
-        {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
+        {isKeeper && (
+          <div className="row">
+            <Link to="/tally" className="button secondary">Tally</Link>
+            {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
+          </div>
+        )}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {sessions.length === 0 && <p className="muted">No games yet.</p>}

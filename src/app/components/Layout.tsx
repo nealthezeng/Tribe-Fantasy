@@ -85,9 +85,9 @@ function NameForm() {
 }
 
 export function Layout() {
-  const { session, isAdmin, isKeeper, displayName, loading, authError, clearAuthError } = useAuth();
+  const { session, isAdmin, displayName, loading, authError, clearAuthError } = useAuth();
   const path = useLocation().pathname;
-  const tabs = useInk<HTMLElement>(`${path} ${isKeeper} ${Boolean(session)}`);
+  const tabs = useInk<HTMLElement>(`${path} ${Boolean(session)}`);
   return (
     <>
       <header className="topbar">
@@ -97,7 +97,7 @@ export function Layout() {
             <nav className="tabs" aria-label="Main" ref={tabs}>
               <NavLink to="/" end>League</NavLink>
               <NavLink to="/stats">Stats</NavLink>
-              {isKeeper && <NavLink to="/tally">Tally</NavLink>}
+              <NavLink to="/leaderboards">Leaderboards</NavLink>
               <span className="ink" aria-hidden="true" />
             </nav>
           )}

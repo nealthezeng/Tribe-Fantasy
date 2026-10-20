@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase';
 import { AdminPage } from './pages/admin/AdminPage';
 import { CreditsPage } from './pages/Credits';
 import { HomePage } from './pages/HomePage';
+import { LeaderboardsPage } from './pages/LeaderboardsPage';
 import { CreateLeaguePage, LeaguesPage } from './pages/LeaguesPage';
 import { LoginPage } from './pages/LoginPage';
 import { MePage } from './pages/MePage';
@@ -26,6 +27,7 @@ const router = createHashRouter([
       { path: 'join', element: <Navigate to="/leagues" replace /> },
       { path: 'admin', element: <AdminPage /> },
       { path: 'tally', element: <TallyPage /> },
+      { path: 'leaderboards', element: <LeaderboardsPage /> },
       { path: 'stats', element: <StatsPage /> },
       { path: 'stats/:id', element: <SessionPage /> },
       { path: 'me', element: <MePage /> },
