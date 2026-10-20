@@ -102,7 +102,17 @@ export interface TournamentSide {
 export interface GameMatchup { home: TournamentSide; away: TournamentSide | null }
 export interface GameOutcome { game: TournamentGame; status: GameStatus; matchups: GameMatchup[] }
 export interface NextGame { stageId: string; number: number; sides: TournamentSide[] }
-export interface TournamentResult { games: GameOutcome[]; standings: YearStanding[]; next: NextGame | null }
+export interface TournamentResult {
+  games: GameOutcome[]; standings: YearStanding[]; next: NextGame | null;
+  /** pairKey(manager, athlete) → stages in which that manager started that player (auto-picks included), sorted. */
+  startedIn: Record<string, string[]>;
+}
+
+/** The factor a start in `stageId` carries for this pair: only starts in earlier tournaments count. */
+export function repeatFactor(result: TournamentResult, membershipId: string, athleteId: string, stageId: string, s: SeasonSettings): number {
+  const earlier = (result.startedIn[pairKey(membershipId, athleteId)] ?? []).filter((x) => x !== stageId);
+  return stageMultiplier(earlier.length, s);
+}
 
 const ms = Date.parse;
 /** True once a removal at `removedAt` (null = never removed) has happened by `at`. */
@@ -247,7 +257,8 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     next = { stageId, number, sides: withRoster.map((m) => sideOf(m, stageId, number, now)) };
   }
 
-  return { games: outcomes, standings: standingsOf(table), next };
+  const started = Object.fromEntries([...startedIn].map(([k, v]) => [k, [...v].sort()]));
+  return { games: outcomes, standings: standingsOf(table), next, startedIn: started };
 }
 
 type Table = Map<string, Omit<YearStanding, 'membershipId' | 'rank' | 'place' | 'tied'>>;

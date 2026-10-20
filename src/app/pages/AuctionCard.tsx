@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { parseSettings } from '../../core/settings';
+import { repeatFactor } from '../../core/tournament';
 import {
   AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, timeLeft,
   type AuctionStage, type BidRow, type SlotRow,
 } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { teamLabel } from '../lib/tournament';
+import { loadLeagueTournament, teamLabel } from '../lib/tournament';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance as sumLedger, credits, pct } from '../lib/wallet';
@@ -48,7 +49,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
     if (st.error) throw st.error;
     const stage = pickAuctionStage((st.data ?? []) as AuctionStage[]);
     if (!stage) return null;
-    const [season, athletes, injuries, bids, slots, teams, ledger] = await Promise.all([
+    const [season, athletes, injuries, bids, slots, teams, ledger, league] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
       // All of them, not just opted in: a rostered player who opts out later still needs a name.
       supabase!.from('athletes').select('id, name, user_id, opted_in').eq('season_id', seasonId).order('name'),
@@ -60,11 +61,15 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       // Fetched fresh (not passed as a prop) so a donation credited while the tab is open doesn't leave the client
       // refusing buys with a stale balance.
       supabase!.from('credit_ledger').select('amount').eq('membership_id', membershipId),
+      // ponytail: second league load on the League tab; share the TournamentCard's if it ever matters
+      loadLeagueTournament(seasonId, leagueId),
     ]);
     for (const r of [season, athletes, injuries, bids, slots, teams, ledger]) if (r.error) throw r.error;
     const settings = parseSettings(season.data!.settings);
     return {
       stage,
+      settings,
+      result: league.result,
       minBid: settings.min_bid,
       rosterSize: settings.roster_size,
       athletes: (athletes.data ?? []) as Athlete[],
@@ -104,7 +109,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
 
   if (loadError) return <p className="error" role="alert">{loadError}</p>;
   if (!data) return null; // loading, or no stage yet
-  const { stage, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
+  const { stage, settings, result, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
   const phase = auctionPhase(stage, now);
   const name = new Map(athletes.map((a) => [a.id, a.name]));
   const mine = bids.filter((b) => b.membership_id === membershipId);
@@ -157,10 +162,14 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               .sort((a, b) => Number(!!pinned?.has(b.id)) - Number(!!pinned?.has(a.id)))
               .map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
+              const factor = +repeatFactor(result, membershipId, a.id, stage.id, settings).toFixed(2); // as the Rules page rounds
               return (
                 <li key={a.id} className="bid-row">
                   <span className="meta">
                     <span className="title">{a.name}</span>
+                    {factor < 1 && (
+                      <span className="repeat" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
+                    )}
                     {injured.has(a.id) && <span className="pill bad">Injured</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}
                   </span>

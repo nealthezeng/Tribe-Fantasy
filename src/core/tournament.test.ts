@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseSettings } from './settings';
-import { liveStatLines, nextPairings, pairingInputs, scoreTournaments, type TournamentGame, type TournamentInput, type YearStatLine } from './tournament';
+import { pairKey } from './week';
+import { liveStatLines, nextPairings, pairingInputs, repeatFactor, scoreTournaments, type TournamentGame, type TournamentInput, type YearStatLine } from './tournament';
 
 // Fixed points (upset_k 0: win +3, loss −1), 1 point per goal, no decay or tiredness: easy arithmetic.
 const s = parseSettings({ upset_k: 0, stat_weights: { goal: 1 },
@@ -244,6 +245,15 @@ describe('scoreTournaments', () => {
     // Tiredness resets each tournament; the earlier tournament's start costs ×0.9, and it shows on every player.
     expect(side(r, 'S2g1', 'm1')).toMatchObject({ rest: { a1: 1 }, decay: { a1: 0.9, a2: 1 }, score: 9 });
     expect(side(r, 'S2g1', 'm2').decay).toMatchObject({ b1: 0.9, b2: 1 });
+  });
+
+  it('repeatFactor: earlier tournaments only, never the one being bought for', () => {
+    const r = scoreTournaments(base());
+    const d = parseSettings({});
+    expect(r.startedIn[pairKey('m1', 'a1')]).toEqual(['S1']);
+    expect(repeatFactor(r, 'm1', 'a1', 'S2', d)).toBe(0.9);
+    expect(repeatFactor(r, 'm1', 'a1', 'S1', d)).toBe(1);
+    expect(repeatFactor(r, 'm1', 'b1', 'S2', d)).toBe(1);
   });
 
   it('describes the next game of the current stage, with pre-selected picks and tiredness', () => {

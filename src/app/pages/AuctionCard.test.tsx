@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuctionStage, BidRow, SlotRow } from '../lib/auction';
 import { AuctionCard } from './AuctionCard';
 import { api } from '../lib/rpc';
+import { pairKey } from '../../core/week';
+import { loadLeagueTournament } from '../lib/tournament';
 
 type Row = Record<string, unknown>;
 
@@ -46,6 +48,11 @@ vi.mock('../lib/rpc', () => ({
     }),
     deleteBid: vi.fn(async () => {}),
   },
+}));
+
+vi.mock('../lib/tournament', async (orig) => ({
+  ...(await orig<typeof import('../lib/tournament')>()),
+  loadLeagueTournament: vi.fn(async () => ({ result: { startedIn: {} } })),
 }));
 
 afterEach(cleanup);
@@ -121,6 +128,17 @@ describe('AuctionCard', () => {
     await screen.findByText(/^Closes in/);
     expect([...document.querySelectorAll('li.bid-row .title')].map((t) => t.textContent)).toEqual(['Bob', 'Alice']);
     expect(screen.getByRole('link', { name: 'Get more credits' }).className).toBe('button'); // 5 left of 115
+  });
+
+  it('chips a player you started in an earlier tournament with the repeat factor; ×1 shows nothing', async () => {
+    vi.mocked(loadLeagueTournament).mockResolvedValueOnce({ result: { startedIn: { [pairKey('m1', 'a')]: ['s0'] } } } as never);
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Ari Banks') as unknown as Row, athlete('b', 'Bo Castellanos') as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    const row = (n: string) => within(screen.getByText(n).closest('li')!);
+    expect(row('Ari Banks').getByText('×0.9').getAttribute('aria-label')).toContain('Repeat factor ×0.9');
+    expect(row('Bo Castellanos').queryByText(/^×/)).toBeNull();
   });
 
   it("doesn't move a row when you buy it: the order is fixed for the visit (t237)", async () => {
