@@ -66,6 +66,7 @@ beforeEach(() => {
   db.roster_slots = [];
   db.memberships = [];
   db.credit_ledger = [{ amount: 115 }];
+  vi.mocked(loadLeagueTournament).mockReset().mockResolvedValue({ result: { startedIn: {} } } as never);
   vi.mocked(api.placeBid).mockClear();
   vi.mocked(api.deleteBid).mockClear();
 });
@@ -131,7 +132,7 @@ describe('AuctionCard', () => {
   });
 
   it('chips a player you started in an earlier tournament with the repeat factor; ×1 shows nothing', async () => {
-    vi.mocked(loadLeagueTournament).mockResolvedValueOnce({ result: { startedIn: { [pairKey('m1', 'a')]: ['s0'] } } } as never);
+    vi.mocked(loadLeagueTournament).mockResolvedValue({ result: { startedIn: { [pairKey('m1', 'a')]: ['s0'] } } } as never);
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('a', 'Ari Banks') as unknown as Row, athlete('b', 'Bo Castellanos') as unknown as Row];
     renderCard();
@@ -139,6 +140,18 @@ describe('AuctionCard', () => {
     const row = (n: string) => within(screen.getByText(n).closest('li')!);
     expect(row('Ari Banks').getByText('×0.9').getAttribute('aria-label')).toContain('Repeat factor ×0.9');
     expect(row('Bo Castellanos').queryByText(/^×/)).toBeNull();
+  });
+
+  it('still lists the players, without chips, when the tournament load fails', async () => {
+    vi.mocked(loadLeagueTournament).mockRejectedValue(new Error('boom'));
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Ari Banks') as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    await waitFor(() => expect(loadLeagueTournament).toHaveBeenCalled());
+    expect(screen.getByText('Ari Banks')).toBeTruthy();
+    expect(screen.queryByText(/^×/)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it("doesn't move a row when you buy it: the order is fixed for the visit (t237)", async () => {

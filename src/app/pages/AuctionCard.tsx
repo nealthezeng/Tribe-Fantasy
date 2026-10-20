@@ -49,7 +49,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
     if (st.error) throw st.error;
     const stage = pickAuctionStage((st.data ?? []) as AuctionStage[]);
     if (!stage) return null;
-    const [season, athletes, injuries, bids, slots, teams, ledger, league] = await Promise.all([
+    const [season, athletes, injuries, bids, slots, teams, ledger] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
       // All of them, not just opted in: a rostered player who opts out later still needs a name.
       supabase!.from('athletes').select('id, name, user_id, opted_in').eq('season_id', seasonId).order('name'),
@@ -61,15 +61,12 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       // Fetched fresh (not passed as a prop) so a donation credited while the tab is open doesn't leave the client
       // refusing buys with a stale balance.
       supabase!.from('credit_ledger').select('amount').eq('membership_id', membershipId),
-      // ponytail: second league load on the League tab; share the TournamentCard's if it ever matters
-      loadLeagueTournament(seasonId, leagueId),
     ]);
     for (const r of [season, athletes, injuries, bids, slots, teams, ledger]) if (r.error) throw r.error;
     const settings = parseSettings(season.data!.settings);
     return {
       stage,
       settings,
-      result: league.result,
       minBid: settings.min_bid,
       rosterSize: settings.roster_size,
       athletes: (athletes.data ?? []) as Athlete[],
@@ -80,6 +77,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
       balance: sumLedger((ledger.data ?? []) as { amount: number }[]),
     };
   }, [seasonId, leagueId, membershipId]);
+  // The repeat chips' data, loaded apart from the buy list so a bid's reload() never re-runs it and a failure only
+  // drops the chips. ponytail: a second league load on the League tab; share the TournamentCard's if it ever matters.
+  const tournament = useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]).data;
 
   // Re-render while buying is open so the countdown moves and the card flips to "closed" on time.
   const [now, setNow] = useState(Date.now);
@@ -109,7 +109,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
 
   if (loadError) return <p className="error" role="alert">{loadError}</p>;
   if (!data) return null; // loading, or no stage yet
-  const { stage, settings, result, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
+  const { stage, settings, minBid, rosterSize, athletes, injured, bids, slots, teams, balance } = data;
   const phase = auctionPhase(stage, now);
   const name = new Map(athletes.map((a) => [a.id, a.name]));
   const mine = bids.filter((b) => b.membership_id === membershipId);
@@ -162,7 +162,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, joinedAt
               .sort((a, b) => Number(!!pinned?.has(b.id)) - Number(!!pinned?.has(a.id)))
               .map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
-              const factor = +repeatFactor(result, membershipId, a.id, stage.id, settings).toFixed(2); // as the Rules page rounds
+              // Rounded as the Rules page does; no chip until (or unless) the tournament has loaded.
+              const factor = tournament ? +repeatFactor(tournament.result, membershipId, a.id, stage.id, settings).toFixed(2) : 1;
               return (
                 <li key={a.id} className="bid-row">
                   <span className="meta">
