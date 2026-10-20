@@ -175,11 +175,12 @@ th, td { padding: var(--s2); border-bottom: 1px solid var(--line); text-align: r
 th { font-size: var(--fs-xs); font-weight: var(--fw-semi); color: var(--muted); }
 th:first-child, td:first-child { text-align: left; padding-left: 0; }
 tbody tr:last-child td { border-bottom: 0; }
-/* Wide stat tables scroll sideways inside .table-wrap; the player column stays put. --surface is opaque in both themes (--pane-bg is a gradient). */
-.table-wrap th:first-child, .table-wrap td:first-child { position: sticky; left: 0; background: var(--surface); padding-right: var(--s2); }
-.page > .table-wrap :is(th, td):first-child { background: var(--bg); } /* on the bare page, not in a card */
-th .linklike { padding: 0; color: inherit; font: inherit; text-decoration: none; }
-th[aria-sort] .linklike { color: var(--fg); }
+/* Wide stat tables scroll sideways inside .table-wrap; the player column stays put. Sticky cells need an opaque fill: --bg on the page, --card-solid (the card's glass, flattened) inside a card. */
+.stat-table :is(th, td):first-child { position: sticky; left: 0; background: var(--bg); padding-right: var(--s2); }
+.card .stat-table :is(th, td):first-child { background: var(--card-solid); }
+/* Header sort buttons keep their look on hover/press (the global .linklike hover would out-rank a plain th rule, and sticks on touch). */
+th .linklike, th .linklike:is(:hover, :active):not(:disabled) { padding: 0; color: inherit; font: inherit; text-decoration: none; }
+th[aria-sort] .linklike, th[aria-sort] .linklike:is(:hover, :active):not(:disabled) { color: var(--fg); }
 th[aria-sort='descending'] .linklike::after { content: ' ↓'; }
 th[aria-sort='ascending'] .linklike::after { content: ' ↑'; }
 

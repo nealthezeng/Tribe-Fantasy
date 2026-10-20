@@ -18,7 +18,7 @@ export function StatTable({ stats, rows, first = 'Player', href, sortable = true
     </th>
   );
   return (
-    <div className="table-wrap">
+    <div className="table-wrap stat-table">
       <table>
         <thead>
           <tr>{head('label', first)}{stats.map((s) => head(s, statLabel(s)))}{head('points', 'Pts')}</tr>
