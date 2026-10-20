@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseSettings } from '../../core/settings';
@@ -15,6 +15,7 @@ vi.mock('../lib/stats', async (orig) => ({
 }));
 vi.mock('./GameControls', () => ({ GameControls: () => null }));
 
+const gone = vi.hoisted(() => ({ on: false }));
 const DRILL = '00000000-0000-4000-8000-00000000d111';
 const session = (id: string, kind: string) => ({
   id, season_id: 'se', kind, held_on: '2026-11-07', counts: true, created_by: 'k1', verified_by: null, verified_at: null,
@@ -25,7 +26,7 @@ vi.mock('../lib/supabase', () => ({
       const rows = table === 'sessions' ? [session('game', 'tournament'), session(DRILL, 'practice')]
         : table === 'games' ? [{ session_id: 'game', number: 2 }] : table === 'athletes' ? [{ id: 'a', name: 'Alice' }] : [];
       const builder = {
-        single: () => Promise.resolve({ data: rows[0], error: null }),
+        single: () => Promise.resolve(gone.on ? { data: null, error: { message: 'Row not found' } } : { data: rows[0], error: null }),
         select: () => builder, is: () => builder, or: () => builder, order: () => builder, in: () => builder, eq: () => builder,
         then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
       };
@@ -35,6 +36,7 @@ vi.mock('../lib/supabase', () => ({
 }));
 
 afterEach(() => {
+  gone.on = false;
   cleanup();
   localStorage.clear();
 });
@@ -61,5 +63,13 @@ describe('TallyPage deep link', () => {
   it('opens the board for ?game= straight away', async () => {
     render(<MemoryRouter initialEntries={['/tally?game=game']}><TallyPage /></MemoryRouter>);
     expect(await screen.findByRole('button', { name: '← Games' })).toBeTruthy();
+  });
+
+  it('keeps a way back to the games when ?game= is bad or stale', async () => {
+    gone.on = true;
+    render(<MemoryRouter initialEntries={['/tally?game=nope']}><TallyPage /></MemoryRouter>);
+    expect((await screen.findByRole('alert')).textContent).toContain('Row not found');
+    fireEvent.click(screen.getByRole('button', { name: '← Games' }));
+    expect(await screen.findByText('Open games')).toBeTruthy();
   });
 });

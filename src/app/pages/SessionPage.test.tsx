@@ -24,7 +24,7 @@ vi.mock('../lib/supabase', () => ({
         select: () => builder,
         eq: () => builder,
         in: () => builder,
-        maybeSingle: () => Promise.resolve({ data: session, error: null }),
+        maybeSingle: () => Promise.resolve({ data: table === 'games' ? { stage_id: 'S9' } : session, error: null }),
         single: () => Promise.resolve({ data: { settings: {} }, error: null }),
         then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
       };
@@ -51,6 +51,13 @@ const renderPage = () => render(
     </Routes>
   </MemoryRouter>,
 );
+
+describe('SessionPage back link', () => {
+  it('goes back to the Stats tournament the game belongs to', async () => {
+    renderPage();
+    expect((await screen.findByRole('link', { name: '← Stats' })).getAttribute('href')).toBe('/stats?t=S9');
+  });
+});
 
 describe('SessionPage delete (t81)', () => {
   it('lets an admin force-delete a locked session, then goes back to Stats', async () => {

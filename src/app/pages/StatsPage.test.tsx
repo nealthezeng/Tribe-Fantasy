@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { HashRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { storeQueue, type QueuedTap } from '../tally/queue';
 import { StatsPage } from './StatsPage';
 
 const m = vi.hoisted(() => ({
@@ -10,7 +11,7 @@ const m = vi.hoisted(() => ({
   season: { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } } as { id: string; name: string; settings: unknown } | null,
   load: vi.fn(),
 }));
-vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper }) }));
+vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper, session: { user: { id: 'k1' } } }) }));
 vi.mock('../lib/stats', async (orig) => ({
   ...(await orig<typeof import('../lib/stats')>()),
   loadCurrentSeason: () => Promise.resolve(m.season),
@@ -25,7 +26,10 @@ const lines = [
   { session_id: 's1', athlete_id: 'b', stats: { goal: 3 } },
 ];
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 beforeEach(() => {
   m.isKeeper = true;
   m.isAdmin = false;
@@ -50,6 +54,15 @@ describe('StatsPage', () => {
     show();
     fireEvent.change(await screen.findByRole('combobox', { name: 'Tournament' }), { target: { value: 'S1' } });
     await waitFor(() => expect(m.load).toHaveBeenLastCalledWith('se', 'S1'));
+  });
+
+  it('shows the loading state, not the old table, while the picked tournament loads', async () => {
+    show();
+    const pick = await screen.findByRole('combobox', { name: 'Tournament' });
+    m.load.mockImplementation(() => new Promise(() => {})); // the next tournament never arrives
+    fireEvent.change(pick, { target: { value: 'S1' } });
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Tournament' })).toBeNull();
   });
 
   it('says there are no stats yet for a tournament without lines', async () => {
@@ -151,5 +164,16 @@ describe('StatsPage All stats fold (t306, t307)', () => {
     show();
     expect(await screen.findByText('No stats yet for Tourney S2.')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Tally Game 2' })).toBeTruthy();
+  });
+
+  it('shows a keeper unsaved taps on a verified game, with a way to open it', async () => {
+    const SID = '00000000-0000-4000-8000-0000000000a1';
+    storeQueue('k1', SID, [{} as QueuedTap, {} as QueuedTap]);
+    withGames([game(1, SID, 'Duke', '2020-01-01T00:00:00Z'), game(2, 's2', null, null)]);
+    show();
+    const row = (await screen.findByText('Game 1 vs Duke')).closest('li')!;
+    expect(row.textContent).toContain('2 unsaved');
+    expect(screen.getByRole('link', { name: 'Open Game 1 vs Duke' }).getAttribute('href')).toBe(`#/tally?game=${SID}`);
+    expect(screen.getByText('Game 2').closest('li')!.textContent).not.toContain('unsaved');
   });
 });

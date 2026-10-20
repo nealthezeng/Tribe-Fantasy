@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { HashRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlayerPage } from './PlayerPage';
@@ -41,6 +41,15 @@ describe('PlayerPage', () => {
     expect(m.load).toHaveBeenCalledWith('se', 'S1');
     expect(screen.getByRole('link', { name: /Stats/ }).getAttribute('href')).toBe('#/stats?t=S1');
     expect(screen.getByRole('combobox', { name: 'Tournament' })).toBeTruthy();
+  });
+
+  it('shows loading, not the old tournament, while the picked one loads', async () => {
+    show('#/player/a?t=S1');
+    const pick = await screen.findByRole('combobox', { name: 'Tournament' });
+    m.load.mockImplementation(() => new Promise(() => {}));
+    fireEvent.change(pick, { target: { value: 'S2' } });
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Tournament' })).toBeNull();
   });
 
   it("says the player is not in this season for an unknown id", async () => {

@@ -181,8 +181,8 @@ tbody tr:last-child td { border-bottom: 0; }
 /* Header sort buttons keep their look on hover/press (the global .linklike hover would out-rank a plain th rule, and sticks on touch). */
 th .linklike, th .linklike:is(:hover, :active):not(:disabled) { padding: 0; color: inherit; font: inherit; text-decoration: none; }
 th[aria-sort] .linklike, th[aria-sort] .linklike:is(:hover, :active):not(:disabled) { color: var(--fg); }
-th[aria-sort='descending'] .linklike::after { content: ' ↓'; }
-th[aria-sort='ascending'] .linklike::after { content: ' ↑'; }
+th[aria-sort='descending'] .linklike::after { content: ' ↓' / ''; }
+th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 
 /* Tally board: big neutral buttons with big counts, readable in sunlight. Attendance and injury sit apart. */
 .tally-bar { position: sticky; top: 0; z-index: 1; display: grid; gap: var(--s1); margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); }

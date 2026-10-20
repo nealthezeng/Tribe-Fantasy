@@ -21,6 +21,14 @@ describe('StatTable', () => {
     expect(screen.getByRole('columnheader', { name: /Goal/ }).getAttribute('aria-sort')).toBe('ascending');
   });
 
+  it('heads stat columns with short letters but keeps the full name accessible', () => {
+    render(<MemoryRouter><StatTable stats={['goal', 'assist', 'block', 'callahan', 'turnover', 'other']} rows={[ari6]} /></MemoryRouter>);
+    const heads = within(screen.getByRole('table')).getAllByRole('columnheader').map((h) => h.textContent);
+    expect(heads).toEqual(['Player', 'G', 'A', 'D', 'C', 'T', 'other', 'Pts']);
+    expect(screen.getByRole('button', { name: 'Callahan' }).textContent).toBe('C');
+    expect(screen.getByRole('columnheader', { name: 'Turnover' }).getAttribute('title')).toBe('Turnover');
+  });
+
   it('sorts the player column A to Z first', () => {
     render(<MemoryRouter><StatTable stats={['goal']} rows={[bo9, ari6]} /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: 'Player' }));

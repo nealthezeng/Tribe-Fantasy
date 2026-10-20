@@ -29,7 +29,7 @@ export function TallyPage() {
   if (season.data === null) return <p>No season yet.</p>;
   if (!season.data) return <p className="muted" role="status">Loading…</p>;
   return sessionId ? (
-    <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setParams({})} />
+    <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setParams({}, { replace: true })} />
   ) : (
     <SessionPicker season={season.data} keeperId={session.user.id} onPick={(id) => setParams({ game: id })} />
   );
@@ -202,7 +202,14 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     [saved, queued, season.settings.tap_merge_seconds],
   );
 
-  if (data.error && !data.data) return <p className="error" role="alert">{data.error}</p>;
+  if (data.error && !data.data) {
+    return (
+      <section className="page">
+        <p><button className="linklike" onClick={onBack}>← Games</button></p>
+        <p className="error" role="alert">{data.error}</p>
+      </section>
+    );
+  }
   if (!data.data) return <p className="muted" role="status">Loading…</p>;
   const { session, athletes, attendance, injuries, owned } = data.data;
   // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:

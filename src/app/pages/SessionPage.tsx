@@ -28,7 +28,7 @@ export function SessionPage() {
     if (sess.error) throw sess.error;
     if (!sess.data) return null;
     const s = sess.data as SessionRow;
-    const [season, athletes, lines, attendance, taps, profiles] = await Promise.all([
+    const [season, athletes, lines, attendance, taps, profiles, game] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', s.season_id).single(),
       supabase!.from('athletes').select('id, name').eq('season_id', s.season_id),
       supabase!.from('stat_lines').select('athlete_id, stats').eq('session_id', id),
@@ -36,10 +36,12 @@ export function SessionPage() {
       // Keepers only (RLS returns nothing to members), so these two are harmless for everyone else.
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', id),
       supabase!.from('profiles').select('id, display_name'),
+      supabase!.from('games').select('stage_id').eq('session_id', id).maybeSingle(), // for ← Stats
     ]);
-    for (const r of [season, athletes, lines, attendance, taps, profiles]) if (r.error) throw r.error;
+    for (const r of [season, athletes, lines, attendance, taps, profiles, game]) if (r.error) throw r.error;
     return {
       session: s,
+      stageId: (game.data as { stage_id: string } | null)?.stage_id ?? null,
       title: titleOf(s, await gameTitles([s.id])),
       settings: parseSettings(season.data!.settings),
       names: new Map((athletes.data ?? []).map((a: { id: string; name: string }) => [a.id, a.name])),
@@ -58,7 +60,7 @@ export function SessionPage() {
   if (data.error) return <p className="error" role="alert">{data.error}</p>;
   if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) return <p>That game's stats aren't here any more. <Link to="/stats">Stats</Link></p>;
-  const { session, title, settings, names, lines, attendance, taps, people } = data.data;
+  const { session, stageId, title, settings, names, lines, attendance, taps, people } = data.data;
   const state = sessionState(session, settings.stat_lock_hours);
   const stats = Object.keys(settings.stat_weights);
   const ofCounts = (counts: Record<string, Record<string, number>>) =>
@@ -100,7 +102,7 @@ export function SessionPage() {
 
   return (
     <section className="page">
-      <p><Link to="/stats">← Stats</Link></p>
+      <p><Link to={stageId ? `/stats?t=${stageId}` : '/stats'}>← Stats</Link></p>
       <div className="stack">
         <h1>{title}</h1>
         <p className="meta">

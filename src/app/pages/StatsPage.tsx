@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Loading } from '../components/Loading';
 import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
@@ -8,6 +8,7 @@ import {
 } from '../lib/stats';
 import { loadTournamentStats, totals, type StatsGame } from '../lib/statsTable';
 import { supabase } from '../lib/supabase';
+import { queuedSessions } from '../tally/queue';
 import { useLoad } from '../lib/useLoad';
 import { StatTable, TournamentSwitch } from './StatTable';
 
@@ -18,15 +19,23 @@ export const STATE_PILL = {
 } as const;
 
 export function StatsPage() {
-  const { isAdmin, isKeeper } = useAuth();
+  const { isAdmin, isKeeper, session } = useAuth();
+  const userId = session?.user.id;
   const [params] = useSearchParams();
   const wanted = params.get('t');
   const [error, setError] = useState<string | null>(null);
   const data = useLoad(async () => {
     const season = await loadCurrentSeason();
-    return season && { season, ...await loadTournamentStats(season.id, wanted) };
+    return season && { season, wanted, ...await loadTournamentStats(season.id, wanted) };
   }, [wanted]);
-  const season = data.data?.season;
+  // Keepers' taps still on this phone, so an unsaved game shows here and not only in the Tally picker.
+  const unsaved = useMemo(
+    () => new Map(isKeeper && userId ? queuedSessions(userId).map((q) => [q.sessionId, q.count]) : []),
+    [isKeeper, userId],
+  );
+  // Still showing the previous tournament while the picked one loads: treat as loading.
+  const loaded = data.data && data.data.wanted !== wanted ? undefined : data.data;
+  const season = loaded?.season;
 
   async function exportCsv() {
     if (!season) return;
@@ -71,7 +80,7 @@ export function StatsPage() {
   }
 
   const weights = season?.settings.stat_weights;
-  const { stage, stages } = data.data ?? {};
+  const { stage, stages } = loaded ?? {};
   return (
     <section className="page">
       <div className="head">
@@ -80,20 +89,20 @@ export function StatsPage() {
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {data.error && <p className="error" role="alert">{data.error}</p>}
-      {!data.error && data.data === undefined && <Loading />}
-      {data.data === null && <p>No season yet.</p>}
-      {data.data && !stage && <p className="muted">No tournaments yet.</p>}
-      {data.data && stage && weights && (
+      {!data.error && loaded === undefined && <Loading />}
+      {loaded === null && <p>No season yet.</p>}
+      {loaded && !stage && <p className="muted">No tournaments yet.</p>}
+      {loaded && stage && weights && (
         <>
           <TournamentSwitch stages={stages!} stage={stage} />
-          {data.data.lines.length === 0
+          {loaded.lines.length === 0
             ? <p className="muted">No stats yet for {stage.name}.</p>
-            : <StatTable stats={Object.keys(weights)} rows={totals(data.data.lines, data.data.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
-          <details className="card" open={isKeeper && data.data.games.some((g) => g.session_id && !g.verified_at)}>
+            : <StatTable stats={Object.keys(weights)} rows={totals(loaded.lines, loaded.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
+          <details className="card" open={isKeeper && loaded.games.some((g) => g.session_id && (!g.verified_at || unsaved.has(g.session_id)))}>
             <summary>All stats</summary>
-            {data.data.games.length === 0 && <p className="muted">No games yet.</p>}
+            {loaded.games.length === 0 && <p className="muted">No games yet.</p>}
             <ul className="list">
-              {data.data.games.map((g) => <GameItem key={g.id} g={g} lockHours={season!.settings.stat_lock_hours} keeper={isKeeper} />)}
+              {loaded.games.map((g) => <GameItem key={g.id} g={g} lockHours={season!.settings.stat_lock_hours} keeper={isKeeper} unsaved={g.session_id ? unsaved.get(g.session_id) ?? 0 : 0} />)}
             </ul>
             {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
           </details>
@@ -103,15 +112,20 @@ export function StatsPage() {
   );
 }
 
-function GameItem({ g, lockHours, keeper }: { g: StatsGame; lockHours: number; keeper: boolean }) {
+function GameItem({ g, lockHours, keeper, unsaved }: { g: StatsGame; lockHours: number; keeper: boolean; unsaved: number }) {
   const title = `Game ${g.number}${g.opponent ? ` vs ${g.opponent}` : ''}`;
   return (
     <li>
       <span className="meta">
         <span className="title">{g.session_id ? <Link to={`/stats/${g.session_id}`}>{title}</Link> : title}</span>
         {g.session_id ? STATE_PILL[sessionState(g, lockHours)] : <span className="muted">Not started</span>}
+        {unsaved > 0 && <span className="pill warn">{unsaved} unsaved</span>}
       </span>
-      {keeper && g.session_id && !g.verified_at && <Link className="button" to={`/tally?game=${g.session_id}`} aria-label={`Tally ${title}`}>Tally</Link>}
+      {keeper && g.session_id && (!g.verified_at || unsaved > 0) && (
+        <Link className={g.verified_at ? 'button secondary' : 'button'} to={`/tally?game=${g.session_id}`} aria-label={`${g.verified_at ? 'Open' : 'Tally'} ${title}`}>
+          {g.verified_at ? 'Open' : 'Tally'}
+        </Link>
+      )}
     </li>
   );
 }

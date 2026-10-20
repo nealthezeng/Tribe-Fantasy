@@ -3,6 +3,9 @@ import { Link, useSearchParams } from 'react-router';
 import { sortRows, type SortKey, type StatRow, type StatsStage } from '../lib/statsTable';
 import { statLabel } from '../lib/stats';
 
+// Short column heads keep a five-stat table inside a phone; the full name stays the accessible one.
+const SHORT: Record<string, string> = { goal: 'G', assist: 'A', block: 'D', callahan: 'C', turnover: 'T' };
+
 /** Totals table, best first; tap a header to sort by it, tap again to flip. */
 export function StatTable({ stats, rows, first = 'Player', href, sortable = true }: {
   stats: string[]; rows: StatRow[]; first?: string; href?: (row: StatRow) => string; sortable?: boolean;
@@ -10,10 +13,10 @@ export function StatTable({ stats, rows, first = 'Player', href, sortable = true
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'points', desc: true });
   if (rows.length === 0) return <p className="muted">No stats recorded.</p>;
   const shown = sortable ? sortRows(rows, sort.key, sort.desc) : rows;
-  const head = (key: SortKey, text: string) => (
-    <th key={key} aria-sort={sortable && sort.key === key ? (sort.desc ? 'descending' : 'ascending') : undefined}>
+  const head = (key: SortKey, text: string, full = text) => (
+    <th key={key} title={full} aria-label={full} aria-sort={sortable && sort.key === key ? (sort.desc ? 'descending' : 'ascending') : undefined}>
       {sortable
-        ? <button className="linklike" onClick={() => setSort({ key, desc: sort.key === key ? !sort.desc : key !== 'label' })}>{text}</button>
+        ? <button className="linklike" aria-label={full} onClick={() => setSort({ key, desc: sort.key === key ? !sort.desc : key !== 'label' })}>{text}</button>
         : text}
     </th>
   );
@@ -21,7 +24,7 @@ export function StatTable({ stats, rows, first = 'Player', href, sortable = true
     <div className="table-wrap stat-table">
       <table>
         <thead>
-          <tr>{head('label', first)}{stats.map((s) => head(s, statLabel(s)))}{head('points', 'Pts')}</tr>
+          <tr>{head('label', first)}{stats.map((s) => head(s, SHORT[s] ?? statLabel(s), statLabel(s)))}{head('points', 'Pts')}</tr>
         </thead>
         <tbody>
           {shown.map((r) => (

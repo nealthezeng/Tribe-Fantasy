@@ -12,9 +12,10 @@ export function PlayerPage() {
   const wanted = useSearchParams()[0].get('t');
   const data = useLoad(async () => {
     const season = await loadCurrentSeason();
-    return season && { season, ...await loadTournamentStats(season.id, wanted) };
+    return season && { season, wanted, ...await loadTournamentStats(season.id, wanted) };
   }, [wanted]);
-  const d = data.data;
+  // Still showing the previous tournament while the picked one loads: treat as loading.
+  const d = data.data && data.data.wanted !== wanted ? undefined : data.data;
   const back = <Link to={d?.stage ? `/stats?t=${d.stage.id}` : '/stats'}>← Stats</Link>;
 
   let body;
