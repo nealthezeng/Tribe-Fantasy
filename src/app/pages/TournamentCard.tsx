@@ -4,14 +4,11 @@ import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
-import { loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
+import { fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
 
-export const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
-/** 2–1, or 2–1–1 with ties. */
-export const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}–${r.losses}${r.ties ? `–${r.ties}` : ''}`;
 /** An athlete's name, or `none` when nobody plays. */
 const athleteName = (y: LeagueTournament, id: string | null, none = 'nobody') => (id ? y.athlete.get(id) ?? 'A player' : none);
 /** Two significant figures, so a sliver of a share never reads 0: 0.45, 0.0033. */

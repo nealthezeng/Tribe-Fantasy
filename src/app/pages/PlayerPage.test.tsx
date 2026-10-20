@@ -52,6 +52,13 @@ describe('PlayerPage', () => {
     expect(screen.queryByRole('combobox', { name: 'Tournament' })).toBeNull();
   });
 
+  it('says no tournaments yet (not "not in this season") before any tournament', async () => {
+    m.load.mockResolvedValue({ stages: [], stage: null, games: [], lines: [], names: new Map() });
+    show('#/player/a');
+    expect(await screen.findByText('No tournaments yet.')).toBeTruthy();
+    expect(screen.queryByText(/isn't in this season/)).toBeNull();
+  });
+
   it("says the player is not in this season for an unknown id", async () => {
     show('#/player/zzz');
     expect(await screen.findByText(/isn't in this season/)).toBeTruthy();

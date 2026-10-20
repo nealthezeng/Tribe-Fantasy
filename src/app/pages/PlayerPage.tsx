@@ -22,8 +22,8 @@ export function PlayerPage() {
   if (data.error) body = <p className="error" role="alert">{data.error}</p>;
   else if (d === undefined) body = <Loading />;
   else if (d === null) body = <p>No season yet.</p>;
-  else if (!d.names.has(athleteId)) body = <p className="muted">That player isn't in this season.</p>;
   else if (!d.stage) body = <p className="muted">No tournaments yet.</p>;
+  else if (!d.names.has(athleteId)) body = <p className="muted">That player isn't in this season.</p>;
   else {
     const weights = d.season.settings.stat_weights;
     const rows: StatRow[] = d.games.filter((g) => g.verified_at).map((g) => {

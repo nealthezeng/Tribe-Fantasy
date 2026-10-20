@@ -3,12 +3,11 @@ import { Link, Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
 import {
-  countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, type LeagueTournament, type OverallStanding,
+  countLeagues, fmt, loadLeagueTournament, loadSeasonStandings, mergeStandings, record, type LeagueTournament, type OverallStanding,
 } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
 import { AuctionCard } from './AuctionCard';
 import { loadMyTeams, TeamSwitch, useTeamChoice, type MembershipRow } from './HomePage';
-import { fmt, record } from './TournamentCard';
 
 /** The Leaderboards tab: the standings of the team chosen on the League tab (same remembered choice and switch). */
 export function LeaderboardsPage() {

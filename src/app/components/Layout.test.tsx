@@ -35,6 +35,15 @@ describe('Layout', () => {
     expect(within(screen.getByRole('navigation', { name: 'Main' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['League', 'Stats', 'Leaderboards']);
   });
 
+  const current = (path: string) => {
+    render(<MemoryRouter initialEntries={[path]}><Layout /></MemoryRouter>);
+    return within(screen.getByRole('navigation', { name: 'Main' })).getAllByRole('link')
+      .filter((l) => l.getAttribute('aria-current') === 'page').map((l) => l.textContent);
+  };
+  it.each([['/player/a?t=S1', 'Stats'], ['/tally?game=s1', 'Stats'], ['/stats/s1', 'Stats'], ['/team/m1', 'Leaderboards'], ['/', 'League']])(
+    'lights the right tab on %s', (path, tab) => { expect(current(path)).toEqual([tab]); });
+  it('lights no tab on Me', () => { expect(current('/me')).toEqual([]); });
+
   it('shows no Admin link to a non-admin', () => {
     auth.isAdmin = false;
     renderLayout();

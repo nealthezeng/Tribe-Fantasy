@@ -2,7 +2,7 @@ import { Loading } from '../../components/Loading';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickPlayingStage, type AuctionStage } from '../../lib/auction';
 import { gameLabel, todayLocal } from '../../lib/stats';
 import { supabase } from '../../lib/supabase';
-import { fetchAll, loadLeagueTournament, rowsOf, type LeagueTournament } from '../../lib/tournament';
+import { fetchAll, loadLeagueTournament, record, rowsOf, type LeagueTournament } from '../../lib/tournament';
 import { useLoad } from '../../lib/useLoad';
 import { credits } from '../../lib/wallet';
 import { liveRoster, TeamAdmin } from './TeamAdmin';
@@ -63,8 +63,6 @@ export async function loadLeagueAdminData(seasonId: string, leagueId: string): P
     nextGame: next?.number ?? null,
   };
 }
-
-const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}–${r.losses}${r.ties ? `–${r.ties}` : ''}`;
 
 /** One league as its members see it, plus what is sealed from them: owners, balances, rosters, buys and next picks. */
 export function LeagueBrowser({ seasonId, leagueId, onClose }: { seasonId: string; leagueId: string; onClose: () => void }) {

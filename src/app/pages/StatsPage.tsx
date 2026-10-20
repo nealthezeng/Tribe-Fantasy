@@ -81,6 +81,7 @@ export function StatsPage() {
 
   const weights = season?.settings.stat_weights;
   const { stage, stages } = loaded ?? {};
+  const csvButton = isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>;
   return (
     <section className="page">
       <div className="head">
@@ -91,7 +92,7 @@ export function StatsPage() {
       {data.error && <p className="error" role="alert">{data.error}</p>}
       {!data.error && loaded === undefined && <Loading />}
       {loaded === null && <p>No season yet.</p>}
-      {loaded && !stage && <p className="muted">No tournaments yet.</p>}
+      {loaded && !stage && <><p className="muted">No tournaments yet.</p>{csvButton}</>}
       {loaded && stage && weights && (
         <>
           <TournamentSwitch stages={stages!} stage={stage} />
@@ -104,7 +105,7 @@ export function StatsPage() {
             <ul className="list">
               {loaded.games.map((g) => <GameItem key={g.id} g={g} lockHours={season!.settings.stat_lock_hours} keeper={isKeeper} unsaved={g.session_id ? unsaved.get(g.session_id) ?? 0 : 0} />)}
             </ul>
-            {isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>}
+            {csvButton}
           </details>
         </>
       )}

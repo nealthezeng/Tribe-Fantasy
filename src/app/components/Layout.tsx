@@ -84,9 +84,14 @@ function NameForm() {
   );
 }
 
+/** Which tab a path lights. Player, tally and team pages sit under Stats / Leaderboards; Me, Credits, Rules and Admin light none. */
+const tabOf = (path: string) =>
+  path === '/' ? '/' : /^\/(stats|player|tally)(\/|$)/.test(path) ? '/stats' : /^\/(leaderboards|team)(\/|$)/.test(path) ? '/leaderboards' : null;
+
 export function Layout() {
   const { session, isAdmin, displayName, loading, authError, clearAuthError } = useAuth();
   const path = useLocation().pathname;
+  const tab = tabOf(path);
   const tabs = useInk<HTMLElement>(`${path} ${Boolean(session)}`);
   return (
     <>
@@ -95,9 +100,9 @@ export function Layout() {
           <Link to="/" className="brand"><DiscMark />Tribe Fantasy</Link>
           {session && (
             <nav className="tabs" aria-label="Main" ref={tabs}>
-              <NavLink to="/" end>League</NavLink>
-              <NavLink to="/stats">Stats</NavLink>
-              <NavLink to="/leaderboards">Leaderboards</NavLink>
+              {([['/', 'League'], ['/stats', 'Stats'], ['/leaderboards', 'Leaderboards']] as const).map(([to, label]) => (
+                <Link key={to} to={to} aria-current={tab === to ? 'page' : undefined}>{label}</Link>
+              ))}
               <span className="ink" aria-hidden="true" />
             </nav>
           )}

@@ -78,6 +78,14 @@ describe('StatsPage', () => {
     expect(screen.getByRole('link', { name: 'Tally' })).toBeTruthy();
   });
 
+  it('gives admins Download CSV before the first tournament', async () => {
+    m.isAdmin = true;
+    m.load.mockResolvedValue({ stages: [], stage: null, games: [], lines: [], names: new Map() });
+    show();
+    expect(await screen.findByText('No tournaments yet.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download CSV' })).toBeTruthy();
+  });
+
   it('gives a keeper the Tally button with no season at all', async () => {
     m.season = null;
     show();

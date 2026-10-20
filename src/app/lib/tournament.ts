@@ -8,6 +8,10 @@ import { AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, pickPlayingStage
 import { todayLocal } from './stats';
 import { supabase } from './supabase';
 
+export const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
+/** 2–1, or 2–1–1 with ties. */
+export const record = (r: { wins: number; losses: number; ties: number }) => `${r.wins}–${r.losses}${r.ties ? `–${r.ties}` : ''}`;
+
 export interface GameRow {
   id: string; stage_id: string; number: number; session_id: string | null; started_at: string | null; finished_at: string | null;
   opponent: string | null;

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, loadCurrentGame, mergeRanks, mergeStandings, needsYou, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -267,5 +267,12 @@ describe('needsYou', () => {
     expect(needsYou(y({ games: [live], next: next(['a1']) }), 'm1', null, NOW)).toBe(true); // 1 of 2
     expect(needsYou(y({ games: [live], next: next(['a1', 'a2']) }), 'm1', null, NOW)).toBe(false);
     expect(needsYou(y({ games: [live], next: next(['a1'], ['a1']) }), 'm1', null, NOW)).toBe(false); // a 1-player roster is set
+  });
+});
+
+describe('fmt and record', () => {
+  it('formats points and records', () => {
+    expect(fmt(2.345)).toBe('2.35'); expect(record({ wins: 2, losses: 1, ties: 0 })).toBe('2–1');
+    expect(record({ wins: 2, losses: 1, ties: 1 })).toBe('2–1–1');
   });
 });
