@@ -38,7 +38,7 @@ So at least one keeper who is **not** a manager must be there or online to verif
   (pick the player, **Mark out**). During it: **Mark out** in the player's card header on the live board, from the
   next game on. A manager who picked that player gets an auto-pick for that slot instead. There is no bench. A game
   that has already started still plays him.
-- When the player is back, a keeper taps **Clear out** (same card or board button). Players don't report anything
+- When the player is back, a keeper taps **Clear** on the Players out card or **Clear out** on the board. Players don't report anything
   themselves.
 - A wrong tap is fine: **Mark out** and **Clear out** undo each other. Admin -> History lists every mark.
 
@@ -52,6 +52,7 @@ So at least one keeper who is **not** a manager must be there or online to verif
 | Nobody can verify ("you own an athlete…") | Get a keeper who isn't a manager. Coaches are the usual verifiers. |
 | A phone shows "N unsaved" | Keep the Tally page open on a connection until it clears. Don't sign out or clear the browser. |
 | Someone doubts a pairing | Admin → Tournaments → **Check pairings** re-runs the pairing math on what that phone sent. |
+| A game was undone (reset) after someone was marked Out | The Out starts the next game, so re-check **Players out**: **Clear** and **Mark out** again anyone who should miss the re-run game. |
 | The game ran past midnight on the last day | Nothing to do: Finish is still offered for a live game. |
 
 ## After the tournament

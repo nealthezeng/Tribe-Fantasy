@@ -36,7 +36,7 @@
    Change `stat_weights` before the first tap of a season; removing a stat that already has taps makes those
    sessions impossible to verify.
 3. Coaches: have each sign in once (the app asks for their name; no league needed), then **Admin → Stat keepers → Make keeper**. Don't make coaches admins.
-4. Players: **Admin → Athletes → linked account** for each player who wants a Me page. (Attendance and injuries are retired by M15 P5: keepers mark players Out on the Tally.)
+4. Players: **Admin → Athletes → linked account** for each player who has an account: it drives the buy list's "That's you" row and the refusal to buy your own shares (Me works without a link). (Attendance and injuries are retired by M15 P5: keepers mark players Out on the Tally.)
 
 ## M4 stages and wallet (after 0001–0005)
 
@@ -447,7 +447,8 @@ started keep their injury swap; later games are unaffected.
 3. SQL Editor: paste and run `supabase/migrations/0027_out.sql`. If the editor offers "Run and enable RLS", choose
    **Run without RLS** (0027 enables RLS on `outs` itself). From here until step 4 the old site's Me injury/attendance
    buttons and the tally's Present/Confirm injury buttons fail (functions dropped), so:
-4. Push (deploy) straight away.
+4. Push (deploy) straight away, then hard-reload every open keeper and admin tab (a stale tab still shows the dropped
+   Present/Confirm injury buttons, and a stale Finish game computes pairings without the Out swaps).
 5. Anon probes (anon key, no sign-in), each **42501**:
    `curl -X POST "$URL/rest/v1/rpc/set_out" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_stage":null,"p_athlete":null}'`
    and `clear_out` with the same body; `report_injury` `{"p_athlete":null}` -> **PGRST202** (dropped).
@@ -457,7 +458,10 @@ started keep their injury swap; later games are unaffected.
    they are lost); (b) revert the code and push (the new bundle reads `outs`, so the table must outlive it);
    (c) SQL Editor: paste and run `supabase/rollback/0027_out_down.sql` (drops `set_out`, `clear_out`, `outs`;
    restores `report_injury`, `confirm_injury`, `clear_injury`, `set_attendance` with their grants). Injuries cleared
-   by 0027 stay cleared (players re-report). Past scores are unaffected either way.
+   by 0027 stay cleared (players re-report). Past scores are unaffected only if no started game was covered by an Out
+   (rollback drops the outs, and the reverted code replays those games without the swap). Check first, it must be 0:
+   `select count(*) from public.outs o join public.games g on g.stage_id = o.stage_id and g.number >= o.from_game and (o.until_game is null or g.number < o.until_game) where g.started_at is not null;`
+   If not, roll forward (fix in a new migration) instead of rolling back.
 
 What it does: a keeper (admins included) marks a player Out for the tournament; from the next unstarted game on, the
 scorer swaps him out of every pick. Clearing an Out that already covered a started game ends it at the next game (those

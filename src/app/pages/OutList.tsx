@@ -48,7 +48,7 @@ export function OutList({ season }: { season: CurrentSeason }) {
   };
 
   return (
-    <div className="card" aria-label="Players out">
+    <div className="card">
       <h2>Out · {stage.name}</h2>
       {shown.length === 0 && <p className="muted">Nobody is out.</p>}
       <ul className="list">

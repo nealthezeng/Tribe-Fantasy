@@ -97,10 +97,9 @@ describe('TallyPage Out toggle', () => {
 
   it('marks a player out from the board', async () => {
     await board();
-    gone.outs = [];
+    gone.outs = [{ athlete_id: 'a0', from_game: 3 }]; // what the reload after the click reads
     fireEvent.click(screen.getByRole('button', { name: 'Mark A0 out from the next game' }));
     await waitFor(() => expect(api.setOut).toHaveBeenCalledWith('s1', 'a0'));
-    gone.outs = [{ athlete_id: 'a0', from_game: 3 }]; // what the reload then reads
     expect((await screen.findByText('Out from game 3')).className).toContain('pill');
     expect(screen.getByRole('button', { name: "Clear A0's Out" })).toBeTruthy();
   });
