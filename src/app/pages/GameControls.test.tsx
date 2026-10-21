@@ -76,6 +76,7 @@ describe('GameControls', () => {
   it('finishing the last game confirms and sends no pairings', async () => {
     state.games = [game(1, { started_at: '2026-11-07T15:00:00Z', finished_at: '2026-11-07T16:00:00Z' }), game(2, { session_id: 'p2', started_at: '2026-11-07T16:00:00Z' })];
     render(<GameControls season={season} sessionId="p2" />);
+    vi.mocked(api.finishGame).mockResolvedValue(null); // the server pairs nothing after the last game
     confirm.mockReturnValueOnce(false);
     const finish = await screen.findByRole('button', { name: 'Finish game 2' });
     fireEvent.click(finish);
@@ -84,6 +85,17 @@ describe('GameControls', () => {
     expect(confirm.mock.calls[1][0]).toMatch(/Finish game 2\? It's the last game: Fall beta ends\./);
     await waitFor(() => expect(api.finishGame).toHaveBeenCalledWith('g2', [], []));
     expect(await screen.findByText('Game 2 finished. Fall beta is over.')).toBeTruthy();
+  });
+
+  it('says the tournament is over when a confirmed finish pairs nothing', async () => {
+    state.games = [game(1, { started_at: '2026-11-07T15:00:00Z', finished_at: '2026-11-07T16:00:00Z' }), game(2, { session_id: 'p2', started_at: '2026-11-07T16:00:00Z' }), game(3)];
+    vi.mocked(api.finishGame).mockResolvedValue(null); // the count was lowered meanwhile: game 3 is gone
+    render(<GameControls season={season} sessionId="p2" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish game 2' }));
+    await screen.findByRole('group', { name: 'Finish game 2' });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Finish game 2' }).at(-1)!);
+    expect(await screen.findByText('Game 2 finished. Fall beta is over.')).toBeTruthy();
+    expect(screen.queryByText(/is paired/)).toBeNull();
   });
 
   it('says over with no button after the last game', async () => {

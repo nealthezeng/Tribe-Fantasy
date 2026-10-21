@@ -402,19 +402,31 @@ in Admin → Leagues, and see owner renames in History.
 
 `0026_game_count.sql` replaces `open_tournament`, `finish_game` and `reset_game`, adds `set_game_count` and drops
 `add_next_game`. It also re-creates `set_game_pick` and `admin_set_share` with number-ordered locks (bodies otherwise
-unchanged). Until the push, the live site can't open or finish a tournament (the old calls are dropped), so do it
-**between tournaments only** (none open) and push right after.
+unchanged). Between the paste and the push, the old site's Open tournament and "That was the last game" calls fail
+(those functions are dropped); it can still Finish a non-last game. So do it **between tournaments only** (none open)
+and push right after.
 
 1. SQL Editor: paste and run `supabase/migrations/0026_game_count.sql`. If the editor offers "Run and enable RLS",
    choose **Run without RLS** (no new table).
 2. Push (deploy) straight away.
 3. Anon probes (the anon key, no sign-in), each should return **42501** (permission denied):
    `curl -X POST "$URL/rest/v1/rpc/set_game_count" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_stage":null,"p_count":1}'`
-   and the same for `open_tournament` and `finish_game`.
+   and the same with these bodies:
+   `open_tournament` `{"p_stage":null,"p_pairings":[],"p_games":1}`;
+   `finish_game` `{"p_game":null,"p_pairings":[],"p_provisional":[]}`.
 4. Before the next tournament: open it with its game count (Admin -> Seasons -> stage -> Open tournament, "Games",
    1-20) and name the opponents on the tally (the list has one row per game, any time).
-5. Rollback: revert the code and re-run 0017's `finish_game` and `add_next_game`, 0012's `open_tournament` and
-   0024's `reset_game`. Keep 0026's `set_game_pick` and `admin_set_share` (or re-run 0024's); only their lock order differs.
+5. Rollback (only if a tournament was opened with 0026; run in this order):
+   1. Delete the unstarted, unpaired future games, or the old `finish_game` hits unique(stage_id, number) when it
+      creates game N+1 (the opponent names typed for those future games are lost):
+      `delete from public.games g where g.started_at is null and not exists (select 1 from public.game_pairings p where p.game_id = g.id);`
+   2. Drop 0026's new functions: `drop function public.set_game_count(uuid,int,jsonb,jsonb); drop function public.open_tournament(uuid,jsonb,int);`
+   3. Paste from 0017 ONLY the `drop function public.finish_game(uuid, jsonb, jsonb)` line plus its `finish_game` and
+      `add_next_game` blocks (not its `queue_pick_notice`: 0023's version must stay). Then paste 0012's `open_tournament`
+      block and 0024's `reset_game` block.
+   4. Those bare bodies get PUBLIC/anon execute, so re-run 0017's revoke/grant loop with all four names:
+      `do $$ declare f record; begin for f in select p.oid::regprocedure as sig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('open_tournament','finish_game','add_next_game','reset_game') loop execute format('revoke execute on function %s from public, anon', f.sig); execute format('grant execute on function %s to authenticated', f.sig); end loop; end $$;`
+   5. Revert the code. Keep 0026's `set_game_pick` and `admin_set_share` (or re-run 0024's); only their lock order differs.
 
 What it does: all games exist from the start, so finishing game N pairs N+1 (if it exists); the last game's finish
 just ends the tournament. Admins change the count later (Admin -> Seasons -> Tournament -> "Save count"); it can't go

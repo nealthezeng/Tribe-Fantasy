@@ -4,7 +4,9 @@
 -- A raised, already-over tournament pairs its first new game at once. reset_game now unpairs game N+1 instead of
 -- deleting it. add_next_game and finish_game's p_last go: the count replaces the last-game tap.
 -- Stage-wide locks on games are always taken in number order (finish_game, set_game_count, reset_game, and 0024's
--- set_game_pick and admin_set_share, re-created below with only that order added), so none can deadlock another.
+-- set_game_pick and admin_set_share, re-created below), so none can deadlock another. Those two also lock the
+-- membership row only FOR NO KEY UPDATE (0024 had FOR UPDATE): finish_game holds the games locks and its game_pairings
+-- insert takes KEY SHARE on memberships, which FOR UPDATE would block (a deadlock) but NO KEY UPDATE does not.
 -- start_game locks just its own game row, and open_tournament the stage row.
 begin;
 
@@ -124,7 +126,7 @@ begin
     'taps', taps, 'lines', lines, 'next_game_unpaired', next_unpaired));
 end $$;
 
--- As 0024, but the stage-wide share lock is taken in number order (see the header).
+-- As 0024, but the stage-wide share lock is taken in number order and the membership lock is FOR NO KEY UPDATE (see the header).
 create or replace function public.set_game_pick(p_membership uuid, p_stage uuid, p_number int, p_athletes uuid[]) returns void
 language plpgsql security definer set search_path = '' as $$
 declare uid uuid := private.require_user(); season uuid; lid uuid; nxt int; picks uuid[];
@@ -133,7 +135,7 @@ begin
   if not found then raise exception 'NOT_FOUND'; end if;
   -- Locking the membership row serialises one team's calls, so two overlapping sets can't both delete-then-insert
   -- past picks_per_game (as place_bid).
-  select league_id into lid from public.memberships where id = p_membership and user_id = uid for update;
+  select league_id into lid from public.memberships where id = p_membership and user_id = uid for no key update;
   if not found then raise exception 'NOT_MEMBER'; end if;
   -- Waits for a concurrent start_game, so a pick can't slip in after its game starts.
   perform 1 from public.games where stage_id = p_stage order by number for share;
@@ -171,7 +173,7 @@ begin
   if not remove and p_percent not between 1 and 100 then raise exception 'INVALID_PERCENT'; end if;
   -- The membership row lock serialises edits to one team (as place_bid).
   select m.league_id into lid from public.memberships m join public.leagues l on l.id = m.league_id
-  where m.id = p_membership and l.season_id = st.season_id for update of m;
+  where m.id = p_membership and l.season_id = st.season_id for no key update of m;
   if not found then raise exception 'NOT_FOUND'; end if;
   if (select removed_at from public.memberships where id = p_membership) is not null then
     raise exception 'TEAM_REMOVED';

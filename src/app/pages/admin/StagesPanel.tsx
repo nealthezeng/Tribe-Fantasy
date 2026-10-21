@@ -169,7 +169,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
   stage: StageRow; current: boolean; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
 }) {
   const [checks, setChecks] = useState<{ id: string; text: string }[] | null>(null);
-  const [count, setCount] = useState(''); // the Games field: the count to open with, or an edit of the current one
+  const [count, setCount] = useState<string | null>(null); // the Games field: the count to open with, or an edit of the current one (null = untouched)
   const games = useLoad(async () => {
     const { data, error } = await supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id).order('number');
     if (error) throw error;
@@ -186,15 +186,15 @@ function TournamentControls({ stage, current, seasonId, run }: {
         e.preventDefault();
         void run(async () => {
           const p = await seasonPairings(seasonId);
-          if (!window.confirm(`Open the ${stage.name} tournament with ${count} games? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
+          if (!window.confirm(`Open the ${stage.name} tournament with ${count} ${count === '1' ? 'game' : 'games'}? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
           await api.openTournament(stage.id, p.pairings, Number(count));
-          setCount('');
+          setCount(null);
           games.reload();
           return `${stage.name}: game 1 is paired. Keepers start it from Stats → Tally.`;
         });
       }}>
-        <label>Games<input type="number" required min={1} max={20} value={count} onChange={(e) => setCount(e.target.value)} /></label>
-        <button disabled={count === ''}>Open tournament</button>
+        <label>Games<input type="number" required min={1} max={20} value={count ?? ''} onChange={(e) => setCount(e.target.value)} /></label>
+        <button disabled={!count}>Open tournament</button>
       </form>
     );
   }
@@ -205,7 +205,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
   // Raising a finished tournament pairs the new game now (spec §5.9), so show those pairings first; anything else needs no confirm.
   const saveCount = (e: FormEvent) => {
     e.preventDefault();
-    const n = Number(count || total);
+    const n = Number(count ?? total);
     void run(async () => {
       if (n === total) return;
       if (n > total && !now) {
@@ -213,7 +213,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
         if (!window.confirm(`Raise ${stage.name} to ${n} games? Game ${total + 1}: ${describePairings(p.pairings, p.team)}.`)) return;
         await api.setGameCount(stage.id, n, p.pairings, p.provisional);
       } else await api.setGameCount(stage.id, n);
-      setCount('');
+      setCount(null);
       games.reload();
       return `${stage.name}: ${n} ${n === 1 ? 'game' : 'games'}.`;
     });
@@ -236,7 +236,8 @@ function TournamentControls({ stage, current, seasonId, run }: {
       .eq('action', 'finish_game').in('entity_id', games.data!.map((g) => g.id)).order('at');
     if (error) throw error;
     // An undo + replay finishes a game twice: keep only the latest row per game (oldest first, so later ones overwrite).
-    const latest = [...new Map(((data ?? []) as FinishAudit[]).map((r) => [r.entity_id, r])).values()]
+    // The last game's finish pairs nothing (saved as null, not typed): nothing to re-check, so skip those rows.
+    const latest = [...new Map(((data ?? []) as FinishAudit[]).filter((r) => Array.isArray(r.details.pairings)).map((r) => [r.entity_id, r])).values()]
       .sort((a, b) => number.get(a.entity_id)! - number.get(b.entity_id)!);
     setChecks(latest.map((r) => ({ id: r.entity_id, text: `Game ${number.get(r.entity_id)! + 1}: ${checkPairing(r.details)
       ? 'matches a Swiss re-run of the standings it was made from.'
@@ -247,10 +248,12 @@ function TournamentControls({ stage, current, seasonId, run }: {
       <summary>Tournament <span className="muted">· {now
         ? `game ${now.number} ${now.started_at ? 'live' : 'next'} of ${total}` : `over after game ${total}`}</span></summary>
       <div className="stack">
-        <form className="row" onSubmit={saveCount}>
-          <label>Games<input type="number" required min={minCount} max={20} value={count || total} onChange={(e) => setCount(e.target.value)} /></label>
-          <button className="secondary">Save count</button>
-        </form>
+        {current && (
+          <form className="row" onSubmit={saveCount}>
+            <label>Games<input type="number" required min={minCount} max={20} value={count ?? String(total)} onChange={(e) => setCount(e.target.value)} /></label>
+            <button className="secondary">Save count</button>
+          </form>
+        )}
         <div className="row">
           <button className="secondary" onClick={check}>Check pairings</button>
           {played && <button className="secondary" onClick={() => undo(played)}>Undo game {played.number}</button>}

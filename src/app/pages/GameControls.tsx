@@ -68,19 +68,21 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
       onOpen?.(sid);
     });
   };
+  // finish_game's answer decides the message: an id = the next game is paired; null = no game after it, so it's over.
+  // On the list the card itself says the tournament is over; the board only shows this message.
+  const done = (next: string | null) => setStatus(next ? `${title} finished. Game ${n + 1} is paired.`
+    : sessionId === undefined ? null : `${title} finished. ${stage.name} is over.`);
   const finish = () => {
     if (!isLast) return void run(async () => setPreview(await seasonPairings(season.id)));
     if (!window.confirm(`Finish game ${n}? It's the last game: ${stage.name} ends.`)) return;
     void run(async () => {
-      await api.finishGame(game.id, [], []);
-      // On the list the card itself now says the tournament is over; the board only shows this message.
-      setStatus(sessionId === undefined ? null : `${title} finished. ${stage.name} is over.`);
+      done(await api.finishGame(game.id, [], []));
     });
   };
   const confirm = (p: Preview) => void run(async () => {
-    await api.finishGame(game.id, p.pairings, p.provisional);
+    const next = await api.finishGame(game.id, p.pairings, p.provisional);
     setPreview(null);
-    setStatus(`${title} finished. Game ${n + 1} is paired.`);
+    done(next);
   });
 
   const nameOpponent = (id: string) => (e: FormEvent) => {

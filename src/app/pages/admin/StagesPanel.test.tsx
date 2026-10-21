@@ -44,6 +44,7 @@ vi.mock('../../lib/tournament', async (orig) => ({
 
 afterEach(() => {
   cleanup();
+  vi.clearAllMocks();
   db.games = [];
   db.audit_log = [];
 });
@@ -172,5 +173,31 @@ describe('StagesPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save count', hidden: true }));
     await waitFor(() => expect(api.setGameCount).toHaveBeenCalledWith('Fall', 3, pairings, provisional));
     expect(ask).toHaveBeenCalledWith(expect.stringContaining('Zeal'));
+  });
+
+  it('does not flag the last game finish (pairings null) in Check pairings', async () => {
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z')];
+    db.games = [game(1, T, T), game(2, T, T)];
+    db.audit_log = [
+      { entity_id: 'g1', details: { pairings: [], provisional: [] } },
+      { entity_id: 'g2', details: { pairings: null, provisional: null } },
+    ];
+    render(<StagesPanel seasonId="se1" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Check pairings', hidden: true }));
+    await screen.findByText(/Game 2: matches/);
+    expect(document.body.textContent).not.toMatch(/doesn't match/);
+    expect(screen.queryByText(/Game 3:/)).toBeNull();
+  });
+
+  it('lets the count be cleared and retyped, and offers it only on the current tournament', async () => {
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z', '2026-09-10'), stage('Spring', '2027-02-01', '2027-02-10T00:00:00Z')];
+    db.games = [{ ...game(1, T, T), stage_id: 'Fall' }, { ...game(2, null), stage_id: 'Spring' }, { ...game(3, null), stage_id: 'Spring' }];
+    render(<StagesPanel seasonId="se1" />);
+    const inputs = await screen.findAllByLabelText('Games', { selector: 'input' });
+    expect(inputs).toHaveLength(1); // Fall is past: no count form
+    const input = inputs[0] as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    expect(input.value).toBe('');
+    expect(input.required).toBe(true);
   });
 });
