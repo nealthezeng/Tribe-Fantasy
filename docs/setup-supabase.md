@@ -467,3 +467,23 @@ What it does: a keeper (admins included) marks a player Out for the tournament; 
 scorer swaps him out of every pick. Clearing an Out that already covered a started game ends it at the next game (those
 games keep the swap); clearing one that never took effect deletes it.
 What admins can do: mark and clear Out like keepers (Tally), see every mark in History.
+
+## M15 P6 Live scores (after 0001-0027)
+
+`0028_live.sql` adds one read function, `live_game_taps`, which returns the taps of a game that has started and isn't
+verified yet. The League tab, Stats and the admin league browser show those numbers, labelled Unofficial. Nothing else changes.
+
+1. Between tournaments only (none open, nobody tallying). Backup first (Admin -> Backup).
+2. SQL Editor: paste and run `supabase/migrations/0028_live.sql` (adds one read function; nothing else changes).
+   If the editor offers "Run and enable RLS", choose **Run without RLS** (no new table).
+3. Push (deploy). The old site never calls the new function, so the order only matters the other way.
+4. Anon probe (publishable key, no sign-in), **42501**:
+   `curl -X POST "$URL/rest/v1/rpc/live_game_taps" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_game":null}'`
+5. Signed in as a manager during the next tournament's first game: the League matchup shows "Live · Unofficial"
+   and starters' stat lines; after Verify the pill goes.
+6. Rollback: revert the code and push, **then** SQL Editor:
+   `drop function if exists public.live_game_taps(uuid);` (dropping first would break the live bundle's League
+   tab). No data is lost either way.
+
+What admins can do: read live numbers like everyone (League, Stats, the league browser's Games list); Verify stays
+the keeper tool.

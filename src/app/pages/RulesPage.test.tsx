@@ -28,6 +28,7 @@ describe('RulesPage', () => {
     expect(screen.getByText('Turnover').parentElement?.textContent).toBe('Turnover-1');
     expect(text).not.toMatch(/practice/i);
     expect(text).toContain('Picks lock when a stat keeper starts the game');
+    expect(text).toContain('Live scores during a game are unofficial and can shift until a keeper verifies the stats.');
     expect(text).toContain('Each roster holds up to 6 players');
     expect(text).toContain('Each game you start 2 of your players');
     expect(text).toContain('Up to 12 teams');

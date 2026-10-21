@@ -101,7 +101,7 @@ system (`--pane-shadow`, `--score-shadow`, see Depth) plus the gold hover glow `
 Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 76px stat buttons. Motion:
 `--dur` 150ms with `--ease`, and `--dur-flash` 400ms for the over-budget flash; `--dur-menu` 200ms for menus and
 opened sections dropping in, `--dur-fade` 300ms for loaded content fading in, `--dur-rest` 1.6s for a loading
-skeleton's slow breathing.
+skeleton's slow breathing, `--dur-count` 600ms for a score counting up to its new value.
 
 Frame: a full-width black top bar, then one column (`--shell` 720px, `--gutter` 16px side padding, 24px top).
 
@@ -180,8 +180,13 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   page `h1` is `.sr-only` once you have a team). Each name (`.side`) has its owner's real name under it in small muted
   sans text (`.owner`); no line when the owner has no display name, "Removed user" for a removed account. Under it a `.strip` of facts: tournament, a `.chip` with the dates,
   game number, and the state (a red `.live` dot whose ring pulses, Next up, Waiting on stats, or Won/Lost ±points).
-  Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
-  final, the losing side muted; before a game starts their pick reads "Hidden". Then `.tiles`: Place "N `.of` M",
+  While a game is live or waiting on stats, a `.pill.warn` "Unofficial" sits beside that state: live numbers are never
+  shown without the word. Then a black `.score` scoreboard: both players in the display face before scores exist, `--fs-score` numbers once
+  final (the unofficial numbers while the game is live or waiting on stats), the losing side muted; before a game starts their pick reads "Hidden". Once a game has
+  started, a `section.card.starters` under the scoreboard lists each side: a `.head` with the team and its score, then one row per starter
+  "Name · 1 Goal" with his points. A chip `.since.up` (gold) or `.since.down` (`--error`) "+3" / "−2" shows on a row whose
+  points changed since this device last looked, and stays until the next change (the sign carries the meaning, not the colour). A verified
+  game shows the same block without the pill. Then `.tiles`: Place "N `.of` M",
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
   game" card (the pick), the Buy shares card (only while buying is open), the games, the Join / Create `.more`
   links, and last a muted `details.settings` "League settings" fold. It always renders for your team and opens
@@ -198,7 +203,9 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   your matchup (both teams, scores once final, the loser muted; "Bye" or "Not playing" otherwise) with the caption
   **below** it, not inside: "Game 2 · Fall Beta", the status pill, your W/L ±points. One column on phones, two from
   640px; an opened game takes the full row and shows every matchup in a `.card`. With a mouse, the scoreboard lifts
-  4px and grows 2% on hover (t97).
+  4px and grows 2% on hover (t97). A game waiting on stats shows the unofficial scores (no W/L, no ±points) with a
+  `.pill.warn` "Unofficial" beside "Waiting on stats"; opened, it lists the stat lines and points under the hint
+  "Unofficial until a keeper verifies."
 - **By-line** (`.by`, t90): a 22px `.avatar.sm` with the team's initial and the team name, heading a side inside an
   opened game; its starters are listed under it (M13, 2v2).
 - **League tiles** are the season standing: Place ("N of M"), Record, Points. Credits are not a tile: while
@@ -265,7 +272,12 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   hover and press. The table scrolls sideways inside `.table-wrap` while the player column stays put (sticky), so that
   column needs an opaque fill: `--bg` on the page, `--card-solid` (the card glass flattened, in `tokens.css`) inside a `.card`.
   "All stats" is a `details` fold under it listing the tournament's games, each opening its game page; it opens by itself
-  for keepers while a game is open.
+  for keepers while a game is open. While a game is started and unverified, a `p.strip` above the table reads the
+  `.live` dot, "Live" and "Unofficial: includes game 2" ("games 3 and 4", "games 2, 3 and 4"), and the table totals
+  include that game's live lines.
+- **Live refresh**: the League tab (while any of the league's games is live or waiting on stats) and Stats (while a shown
+  game is started and unverified) reload every 15 s while the tab is visible, at once when it becomes visible again, and
+  keep the old numbers on screen until the new ones arrive. Nothing else polls.
 
 ## Tally board
 
@@ -306,6 +318,8 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   (`--dur`), every button squeezes to 95% while pressed (`--dur-press`), gold buttons rise 1px with a gold
   `--shadow-lift` on hover, and tab markers glide (`--dur-slide`, `--ease-glide`). The account menu and every opened
   `details` drop 8px in and fade (`--dur-menu`; closing is instant), page content fades in as it arrives
-  (`--dur-fade`), and loading skeletons breathe (`--dur-rest`). The tally board never moves: no transitions, no press
+  (`--dur-fade`), and loading skeletons breathe (`--dur-rest`). On the League matchup the scoreboard numbers count up to a new
+  value (`--dur-count`; the starters' team scores stay plain) and a "since you last looked" chip pops in; with reduced motion
+  both just appear. The tally board never moves: no transitions, no press
   scale, no lift, no fade-in (`tokens.test.ts` guards the fade).
 - **Focus is always visible**: a 3px ring in `--focus`, offset 2px.

@@ -136,6 +136,7 @@ export function RulesPage() {
             {n(tired)} = <strong>{n(gameScore * owned * tired)}</strong>.</p>
         </div>
         <p className="muted">A game counts as soon as a stat keeper verifies its stats. They can be reopened for {S.stat_lock_hours} hours after that.</p>
+        <p className="muted">Live scores during a game are unofficial and can shift until a keeper verifies the stats.</p>
       </article>
 
       <article className="card">
