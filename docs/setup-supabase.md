@@ -246,6 +246,8 @@ Admin → Wallets; fix them with **Record a donation**. A refund = **Adjust cred
 
 ## "That was the last game" (t202, after 0016)
 
+Superseded by M15 P4 (0026): the button and `add_next_game` are gone; the tournament's game count is set up front. History kept below.
+
 1. SQL Editor: paste and run `supabase/migrations/0017_last_game.sql` BEFORE the deploy. It replaces `finish_game`
    (new optional `p_last`; the old site's calls still work), adds `add_next_game`, and drops the "ignore this email"
    sentence from pick emails.
@@ -395,3 +397,25 @@ person can only sign up again as a new account, without their old team.
 
 What owners can do: rename their own team any time, 1–40 characters, unique in the league. Admins still rename any team
 in Admin → Leagues, and see owner renames in History.
+
+## M15 P4 tournament game count (after 0001-0025)
+
+`0026_game_count.sql` replaces `open_tournament`, `finish_game` and `reset_game`, adds `set_game_count` and drops
+`add_next_game`. It also re-creates `set_game_pick` and `admin_set_share` with number-ordered locks (bodies otherwise
+unchanged). Until the push, the live site can't open or finish a tournament (the old calls are dropped), so do it
+**between tournaments only** (none open) and push right after.
+
+1. SQL Editor: paste and run `supabase/migrations/0026_game_count.sql`. If the editor offers "Run and enable RLS",
+   choose **Run without RLS** (no new table).
+2. Push (deploy) straight away.
+3. Anon probes (the anon key, no sign-in), each should return **42501** (permission denied):
+   `curl -X POST "$URL/rest/v1/rpc/set_game_count" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_stage":null,"p_count":1}'`
+   and the same for `open_tournament` and `finish_game`.
+4. Before the next tournament: open it with its game count (Admin -> Seasons -> stage -> Open tournament, "Games",
+   1-20) and name the opponents on the tally (the list has one row per game, any time).
+5. Rollback: revert the code and re-run 0017's `finish_game` and `add_next_game`, 0012's `open_tournament` and
+   0024's `reset_game`. Keep 0026's `set_game_pick` and `admin_set_share` (or re-run 0024's); only their lock order differs.
+
+What it does: all games exist from the start, so finishing game N pairs N+1 (if it exists); the last game's finish
+just ends the tournament. Admins change the count later (Admin -> Seasons -> Tournament -> "Save count"); it can't go
+below the highest started game. Raising the count of an over tournament pairs the new game at once.

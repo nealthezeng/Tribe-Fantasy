@@ -174,6 +174,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   and a removed team is read-only. Admin changes never move credits. History is a `.card > ul.list`: one plain-words
   line per audit row ("Gave Sam Grossberg 25% to Gimp Zeal"), actor and time as small text, a filter by action and
   "Load more" for the next 50. Removed people show as "Removed user"; a removed team keeps its name.
+- **Admin Games count** (M15 P4): Open tournament has a required "Games" number (1-20); the open Tournament card shows "game n of N" and the same field with "Save count" (not below the highest started game). Raising an over tournament confirms the new game's pairings first; lowering needs no confirm.
 - **League tab, matchup first** (`Matchup` in `TournamentCard.tsx`): per team, the game that matters now (live,
   else next, else last played) as a `.display` headline "TEAM vs OPPONENT" (`--fs-matchup`, shrinks on phones; the
   page `h1` is `.sr-only` once you have a team). Each name (`.side`) has its owner's real name under it in small muted
@@ -277,6 +278,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
 - Negative stats use a dashed border so the difference is not colour alone.
 - Tally buttons never animate. A tap must show instantly, even when other buttons fade.
 - Attendance and injury controls sit apart in the card header, never among the stat tiles.
+- The tally's game card ends with the opponents list (t313): one row per game, "Game k" with its name field and Save, for every game started or not, any time. Finishing the last game asks first ("It's the last game: <stage> ends."); an over tournament says so with no button.
 
 ## Rules
 
