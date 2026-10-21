@@ -8,7 +8,7 @@ import {
 } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
+import { loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance as sumLedger, credits } from '../lib/wallet';
@@ -32,18 +32,18 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
     if (st.error) throw st.error;
     const stage = pickAuctionStage((st.data ?? []) as AuctionStage[]);
     if (!stage) return null;
-    const [season, athletes, injuries, bids, ledger] = await Promise.all([
+    const [season, athletes, outs, bids, ledger] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
       // All of them, not just opted in: a rostered player who opts out later still needs a name.
       supabase!.from('athletes').select('id, name, user_id, opted_in').eq('season_id', seasonId).order('name'),
-      supabase!.from('injuries').select('athlete_id').is('cleared_at', null).not('confirmed_at', 'is', null),
+      loadOpenOuts(stage.id),
       supabase!.from('bids').select('membership_id, athlete_id, amount').eq('stage_id', stage.id).eq('league_id', leagueId)
         .order('amount', { ascending: false }),
       // Fetched fresh (not passed as a prop) so a donation credited while the tab is open doesn't leave the client
       // refusing buys with a stale balance.
       supabase!.from('credit_ledger').select('amount').eq('membership_id', membershipId),
     ]);
-    for (const r of [season, athletes, injuries, bids, ledger]) if (r.error) throw r.error;
+    for (const r of [season, athletes, bids, ledger]) if (r.error) throw r.error;
     const settings = parseSettings(season.data!.settings);
     return {
       stage,
@@ -51,7 +51,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
       minBid: settings.min_bid,
       rosterSize: settings.roster_size,
       athletes: (athletes.data ?? []) as Athlete[],
-      injured: new Set((injuries.data ?? []).map((i) => i.athlete_id as string)),
+      out: new Set(outs.keys()),
       bids: (bids.data ?? []) as BidRow[],
       balance: sumLedger((ledger.data ?? []) as { amount: number }[]),
     };
@@ -85,7 +85,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
 
   if (loadError) return <p className="error" role="alert">{loadError}</p>;
   if (!data) return null; // loading, or no stage yet
-  const { stage, settings, minBid, rosterSize, athletes, injured, bids, balance } = data;
+  const { stage, settings, minBid, rosterSize, athletes, out, bids, balance } = data;
   const phase = auctionPhase(stage, now);
   if (phase !== 'open') return null;
   const mine = bids.filter((b) => b.membership_id === membershipId);
@@ -147,7 +147,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
                     {factor < 1 && (
                       <span className="pill warn" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
                     )}
-                    {injured.has(a.id) && <span className="pill bad">Injured</span>}
+                    {out.has(a.id) && <span className="pill bad">Out</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}
                   </span>
                   {a.user_id === userId ? <span className="muted">That's you</span> : (

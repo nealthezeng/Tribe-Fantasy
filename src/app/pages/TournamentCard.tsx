@@ -106,7 +106,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const upcoming = status === 'upcoming';
   // Before a game starts the scorer's auto-picks are a guess, so show only the manager's own picks.
   const minePlayers = !mine ? [] : upcoming ? mine.picked : mine.athleteIds;
-  // A pick that won't play (injured, with someone free to replace them) must not look all set up here.
+  // A pick that won't play (out, with someone free to replace them) must not look all set up here.
   const doomed = upcoming && !!mine && mine.replacements.some((r) => r.picked !== null && r.athleteId !== r.picked);
   const wanted = mine ? Math.min(y.settings.picks_per_game, mine.players.length) : 0;
 
@@ -131,7 +131,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
               {status === 'pending' && <span>Waiting on stats</span>}
               {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
             </>}
-            {doomed && <span className="pill warn">Your pick is injured</span>}
+            {doomed && <span className="pill warn">Your pick is out</span>}
           </> : <>
             <span>{subtitle}</span>
             <span>{y.result.standings.length} {y.result.standings.length === 1 ? 'team' : 'teams'}</span>
@@ -226,7 +226,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
         {[...mine.players].sort(byName).map((id) => (
           <li key={id} className="pickrow">
             <span className="who">
-              <span><span className="title">{name(id)}</span>{y.out.has(id) && <> <span className="pill bad">Injured</span></>}</span>
+              <span><span className="title">{name(id)}</span>{y.out.has(id) && <> <span className="pill bad">Out</span></>}</span>
               <Factor side={mine} id={id} />
             </span>
             {mine.picked.includes(id) ? (
@@ -236,7 +236,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
                 Your pick <span className="clear">· Clear</span>
               </button>
             ) : (
-              <button aria-label={`Pick ${name(id)}`} disabled={busy || full} onClick={() => void save([...mine.picked, id])}>Pick</button>
+              <button aria-label={`Pick ${name(id)}`} disabled={busy || full || y.out.has(id)} onClick={() => void save([...mine.picked, id])}>Pick</button>
             )}
           </li>
         ))}
@@ -262,8 +262,8 @@ export function Factor({ side, id }: { side: TournamentSide; id: string }) {
 }
 
 /**
- * Why a starter isn't the team's own pick: each injured pick, then who fills the picks left empty. An injured pick with
- * nobody healthy free to replace them plays anyway (the core lists them as their own replacement): not a swap.
+ * Why a starter isn't the team's own pick: each Out pick, then who fills the picks left empty. An Out pick with
+ * nobody else free to replace them plays anyway (the core lists them as their own replacement): not a swap.
  * `team` names another team's side; omitted, the side is the viewer's ("You").
  */
 function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: TournamentSide; played?: boolean; team?: string }) {
@@ -271,9 +271,9 @@ function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: 
   const lines = side.replacements.flatMap(({ picked, athleteId }) => {
     if (picked === null) return [];
     if (athleteId === picked) {
-      return [played ? `${name(picked)} was injured and played: nobody else was free.` : `${name(picked)} is injured and still plays: nobody else is free.`];
+      return [played ? `${name(picked)} was out and played: nobody else was free.` : `${name(picked)} is out and still plays: nobody else is free.`];
     }
-    return [played ? `${name(picked)} was injured, so ${name(athleteId)} played.` : `${name(picked)} is injured. ${name(athleteId)} plays.`];
+    return [played ? `${name(picked)} was out, so ${name(athleteId)} played.` : `${name(picked)} is out. ${name(athleteId)} plays.`];
   });
   const fill = side.replacements.flatMap((r) => (r.picked === null && r.athleteId !== null ? [name(r.athleteId)] : []));
   if (fill.length > 0) {

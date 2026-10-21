@@ -14,7 +14,6 @@ import { STATE_PILL } from './StatsPage';
 import { StatTable } from './StatTable';
 
 interface LineRow { athlete_id: string; stats: Record<string, number> }
-interface AttendanceRow { athlete_id: string; status: 'present' | 'absent' }
 
 export function SessionPage() {
   const { id = '' } = useParams();
@@ -28,17 +27,16 @@ export function SessionPage() {
     if (sess.error) throw sess.error;
     if (!sess.data) return null;
     const s = sess.data as SessionRow;
-    const [season, athletes, lines, attendance, taps, profiles, game] = await Promise.all([
+    const [season, athletes, lines, taps, profiles, game] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', s.season_id).single(),
       supabase!.from('athletes').select('id, name').eq('season_id', s.season_id),
       supabase!.from('stat_lines').select('athlete_id, stats').eq('session_id', id),
-      supabase!.from('attendance').select('athlete_id, status').eq('session_id', id),
       // Keepers only (RLS returns nothing to members), so these two are harmless for everyone else.
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', id),
       supabase!.from('profiles').select('id, display_name'),
       supabase!.from('games').select('stage_id').eq('session_id', id).maybeSingle(), // for ← Stats
     ]);
-    for (const r of [season, athletes, lines, attendance, taps, profiles, game]) if (r.error) throw r.error;
+    for (const r of [season, athletes, lines, taps, profiles, game]) if (r.error) throw r.error;
     return {
       session: s,
       stageId: (game.data as { stage_id: string } | null)?.stage_id ?? null,
@@ -46,7 +44,6 @@ export function SessionPage() {
       settings: parseSettings(season.data!.settings),
       names: new Map((athletes.data ?? []).map((a: { id: string; name: string }) => [a.id, a.name])),
       lines: (lines.data ?? []) as LineRow[],
-      attendance: (attendance.data ?? []) as AttendanceRow[],
       taps: ((taps.data ?? []) as StatTapRow[]).map(rowToTap),
       people: new Map((profiles.data ?? []).map((p: { id: string; display_name: string }) => [p.id, p.display_name])),
     };
@@ -60,7 +57,7 @@ export function SessionPage() {
   if (data.error) return <p className="error" role="alert">{data.error}</p>;
   if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
   if (data.data === null) return <p>That game's stats aren't here any more. <Link to="/stats">Stats</Link></p>;
-  const { session, stageId, title, settings, names, lines, attendance, taps, people } = data.data;
+  const { session, stageId, title, settings, names, lines, taps, people } = data.data;
   const state = sessionState(session, settings.stat_lock_hours);
   const stats = Object.keys(settings.stat_weights);
   const ofCounts = (counts: Record<string, Record<string, number>>) =>
@@ -153,19 +150,6 @@ export function SessionPage() {
           <p><Link to={`/tally?game=${id}`}>Back to tallying</Link></p>
         </div>
       )}
-
-      <div className="card">
-        <h2>Attendance</h2>
-        {(['present', 'absent'] as const).map((st) => {
-          const who = attendance.filter((a) => a.status === st).map((a) => name(a.athlete_id)).sort();
-          return (
-            <p key={st}>
-              <strong>{st === 'present' ? 'Present' : 'Absent'} <span className="muted num">({who.length})</span></strong><br />
-              {who.join(', ') || <span className="muted">Nobody marked</span>}
-            </p>
-          );
-        })}
-      </div>
 
       {isAdmin && (
         <p><button className="secondary" disabled={busy} onClick={() => void remove()}>Delete these stats</button></p>

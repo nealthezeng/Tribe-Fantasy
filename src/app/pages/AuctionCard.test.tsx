@@ -14,7 +14,7 @@ const db = vi.hoisted(() => ({
   stages: [] as Row[],
   seasons: [{ settings: {} }] as Row[],
   athletes: [] as Row[],
-  injuries: [] as Row[],
+  outs: [] as Row[],
   bids: [] as Row[],
   credit_ledger: [{ amount: 115 }] as Row[],
 }));
@@ -65,7 +65,7 @@ beforeEach(() => {
   db.stages = [];
   db.seasons = [{ settings: {} }];
   db.athletes = [];
-  db.injuries = [];
+  db.outs = [];
   db.bids = [];
   db.credit_ledger = [{ amount: 115 }];
   vi.mocked(loadLeagueTournament).mockReset().mockResolvedValue({ result: { startedIn: {} } } as never);
@@ -118,6 +118,18 @@ describe('AuctionCard', () => {
     expect(document.body.textContent).toContain('0 of 6 players');
     expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
     expect(screen.getByRole('link', { name: 'Get more credits' })).toBeTruthy();
+  });
+
+  it('shows Out on the buy list for players out this tournament', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a1', 'A1') as unknown as Row, athlete('a2', 'A2') as unknown as Row];
+    db.outs = [{ stage_id: 's1', athlete_id: 'a1', until_game: null }];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    const row = (n: string) => screen.getByText(n).closest('li')!;
+    expect(row('A1').textContent).toContain('Out');
+    expect(row('A2').textContent).not.toContain('Out');
+    expect(document.body.textContent).not.toContain('Injured');
   });
 
   it('refuses an over-budget buy but allows raising your own within what you have left', async () => {

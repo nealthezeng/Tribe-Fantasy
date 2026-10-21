@@ -59,6 +59,14 @@ describe('SessionPage back link', () => {
   });
 });
 
+describe('SessionPage', () => {
+  it('has no Attendance card (nobody marks attendance any more)', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: 'Stats' });
+    expect(screen.queryByText('Attendance')).toBeNull();
+  });
+});
+
 describe('SessionPage delete (t81)', () => {
   it('lets an admin force-delete a locked session, then goes back to Stats', async () => {
     auth.isAdmin = true;
@@ -82,7 +90,7 @@ describe('SessionPage delete (t81)', () => {
   it('shows no Delete button to a keeper who is not an admin', async () => {
     auth.isAdmin = false;
     renderPage();
-    await screen.findByText('Attendance');
+    await screen.findByRole('heading', { name: 'Stats' });
     expect(screen.queryByRole('button', { name: 'Delete these stats' })).toBeNull();
   });
 });

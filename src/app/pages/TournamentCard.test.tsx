@@ -128,41 +128,80 @@ describe('TournamentCard', () => {
     expect(picks().getByText('Ash').closest('li')?.textContent).toContain('×0.25');
   });
 
-  it('names who plays for an injured pick, and says when an injured pick still plays', async () => {
+  it('names who plays for an Out pick, and says when an Out pick still plays', async () => {
     const r = afterGame1();
     await show({
       ...r,
       picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' },
         { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }],
-      injuries: [{ athlete_id: 'a2', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+      outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
     });
     // Arlo is the most rested healthy player left (Ash started game 1).
-    expect(picks().getByText('Avery is injured. Arlo plays.')).toBeTruthy();
+    expect(picks().getByText('Avery is out. Arlo plays.')).toBeTruthy();
     cleanup();
-    // A one-player team: nobody healthy is free, so the injured pick plays anyway. Not a swap.
+    // A one-player team: nobody else is free, so the Out pick plays anyway. Not a swap.
     await show({
       ...r,
       slots: [...roster('m1', ['a1']), ...roster('m2', ['b1', 'b2'])],
       picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a1' }],
-      injuries: [{ athlete_id: 'a1', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+      outs: [{ stage_id: 'S1', athlete_id: 'a1', from_game: 2, until_game: null }],
     });
-    expect(picks().getByText('Ash is injured and still plays: nobody else is free.')).toBeTruthy();
+    expect(picks().getByText('Ash is out and still plays: nobody else is free.')).toBeTruthy();
     expect(picks().queryByText(/Ash plays/)).toBeNull();
   });
 
-  it('does not call a swap "still plays" when a spare came in for one injured pick and an injured pick filled the other', async () => {
+  it('does not call a swap "still plays" when a spare came in for one Out pick and an Out pick filled the other', async () => {
     const r = afterGame1();
-    // Ash and Avery are both picked and injured; Alex is the only healthy spare. The core pairs Ash->Alex and Avery->Ash.
+    // Ash and Avery are both picked and Out; Alex is the only free spare. The core pairs Ash->Alex and Avery->Ash.
     await show({
       ...r,
       slots: [...roster('m1', ['a1', 'a2', 'a3']), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
       picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a1' },
         { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' }],
-      injuries: [{ athlete_id: 'a1', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null },
-        { athlete_id: 'a2', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+      outs: [{ stage_id: 'S1', athlete_id: 'a1', from_game: 2, until_game: null },
+        { stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
     });
     expect(picks().queryByText(/still plays/)).toBeNull();
-    expect(picks().getByText('Ash is injured. Alex plays.')).toBeTruthy();
+    expect(picks().getByText('Ash is out. Alex plays.')).toBeTruthy();
+  });
+
+  it('disables Pick for an Out player and shows the Out pill', async () => {
+    const r = afterGame1();
+    await show({ ...r, outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }] });
+    const row = picks().getByText('Avery').closest('li')!;
+    expect(row.textContent).toContain('Out');
+    expect(row.textContent).not.toContain('Injured');
+    expect((within(row).getByRole('button', { name: 'Pick Avery' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((picks().getByRole('button', { name: 'Pick Alex' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('keeps Clear on a saved pick who is now out, with the out notice', async () => {
+    const r = afterGame1();
+    await show({
+      ...r,
+      picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' },
+        { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }],
+      outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
+    });
+    const clear = picks().getByText('Avery').closest('li')!.querySelector('button') as HTMLButtonElement;
+    expect(clear.textContent).toContain('Clear');
+    expect(clear.disabled).toBe(false);
+    expect(picks().getByText('Avery is out. Arlo plays.')).toBeTruthy();
+    expect(screen.getByText('Your pick is out')).toBeTruthy();
+  });
+
+  it('words a past swap as out', async () => {
+    const r = afterGame1();
+    await show({
+      ...r,
+      games: r.games.map((g) => (g.id === 'g2' ? { ...g, session_id: 'p2', started_at: '2026-11-07T16:00:00Z' } : g)),
+      sessions: [...r.sessions, { id: 'p2', verified_at: null }],
+      picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' },
+        { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' },
+        { stage_id: 'S1', game_number: 2, membership_id: 'm2', athlete_id: 'b2' }],
+      outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
+    });
+    expect(screen.getByText('Avery was out, so Arlo played.')).toBeTruthy();
   });
 
   it('says who plays if you leave a pick empty', async () => {
@@ -334,14 +373,14 @@ describe('TournamentCard', () => {
       expect(scoreboard()).toBeNull();
     });
 
-    it("doesn't show an injured pick as set", async () => {
+    it("doesn't show an Out pick as set", async () => {
       const r = afterGame1();
       await show({
         ...r,
         picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' }],
-        injuries: [{ athlete_id: 'a2', confirmed_at: '2026-11-07T15:10:00Z', cleared_at: null }],
+        outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
       });
-      expect(screen.getByText('Your pick is injured')).toBeTruthy();
+      expect(screen.getByText('Your pick is out')).toBeTruthy();
       expect(document.querySelector('.score-side.picked')).toBeNull();
     });
   });

@@ -90,8 +90,9 @@ export function RulesPage() {
             tournament opens; each later game is paired when the game before it finishes.</li>
           <li>Pick for the next game any time before it starts, even before you know your opponent. Picks lock when a
             stat keeper starts the game. Other teams' picks stay hidden until then.</li>
-          <li>Forgot to pick, or a pick is injured? We start your most rested healthy players, then the ones scoring
+          <li>Forgot to pick, or a pick is out? We start your most rested players who aren't out, then the ones scoring
             best lately, and you'll see a notice.</li>
+          <li>Keepers mark a player Out for a tournament; an Out player can't be picked.</li>
         </ul>
         <div className="section">
           <h3>Tired players</h3>
