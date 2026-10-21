@@ -18,7 +18,7 @@ vi.mock('./GameControls', () => ({ GameControls: () => null }));
 vi.mock('./OutList', () => ({ OutList: () => <p>Out list</p> }));
 vi.mock('../lib/rpc', () => ({ api: { setOut: vi.fn(), clearOut: vi.fn() } }));
 
-const gone = vi.hoisted(() => ({ on: false, outs: [] as { athlete_id: string; from_game: number }[], owned: false }));
+const gone = vi.hoisted(() => ({ on: false, outs: [] as { athlete_id: string; from_game: number }[], owned: false, games: null as unknown[] | null }));
 const DRILL = '00000000-0000-4000-8000-00000000d111';
 const session = (id: string, kind: string) => ({
   id, season_id: 'se', kind, held_on: '2026-11-07', counts: true, created_by: 'k1', verified_by: null, verified_at: null,
@@ -27,7 +27,7 @@ vi.mock('../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
       const rows = table === 'sessions' ? [session('game', 'tournament'), session(DRILL, 'practice')]
-        : table === 'games' ? [{ session_id: 'game', stage_id: 's1', number: 2 }]
+        : table === 'games' ? gone.games ?? [{ session_id: 'game', stage_id: 's1', number: 2 }]
         : table === 'athletes' ? [{ id: 'a0', name: 'A0' }, { id: 'a1', name: 'A1' }]
         : table === 'outs' ? gone.outs : table === 'roster_slots' ? (gone.owned ? [{ athlete_id: 'a0' }] : [])
         : table === 'stages' ? [{ id: 's1', starts_on: '2000-01-01', ends_on: '2099-01-01' }] : [];
@@ -50,6 +50,7 @@ afterEach(() => {
   gone.on = false;
   gone.outs = [];
   gone.owned = false;
+  gone.games = null;
   cleanup();
   localStorage.clear();
 });
@@ -110,6 +111,15 @@ describe('TallyPage Out toggle', () => {
     expect((await screen.findByText('Out')).className).toContain('pill');
     fireEvent.click(screen.getByRole('button', { name: "Clear A0's Out" }));
     await waitFor(() => expect(api.clearOut).toHaveBeenCalledWith('s1', 'a0'));
+  });
+
+  it("reads plain Out on an earlier game's board once the Out's game has started", async () => {
+    // Board of game 1; game 3 (where the Out begins) is already live, so only the stage's started games count.
+    gone.games = [{ session_id: 'game', stage_id: 's1', number: 1 }, { session_id: 'g3', stage_id: 's1', number: 3 }];
+    gone.outs = [{ athlete_id: 'a0', from_game: 3 }];
+    await board();
+    expect((await screen.findByText('Out')).className).toContain('pill');
+    expect(screen.queryByText('Out from game 3')).toBeNull();
   });
 
   it('has no attendance or injury controls', async () => {

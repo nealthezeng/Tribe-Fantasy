@@ -107,20 +107,23 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     // The board's tournament game (none for a non-game session): Out marks belong to its stage.
     const game = await supabase!.from('games').select('stage_id, number').eq('session_id', sessionId).maybeSingle();
     if (game.error) throw game.error;
-    const [athletes, taps, outs, owned] = await Promise.all([
+    const [athletes, taps, outs, started, owned] = await Promise.all([
       supabase!.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name'),
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
       game.data ? loadOpenOuts(game.data.stage_id as string) : new Map<string, number>(),
+      // "Out from game N" reads only while game N hasn't started, whichever game's board this is.
+      game.data ? supabase!.from('games').select('number').eq('stage_id', game.data.stage_id).not('started_at', 'is', null) : { data: [], error: null },
       // The server refuses a keeper's taps on their own players (OWNS_ATHLETE); admins may tally anyone (t120).
       isAdmin ? new Set<string>() : loadOwnedAthletes(keeperId, seasonId).catch(() => new Set<string>()),
     ]);
-    for (const r of [athletes, taps]) if (r.error) throw r.error;
+    for (const r of [athletes, taps, started]) if (r.error) throw r.error;
     return {
       session: sess.data as SessionRow,
       athletes: (athletes.data ?? []) as AthleteRow[],
       taps: (taps.data ?? []) as StatTapRow[],
       game: game.data as { stage_id: string; number: number } | null,
       outs,
+      lastStarted: Math.max(0, ...((started.data ?? []) as { number: number }[]).map((g) => g.number)),
       owned,
     };
   }, [sessionId, keeperId, isAdmin]);
@@ -214,7 +217,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     );
   }
   if (!data.data) return <p className="muted" role="status">Loading…</p>;
-  const { session, athletes, game, outs, owned } = data.data;
+  const { session, athletes, game, outs, lastStarted, owned } = data.data;
   // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:
   // taps already queued on the phone still upload, but new taps and undo are disabled.
   const oldSeason = session.season_id !== season.id;
@@ -289,7 +292,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
               <div className="tally-head">
                 <strong>{a.name}</strong>
                 {mine && <span className="pill">On your team</span>}
-                {from !== undefined && <span className="pill bad">{game && from > game.number ? `Out from game ${from}` : 'Out'}</span>}
+                {from !== undefined && <span className="pill bad">{game && from > lastStarted ? `Out from game ${from}` : 'Out'}</span>}
                 {game && !closed && (from === undefined
                   ? <button className="secondary" aria-label={`Mark ${a.name} out from the next game`} onClick={() => void run(() => api.setOut(game.stage_id, a.id))}>Mark out</button>
                   : <button className="secondary" aria-label={`Clear ${a.name}'s Out`} onClick={() => void run(() => api.clearOut(game.stage_id, a.id))}>Clear out</button>)}

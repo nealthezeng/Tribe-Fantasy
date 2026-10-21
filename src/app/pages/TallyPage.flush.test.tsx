@@ -31,7 +31,7 @@ vi.mock('../lib/supabase', () => ({
       const result = () => (lookup && db.lookupFails ? { data: null, error: new Error('offline') } : { data: rows, error: null });
       const builder = {
         maybeSingle: () => Promise.resolve({ data: rows[0], error: null }),
-        select: () => builder, or: () => builder, order: () => builder, eq: () => builder, is: () => builder,
+        not: () => builder, select: () => builder, or: () => builder, order: () => builder, eq: () => builder, is: () => builder,
         in: () => { lookup = table === 'athletes'; return builder; },
         single: () => Promise.resolve({ data: rows[0], error: null }),
         then: (resolve: (v: unknown) => void) => resolve(result()),
