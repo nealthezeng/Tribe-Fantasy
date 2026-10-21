@@ -323,6 +323,7 @@ function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome;
         <span className="meta">
           {gameLabel(g.game.number, g.game.opponent)} · {y.stage.get(g.game.stageId) ?? ''}
           <span className={cls}>{label}</span>
+          {o !== g && <span className="pill warn">Unofficial</span>}
           {mine?.delta != null && <strong className="num">{mine.result === null ? 'Bye' : `${mine.result} ${signed(mine.delta)}`}</strong>}
         </span>
       </summary>

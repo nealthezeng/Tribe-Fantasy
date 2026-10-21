@@ -431,6 +431,7 @@ describe('TournamentCard', () => {
       const card = document.querySelector('.game')!;
       expect(card.querySelector('.game-score')!.textContent).toBe('Zeal6vsFlow5');
       expect(card.querySelector('summary > .meta')!.textContent).toContain('Waiting on stats');
+      expect(card.querySelector('summary > .meta')!.textContent).toContain('Unofficial'); // labelled while closed too
       expect(card.querySelector('summary > .meta')!.textContent).not.toMatch(/W [+−]|L [+−]/);
       fireEvent.click(card.querySelector('summary')!);
       expect(card.textContent).toContain('Unofficial until a keeper verifies.');
