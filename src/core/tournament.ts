@@ -247,7 +247,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
 
   let next: NextGame | null = null;
   const stageGames = input.games.filter((g) => g.stageId === input.currentStageId);
-  // Finish always leaves the next game unstarted, unless it was the last game (t202): then every game is finished.
+  // Games exist from the start (unstarted until played): the tournament is over when every game is finished.
   const over = stageGames.length > 0 && stageGames.every((g) => g.finishedAt !== null);
   if (input.currentStageId !== null && !over) {
     const stageId = input.currentStageId;

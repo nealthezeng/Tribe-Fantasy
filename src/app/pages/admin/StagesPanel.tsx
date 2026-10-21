@@ -185,7 +185,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
         <button onClick={() => void run(async () => {
           const p = await seasonPairings(seasonId);
           if (!window.confirm(`Open the ${stage.name} tournament? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
-          await api.openTournament(stage.id, p.pairings);
+          await api.openTournament(stage.id, p.pairings, 1); // Task 3 replaces the 1 with the Games input
           games.reload();
           return `${stage.name}: game 1 is paired. Keepers start it from Stats → Tally.`;
         })}>Open tournament</button>

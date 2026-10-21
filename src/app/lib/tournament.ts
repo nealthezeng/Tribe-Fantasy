@@ -217,18 +217,19 @@ export async function seasonPairings(seasonId: string, now = Date.now()): Promis
 }
 
 /**
- * The tally's game: the newest game of the stage whose auction has run (null before its tournament opens). After the
- * stage's last day only a live game is returned, so it can still be finished; Start game is gone.
+ * The tally's game: the stage's first unfinished game, or its last when all are finished (the "is over" line); null
+ * before its tournament opens. `games` is every game of the stage by number, `count` how many. After the stage's last
+ * day only a live game is returned, so it can still be finished; Start game is gone.
  */
-export async function loadCurrentGame(seasonId: string, now = Date.now()): Promise<{ stage: AuctionStage; game: GameRow } | null> {
+export async function loadCurrentGame(seasonId: string, now = Date.now()): Promise<{ stage: AuctionStage; game: GameRow; games: GameRow[]; count: number } | null> {
   const stages = await rowsOf<AuctionStage>(supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId));
   const stage = pickPlayingStage(stages, todayLocal(new Date(now)));
   if (!stage) return null;
-  const [game] = await rowsOf<GameRow>(supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id)
-    .order('number', { ascending: false }).limit(1));
+  const games = await rowsOf<GameRow>(supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id).order('number'));
+  const game = games.find((g) => g.finished_at === null) ?? games.at(-1);
   if (!game) return null;
   const live = game.started_at !== null && game.finished_at === null;
-  return live || playingStage([stage], now) ? { stage, game } : null;
+  return live || playingStage([stage], now) ? { stage, game, games, count: games.length } : null;
 }
 
 /**

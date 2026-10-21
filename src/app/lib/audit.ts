@@ -6,7 +6,7 @@ export interface AuditRow {
 /** The admin actions worth filtering by (filter options; any other action still shows, humanised). */
 export const AUDIT_ACTIONS = [
   'admin_set_share', 'admin_rename_team', 'rename_my_team', 'admin_set_display_name', 'admin_remove_user', 'grant_role', 'revoke_role',
-  'adjust_credits', 'record_donation', 'open_auction', 'run_auction', 'open_tournament', 'reset_game', 'delete_stage',
+  'adjust_credits', 'record_donation', 'open_auction', 'run_auction', 'open_tournament', 'set_game_count', 'reset_game', 'delete_stage',
   'delete_league', 'delete_athlete', 'delete_season',
 ];
 
@@ -41,6 +41,7 @@ export function describeAudit(r: AuditRow, names: Map<string, string>): string {
     case 'admin_rename_team':
     case 'rename_my_team': return `Renamed team ${str('old')} → ${str('new')}`;
     case 'admin_set_display_name': return `Renamed ${str('old')} → ${str('new')}`;
+    case 'set_game_count': return `Games: ${Number(d.from) || 0} → ${Number(d.to) || 0}`;
     default: return humaniseAction(r.action);
   }
 }

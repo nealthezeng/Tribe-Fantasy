@@ -244,6 +244,26 @@ describe('loadCurrentGame', () => {
     const result = await loadCurrentGame('se', Date.parse('2026-11-15T12:00:00'));
     expect(result?.game.id).toBe('g2');
   });
+
+  const g = (n: number, finished: boolean): GameRow => ({ id: `g${n}`, stage_id: 'S1', number: n, session_id: null,
+    started_at: finished ? '2026-11-07T14:00:00+00:00' : null, finished_at: finished ? '2026-11-07T15:00:00+00:00' : null, opponent: null });
+
+  it('returns the first unfinished game, with every game and the count', async () => {
+    mockStages = [baseStage];
+    mockGames = [g(1, true), g(2, false), g(3, false)];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-07T12:00:00'));
+    expect(result?.game.id).toBe('g2');
+    expect(result?.count).toBe(3);
+    expect(result?.games.map((x) => x.id)).toEqual(['g1', 'g2', 'g3']);
+  });
+
+  it('returns the last game when all are finished (the "is over" line)', async () => {
+    mockStages = [baseStage];
+    mockGames = [g(1, true), g(2, true), g(3, true)];
+    const result = await loadCurrentGame('se', Date.parse('2026-11-07T12:00:00'));
+    expect(result?.game.id).toBe('g3');
+    expect(result?.count).toBe(3);
+  });
 });
 
 describe('needsYou', () => {

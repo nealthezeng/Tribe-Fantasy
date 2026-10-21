@@ -95,7 +95,7 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
       for (const [home, away] of nextPairings({ ...input, now: startsAt - HOUR, currentStageId: stageId })) {
         input.pairings.push({ gameId: id, home, away });
       }
-      // Unstarted until played, as finish_game leaves it: a tournament whose games are all finished is over (t202).
+      // Unstarted until played; a tournament whose games are all finished is over.
       const g: TournamentGame = { id, stageId, number: n, sessionId: null, startedAt: null, finishedAt: null };
       input.games.push(g);
       const nextGame = scoreTournaments({ ...input, now: startsAt - HOUR, currentStageId: stageId }).next!;

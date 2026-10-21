@@ -59,6 +59,8 @@ const MESSAGES: Record<string, string> = {
   NOT_MEMBER: "That isn't your team.",
   PICK_LOCKED: 'That game has started, so its picks are locked.',
   NOT_NEXT_GAME: 'You can only pick for the next game.',
+  GAME_COUNT_INVALID: 'A tournament has 1–20 games, and no fewer than it has started.',
+  NOT_OPEN: "This tournament isn't open yet.",
   GAMES_EXIST: 'This tournament is already open.',
   GAME_STARTED: 'Another keeper already started this game.',
   GAME_NOT_LIVE: "This game isn't being played right now: it's finished or hasn't started.",

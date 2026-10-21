@@ -126,17 +126,15 @@ export const api = {
     call<void>('delete_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId }),
   runAuction: (stageId: string) =>
     call<{ by_bid: number; empty: number }>('run_auction', { p_stage: stageId }),
-  openTournament: (stageId: string, pairings: GamePairing[]) =>
-    call<string>('open_tournament', { p_stage: stageId, p_pairings: pairings }),
+  openTournament: (stageId: string, pairings: GamePairing[], games: number) =>
+    call<string>('open_tournament', { p_stage: stageId, p_pairings: pairings, p_games: games }),
   startGame: (gameId: string) => call<string>('start_game', { p_game: gameId }),
+  /** Pairs game N+1 (which already exists); on the last game send [] and []: nothing is paired and it returns null. */
   finishGame: (gameId: string, pairings: GamePairing[], provisional: LeaguePairingInput[]) =>
-    call<string>('finish_game', { p_game: gameId, p_pairings: pairings, p_provisional: provisional }),
-  /** The tournament's last game (t202): finished, with no game N+1 paired. */
-  finishLastGame: (gameId: string) =>
-    call<null>('finish_game', { p_game: gameId, p_pairings: [], p_provisional: [], p_last: true }),
-  /** Pairs game N+1 after all, after a last-game finish. */
-  addNextGame: (gameId: string, pairings: GamePairing[], provisional: LeaguePairingInput[]) =>
-    call<string>('add_next_game', { p_game: gameId, p_pairings: pairings, p_provisional: provisional }),
+    call<string | null>('finish_game', { p_game: gameId, p_pairings: pairings, p_provisional: provisional }),
+  /** Admin: change the tournament's game count. Pairings (and inputs) are needed only to raise a finished tournament. */
+  setGameCount: (stageId: string, count: number, pairings?: GamePairing[], provisional?: LeaguePairingInput[]) =>
+    call<void>('set_game_count', { p_stage: stageId, p_count: count, p_pairings: pairings ?? null, p_provisional: provisional ?? null }),
   setGameOpponent: (gameId: string, name: string) => call<void>('set_game_opponent', { p_game: gameId, p_name: name }),
   resetGame: (gameId: string) => call<void>('reset_game', { p_game: gameId }),
   deleteStage: (stageId: string) => call<void>('delete_stage', { p_stage: stageId }),
