@@ -27,7 +27,19 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 vi.mock('../../lib/rpc', () => ({
-  api: { resetGame: vi.fn(), deleteStage: vi.fn(), runAuction: vi.fn(async () => ({ by_bid: 3, empty: 69 })), openAuction: vi.fn() },
+  api: {
+    resetGame: vi.fn(), deleteStage: vi.fn(), runAuction: vi.fn(async () => ({ by_bid: 3, empty: 69 })), openAuction: vi.fn(),
+    openTournament: vi.fn(), setGameCount: vi.fn(),
+  },
+}));
+
+const pairings = [{ league_id: 'L', home: 'm1', away: 'm2' }];
+const provisional = [{ league_id: 'L', order: ['m1', 'm2'], meetings: {}, season_meetings: {} }];
+vi.mock('../../lib/tournament', async (orig) => ({
+  ...(await orig<typeof import('../../lib/tournament')>()),
+  seasonPairings: () => Promise.resolve({
+    pairings, provisional, league: new Map([['L', 'League A']]), team: new Map([['m1', 'Zeal'], ['m2', 'Flow']]),
+  }),
 }));
 
 afterEach(() => {
@@ -108,5 +120,57 @@ describe('StagesPanel', () => {
     expect(screen.queryByLabelText('Event')).toBeNull(); // t124: Name names the tournament
     fireEvent.click(screen.getByRole('button', { name: 'Delete tournament' }));
     await waitFor(() => expect(api.deleteStage).toHaveBeenCalledWith('Fall'));
+  });
+
+  const game = (number: number, started_at: string | null, finished_at: string | null = null) =>
+    ({ id: `g${number}`, stage_id: 'Fall', number, session_id: null, started_at, finished_at, opponent: null });
+  const T = '2026-11-07T14:00:00Z';
+
+  it('opens a tournament with a required Games count', async () => {
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z')];
+    window.confirm = () => true;
+    render(<StagesPanel seasonId="se1" />);
+    const open = await screen.findByRole('button', { name: 'Open tournament' }) as HTMLButtonElement;
+    expect(open.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Games'), { target: { value: '4' } });
+    expect(open.disabled).toBe(false);
+    fireEvent.click(open);
+    await waitFor(() => expect(api.openTournament).toHaveBeenCalledWith('Fall', pairings, 4));
+  });
+
+  it('words the summary by the current game and saves a lower count without a confirm', async () => {
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z')];
+    db.games = [game(1, T, T), game(2, null), game(3, null), game(4, null)];
+    window.confirm = () => { throw new Error('no confirm expected'); };
+    render(<StagesPanel seasonId="se1" />);
+    await screen.findByText(/game 2 next of 4/);
+    const input = screen.getByLabelText('Games', { selector: 'input' }) as HTMLInputElement;
+    expect(input.min).toBe('1');
+    expect(input.value).toBe('4');
+    fireEvent.change(input, { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save count', hidden: true }));
+    await waitFor(() => expect(api.setGameCount).toHaveBeenCalledWith('Fall', 2));
+    await screen.findByText('Fall: 2 games.');
+  });
+
+  it('never lets the count drop below the highest started game', async () => {
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z')];
+    db.games = [game(1, T, T), game(2, T), game(3, null)];
+    render(<StagesPanel seasonId="se1" />);
+    await screen.findByText(/game 2 live of 3/);
+    expect((screen.getByLabelText('Games', { selector: 'input' }) as HTMLInputElement).min).toBe('2');
+  });
+
+  it('shows the new game pairings before raising a finished tournament, and sends them', async () => {
+    db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z')];
+    db.games = [game(1, T, T), game(2, T, T)];
+    const ask = vi.fn(() => true);
+    window.confirm = ask;
+    render(<StagesPanel seasonId="se1" />);
+    await screen.findByText(/over after game 2/);
+    fireEvent.change(screen.getByLabelText('Games', { selector: 'input' }), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save count', hidden: true }));
+    await waitFor(() => expect(api.setGameCount).toHaveBeenCalledWith('Fall', 3, pairings, provisional));
+    expect(ask).toHaveBeenCalledWith(expect.stringContaining('Zeal'));
   });
 });

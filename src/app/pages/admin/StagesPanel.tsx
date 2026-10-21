@@ -169,6 +169,7 @@ function TournamentControls({ stage, current, seasonId, run }: {
   stage: StageRow; current: boolean; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
 }) {
   const [checks, setChecks] = useState<{ id: string; text: string }[] | null>(null);
+  const [count, setCount] = useState(''); // the Games field: the count to open with, or an edit of the current one
   const games = useLoad(async () => {
     const { data, error } = await supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id).order('number');
     if (error) throw error;
@@ -181,19 +182,42 @@ function TournamentControls({ stage, current, seasonId, run }: {
   if (games.data.length === 0) {
     if (!current) return null;
     return (
-      <div className="row">
-        <button onClick={() => void run(async () => {
+      <form className="row" onSubmit={(e) => {
+        e.preventDefault();
+        void run(async () => {
           const p = await seasonPairings(seasonId);
-          if (!window.confirm(`Open the ${stage.name} tournament? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
-          await api.openTournament(stage.id, p.pairings, 1); // Task 3 replaces the 1 with the Games input
+          if (!window.confirm(`Open the ${stage.name} tournament with ${count} games? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
+          await api.openTournament(stage.id, p.pairings, Number(count));
+          setCount('');
           games.reload();
           return `${stage.name}: game 1 is paired. Keepers start it from Stats → Tally.`;
-        })}>Open tournament</button>
-      </div>
+        });
+      }}>
+        <label>Games<input type="number" required min={1} max={20} value={count} onChange={(e) => setCount(e.target.value)} /></label>
+        <button disabled={count === ''}>Open tournament</button>
+      </form>
     );
   }
 
-  const last = games.data[games.data.length - 1];
+  const total = games.data.length;
+  const now = games.data.find((g) => g.finished_at === null); // the current game; none = every game is finished
+  const minCount = Math.max(1, ...games.data.filter((g) => g.started_at !== null).map((g) => g.number));
+  // Raising a finished tournament pairs the new game now (spec §5.9), so show those pairings first; anything else needs no confirm.
+  const saveCount = (e: FormEvent) => {
+    e.preventDefault();
+    const n = Number(count || total);
+    void run(async () => {
+      if (n === total) return;
+      if (n > total && !now) {
+        const p = await seasonPairings(seasonId);
+        if (!window.confirm(`Raise ${stage.name} to ${n} games? Game ${total + 1}: ${describePairings(p.pairings, p.team)}.`)) return;
+        await api.setGameCount(stage.id, n, p.pairings, p.provisional);
+      } else await api.setGameCount(stage.id, n);
+      setCount('');
+      games.reload();
+      return `${stage.name}: ${n} ${n === 1 ? 'game' : 'games'}.`;
+    });
+  };
   // Undo = reset the newest started game (spec §3): its stats and the next game it created go; it can be replayed.
   // A past tournament has no Start game, so there is nothing to replay: Undo only on the one that can still be played.
   const played = current ? games.data.filter((g) => g.started_at !== null).at(-1) : undefined;
@@ -220,8 +244,13 @@ function TournamentControls({ stage, current, seasonId, run }: {
   });
   return (
     <details className="section">
-      <summary>Tournament <span className="muted">· game {last.number} {last.started_at ? 'live' : 'next'}</span></summary>
+      <summary>Tournament <span className="muted">· {now
+        ? `game ${now.number} ${now.started_at ? 'live' : 'next'} of ${total}` : `over after game ${total}`}</span></summary>
       <div className="stack">
+        <form className="row" onSubmit={saveCount}>
+          <label>Games<input type="number" required min={minCount} max={20} value={count || total} onChange={(e) => setCount(e.target.value)} /></label>
+          <button className="secondary">Save count</button>
+        </form>
         <div className="row">
           <button className="secondary" onClick={check}>Check pairings</button>
           {played && <button className="secondary" onClick={() => undo(played)}>Undo game {played.number}</button>}
