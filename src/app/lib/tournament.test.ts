@@ -45,6 +45,7 @@ const rows: TournamentRows = {
     { athlete_id: 'b1', confirmed_at: null, cleared_at: null },
     { athlete_id: 'other-season', confirmed_at: '2026-10-10T00:00:00+00:00', cleared_at: null },
   ],
+  outs: [],
   athletes: [{ id: 'a1', name: 'Jordan' }, { id: 'b1', name: 'Sam' }],
 };
 
@@ -95,7 +96,15 @@ describe('buildLeagueTournament', () => {
     expect(y.result.next).toMatchObject({ stageId: 'S1', number: 2 });
     expect(y.team.get('m1')).toBe('Zeal');
     expect(y.athlete.get('b1')).toBe('Sam');
-    expect(y.injured.size).toBe(0);
+    expect(y.out.size).toBe(0);
+  });
+
+  it('maps outs rows and lists who is out for the next game', () => {
+    const outs = (from: number) => [{ stage_id: 'S1', athlete_id: 'a2', from_game: from, until_game: null }];
+    const at = (from: number) => buildLeagueTournament({ ...rows, outs: outs(from) }, Date.parse('2026-11-10T12:00:00Z'));
+    expect(at(2).input.outs).toEqual([{ stageId: 'S1', athleteId: 'a2', fromGame: 2, untilGame: null }]);
+    expect([...at(2).out]).toEqual(['a2']); // next game is 2
+    expect(at(3).out.size).toBe(0);
   });
 
   it('labels a removed team and maps the slot ranges', () => {

@@ -39,7 +39,7 @@ const base = (): TournamentRows => ({
   members: [{ id: 'm1', team_name: 'Zeal', created_at: '2026-10-01T00:00:00Z', removed_at: null, user_id: 'u1' },
     { id: 'm2', team_name: 'Flow', created_at: '2026-10-01T00:00:00Z', removed_at: null, user_id: 'u2' }],
   profiles: [{ id: 'u1', display_name: 'Neal Zeng' }, { id: 'u2', display_name: 'Sam Sample' }],
-  slots: [], picks: [], sessions: [], lines: [], taps: [], injuries: [], athletes: [],
+  slots: [], picks: [], sessions: [], lines: [], taps: [], injuries: [], outs: [], athletes: [],
 });
 
 afterEach(() => { cleanup(); localStorage.clear(); overall.leagues = 1; auth.signedIn = true; });

@@ -54,7 +54,7 @@ export function simulateYear(cfg: YearSimConfig): YearSimResult {
 
   const input: TournamentInput = {
     settings: s, now: 0, games: [], pairings: [], slots: [], picks: [], sessions: [], statLines: [],
-    injuries: [], currentStageId: null, members: managerIds.map((id) => ({ id, createdAt: iso(start - 30 * DAY), removedAt: null })),
+    injuries: [], outs: [], currentStageId: null, members: managerIds.map((id) => ({ id, createdAt: iso(start - 30 * DAY), removedAt: null })),
   };
   const balance = Object.fromEntries(managerIds.map((m) => [m, 0]));
   const placesByStage: Record<string, number>[] = [];

@@ -44,6 +44,7 @@ const base = (over: Partial<TournamentInput> = {}): TournamentInput => {
       goals('S1s3', 'a3', 2), goals('S1s3', 'b3', 2),
     ],
     injuries: [],
+    outs: [],
     currentStageId: null,
     ...over,
   };
@@ -76,7 +77,7 @@ describe('scoreTournaments, 2v2', () => {
     })), 'S1g1', 'm1');
     expect(at(['a1'])).toMatchObject({ athleteIds: ['a1', 'a3'], replacements: [{ picked: null, athleteId: 'a3', why: 'missed' }] });
     expect(at(['a1', 'a2'])).toMatchObject({ picked: ['a1', 'a2'], athleteIds: ['a1', 'a3'],
-      replacements: [{ picked: 'a2', athleteId: 'a3', why: 'injured' }] });
+      replacements: [{ picked: 'a2', athleteId: 'a3', why: 'out' }] });
     // A pick off the roster is ignored: the slot is filled as if missed.
     expect(at(['a1', 'b1']).replacements).toEqual([{ picked: null, athleteId: 'a3', why: 'missed' }]);
   });
@@ -145,7 +146,39 @@ describe('scoreTournaments', () => {
   it('swaps out a pick injured at the start', () => {
     const r = scoreTournaments(base({ injuries: [{ athleteId: 'a2', confirmedAt: iso(T0), clearedAt: null }] }));
     expect(side(r, 'S1g2', 'm1')).toMatchObject({ picked: ['a2'], athleteIds: ['a3'],
-      replacements: [{ picked: 'a2', athleteId: 'a3', why: 'injured' }] });
+      replacements: [{ picked: 'a2', athleteId: 'a3', why: 'out' }] });
+  });
+
+  it('swaps an Out pick from its first game on, not before', () => {
+    const r = scoreTournaments(base({ outs: [{ stageId: 'S1', athleteId: 'a2', fromGame: 2, untilGame: null }] }));
+    expect(side(r, 'S1g2', 'm1')).toMatchObject({ picked: ['a2'], athleteIds: ['a3'],
+      replacements: [{ picked: 'a2', athleteId: 'a3', why: 'out' }] });
+    const early = scoreTournaments(base({ outs: [{ stageId: 'S1', athleteId: 'a2', fromGame: 3, untilGame: null }] }));
+    expect(side(early, 'S1g2', 'm1')).toMatchObject({ athleteIds: ['a2'], replacements: [] });
+  });
+
+  it('an ended Out stops at until_game', () => {
+    const r = scoreTournaments(base({
+      picks: [pick(1, 'm1', 'a2'), pick(1, 'm2', 'b1'), pick(2, 'm1', 'a2'), pick(2, 'm2', 'b2')],
+      outs: [{ stageId: 'S1', athleteId: 'a2', fromGame: 1, untilGame: 2 }] }));
+    expect(side(r, 'S1g1', 'm1').replacements).toEqual([{ picked: 'a2', athleteId: 'a1', why: 'out' }]);
+    expect(side(r, 'S1g2', 'm1')).toMatchObject({ athleteIds: ['a2'], replacements: [] });
+  });
+
+  it("only counts Out rows of the game's own stage", () => {
+    const r = scoreTournaments(base({ outs: [{ stageId: 'S2', athleteId: 'a2', fromGame: 1, untilGame: null }] }));
+    expect(side(r, 'S1g2', 'm1')).toMatchObject({ athleteIds: ['a2'], replacements: [] });
+  });
+
+  it('auto-pick skips Out players, but plays one if nobody else is free', () => {
+    const outs = (ids: string[]) => ids.map((athleteId) => ({ stageId: 'S1', athleteId, fromGame: 1, untilGame: null }));
+    const at = (ids: string[], picks: string[]) => side(scoreTournaments(base({
+      games: [game(1)], picks: picks.map((a) => pick(1, 'm1', a)), outs: outs(ids),
+      slots: [...roster('S1', 'm1', ['a1', 'a2', 'a3']), ...roster('S1', 'm2', ['b1'])] })), 'S1g1', 'm1');
+    // a1 missed: a1 and a2 are Out, so a3 plays (a1 would win on id otherwise).
+    expect(at(['a1', 'a2'], [])).toMatchObject({ athleteIds: ['a3'], replacements: [{ picked: null, athleteId: 'a3', why: 'missed' }] });
+    // Everyone is Out: the fallback plays one anyway.
+    expect(at(['a1', 'a2', 'a3'], []).athleteIds).toHaveLength(1);
   });
 
   it('ignores an injury confirmed after the start', () => {

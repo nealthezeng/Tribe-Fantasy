@@ -24,7 +24,7 @@ function data(held = 2, over: Partial<LeagueAdminData> = {}): LeagueAdminData {
     members: [{ id: 'm1', team_name: 'Gimp Zeal', created_at: '2026-10-01T00:00:00Z', removed_at: null },
       { id: 'm2', team_name: 'Money', created_at: '2026-10-01T00:00:00Z', removed_at: '2026-11-05T00:00:00Z' }],
     slots: [...athletes.slice(0, held).map((a) => slot('m1', a.id, 0.25)), slot('m2', 'a7', 0.5)],
-    picks: [], sessions: [], lines: [], taps: [], injuries: [], athletes,
+    picks: [], sessions: [], lines: [], taps: [], injuries: [], outs: [], athletes,
   }, NOW);
   return { leagueName: 'Huck Yeah', y, owners: new Map(), balances: new Map(), sealedBuys: [], players: athletes,
     stageId: 'S1', stageSettled: true, nextGame: 1, ...over };

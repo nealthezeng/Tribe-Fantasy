@@ -29,7 +29,7 @@ const base = (): TournamentRows => ({
   sessions: [],
   lines: [],
   taps: [],
-  injuries: [],
+  injuries: [], outs: [],
   athletes: Object.entries(NAMES).map(([id, name]) => ({ id, name })),
 });
 /** Game 1 played (finished, stats not verified): m1 started a1, m2 b1. Game 2 is paired and not started. */

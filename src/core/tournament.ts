@@ -46,7 +46,11 @@ export interface TournamentPairing { gameId: string; home: string; away: string 
 export interface TournamentSlot {
   stageId: string; membershipId: string; athleteId: string; price: number; share: number; fromGame: number; untilGame: number | null;
 }
-export const slotLive = (x: TournamentSlot, number: number): boolean => x.fromGame <= number && (x.untilGame === null || number < x.untilGame);
+export const slotLive = (x: { fromGame: number; untilGame: number | null }, number: number): boolean => x.fromGame <= number && (x.untilGame === null || number < x.untilGame);
+/** A keeper's Out mark: the player is unavailable for games `fromGame` up to (not including) `untilGame` (null = open). */
+export interface TournamentOut { stageId: string; athleteId: string; fromGame: number; untilGame: number | null }
+export const isOut = (outs: TournamentOut[], athleteId: string, stageId: string, number: number): boolean =>
+  outs.some((o) => o.athleteId === athleteId && o.stageId === stageId && slotLive(o, number));
 /** Keyed by game number, not game id: a pick can exist before its game does (pre-selection). One row per picked player. */
 export interface TournamentPick { stageId: string; number: number; membershipId: string; athleteId: string }
 export interface TournamentSession { id: string; verifiedAt: string | null }
@@ -62,7 +66,9 @@ export interface TournamentInput {
   picks: TournamentPick[];
   sessions: TournamentSession[];
   statLines: YearStatLine[];
+  /** Past injuries still decide the games that started inside them; new unavailability is an Out mark. */
   injuries: YearInjury[];
+  outs: TournamentOut[];
   /** The stage whose next game `next` describes (the pick screen's stage); null = no `next`. */
   currentStageId: string | null;
 }
@@ -73,8 +79,8 @@ export interface TournamentInput {
  */
 export type GameStatus = 'upcoming' | 'live' | 'pending' | 'final' | 'void';
 /** Why a starter isn't the manager's own pick. */
-export type GameNotice = 'missed' | 'injured';
-/** An empty or injured pick slot and who filled it (`picked` null = no pick; `athleteId` null = nobody, a forfeit). */
+export type GameNotice = 'missed' | 'out';
+/** An empty or out pick slot and who filled it (`picked` null = no pick; `athleteId` null = nobody, a forfeit). */
 export interface Replacement { picked: string | null; athleteId: string | null; why: GameNotice }
 
 export interface TournamentSide {
@@ -179,18 +185,20 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     }
     const picked = input.picks.filter((p) => p.stageId === stageId && p.number === number && p.membershipId === membershipId)
       .map((p) => p.athleteId).sort();
-    // Own picks play unless injured at the start; a pick off the roster is ignored. Empty slots are auto-picked (C4).
+    // Own picks play unless out at the start (a keeper's Out mark, or a past injury); a pick off the roster is ignored.
+    // Empty slots are auto-picked (C4).
+    const unavailable = (a: string) => injuredAt(a, asOf) || isOut(input.outs, a, stageId, number);
     const mine = picked.filter((a) => players.includes(a));
-    const athleteIds = mine.filter((a) => !injuredAt(a, asOf)).slice(0, s.picks_per_game);
-    const injured = mine.filter((a) => injuredAt(a, asOf));
+    const athleteIds = mine.filter((a) => !unavailable(a)).slice(0, s.picks_per_game);
+    const out = mine.filter(unavailable);
     const replacements: Replacement[] = [];
     const history = historyAsOf(asOf);
     for (let i = athleteIds.length; i < Math.min(s.picks_per_game, players.length); i++) {
       const free = players.filter((a) => !athleteIds.includes(a));
-      const healthy = free.filter((a) => !injuredAt(a, asOf));
+      const healthy = free.filter((a) => !unavailable(a));
       const athleteId = autoPick(healthy.length > 0 ? healthy : free, rest, history, s, share);
-      const was = injured.shift() ?? null;
-      replacements.push({ picked: was, athleteId, why: was === null ? 'missed' : 'injured' });
+      const was = out.shift() ?? null;
+      replacements.push({ picked: was, athleteId, why: was === null ? 'missed' : 'out' });
       if (athleteId !== null) athleteIds.push(athleteId);
     }
     return {

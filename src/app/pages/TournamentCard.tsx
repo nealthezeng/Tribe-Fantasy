@@ -226,7 +226,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
         {[...mine.players].sort(byName).map((id) => (
           <li key={id} className="pickrow">
             <span className="who">
-              <span><span className="title">{name(id)}</span>{y.injured.has(id) && <> <span className="pill bad">Injured</span></>}</span>
+              <span><span className="title">{name(id)}</span>{y.out.has(id) && <> <span className="pill bad">Injured</span></>}</span>
               <Factor side={mine} id={id} />
             </span>
             {mine.picked.includes(id) ? (

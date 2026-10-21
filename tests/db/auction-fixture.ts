@@ -1,4 +1,5 @@
 import type { PGlite } from '@electric-sql/pglite';
+import type { TournamentRows } from '../../src/app/lib/tournament';
 import { as, createUser, freshDb, makeAdmin, rpc, tiedRanks } from './helpers';
 
 export interface AuctionFixture {
@@ -14,8 +15,8 @@ export interface AuctionFixture {
 export const inAnHour = () => new Date(Date.now() + 3_600_000).toISOString();
 
 /** One season (with `settings`), league A (invite LEAGUE1), stage "Fall beta", `athleteCount` athletes. */
-export async function auctionFixture(athleteCount = 8, settings: object = {}): Promise<AuctionFixture> {
-  const db = await freshDb();
+export async function auctionFixture(athleteCount = 8, settings: object = {}, stopBefore?: string): Promise<AuctionFixture> {
+  const db = await freshDb(stopBefore);
   const admin = await createUser(db, 'admin@x.test');
   await makeAdmin(db, admin);
   const ids = await as(db, admin, async (tx) => {
@@ -68,3 +69,27 @@ export const slots = async (f: AuctionFixture) =>
 /** Superuser write: a keeper-confirmed injury. */
 export const injure = (f: AuctionFixture, athlete: string) =>
   f.db.query(`insert into public.injuries (athlete_id, confirmed_at) values ($1, now())`, [athlete]);
+
+const iso = (col: string) => `to_json(${col}) #>> '{}' as ${col}`;
+
+/** Every row the way loadLeagueRows reads them for staff (with live taps). Mirror loadLeagueRows' column lists. */
+export async function readLeagueRows(f: AuctionFixture): Promise<TournamentRows> {
+  const q = async <T,>(sql: string, params: unknown[] = []) => (await f.db.query<T>(sql, params)).rows;
+  const hasOuts = (await q<{ t: string | null }>(`select to_regclass('public.outs')::text as t`))[0].t !== null;
+  return {
+    settings: (await q<{ settings: unknown }>('select settings from public.seasons where id = $1', [f.season]))[0].settings,
+    stages: await q(`select id, name, starts_on::text, ends_on::text, ${iso('bid_close_at')}, auction_seed, ${iso('auction_run_at')}
+      from public.stages where season_id = $1`, [f.season]),
+    games: await q(`select id, stage_id, number, session_id, ${iso('started_at')}, ${iso('finished_at')} from public.games`),
+    pairings: await q('select game_id, home, away from public.game_pairings where league_id = $1', [f.league]),
+    members: await q(`select id, team_name, ${iso('created_at')}, ${iso('removed_at')}, user_id from public.memberships where league_id = $1`, [f.league]),
+    slots: await q('select stage_id, membership_id, athlete_id, price, share::float8 as share, from_game, until_game from public.roster_slots'),
+    picks: await q('select stage_id, game_number, membership_id, athlete_id from public.game_picks'),
+    sessions: await q(`select id, ${iso('verified_at')} from public.sessions where id in (select session_id from public.games)`),
+    lines: await q('select session_id, athlete_id, stats, points_played from public.stat_lines'),
+    taps: await q(`select id, session_id, athlete_id, stat, keeper_id, ${iso('tapped_at')}, undoes from public.stat_taps`),
+    injuries: await q(`select athlete_id, ${iso('confirmed_at')}, ${iso('cleared_at')} from public.injuries`),
+    outs: hasOuts ? await q('select stage_id, athlete_id, from_game, until_game from public.outs') : [],
+    athletes: await q('select id, name from public.athletes where season_id = $1', [f.season]),
+  };
+}

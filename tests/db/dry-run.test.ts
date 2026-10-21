@@ -4,7 +4,7 @@
 // standings for a hand check.
 import { beforeAll, describe, expect, it } from 'vitest';
 import { as, createUser, rpc } from './helpers';
-import { auctionFixture, bid, closeBids, grant, member, openAuction, runAuction, type AuctionFixture } from './auction-fixture';
+import { auctionFixture, bid, closeBids, grant, member, openAuction, readLeagueRows, runAuction, type AuctionFixture } from './auction-fixture';
 import { makeKeeper, tap } from './stats-fixture';
 import { stageAllowance } from '../../src/core/points';
 import { DEFAULT_SETTINGS } from '../../src/core/settings';
@@ -20,29 +20,10 @@ const NOW = Date.parse('2027-01-01T00:00:00Z'); // after every game's verified_a
 const START = 115; // everyone ties before the first game: (100 + 130) / 2
 
 const q = async <T,>(sql: string, params: unknown[] = []) => (await f.db.query<T>(sql, params)).rows;
-const iso = (col: string) => `to_json(${col}) #>> '{}' as ${col.split('.').pop()}`;
-
-/** Every row the way loadLeagueRows reads them for staff (with live taps). Mirror loadLeagueRows' column lists. */
-const readRows = async (): Promise<TournamentRows> => ({
-  settings: (await q<{ settings: unknown }>('select settings from public.seasons where id = $1', [f.season]))[0].settings,
-  stages: await q(`select id, name, starts_on::text, ends_on::text, ${iso('bid_close_at')}, auction_seed, ${iso('auction_run_at')}
-    from public.stages where season_id = $1`, [f.season]),
-  games: await q(`select id, stage_id, number, session_id, ${iso('started_at')}, ${iso('finished_at')} from public.games`),
-  pairings: await q('select game_id, home, away from public.game_pairings where league_id = $1', [f.league]),
-  members: await q(`select id, team_name, ${iso('created_at')}, ${iso('removed_at')}, user_id from public.memberships where league_id = $1`, [f.league]),
-  slots: await q('select stage_id, membership_id, athlete_id, price, share::float8 as share, from_game, until_game from public.roster_slots'),
-  picks: await q('select stage_id, game_number, membership_id, athlete_id from public.game_picks'),
-  sessions: await q(`select id, ${iso('verified_at')} from public.sessions where id in (select session_id from public.games)`),
-  lines: await q('select session_id, athlete_id, stats, points_played from public.stat_lines'),
-  taps: await q(`select id, session_id, athlete_id, stat, keeper_id, ${iso('tapped_at')}, undoes from public.stat_taps`),
-  injuries: await q(`select athlete_id, ${iso('confirmed_at')}, ${iso('cleared_at')} from public.injuries`),
-  athletes: await q('select id, name from public.athletes where season_id = $1', [f.season]),
-});
-
 
 /** The next game's pairings and their inputs, as the finishing keeper's phone computes them. */
 const pairNext = async () => {
-  const provisional = [leaguePairingInput(f.league, toTournamentInput(await readRows(), Date.now()))];
+  const provisional = [leaguePairingInput(f.league, toTournamentInput(await readLeagueRows(f), Date.now()))];
   return { pairings: provisional.flatMap(toPairings), provisional };
 };
 /** A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself). */
@@ -89,7 +70,7 @@ beforeAll(async () => {
   await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: first.pairings, p_games: 4 }));
   const sessionLines = new Map<string, { athlete_id: string; stats: Record<string, number> }[]>();
   for (const n of [1, 2, 3]) {
-    const input = toTournamentInput(await readRows(), Date.now());
+    const input = toTournamentInput(await readLeagueRows(f), Date.now());
     for (const [i, t] of teams.entries()) {
       if (n === 3 && i === 2) continue;
       const roster = rosterOf(input, t.mid, f.stage, n);
@@ -125,7 +106,7 @@ beforeAll(async () => {
     await as(f.db, verifier, (tx) => rpc(tx, 'verify_session', { p_session: session, p_lines: lines }));
   }
   await f.db.query(`update public.sessions set verified_at = '2026-11-08T00:00:00Z' where id in (select session_id from public.games)`);
-  rows = await readRows();
+  rows = await readLeagueRows(f);
   result = scoreTournaments(toTournamentInput(rows, NOW));
 }, 120_000);
 
@@ -175,7 +156,7 @@ describe('dry run: one tournament, six managers', () => {
     expect(fay.athleteIds).toHaveLength(2);
     expect(fay.replacements).toEqual([{ picked: null, athleteId: expect.any(String), why: 'missed' }]);
     const ava = sideOf(2, teams[0].mid);
-    expect(ava.replacements).toEqual([{ picked: f.athletes[0], athleteId: f.athletes[9], why: 'injured' }]);
+    expect(ava.replacements).toEqual([{ picked: f.athletes[0], athleteId: f.athletes[9], why: 'out' }]);
     expect([...ava.athleteIds].sort()).toEqual([f.athletes[3], f.athletes[9]].sort());
     const cal = sideOf(3, teams[2].mid);
     expect(cal.picked).toEqual([]);

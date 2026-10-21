@@ -42,7 +42,7 @@ function setup() {
     slots: [...at('m1', ['a1', 'a2'], 0.25), ...at('m2', ['b1'], 0.5)],
     // Sealed until game 2 starts; only an admin's read returns them.
     picks: [{ stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' }],
-    sessions: [{ id: 'p1', verified_at: null }], lines: [], taps: [], injuries: [],
+    sessions: [{ id: 'p1', verified_at: null }], lines: [], taps: [], injuries: [], outs: [],
     athletes: [{ id: 'a1', name: 'Ash' }, { id: 'a2', name: 'Avery' }, { id: 'b1', name: 'Bea' }],
   };
   ROWS.current = {

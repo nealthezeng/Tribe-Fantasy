@@ -1,7 +1,7 @@
 import { parseSettings, type SeasonSettings } from '../../core/settings';
 import { swissPairings } from '../../core/swiss';
 import {
-  liveStatLines, pairingInputs, scoreTournaments, type GameOutcome, type TournamentInput, type TournamentResult,
+  isOut, liveStatLines, pairingInputs, scoreTournaments, type GameOutcome, type TournamentInput, type TournamentResult,
 } from '../../core/tournament';
 import { rowToTap, type StatTapRow } from '../tally/queue';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, pickPlayingStage, type AuctionStage } from './auction';
@@ -42,6 +42,8 @@ export interface TournamentRows {
   /** Taps of unverified game sessions (staff only), for provisional pairing. Empty otherwise. */
   taps: (StatTapRow & { session_id: string })[];
   injuries: InjuryRow[];
+  /** Keeper Out marks of this season's stages (open: `until_game` null). */
+  outs: { stage_id: string; athlete_id: string; from_game: number; until_game: number | null }[];
   athletes: { id: string; name: string }[];
 }
 
@@ -80,6 +82,7 @@ export function toTournamentInput(rows: TournamentRows, now: number): Tournament
     // Injuries have no season column: keep this season's athletes, confirmed reports only.
     injuries: rows.injuries.filter((i) => i.confirmed_at !== null && athletes.has(i.athlete_id))
       .map((i) => ({ athleteId: i.athlete_id, confirmedAt: i.confirmed_at!, clearedAt: i.cleared_at })),
+    outs: rows.outs.map((o) => ({ stageId: o.stage_id, athleteId: o.athlete_id, fromGame: o.from_game, untilGame: o.until_game })),
     // Between tournaments (last day past, or the next auction not run yet) there's nothing to pick.
     currentStageId: playingStage(rows.stages, now)?.id ?? null,
   };
@@ -96,23 +99,25 @@ export interface LeagueTournament {
   stage: Map<string, string>;
   /** Each stage's dates, for the League header. */
   stageDates: Map<string, { starts_on: string; ends_on: string }>;
-  /** Athletes with a confirmed injury that hasn't cleared. */
-  injured: Set<string>;
+  /** Athletes Out for the next game (empty without one). */
+  out: Set<string>;
 }
 
 export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): LeagueTournament {
   const input = toTournamentInput(rows, now);
+  const result = scoreTournaments(input);
+  const next = result.next;
   const names = new Map((rows.profiles ?? []).map((p) => [p.id, p.display_name]));
   return {
     settings: input.settings,
     input,
-    result: scoreTournaments(input),
+    result,
     team: new Map(rows.members.map((m) => [m.id, teamLabel(m)])),
     owner: new Map(rows.members.map((m) => [m.id, m.user_id === null ? 'Removed user' : names.get(m.user_id ?? '') ?? ''])),
     athlete: new Map(rows.athletes.map((a) => [a.id, a.name])),
     stage: new Map(rows.stages.map((x) => [x.id, x.name])),
     stageDates: new Map(rows.stages.map((x) => [x.id, { starts_on: x.starts_on, ends_on: x.ends_on }])),
-    injured: new Set(input.injuries.filter((i) => i.clearedAt === null || Date.parse(i.clearedAt) > now).map((i) => i.athleteId)),
+    out: new Set(next ? input.outs.map((o) => o.athleteId).filter((a) => isOut(input.outs, a, next.stageId, next.number)) : []),
   };
 }
 
@@ -156,7 +161,11 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
   if (season.length === 0) throw new Error('NOT_FOUND');
   const userIds = members.flatMap((m) => (m.user_id ? [m.user_id] : []));
   const stageIds = stages.map((x) => x.id);
-  const games = await rowsOf<GameRow>(stageIds.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', stageIds) : null);
+  const [games, outs] = await Promise.all([
+    rowsOf<GameRow>(stageIds.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', stageIds) : null),
+    rowsOf<TournamentRows['outs'][number]>(stageIds.length
+      ? sb.from('outs').select('stage_id, athlete_id, from_game, until_game').in('stage_id', stageIds) : null),
+  ]);
   const gameIds = games.map((g) => g.id);
   const sessionIds = games.flatMap((g) => (g.session_id ? [g.session_id] : []));
   const [pairings, sessions, profiles] = await Promise.all([
@@ -178,8 +187,15 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
   ]);
   return {
     settings: season[0].settings, stages, games, pairings, members, profiles, slots, picks, sessions, lines, taps: tapRows,
-    injuries, athletes,
+    injuries, outs, athletes,
   };
+}
+
+/** Who is Out right now in `stageId`: athlete → the `from_game` of the open row. */
+export async function loadOpenOuts(stageId: string): Promise<Map<string, number>> {
+  const { data, error } = await supabase!.from('outs').select('athlete_id, from_game').eq('stage_id', stageId).is('until_game', null);
+  if (error) throw error;
+  return new Map((data ?? []).map((o) => [o.athlete_id as string, o.from_game as number]));
 }
 
 export const loadLeagueTournament = async (seasonId: string, leagueId: string) =>
