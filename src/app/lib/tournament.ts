@@ -198,6 +198,11 @@ export async function loadOpenOuts(stageId: string): Promise<Map<string, number>
   return new Map((data ?? []).map((o) => [o.athlete_id as string, o.from_game as number]));
 }
 
+/** The stage players are marked Out for: the earliest whose last day hasn't passed (the playing one, else the next). */
+export function outStage<T extends { starts_on: string; ends_on: string }>(stages: T[], today: string): T | null {
+  return stages.filter((s) => s.ends_on >= today).sort((a, b) => a.starts_on.localeCompare(b.starts_on))[0] ?? null;
+}
+
 export const loadLeagueTournament = async (seasonId: string, leagueId: string) =>
   buildLeagueTournament(await loadLeagueRows(seasonId, leagueId));
 

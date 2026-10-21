@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -340,5 +340,16 @@ describe('pastTournaments', () => {
     const all = pastTournaments(build(null));
     expect(all.map((t) => t.stageId)).toEqual(['S2', 'S1']);
     expect(all[0].waiting).toBe(false);
+  });
+});
+
+describe('outStage', () => {
+  const cccs = { starts_on: '2026-11-07', ends_on: '2026-11-08' };
+  const later = { starts_on: '2026-11-21', ends_on: '2026-11-22' };
+  const done = { starts_on: '2026-10-17', ends_on: '2026-10-18' };
+  it('picks the playing tournament over a later one, the next one between, and none after the last', () => {
+    expect(outStage([later, cccs, done], '2026-11-08')).toBe(cccs);
+    expect(outStage([later, cccs, done], '2026-11-09')).toBe(later);
+    expect(outStage([later, cccs, done], '2026-11-23')).toBeNull();
   });
 });

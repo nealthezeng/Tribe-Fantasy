@@ -20,7 +20,6 @@ describe('errorMessage', () => {
   });
   it('maps the M3 stats codes', () => {
     expect(errorMessage({ message: 'VERIFIER_TAPPED' })).toMatch(/another keeper has to verify/);
-    expect(errorMessage({ message: 'NOT_YOUR_ATHLETE' })).toMatch(/your own attendance/);
   });
   it('maps the M4 wallet codes', () => {
     expect(errorMessage({ message: 'LEAGUE_FULL' })).toMatch(/full/);

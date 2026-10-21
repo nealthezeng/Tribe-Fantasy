@@ -23,6 +23,10 @@ describe('describeAudit', () => {
     expect(describeAudit(row('rename_my_team', { old: 'Zeal', new: 'Flow' }), names)).toBe('Renamed team Zeal → Flow');
     expect(describeAudit(row('admin_set_display_name', { user: 'u1', old: 'Al', new: 'Alex Kim' }), names)).toBe('Renamed Al → Alex Kim');
   });
+  it('describes marking a player Out and clearing it', () => {
+    expect(describeAudit(row('set_out', { athlete: 'a1', from_game: 2 }), names)).toBe('Marked Sam Grossberg out from game 2');
+    expect(describeAudit(row('clear_out', { athlete: 'a1', from_game: 2, until_game: null }), names)).toBe("Cleared Sam Grossberg's Out");
+  });
   it('humanises any other action', () => {
     expect(describeAudit(row('delete_stage', {}), names)).toBe('Delete stage');
   });
@@ -31,6 +35,7 @@ describe('describeAudit', () => {
     expect([l('open_auction'), l('run_auction'), l('place_bid'), l('delete_bid')])
       .toEqual(['Open share buying', 'Settle shares', 'Buy shares', 'Delete share buy']);
     for (const a of AUDIT_ACTIONS) expect(humaniseAction(a)).not.toMatch(/bid|auction/i);
+    expect(AUDIT_ACTIONS).toEqual(expect.arrayContaining(['set_out', 'clear_out']));
   });
 });
 

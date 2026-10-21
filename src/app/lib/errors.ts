@@ -26,8 +26,6 @@ const MESSAGES: Record<string, string> = {
   INVALID_TAPS: 'Some taps were malformed and were not saved.',
   INVALID_LINES: 'Those stat totals are not valid.',
   LINES_MISMATCH: "Those totals don't match the taps. Reload and try again.",
-  NOT_YOUR_ATHLETE: 'You can only update your own attendance and injuries.',
-  INVALID_STATUS: 'Attendance must be present or absent.',
   USER_ALREADY_LINKED: 'That account is already linked to another athlete this season.',
   INVALID_DATES: 'The end date must be on or after the start date.',
   STAGE_OVERLAP: 'Those dates overlap another tournament.',

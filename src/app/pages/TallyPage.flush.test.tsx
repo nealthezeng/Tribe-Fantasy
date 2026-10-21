@@ -25,11 +25,12 @@ vi.mock('../lib/supabase', () => ({
       const session = { id: GAME, season_id: 'se', kind: 'tournament', held_on: '2026-11-07', counts: true, created_by: 'k1',
         verified_by: null, verified_at: null };
       // Alice still exists; the player 'gone' was force-deleted.
-      const rows = table === 'sessions' ? [session] : table === 'games' ? [{ session_id: GAME, number: 2 }]
+      const rows = table === 'sessions' ? [session] : table === 'games' ? [{ session_id: GAME, stage_id: 's1', number: 2 }]
         : table === 'athletes' ? [{ id: 'a', name: 'Alice' }] : [];
       let lookup = false; // athletes.in(...) is the NOT_FOUND re-check
       const result = () => (lookup && db.lookupFails ? { data: null, error: new Error('offline') } : { data: rows, error: null });
       const builder = {
+        maybeSingle: () => Promise.resolve({ data: rows[0], error: null }),
         select: () => builder, or: () => builder, order: () => builder, eq: () => builder, is: () => builder,
         in: () => { lookup = table === 'athletes'; return builder; },
         single: () => Promise.resolve({ data: rows[0], error: null }),

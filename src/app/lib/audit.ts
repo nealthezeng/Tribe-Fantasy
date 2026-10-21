@@ -7,7 +7,7 @@ export interface AuditRow {
 export const AUDIT_ACTIONS = [
   'admin_set_share', 'admin_rename_team', 'rename_my_team', 'admin_set_display_name', 'admin_remove_user', 'grant_role', 'revoke_role',
   'adjust_credits', 'record_donation', 'open_auction', 'run_auction', 'open_tournament', 'set_game_count', 'reset_game', 'delete_stage',
-  'delete_league', 'delete_athlete', 'delete_season',
+  'delete_league', 'delete_athlete', 'delete_season', 'set_out', 'clear_out',
 ];
 
 /** Names for actions whose code name says "bid" or "auction", and the M14 ones, so the filter matches the rows. */
@@ -41,6 +41,8 @@ export function describeAudit(r: AuditRow, names: Map<string, string>): string {
     case 'admin_rename_team':
     case 'rename_my_team': return `Renamed team ${str('old')} → ${str('new')}`;
     case 'admin_set_display_name': return `Renamed ${str('old')} → ${str('new')}`;
+    case 'set_out': return `Marked ${name('athlete', 'a player')} out from game ${Number(d.from_game) || 1}`;
+    case 'clear_out': return `Cleared ${name('athlete', 'a player')}'s Out`;
     case 'set_game_count': return `Games: ${Number(d.from) || 0} → ${Number(d.to) || 0}`;
     default: return humaniseAction(r.action);
   }

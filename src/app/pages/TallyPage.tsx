@@ -11,7 +11,9 @@ import {
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
+import { loadOpenOuts } from '../lib/tournament';
 import { GameControls } from './GameControls';
+import { OutList } from './OutList';
 import {
   BATCH_MAX, canForgetLocally, errorCode, isRejection, lastUndoable, loadQueue, notFoundDrop, queuedSessions, queuedToTap, removeSent,
   rowToTap, storeQueue, subtractHint, unsavedTaps,
@@ -56,6 +58,7 @@ function SessionPicker({ season, keeperId, onPick }: {
     <section className="page">
       <h1>Tally</h1>
       <GameControls season={season} onOpen={onPick} unsaved={unsaved} />
+      <OutList season={season} />
       <div className="card">
         <h2>Open games</h2>
         {!sessions.data && !sessions.error && <p className="muted" role="status">Loading…</p>}
@@ -78,8 +81,6 @@ function SessionPicker({ season, keeperId, onPick }: {
 }
 
 interface AthleteRow { id: string; name: string }
-interface AttendanceRow { athlete_id: string; status: 'present' | 'absent' }
-interface InjuryRow { id: string; athlete_id: string; confirmed_at: string | null }
 
 function TallyBoard({ season, sessionId, keeperId, onBack }: {
   season: CurrentSeason; sessionId: string; keeperId: string; onBack: () => void;
@@ -103,21 +104,23 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     if (sess.error) throw sess.error;
     // The session's own season: a queued session from an earlier season must show that season's athletes.
     const seasonId = (sess.data as SessionRow).season_id;
-    const [athletes, taps, attendance, injuries, owned] = await Promise.all([
+    // The board's tournament game (none for a non-game session): Out marks belong to its stage.
+    const game = await supabase!.from('games').select('stage_id, number').eq('session_id', sessionId).maybeSingle();
+    if (game.error) throw game.error;
+    const [athletes, taps, outs, owned] = await Promise.all([
       supabase!.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name'),
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
-      supabase!.from('attendance').select('athlete_id, status').eq('session_id', sessionId),
-      supabase!.from('injuries').select('id, athlete_id, confirmed_at').is('cleared_at', null),
+      game.data ? loadOpenOuts(game.data.stage_id as string) : new Map<string, number>(),
       // The server refuses a keeper's taps on their own players (OWNS_ATHLETE); admins may tally anyone (t120).
       isAdmin ? new Set<string>() : loadOwnedAthletes(keeperId, seasonId).catch(() => new Set<string>()),
     ]);
-    for (const r of [athletes, taps, attendance, injuries]) if (r.error) throw r.error;
+    for (const r of [athletes, taps]) if (r.error) throw r.error;
     return {
       session: sess.data as SessionRow,
       athletes: (athletes.data ?? []) as AthleteRow[],
       taps: (taps.data ?? []) as StatTapRow[],
-      attendance: (attendance.data ?? []) as AttendanceRow[],
-      injuries: (injuries.data ?? []) as InjuryRow[],
+      game: game.data as { stage_id: string; number: number } | null,
+      outs,
       owned,
     };
   }, [sessionId, keeperId, isAdmin]);
@@ -211,15 +214,13 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     );
   }
   if (!data.data) return <p className="muted" role="status">Loading…</p>;
-  const { session, athletes, attendance, injuries, owned } = data.data;
+  const { session, athletes, game, outs, owned } = data.data;
   // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:
   // taps already queued on the phone still upload, but new taps and undo are disabled.
   const oldSeason = session.season_id !== season.id;
   const verified = sessionState(session, season.settings.stat_lock_hours) !== 'open';
   const closed = oldSeason || verified;
   const stats = Object.keys(season.settings.stat_weights);
-  const statusOf = new Map(attendance.map((a) => [a.athlete_id, a.status]));
-  const injuryOf = new Map(injuries.map((i) => [i.athlete_id, i]));
   const shown = athletes.filter((a) => a.name.toLowerCase().includes(search.trim().toLowerCase()));
 
   const add = (athleteId: string, stat: string) =>
@@ -281,22 +282,17 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       {hint && <p className="notice" role="status">{hint} <button className="linklike" onClick={() => setHint(null)}>Dismiss</button></p>}
       <ul className="list">
         {shown.map((a) => {
-          const injury = injuryOf.get(a.id);
-          const status = statusOf.get(a.id);
+          const from = outs.get(a.id); // the open Out's first game
           const mine = owned.has(a.id); // another keeper tallies players on your own fantasy team
           return (
             <li key={a.id} className="tally-card">
               <div className="tally-head">
                 <strong>{a.name}</strong>
                 {mine && <span className="pill">On your team</span>}
-                {injury && <span className={injury.confirmed_at ? 'pill bad' : 'pill warn'}>{injury.confirmed_at ? 'Injured' : 'Injury reported'}</span>}
-                {injury && !injury.confirmed_at && !mine && (
-                  <button className="secondary" onClick={() => void run(() => api.confirmInjury(injury.id))}>Confirm injury</button>
-                )}
-                <button className="secondary" disabled={mine} aria-label={`${a.name}: ${status ?? 'not marked'}. Tap to mark ${status === 'present' ? 'absent' : 'present'}.`}
-                  onClick={() => void run(() => api.setAttendance(sessionId, a.id, status === 'present' ? 'absent' : 'present'))}>
-                  {status === 'present' ? 'Present ✓' : status === 'absent' ? 'Absent' : 'Mark present'}
-                </button>
+                {from !== undefined && <span className="pill bad">{game && from > game.number ? `Out from game ${from}` : 'Out'}</span>}
+                {game && !closed && (from === undefined
+                  ? <button className="secondary" aria-label={`Mark ${a.name} out from the next game`} onClick={() => void run(() => api.setOut(game.stage_id, a.id))}>Mark out</button>
+                  : <button className="secondary" aria-label={`Clear ${a.name}'s Out`} onClick={() => void run(() => api.clearOut(game.stage_id, a.id))}>Clear out</button>)}
               </div>
               <div className="tally-buttons">
                 {stats.map((stat) => (

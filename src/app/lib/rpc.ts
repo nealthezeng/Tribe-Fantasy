@@ -99,11 +99,8 @@ export const api = {
   deleteSession: (sessionId: string, force = false) => call<void>('delete_session', { p_session: sessionId, p_force: force }),
   correctStatLine: (sessionId: string, athleteId: string, stats: Record<string, number>) =>
     call<void>('correct_stat_line', { p_session: sessionId, p_athlete: athleteId, p_stats: stats }),
-  setAttendance: (sessionId: string, athleteId: string, status: 'present' | 'absent') =>
-    call<void>('set_attendance', { p_session: sessionId, p_athlete: athleteId, p_status: status }),
-  reportInjury: (athleteId: string) => call<string>('report_injury', { p_athlete: athleteId }),
-  confirmInjury: (injuryId: string) => call<void>('confirm_injury', { p_injury: injuryId }),
-  clearInjury: (athleteId: string) => call<void>('clear_injury', { p_athlete: athleteId }),
+  setOut: (stageId: string, athleteId: string) => call<number>('set_out', { p_stage: stageId, p_athlete: athleteId }),
+  clearOut: (stageId: string, athleteId: string) => call<void>('clear_out', { p_stage: stageId, p_athlete: athleteId }),
   createStage: (seasonId: string, name: string, startsOn: string, endsOn: string) =>
     call<string>('create_stage', {
       p_season: seasonId, p_name: name, p_starts_on: startsOn, p_ends_on: endsOn, p_tournament: null,
