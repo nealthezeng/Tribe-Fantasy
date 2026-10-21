@@ -1,8 +1,11 @@
 import { rawScore } from '../../core/scoring';
+import type { SeasonSettings } from '../../core/settings';
+import { liveStatLines } from '../../core/tournament';
+import { rowToTap } from '../tally/queue';
 import { pickPlayingStage, type AuctionStage } from './auction';
 import { gameLabel, todayLocal } from './stats';
 import { supabase } from './supabase';
-import { GAME_COLUMNS, fetchAll, rowsOf, type GameRow } from './tournament';
+import { GAME_COLUMNS, fetchAll, loadLiveTaps, rowsOf, type GameRow } from './tournament';
 
 export interface StatRow { key: string; label: string; counts: Record<string, number>; points: number }
 export interface LineRow { session_id: string; athlete_id: string; stats: Record<string, number> }
@@ -38,15 +41,22 @@ export function pickStatsStage(stages: StatsStage[], wanted: string | null, toda
 export interface StatsGame extends GameRow { label: string; verified_at: string | null }
 export interface TournamentStats {
   stages: StatsStage[]; stage: StatsStage | null; games: StatsGame[]; lines: LineRow[]; names: Map<string, string>;
+  /** Unofficial lines of the started, unverified games (only when asked with `live`). */
+  liveLines: LineRow[];
+  /** Their game numbers. */
+  liveGames: number[];
 }
 
-/** The season's run tournaments (newest first) and, for the picked one, its games and verified stat lines. */
-export async function loadTournamentStats(seasonId: string, wanted: string | null, today = todayLocal()): Promise<TournamentStats> {
+/**
+ * The season's run tournaments (newest first) and, for the picked one, its games and verified stat lines. With `live`
+ * (the season's settings) also the unofficial lines of its started, unverified games, from their live taps.
+ */
+export async function loadTournamentStats(seasonId: string, wanted: string | null, { today = todayLocal(), live }: { today?: string; live?: SeasonSettings } = {}): Promise<TournamentStats> {
   const sb = supabase!;
   const stages = (await rowsOf<StatsStage>(sb.from('stages').select('id, name, starts_on, ends_on, auction_run_at')
     .eq('season_id', seasonId).not('auction_run_at', 'is', null))).sort((a, b) => b.starts_on.localeCompare(a.starts_on));
   const stage = pickStatsStage(stages, wanted, today);
-  if (!stage) return { stages, stage, games: [], lines: [], names: new Map() };
+  if (!stage) return { stages, stage, games: [], lines: [], names: new Map(), liveLines: [], liveGames: [] };
   const [games, athletes] = await Promise.all([
     rowsOf<GameRow>(sb.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id).order('number')),
     rowsOf<{ id: string; name: string }>(sb.from('athletes').select('id, name').eq('season_id', seasonId)),
@@ -60,8 +70,12 @@ export async function loadTournamentStats(seasonId: string, wanted: string | nul
       : [],
   ]);
   const verified = new Map(sessions.map((s) => [s.id, s.verified_at]));
+  const open = live ? games.filter((g) => g.started_at !== null && g.session_id !== null && verified.get(g.session_id) === null) : [];
+  const taps = await loadLiveTaps(open);
+  const liveLines = open.flatMap((g) => liveStatLines(g.session_id!, taps.filter((t) => t.session_id === g.session_id).map(rowToTap), live!))
+    .map((l) => ({ session_id: l.sessionId, athlete_id: l.athleteId, stats: l.stats }));
   return {
-    stages, stage, lines, names: new Map(athletes.map((a) => [a.id, a.name])),
+    stages, stage, lines, liveLines, liveGames: open.map((g) => g.number), names: new Map(athletes.map((a) => [a.id, a.name])),
     games: games.map((g) => ({ ...g, label: gameLabel(g.number, g.opponent), verified_at: (g.session_id && verified.get(g.session_id)) || null })),
   };
 }

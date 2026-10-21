@@ -39,6 +39,9 @@ export interface UserRow {
   donations: { count: number; dollars: number };
 }
 
+/** A row of live_game_taps(): one tap of a started, unverified game; keepers are numbered 1, 2, ... (never ids). */
+export interface LiveTapRow { id: string; athlete_id: string; stat: string; tapped_at: string; undoes: string | null; keeper: number }
+
 async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error('NOT_CONFIGURED');
   const { data, error } = await supabase.rpc(fn, args);
@@ -55,6 +58,8 @@ export const api = {
   /** Every donor this season, biggest total first; `name` null = anonymous. */
   donationLeaderboard: (seasonId: string) =>
     call<{ name: string | null; dollars: number; is_me: boolean }[]>('donation_leaderboard', { p_season: seasonId }),
+  /** The taps of one started, unverified game (any league reader); no rows once it is verified. */
+  liveGameTaps: (gameId: string) => call<LiveTapRow[]>('live_game_taps', { p_game: gameId }),
   listLeagues: () => call<LeagueListing[]>('list_leagues', {}),
   /** `password` null = a public league. */
   createMyLeague: (name: string, password: string | null, teamName: string) =>

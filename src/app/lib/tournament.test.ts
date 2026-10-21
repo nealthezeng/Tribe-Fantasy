@@ -1,19 +1,25 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
 let mockStages: AuctionStage[] = [];
 let mockGames: GameRow[] = [];
+let mockTables: Record<string, unknown[]> = {};
+const mockRpc = vi.fn();
 
 vi.mock('./supabase', () => ({
   supabase: {
+    rpc: (...args: unknown[]) => mockRpc(...args),
     from: (table: string) => {
-      const rows = table === 'stages' ? mockStages : table === 'games' ? mockGames : [];
+      const rows = mockTables[table] ?? (table === 'stages' ? mockStages : table === 'games' ? mockGames : []);
       const builder = {
         select: () => builder,
         eq: () => builder,
+        in: () => builder,
+        not: () => builder,
+        range: () => builder,
         order: () => builder,
         limit: () => builder,
         then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
@@ -114,6 +120,53 @@ describe('buildLeagueTournament', () => {
     expect(y.team.get('m2')).toBe('Flow (removed)');
     expect(y.input.members[1].removedAt).toBe('2026-11-08T00:00:00+00:00');
     expect(y.input.slots[0]).toMatchObject({ fromGame: 2, untilGame: 5 });
+  });
+});
+
+describe('live scores (unofficial)', () => {
+  afterEach(() => { mockTables = {}; });
+  const NOW = Date.parse('2026-11-07T14:30:00Z');
+  const live = { ...rows, sessions: [{ id: 'p1', verified_at: null }], lines: [],
+    games: [{ ...rows.games[0], finished_at: null }, rows.games[1]],
+    taps: ['t1', 't2'].map((id, i) => ({ id, session_id: 'p1', athlete_id: 'a1', stat: 'goal', keeper_id: 'k1',
+      tapped_at: `2026-11-07T14:1${i}:00+00:00`, undoes: null })) };
+
+  it('scores a live game unofficially without touching the official result', () => {
+    const y = buildLeagueTournament(live, NOW);
+    const [m] = y.unofficial.get('g1')!.matchups;
+    expect(y.unofficial.get('g1')!.status).toBe('live');
+    expect(m.home.score).toBe(2 * 3 * m.home.factor.a1);
+    expect(m.home.points).toEqual({ a1: m.home.score });
+    expect(m.home).toMatchObject({ delta: null, result: null });
+    expect(y.result).toEqual(buildLeagueTournament({ ...live, taps: [] }, NOW).result);
+    expect(y.result.games[0].matchups[0].home.score).toBeNull();
+  });
+
+  it('keeps finished-but-unverified games unofficial and drops verified ones', () => {
+    const pending = buildLeagueTournament({ ...live, games: rows.games }, NOW);
+    expect(pending.unofficial.get('g1')!.status).toBe('pending');
+    const done = buildLeagueTournament(rows, Date.parse('2026-11-10T12:00:00Z'));
+    expect(done.unofficial.size).toBe(0);
+    expect(done.result.games[0].matchups[0].home.score).toBe(1.5);
+  });
+
+  it('loads live taps by RPC for started unverified games only', async () => {
+    mockTables = {
+      seasons: [{ settings: {} }], stages: [stage],
+      games: [rows.games[0], { ...rows.games[1], session_id: 'p2' },
+        { id: 'g0', stage_id: 'S1', number: 0, session_id: 'p0', started_at: T, finished_at: T, opponent: null },
+        { id: 'g3', stage_id: 'S1', number: 3, session_id: 'p3', started_at: null, finished_at: null, opponent: null }],
+      sessions: [{ id: 'p1', verified_at: null }, { id: 'p0', verified_at: T }, { id: 'p2', verified_at: null }, { id: 'p3', verified_at: null }],
+    };
+    mockRpc.mockReset().mockResolvedValue({ error: null, data: [
+      { id: 't1', athlete_id: 'a1', stat: 'goal', tapped_at: T, undoes: null, keeper: 1 }] });
+    const r = await loadLeagueRows('se', 'L', { live: true });
+    // g2 has a session but never started, g0 is verified, g3 is unstarted: only g1 is asked about.
+    expect(mockRpc.mock.calls).toEqual([['live_game_taps', { p_game: 'g1' }]]);
+    expect(r.taps).toEqual([{ id: 't1', session_id: 'p1', athlete_id: 'a1', stat: 'goal', keeper_id: 'k1', tapped_at: T, undoes: null }]);
+    mockRpc.mockClear();
+    expect((await loadLeagueRows('se', 'L')).taps).toEqual([]);
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 });
 

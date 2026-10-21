@@ -5,6 +5,7 @@ import {
 } from '../../core/tournament';
 import { rowToTap, type StatTapRow } from '../tally/queue';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, pickPlayingStage, type AuctionStage } from './auction';
+import { api } from './rpc';
 import { todayLocal } from './stats';
 import { supabase } from './supabase';
 
@@ -39,7 +40,7 @@ export interface TournamentRows {
   /** Every session a game links to: a game whose session is missing is void. */
   sessions: { id: string; verified_at: string | null }[];
   lines: LineRow[];
-  /** Taps of unverified game sessions (staff only), for provisional pairing. Empty otherwise. */
+  /** Taps of unverified game sessions: staff's, for provisional pairing, or `live` ones for unofficial scores. Empty otherwise. */
   taps: (StatTapRow & { session_id: string })[];
   injuries: InjuryRow[];
   /** Keeper Out marks of this season's stages (open: `until_game` null). */
@@ -92,6 +93,8 @@ export interface LeagueTournament {
   settings: SeasonSettings;
   input: TournamentInput;
   result: TournamentResult;
+  /** Unofficial outcomes (game id to outcome) of the games still live or pending, from their live taps; never in `result`. */
+  unofficial: Map<string, GameOutcome>;
   team: Map<string, string>;
   /** membershipId → the owner's display name: "Removed user" once the account is gone, "" without a profile. */
   owner: Map<string, string>;
@@ -107,11 +110,21 @@ export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): L
   const input = toTournamentInput(rows, now);
   const result = scoreTournaments(input);
   const next = result.next;
+  // The same year with every started game counted: its sides carry the live scores. Skipped when nothing is open.
+  const open = result.games.filter((g) => g.status === 'live' || g.status === 'pending');
+  const provisional = open.length ? new Map(scoreTournaments(input, { provisional: true }).games.map((g) => [g.game.id, g])) : null;
+  const unofficial = new Map(open.map((g) => [g.game.id, {
+    game: g.game, status: g.status,
+    matchups: provisional!.get(g.game.id)!.matchups.map(({ home, away }) => ({
+      home: { ...home, delta: null, result: null }, away: away && { ...away, delta: null, result: null },
+    })),
+  }]));
   const names = new Map((rows.profiles ?? []).map((p) => [p.id, p.display_name]));
   return {
     settings: input.settings,
     input,
     result,
+    unofficial,
     team: new Map(rows.members.map((m) => [m.id, teamLabel(m)])),
     owner: new Map(rows.members.map((m) => [m.id, m.user_id === null ? 'Removed user' : names.get(m.user_id ?? '') ?? ''])),
     athlete: new Map(rows.athletes.map((a) => [a.id, a.name])),
@@ -142,11 +155,21 @@ export async function rowsOf<T>(q: PromiseLike<{ data: unknown; error: unknown }
   return (data ?? []) as T[];
 }
 
+/** Live taps of started, unverified games (any league reader), one RPC per game, keepers named `k1`, `k2`, ... */
+export async function loadLiveTaps(games: { id: string; session_id: string | null }[]): Promise<TournamentRows['taps']> {
+  const per = await Promise.all(games.filter((g) => g.session_id).map(async (g) =>
+    (await api.liveGameTaps(g.id)).map((t) => ({
+      id: t.id, session_id: g.session_id!, athlete_id: t.athlete_id, stat: t.stat, keeper_id: `k${t.keeper}`, tapped_at: t.tapped_at, undoes: t.undoes,
+    }))));
+  return per.flat();
+}
+
 /**
  * Every row the league's year needs; RLS hides other teams' picks until each game starts. `taps` (staff only) adds the
- * live taps of unverified game sessions, for provisional pairing.
+ * live taps of unverified game sessions, for provisional pairing. `live` (anyone) loads those taps through
+ * live_game_taps instead, for the unofficial scores of started games; `taps` wins if both are set.
  */
-export async function loadLeagueRows(seasonId: string, leagueId: string, { taps = false } = {}): Promise<TournamentRows> {
+export async function loadLeagueRows(seasonId: string, leagueId: string, { taps = false, live = false } = {}): Promise<TournamentRows> {
   const sb = supabase!;
   const [season, stages, members, slots, picks, injuries, athletes] = await Promise.all([
     rowsOf<{ settings: unknown }>(sb.from('seasons').select('settings').eq('id', seasonId)),
@@ -183,7 +206,7 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
     taps && open.length
       ? fetchAll<TournamentRows['taps'][number]>((from, to) => sb.from('stat_taps')
         .select('id, session_id, athlete_id, stat, keeper_id, tapped_at, undoes').in('session_id', open).order('id').range(from, to))
-      : [],
+      : live ? loadLiveTaps(games.filter((g) => g.started_at !== null && open.includes(g.session_id ?? ''))) : [],
   ]);
   return {
     settings: season[0].settings, stages, games, pairings, members, profiles, slots, picks, sessions, lines, taps: tapRows,
@@ -203,8 +226,8 @@ export function outStage<T extends { starts_on: string; ends_on: string }>(stage
   return stages.filter((s) => s.ends_on >= today).sort((a, b) => a.starts_on.localeCompare(b.starts_on))[0] ?? null;
 }
 
-export const loadLeagueTournament = async (seasonId: string, leagueId: string) =>
-  buildLeagueTournament(await loadLeagueRows(seasonId, leagueId));
+export const loadLeagueTournament = async (seasonId: string, leagueId: string, opts: { live?: boolean } = {}) =>
+  buildLeagueTournament(await loadLeagueRows(seasonId, leagueId, opts));
 
 const leaguesOf = (seasonId: string) =>
   rowsOf<{ id: string; name: string }>(supabase!.from('leagues').select('id, name').eq('season_id', seasonId).order('name'));
