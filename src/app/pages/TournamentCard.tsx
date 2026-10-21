@@ -1,10 +1,12 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
+import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
+import type { Seen } from '../lib/seen';
 import { fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
@@ -114,6 +116,19 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const doomed = upcoming && !!mine && mine.replacements.some((r) => r.picked !== null && r.athleteId !== r.picked);
   const wanted = mine ? Math.min(y.settings.picks_per_game, mine.players.length) : 0;
 
+  // Since you last looked (t319): after each load, compare what this device last saw with what is shown now.
+  const key = g && !upcoming && mine && them ? seenKey(membershipId, g.game.id) : null;
+  const [since, setSince] = useState<{ key: string; chips: NonNullable<ReturnType<typeof changes>>; from: Seen } | null>(null);
+  useEffect(() => {
+    if (!key || !mine || !them) return;
+    const cur: Seen = { mine: mine.score, them: them.score, points: { mine: mine.points ?? {}, them: them.points ?? {} } };
+    const prev = readSeen(key);
+    const chips = changes(prev, cur);
+    if (prev && chips) setSince({ key, chips, from: prev }); // no change: the chips from the last change stay
+    writeSeen(key, cur);
+  }, [key, mine, them]);
+  const now = since?.key === key ? since : null;
+
   return (
     <>
       <div className="matchup">
@@ -148,18 +163,18 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
         <div className="score">
           <ScoreSide label={upcoming ? 'Your picks' : 'You played'} y={y} athleteIds={minePlayers}
             picked={upcoming && wanted > 0 && minePlayers.length >= wanted && !doomed}
-            score={mine.score} empty={upcoming ? 'No picks yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
+            score={mine.score} from={now?.from.mine} empty={upcoming ? 'No picks yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
           <span className="vs">{final ? 'to' : 'vs'}</span>
           <ScoreSide label={upcoming ? 'Their picks' : 'They played'} y={y}
-            athleteIds={upcoming ? [] : them.athleteIds} score={them.score}
+            athleteIds={upcoming ? [] : them.athleteIds} score={them.score} from={now?.from.them}
             empty={upcoming ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
         </div>
       )}
       {mine && !upcoming && <Notice y={y} side={mine} played />}
       {shown && them && mine && !upcoming && (
         <section className="card starters" aria-label="Starters">
-          <StarterSide y={y} g={shown} side={mine} name={teamName} />
-          <StarterSide y={y} g={shown} side={them} name={y.team.get(them.membershipId) ?? 'A team'} />
+          <StarterSide y={y} g={shown} side={mine} name={teamName} since={now?.chips.mine} />
+          <StarterSide y={y} g={shown} side={them} name={y.team.get(them.membershipId) ?? 'A team'} since={now?.chips.them} />
         </section>
       )}
       {anyPlayed && (
@@ -173,8 +188,33 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   );
 }
 
-function ScoreSide({ label, y, athleteIds, score, empty, lost = false, picked = false }: {
+/** A score that counts from `from` to `value` over --dur-count; at once on reduced motion, with no `from`, or in jsdom. */
+function CountUp({ value, from }: { value: number; from: number | null }) {
+  const [shown, setShown] = useState(value);
+  useLayoutEffect(() => {
+    const ms = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-count'));
+    if (from === null || from === value || !(ms > 0) || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setShown(value);
+      return;
+    }
+    const t0 = performance.now();
+    let frame = 0;
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / ms);
+      setShown(from + (value - from) * k);
+      if (k < 1) frame = requestAnimationFrame(step);
+    };
+    setShown(from);
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [value, from]);
+  return <>{fmt(shown)}</>;
+}
+
+function ScoreSide({ label, y, athleteIds, score, from, empty, lost = false, picked = false }: {
   label: string; y: LeagueTournament; athleteIds: string[]; score: number | null; empty: string; lost?: boolean;
+  /** The score this device last saw, when it has changed since: the number counts up from it. */
+  from?: number | null;
   /** Your picks are set for the next game: shown in green. */
   picked?: boolean;
 }) {
@@ -183,7 +223,7 @@ function ScoreSide({ label, y, athleteIds, score, empty, lost = false, picked = 
   return (
     <div className={['score-side', lost && 'lost', picked && 'picked'].filter(Boolean).join(' ')}>
       <small>{label}</small>
-      {score !== null ? <><span className="pts">{fmt(score)}</span><strong className="names">{names}</strong></>
+      {score !== null ? <><span className="pts"><CountUp value={score} from={from ?? null} /></span><strong className="names">{names}</strong></>
         : <span className="pts-name names">{names}</span>}
     </div>
   );
@@ -360,7 +400,7 @@ function statsOf(y: LeagueTournament, g: GameOutcome, a: string) {
 }
 
 /** The matchup's starters for one team: its name and score, then each starter's stat line and points. */
-function StarterSide({ y, g, side, name }: { y: LeagueTournament; g: GameOutcome; side: TournamentSide; name: string }) {
+function StarterSide({ y, g, side, name, since }: { y: LeagueTournament; g: GameOutcome; side: TournamentSide; name: string; since?: Record<string, number> }) {
   return (
     <div className="stack">
       <p className="head">
@@ -372,7 +412,7 @@ function StarterSide({ y, g, side, name }: { y: LeagueTournament; g: GameOutcome
           {side.athleteIds.map((a) => (
             <li key={a}>
               <small>{athleteName(y, a)} · {statsOf(y, g, a)}</small>
-              {side.points && <strong className="num">{fmt(side.points[a])}</strong>}
+              {side.points && <strong className="num">{since?.[a] != null && <span className={since[a] > 0 ? 'since up' : 'since down'}>{signed(since[a])}</span>}{fmt(side.points[a])}</strong>}
             </li>
           ))}
         </ul>

@@ -119,6 +119,7 @@
   --dur-menu: 200ms;    /* the account menu and opened sections drop in */
   --dur-fade: 300ms;    /* loaded content fades in where the skeleton stood */
   --dur-rest: 1.6s;     /* a loading skeleton breathing, looping */
+  --dur-count: 600ms;   /* a score counting up to its new value */
   --dock-height: 49px;  /* the phone bottom tab bar: --tap-lg + its 1px top line */
   --shadow-lift: 0 6px 16px -6px rgb(245 183 0 / 0.55); /* gold button hover glow */
 

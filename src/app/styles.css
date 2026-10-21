@@ -149,6 +149,10 @@ ul.error { margin: 0; padding-left: 20px; }
 .success { color: var(--ok); font-weight: var(--fw-semi); }
 .muted { color: var(--muted); }
 .num { font-variant-numeric: tabular-nums; }
+/* t319: +N / −N on a starter row since this device last looked; the sign, not the colour, carries the meaning. */
+.since { display: inline-block; margin-right: var(--s2); font-size: var(--fs-xs); font-weight: var(--fw-bold); }
+.since.up { color: var(--gold-text); }
+.since.down { color: var(--error); }
 .big { font-size: var(--fs-num); line-height: 0.9; font-variant-numeric: tabular-nums; }
 .code { font-size: var(--fs-lead); font-weight: var(--fw-semi); letter-spacing: var(--track-code); }
 details:is(.card, .section, .settings) { display: block; }
@@ -472,12 +476,15 @@ details.factor[open] > summary::after { content: '▴'; }
 @keyframes drop-in { from { opacity: 0; transform: translateY(-8px); } }
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes rest { 50% { opacity: 0.55; } }
+@keyframes since-in { from { opacity: 0; transform: scale(0.6); } }
 @media (prefers-reduced-motion: no-preference) {
   /* t98: the account menu and an opened section drop in; closing is instant. */
   .account-menu:popover-open, details[open] > :not(summary) { animation: drop-in var(--dur-menu) var(--ease); }
   /* t99: page content fades in as it arrives (never on the tally board). */
   .page:not(:has(.tally-bar)) > * { animation: fade-in var(--dur-fade) var(--ease); }
   .skeleton > [aria-hidden] { animation: rest var(--dur-rest) ease-in-out infinite; }
+  /* t319: a "since you last looked" chip pops in; the score counts up in script (CountUp), also only without reduced motion. */
+  .since { animation: since-in var(--dur-pop) var(--ease-spring); }
 }
 
 /* Phones (t92): the tabs dock at the bottom within thumb reach; the top bar keeps the brand and the avatar. Frosted

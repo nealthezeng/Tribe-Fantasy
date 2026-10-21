@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
+import { seenKey } from '../lib/seen';
 import { buildLeagueTournament, loadLeagueTournament, type TournamentRows } from '../lib/tournament';
 import { TournamentCard } from './TournamentCard';
 
@@ -55,6 +56,7 @@ const liveGame1 = (): TournamentRows => {
 
 afterEach(cleanup);
 beforeEach(() => {
+  localStorage.clear();
   vi.mocked(loadLeagueTournament).mockClear();
   // Saves the way set_game_pick does: the set replaces this team's picks for that game.
   vi.mocked(api.setGamePick).mockReset().mockImplementation((m, stage, n, ids) => {
@@ -458,6 +460,76 @@ describe('TournamentCard', () => {
     it('loads live taps', async () => {
       await show(base());
       expect(loadLeagueTournament).toHaveBeenCalledWith('se', 'L', { live: true });
+    });
+  });
+
+  describe('since you last looked (t319)', () => {
+    const KEY = seenKey('m1', 'g1');
+    const store = (v: unknown) => localStorage.setItem(KEY, JSON.stringify(v));
+    const chips = () => [...document.querySelectorAll('.since')].map((e) => [e.textContent, e.className, e.closest('li')?.textContent]);
+    const row = (name: string) => [...document.querySelectorAll('.starters li')].find((li) => li.textContent?.startsWith(name))!;
+
+    it('shows +N on a player who scored since you last looked', async () => {
+      store({ mine: 3, them: 5, points: { mine: { a1: 3 }, them: { b1: 5 } } });
+      await show(liveGame1());
+      // The chips are set by an effect after the load renders: wait for them.
+      await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent).toBe('+3'));
+      expect(row('Ash').querySelector('.since')!.className).toBe('since up');
+      expect(row('Bea').querySelector('.since')).toBeNull();
+      expect(chips()).toHaveLength(1);
+      expect([...document.querySelectorAll('.score .pts')].map((e) => e.textContent)).toEqual(['6', '5']);
+    });
+
+    it('shows −N when verified numbers come in lower', async () => {
+      store({ mine: 6, them: 5, points: { mine: { a1: 6 }, them: { b1: 5 } } });
+      const r = liveGame1();
+      await show({
+        ...r,
+        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
+        games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, finished_at: '2026-11-07T15:00:00Z' })),
+        pairings: r.pairings.filter((p) => p.game_id === 'g1'),
+        sessions: [{ id: 'p1', verified_at: '2026-11-07T16:00:00Z' }],
+        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 0 }, { session_id: 'p1', athlete_id: 'b1', stats: { block: 1 }, points_played: 0 }],
+      });
+      await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent).toBe('−3'));
+      expect(row('Ash').querySelector('.since')!.className).toBe('since down');
+    });
+
+    it('animates nothing on a first visit and remembers what it showed', async () => {
+      await show(liveGame1());
+      await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull());
+      expect(document.querySelector('.since')).toBeNull();
+      expect(JSON.parse(localStorage.getItem(KEY)!)).toMatchObject({ mine: 6, them: 5, points: { mine: { a1: 6 }, them: { b1: 5 } } });
+    });
+
+    it('renders without chips when storage is blocked', async () => {
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+      try {
+        await show(liveGame1());
+        expect(document.querySelector('.starters')).toBeTruthy();
+        expect(document.querySelector('.since')).toBeNull();
+        expect(screen.queryByRole('alert')).toBeNull();
+      } finally {
+        vi.restoreAllMocks();
+      }
+    });
+
+    it('updates chips when a poll brings a change and keeps them when it does not', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await show(liveGame1());
+        await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull());
+        expect(document.querySelector('.since')).toBeNull();
+        rows.current = { ...rows.current, taps: [...rows.current.taps, tap('t4', 'a1', 'goal', '14:07')] };
+        await vi.advanceTimersByTimeAsync(15_000);
+        await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent).toBe('+3'));
+        await vi.advanceTimersByTimeAsync(15_000);
+        await waitFor(() => expect(loadLeagueTournament).toHaveBeenCalledTimes(3));
+        expect(row('Ash').querySelector('.since')?.textContent).toBe('+3');
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 });
