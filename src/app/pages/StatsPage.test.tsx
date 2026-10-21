@@ -35,7 +35,7 @@ beforeEach(() => {
   m.isAdmin = false;
   m.season = { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } };
   m.load.mockReset();
-  m.load.mockResolvedValue({ stages: [stage('S2'), stage('S1')], stage: stage('S2'), games: [], lines, names });
+  m.load.mockResolvedValue({ stages: [stage('S2'), stage('S1')], stage: stage('S2'), games: [], lines, names, liveLines: [], liveGames: [] });
   window.location.hash = '#/stats';
 });
 const show = () => render(<HashRouter><StatsPage /></HashRouter>);
@@ -53,7 +53,7 @@ describe('StatsPage', () => {
   it('switches tournament by reloading for the chosen one', async () => {
     show();
     fireEvent.change(await screen.findByRole('combobox', { name: 'Tournament' }), { target: { value: 'S1' } });
-    await waitFor(() => expect(m.load).toHaveBeenLastCalledWith('se', 'S1'));
+    await waitFor(() => expect(m.load).toHaveBeenLastCalledWith('se', 'S1', { live: m.season!.settings }));
   });
 
   it('shows the loading state, not the old table, while the picked tournament loads', async () => {
@@ -66,13 +66,13 @@ describe('StatsPage', () => {
   });
 
   it('says there are no stats yet for a tournament without lines', async () => {
-    m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games: [], lines: [], names });
+    m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games: [], lines: [], names, liveLines: [], liveGames: [] });
     show();
     expect(await screen.findByText('No stats yet for Tourney S2.')).toBeTruthy();
   });
 
   it('says no tournaments yet, and keepers still get Tally', async () => {
-    m.load.mockResolvedValue({ stages: [], stage: null, games: [], lines: [], names: new Map() });
+    m.load.mockResolvedValue({ stages: [], stage: null, games: [], lines: [], names: new Map(), liveLines: [], liveGames: [] });
     show();
     expect(await screen.findByText('No tournaments yet.')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Tally' })).toBeTruthy();
@@ -80,7 +80,7 @@ describe('StatsPage', () => {
 
   it('gives admins Download CSV before the first tournament', async () => {
     m.isAdmin = true;
-    m.load.mockResolvedValue({ stages: [], stage: null, games: [], lines: [], names: new Map() });
+    m.load.mockResolvedValue({ stages: [], stage: null, games: [], lines: [], names: new Map(), liveLines: [], liveGames: [] });
     show();
     expect(await screen.findByText('No tournaments yet.')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Download CSV' })).toBeTruthy();
@@ -97,7 +97,7 @@ describe('StatsPage', () => {
     window.location.hash = '#/stats?t=S1';
     show();
     await screen.findByRole('cell', { name: 'Bo' });
-    expect(m.load).toHaveBeenCalledWith('se', 'S1');
+    expect(m.load).toHaveBeenCalledWith('se', 'S1', { live: m.season!.settings });
   });
 });
 
@@ -122,7 +122,7 @@ describe('StatsPage All stats fold (t306, t307)', () => {
   });
   const games = [game(1, 's1', 'Duke', '2020-01-01T00:00:00Z'), game(2, 's2', null, null), game(3, null, null, null)];
   const withGames = (g = games, l = lines) =>
-    m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games: g, lines: l, names });
+    m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games: g, lines: l, names, liveLines: [], liveGames: [] });
   const fold = () => screen.getByText('All stats').closest('details')!;
 
   it('lists the tournament games under All stats, each opening its game page', async () => {
@@ -183,5 +183,66 @@ describe('StatsPage All stats fold (t306, t307)', () => {
     expect(row.textContent).toContain('2 unsaved');
     expect(screen.getByRole('link', { name: 'Open Game 1 vs Duke' }).getAttribute('href')).toBe(`#/tally?game=${SID}`);
     expect(screen.getByText('Game 2').closest('li')!.textContent).not.toContain('unsaved');
+  });
+});
+
+describe('StatsPage live numbers (t318)', () => {
+  const game = (number: number, session_id: string | null, started_at: string | null, verified_at: string | null) => ({
+    id: `g${number}`, stage_id: 'S2', number, session_id, started_at, finished_at: null, opponent: null, label: `Game ${number}`, verified_at,
+  });
+  const verified = game(1, 's1', '2020-01-01T00:00:00Z', '2020-01-01T01:00:00Z');
+  const live = game(2, 's2', '2020-01-02T00:00:00Z', null);
+  const withLive = (games: unknown[], l = lines, liveLines: unknown[] = [], liveGames: number[] = []) =>
+    m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games, lines: l, names, liveLines, liveGames });
+  const ashTap = { session_id: 's2', athlete_id: 'a', stats: { goal: 1 } };
+
+  it('adds the live game to the table, marked unofficial', async () => {
+    withLive([verified, live], [lines[0]], [ashTap], [2]);
+    show();
+    const cell = await screen.findByRole('cell', { name: 'Ari' });
+    expect(cell.closest('tr')!.textContent).toContain('6'); // goal 1 + 1 live = 2 goals x 3
+    expect(screen.getByText('Unofficial: includes game 2').closest('p')!.textContent).toContain('Live');
+  });
+
+  it('names several live games', async () => {
+    withLive([verified, live], lines, [ashTap], [3, 4]);
+    show();
+    expect(await screen.findByText('Unofficial: includes games 3 and 4')).toBeTruthy();
+  });
+
+  it('says nothing about live numbers when no game is live', async () => {
+    withLive([verified]);
+    show();
+    await screen.findByRole('cell', { name: 'Bo' });
+    expect(screen.queryByText(/Unofficial/)).toBeNull();
+  });
+
+  it('shows "No stats yet" only when there are neither verified nor live lines', async () => {
+    withLive([live], [], [ashTap], [2]);
+    show();
+    expect(await screen.findByRole('cell', { name: 'Ari' })).toBeTruthy();
+    expect(screen.queryByText(/No stats yet/)).toBeNull();
+  });
+
+  describe('polling', () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+    afterEach(() => vi.useRealTimers());
+
+    it('polls while a game is live', async () => {
+      withLive([verified, live], lines, [ashTap], [2]);
+      show();
+      await screen.findByRole('cell', { name: 'Bo' });
+      expect(m.load).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await waitFor(() => expect(m.load).toHaveBeenCalledTimes(2));
+    });
+
+    it('does not poll when no game is live', async () => {
+      withLive([verified]);
+      show();
+      await screen.findByRole('cell', { name: 'Bo' });
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(m.load).toHaveBeenCalledTimes(1);
+    });
   });
 });

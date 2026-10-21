@@ -9,7 +9,7 @@ import {
 import { loadTournamentStats, totals, type StatsGame } from '../lib/statsTable';
 import { supabase } from '../lib/supabase';
 import { queuedSessions } from '../tally/queue';
-import { useLoad } from '../lib/useLoad';
+import { useLoad, usePoll } from '../lib/useLoad';
 import { StatTable, TournamentSwitch } from './StatTable';
 
 export const STATE_PILL = {
@@ -26,7 +26,7 @@ export function StatsPage() {
   const [error, setError] = useState<string | null>(null);
   const data = useLoad(async () => {
     const season = await loadCurrentSeason();
-    return season && { season, wanted, ...await loadTournamentStats(season.id, wanted) };
+    return season && { season, wanted, ...await loadTournamentStats(season.id, wanted, { live: season.settings }) };
   }, [wanted]);
   // Keepers' taps still on this phone, so an unsaved game shows here and not only in the Tally picker.
   const unsaved = useMemo(
@@ -36,6 +36,8 @@ export function StatsPage() {
   // Still showing the previous tournament while the picked one loads: treat as loading.
   const loaded = data.data && data.data.wanted !== wanted ? undefined : data.data;
   const season = loaded?.season;
+  // Live = started, has a game session, not verified yet: its numbers move, so refresh.
+  usePoll(data.reload, !!loaded?.games.some((g) => g.started_at && g.session_id && !g.verified_at));
 
   async function exportCsv() {
     if (!season) return;
@@ -96,9 +98,12 @@ export function StatsPage() {
       {loaded && stage && weights && (
         <>
           <TournamentSwitch stages={stages!} stage={stage} />
-          {loaded.lines.length === 0
+          {loaded.liveGames.length > 0 && (
+            <p className="strip"><span className="live"><span className="dot" aria-hidden="true" />Live</span> Unofficial: includes {gamesList(loaded.liveGames)}</p>
+          )}
+          {loaded.lines.length + loaded.liveLines.length === 0
             ? <p className="muted">No stats yet for {stage.name}.</p>
-            : <StatTable stats={Object.keys(weights)} rows={totals(loaded.lines, loaded.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
+            : <StatTable stats={Object.keys(weights)} rows={totals([...loaded.lines, ...loaded.liveLines], loaded.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
           <details className="card" open={isKeeper && loaded.games.some((g) => g.session_id && (!g.verified_at || unsaved.has(g.session_id)))}>
             <summary>All stats</summary>
             {loaded.games.length === 0 && <p className="muted">No games yet.</p>}
@@ -112,6 +117,9 @@ export function StatsPage() {
     </section>
   );
 }
+
+/** "game 2", "games 3 and 4", "games 2, 3 and 4". */
+const gamesList = (n: number[]) => (n.length === 1 ? `game ${n[0]}` : `games ${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`);
 
 function GameItem({ g, lockHours, keeper, unsaved }: { g: StatsGame; lockHours: number; keeper: boolean; unsaved: number }) {
   const title = `Game ${g.number}${g.opponent ? ` vs ${g.opponent}` : ''}`;
