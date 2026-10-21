@@ -31,7 +31,7 @@ describe('RulesPage', () => {
     expect(text).toContain('Each roster holds up to 6 players');
     expect(text).toContain('Each game you start 2 of your players');
     expect(text).toContain('Up to 12 teams');
-    expect(text).toContain('Forgot to pick, or a pick is out? We start your most rested players who aren't out, then the ones scoring best lately');
+    expect(text).toContain("Forgot to pick, or a pick is out? We start your most rested players who aren't out, then the ones scoring best lately");
     expect(text).toContain("Keepers mark a player Out for a tournament; an Out player can't be picked.");
     expect(text).not.toMatch(/\b(bench|bids?|bidding|auction)\b/i);
     expect(text).toContain('Resting a player for 2 games between starts never does.');
