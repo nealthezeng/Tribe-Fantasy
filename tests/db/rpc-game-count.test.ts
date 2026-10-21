@@ -136,6 +136,8 @@ describe('set_game_count', () => {
     await expect(setCount(2)).rejects.toThrow('PAIRINGS_INVALID');
     await expect(setCount(2, [{ league_id: f.league, home: aliceM, away: bobM }])).rejects.toThrow('PAIRINGS_INVALID');
     expect(await games()).toEqual([[1, true]]);
+    // Compare in Eastern time: UTC+14 puts current_date a day ahead of Eastern most of the day, so a plain current_date fails here.
+    await f.db.query(`set timezone = 'Pacific/Kiritimati'`);
     await f.db.query(`update public.stages set starts_on = ${today} - 2, ends_on = ${today} - 1 where id = $1`, [f.stage]);
     await expect(setCount(2, pairings())).rejects.toThrow('TOURNAMENT_ENDED');
     await f.db.query(`update public.stages set ends_on = ${today} + 30 where id = $1`, [f.stage]);
@@ -154,7 +156,7 @@ describe('set_game_count', () => {
     await expect(setCount(2)).rejects.toThrow('NOT_OPEN');
     await open(3);
     await expect(setCount(2, undefined, keeper)).rejects.toThrow('FORBIDDEN');
-    await expect(as(f.db, null, (tx) => rpc(tx, 'set_game_count', { p_stage: f.stage, p_count: 2 }))).rejects.toThrow();
+    await expect(as(f.db, null, (tx) => rpc(tx, 'set_game_count', { p_stage: f.stage, p_count: 2 }))).rejects.toThrow(/permission denied/);
     expect(await games()).toHaveLength(3);
     expect(await audit('set_game_count')).toEqual([]);
     await setCount(3);

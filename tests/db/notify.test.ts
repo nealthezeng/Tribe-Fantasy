@@ -141,9 +141,10 @@ describe('pick notices', () => {
   });
 
   it('opening with 3 games mails game 1 only; the last game finish tells nobody; raising an over tournament mails the new game', async () => {
-    const g1 = await open(pairings(), 1);
+    const g1 = await open(pairings(), 3);
     expect((await outbox()).map((r) => r.ref)).toEqual([g1, g1]);
     await start(g1);
+    await as(f.db, f.admin, (tx) => rpc(tx, 'set_game_count', { p_stage: f.stage, p_count: 1 }));
     const before = (await outbox()).length;
     await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: [], p_provisional: {} }));
     expect(await outbox()).toHaveLength(before);

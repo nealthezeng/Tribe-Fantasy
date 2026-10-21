@@ -3,7 +3,9 @@
 -- (a last game has none, so it pairs nothing and mails nothing), and set_game_count raises or lowers the count later.
 -- A raised, already-over tournament pairs its first new game at once. reset_game now unpairs game N+1 instead of
 -- deleting it. add_next_game and finish_game's p_last go: the count replaces the last-game tap.
--- Every function locks the stage's games in number order first, so these can't race each other or start_game.
+-- Stage-wide locks on games are always taken in number order (finish_game, set_game_count, reset_game, and 0024's
+-- set_game_pick and admin_set_share, re-created below with only that order added), so none can deadlock another.
+-- start_game locks just its own game row, and open_tournament the stage row.
 begin;
 
 drop function public.finish_game(uuid, jsonb, jsonb, boolean);
@@ -95,10 +97,12 @@ language plpgsql security definer set search_path = '' as $$
 declare g public.games; s public.sessions; nxt uuid; next_unpaired boolean; taps int; lines int;
 begin
   perform private.require_admin();
-  select * into g from public.games where id = p_game for update;
+  select * into g from public.games where id = p_game;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  perform 1 from public.games where stage_id = g.stage_id order by number for update; -- lock the siblings so start_game(N+1) can't commit mid-reset
+  select * into g from public.games where id = p_game; -- re-read under the lock
   if not found then raise exception 'NOT_FOUND'; end if;
   if g.started_at is null then raise exception 'GAME_NOT_STARTED'; end if;
-  perform 1 from public.games where stage_id = g.stage_id order by number for update; -- lock the siblings so start_game(N+1) can't commit mid-reset
   if exists (select 1 from public.games where stage_id = g.stage_id and number > g.number and started_at is not null) then
     raise exception 'NOT_LATEST_GAME';
   end if;
@@ -120,13 +124,104 @@ begin
     'taps', taps, 'lines', lines, 'next_game_unpaired', next_unpaired));
 end $$;
 
+-- As 0024, but the stage-wide share lock is taken in number order (see the header).
+create or replace function public.set_game_pick(p_membership uuid, p_stage uuid, p_number int, p_athletes uuid[]) returns void
+language plpgsql security definer set search_path = '' as $$
+declare uid uuid := private.require_user(); season uuid; lid uuid; nxt int; picks uuid[];
+begin
+  select season_id into season from public.stages where id = p_stage;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  -- Locking the membership row serialises one team's calls, so two overlapping sets can't both delete-then-insert
+  -- past picks_per_game (as place_bid).
+  select league_id into lid from public.memberships where id = p_membership and user_id = uid for update;
+  if not found then raise exception 'NOT_MEMBER'; end if;
+  -- Waits for a concurrent start_game, so a pick can't slip in after its game starts.
+  perform 1 from public.games where stage_id = p_stage order by number for share;
+  nxt := private.next_game(p_stage);
+  if p_number is null or p_number < nxt then raise exception 'PICK_LOCKED'; end if;
+  if p_number > nxt then raise exception 'NOT_NEXT_GAME'; end if;
+  select coalesce(array_agg(distinct a), '{}') into picks from unnest(coalesce(p_athletes, '{}')) a;
+  if cardinality(picks) > private.setting_num(season, 'picks_per_game', 2) then raise exception 'TOO_MANY_PICKS'; end if;
+  if exists (select 1 from unnest(picks) a where not exists (
+       select 1 from public.roster_slots where stage_id = p_stage and membership_id = p_membership and athlete_id = a
+         and from_game <= nxt and (until_game is null or nxt < until_game))) then
+    raise exception 'NOT_ON_ROSTER';
+  end if;
+  delete from public.game_picks where stage_id = p_stage and game_number = p_number and membership_id = p_membership;
+  insert into public.game_picks (stage_id, game_number, membership_id, league_id, athlete_id)
+  select p_stage, p_number, p_membership, lid, a from unnest(picks) a;
+  -- No athletes here: admins read the audit log, and picks stay sealed until the game starts.
+  perform private.audit('set_game_pick', 'stage', p_stage::text, jsonb_build_object('membership_id', p_membership, 'number', p_number));
+end $$;
+
+create or replace function public.admin_set_share(p_stage uuid, p_membership uuid, p_athlete uuid, p_percent int) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  st public.stages;
+  n int;
+  cur public.roster_slots;
+  lid uuid;
+  remove boolean := p_percent is null or p_percent = 0;
+  old_percent int := 0;
+begin
+  perform private.require_admin();
+  select * into st from public.stages where id = p_stage for share;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  if st.auction_run_at is null then raise exception 'SHARES_NOT_SETTLED'; end if;
+  if not remove and p_percent not between 1 and 100 then raise exception 'INVALID_PERCENT'; end if;
+  -- The membership row lock serialises edits to one team (as place_bid).
+  select m.league_id into lid from public.memberships m join public.leagues l on l.id = m.league_id
+  where m.id = p_membership and l.season_id = st.season_id for update of m;
+  if not found then raise exception 'NOT_FOUND'; end if;
+  if (select removed_at from public.memberships where id = p_membership) is not null then
+    raise exception 'TEAM_REMOVED';
+  end if;
+  if not exists (select 1 from public.athletes where id = p_athlete and season_id = st.season_id) then
+    raise exception 'NOT_FOUND';
+  end if;
+  -- Adding or changing needs an opted-in player; taking one off never does.
+  if not remove and not exists (select 1 from public.athletes where id = p_athlete and opted_in) then
+    raise exception 'NOT_OPTED_IN';
+  end if;
+  -- Waits for a concurrent start_game, so the next game can't move under us.
+  perform 1 from public.games where stage_id = p_stage order by number for share;
+  n := private.next_game(p_stage);
+  select * into cur from public.roster_slots
+  where stage_id = p_stage and membership_id = p_membership and athlete_id = p_athlete and until_game is null for update;
+  if found then
+    old_percent := round(cur.share * 100)::int;
+    if cur.from_game >= n then
+      if remove then delete from public.roster_slots where id = cur.id;
+      else update public.roster_slots set share = p_percent / 100.0 where id = cur.id;
+      end if;
+    else
+      update public.roster_slots set until_game = n where id = cur.id;
+      if not remove then
+        insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, share, via, from_game)
+        values (p_stage, p_membership, lid, p_athlete, 0, p_percent / 100.0, 'admin', n);
+      end if;
+    end if;
+  else
+    if remove then raise exception 'NOT_FOUND'; end if;
+    insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, share, via, from_game)
+    values (p_stage, p_membership, lid, p_athlete, 0, p_percent / 100.0, 'admin', n);
+  end if;
+  if remove then
+    delete from public.game_picks
+    where stage_id = p_stage and membership_id = p_membership and athlete_id = p_athlete and game_number = n;
+  end if;
+  perform private.audit('admin_set_share', 'membership', p_membership::text, jsonb_build_object(
+    'stage', p_stage, 'membership', p_membership, 'athlete', p_athlete,
+    'old_percent', old_percent, 'new_percent', coalesce(p_percent, 0), 'from_game', n));
+end $$;
+
 do $$
 declare f record;
 begin
   for f in select p.oid::regprocedure as sig from pg_proc p
            join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'public'
-             and p.proname in ('open_tournament', 'finish_game', 'set_game_count', 'reset_game') loop
+             and p.proname in ('open_tournament', 'finish_game', 'set_game_count', 'reset_game', 'set_game_pick', 'admin_set_share') loop
     execute format('revoke execute on function %s from public, anon', f.sig);
     execute format('grant execute on function %s to authenticated', f.sig);
   end loop;
