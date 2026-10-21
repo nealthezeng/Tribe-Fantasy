@@ -12,7 +12,7 @@ const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper
 const STAFF_READS = ['list_venmo_receipts', 'list_users'];
 /** Any signed-in user may call these; they check ownership instead of a role. */
 const MEMBER_CALLABLE = [
-  'clear_injury', 'delete_bid', 'join_league', 'place_bid', 'report_injury', 'set_attendance', 'set_display_name',
+  'delete_bid', 'join_league', 'place_bid', 'set_display_name',
   'set_game_pick', 'set_notify_email',
   // Open leagues (t215): owner/admin checks happen inside.
   'create_my_league', 'delete_league', 'join_open_league', 'rename_league', 'set_league_password',
@@ -25,7 +25,7 @@ const MEMBER_CALLABLE = [
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
-  'confirm_injury', 'create_session', 'delete_session', 'finish_game', 'reopen_session', 'save_taps', 'set_game_opponent',
+  'clear_out', 'create_session', 'delete_session', 'finish_game', 'reopen_session', 'save_taps', 'set_game_opponent', 'set_out',
   'start_game', 'verify_session',
 ];
 
@@ -94,10 +94,6 @@ describe('RPC gate', () => {
         const now = new Date().toISOString();
         return { p_session: c.session, p_client_now: now, p_taps: [tap(c.athlete, 'goal', now)] };
       }],
-      ['set_attendance', player, () => ({ p_session: c.session, p_athlete: c.athlete, p_status: 'present' })],
-      ['report_injury', player, () => ({ p_athlete: c.athlete }), (r) => (c.injury = r as string)],
-      ['confirm_injury', keeper, () => ({ p_injury: c.injury })],
-      ['clear_injury', player, () => ({ p_athlete: c.athlete })],
       ['verify_session', verifier, () => ({ p_session: c.session, p_lines: [{ athlete_id: c.athlete, stats: { goal: 1 } }] })],
       ['reopen_session', verifier, () => ({ p_session: c.session })],
       ['correct_stat_line', admin, () => ({ p_session: c.session, p_athlete: c.athlete, p_stats: { goal: 2 } })],
@@ -108,6 +104,9 @@ describe('RPC gate', () => {
       ['rename_athlete', admin, () => ({ p_athlete: c.athlete, p_name: 'Patricia' })],
       ['delete_athlete', admin, () => ({ p_athlete: c.spare })],
       ['delete_session', keeper, () => ({ p_session: c.empty })],
+      // Out marks (0027): the gate athlete, the gate stage; clear_out deletes the unstarted mark.
+      ['set_out', keeper, () => ({ p_stage: c.stage, p_athlete: c.athlete })],
+      ['clear_out', keeper, () => ({ p_stage: c.stage, p_athlete: c.athlete })],
       // A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself).
       ['set_game_pick', player, () => ({ p_membership: c.membership, p_stage: c.stage, p_number: 1, p_athletes: '{}' })],
       ['open_tournament', admin, () => ({ p_stage: c.stage, p_pairings: [{ league_id: c.league, home: c.membership, away: null }], p_games: 2 }),

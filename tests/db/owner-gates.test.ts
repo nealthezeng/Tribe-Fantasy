@@ -1,5 +1,5 @@
-// M5 gates from the M1+M2 reviews: with owns_athlete real, owners can't tally, verify, reopen, correct, confirm
-// injuries or mark attendance for athletes on their own roster.
+// M5 gates from the M1+M2 reviews: with owns_athlete real, owners can't tally, verify, reopen or correct
+// athletes on their own roster. (Injury and attendance gates went with 0027; Out marking has no owner gate.)
 import { beforeEach, describe, expect, it } from 'vitest';
 import { as, rpc } from './helpers';
 import { backdateVerify, statsFixture, tap, type StatsFixture } from './stats-fixture';
@@ -74,24 +74,11 @@ describe('owner gates', () => {
     await verify(f.admin, f.sam);
     await backdateVerify(f.db, f.session, 49);
     await as(f.db, f.admin, (tx) => rpc(tx, 'correct_stat_line', { p_session: f.session, p_athlete: f.sam, p_stats: { goal: 2 } }));
-    const iid = (await as(f.db, f.admin, (tx) => rpc(tx, 'report_injury', { p_athlete: f.sam }))) as string;
-    const row = await f.db.query<{ confirmed_at: string | null }>(`select confirmed_at from public.injuries where id = $1`, [iid]);
-    expect(row.rows[0].confirmed_at).not.toBeNull(); // auto-confirmed, as for any non-owner keeper
   });
 
   it('a keeper who tallied still cannot verify (VERIFIER_TAPPED is lifted for admins only)', async () => {
     await save(f.k1, f.sam);
     await expect(verify(f.k1, f.sam)).rejects.toThrow('VERIFIER_TAPPED');
-  });
-
-  it('set_attendance refuses a keeper who owns the athlete, but not a player marking themselves', async () => {
-    await own(f.k1, f.sam);
-    const mark = (athlete: string) =>
-      as(f.db, f.k1, (tx) => rpc(tx, 'set_attendance', { p_session: f.session, p_athlete: athlete, p_status: 'present' }));
-    await expect(mark(f.sam)).rejects.toThrow('OWNS_ATHLETE');
-    await mark(f.ali);
-    await f.db.query(`update public.athletes set user_id = $1 where id = $2`, [f.k1, f.sam]); // k1 is Sam
-    await mark(f.sam);
   });
 
   it("still counts last stage's owner while its closing tournament is verified after the next auction", async () => {
@@ -105,25 +92,5 @@ describe('owner gates', () => {
     const old = await stageAt('Long over', -30, -10);
     await own(f.k1, f.sam, old);
     await save(f.k1, f.sam);
-  });
-
-  it('a keeper who is the injured player can report but not confirm their own injury', async () => {
-    await f.db.query(`update public.athletes set user_id = $1 where id = $2`, [f.k1, f.sam]); // k1 is Sam
-    const iid = (await as(f.db, f.k1, (tx) => rpc(tx, 'report_injury', { p_athlete: f.sam }))) as string;
-    const row = await f.db.query<{ confirmed_at: string | null }>(`select confirmed_at from public.injuries where id = $1`, [iid]);
-    expect(row.rows[0].confirmed_at).toBeNull();
-    await expect(as(f.db, f.k1, (tx) => rpc(tx, 'confirm_injury', { p_injury: iid }))).rejects.toThrow('OWNS_ATHLETE');
-  });
-
-  it('confirm_injury refuses an owner, and report_injury by an owner is not auto-confirmed', async () => {
-    await own(f.k1, f.sam);
-    const iid = (await as(f.db, f.k1, (tx) => rpc(tx, 'report_injury', { p_athlete: f.sam }))) as string;
-    const row = await f.db.query<{ confirmed_at: string | null }>(`select confirmed_at from public.injuries where id = $1`, [iid]);
-    expect(row.rows[0].confirmed_at).toBeNull();
-    await expect(as(f.db, f.k1, (tx) => rpc(tx, 'confirm_injury', { p_injury: iid }))).rejects.toThrow('OWNS_ATHLETE');
-    await as(f.db, f.k2, (tx) => rpc(tx, 'confirm_injury', { p_injury: iid }));
-    const other = (await as(f.db, f.k2, (tx) => rpc(tx, 'report_injury', { p_athlete: f.ali }))) as string;
-    const auto = await f.db.query<{ confirmed_at: string | null }>(`select confirmed_at from public.injuries where id = $1`, [other]);
-    expect(auto.rows[0].confirmed_at).not.toBeNull();
   });
 });

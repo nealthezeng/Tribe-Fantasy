@@ -48,6 +48,7 @@ describe('delete_season', () => {
     await runAuction(f);
     const game = (await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament',
       { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: aliceM, away: bobM }], p_games: 1 }))) as string;
+    await as(f.db, keeper, (tx) => rpc(tx, 'set_out', { p_stage: f.stage, p_athlete: f.athletes[1] }));
     const sid = (await as(f.db, keeper, (tx) => rpc(tx, 'start_game', { p_game: game }))) as string;
     const now = new Date().toISOString();
     await as(f.db, keeper, (tx) => rpc(tx, 'save_taps', { p_session: sid, p_client_now: now, p_taps: [tap(f.athletes[0], 'goal', now)] }));
@@ -59,7 +60,7 @@ describe('delete_season', () => {
 
     for (const t of ['public.stages', 'public.leagues', 'public.memberships', 'public.credit_ledger', 'public.bids',
       'public.roster_slots', 'public.games', 'public.game_pairings', 'public.game_picks', 'public.sessions',
-      'public.stat_taps', 'public.stat_lines', 'public.attendance', 'public.injuries', 'public.invites', 'private.outbox']) {
+      'public.stat_taps', 'public.stat_lines', 'public.attendance', 'public.injuries', 'public.outs', 'public.invites', 'private.outbox']) {
       expect(await count(t), t).toBe(0);
     }
     expect(await count('public.seasons')).toBe(1);
