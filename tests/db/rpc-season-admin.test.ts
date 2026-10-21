@@ -47,7 +47,7 @@ describe('delete_season', () => {
     await closeBids(f);
     await runAuction(f);
     const game = (await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament',
-      { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: aliceM, away: bobM }] }))) as string;
+      { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: aliceM, away: bobM }], p_games: 1 }))) as string;
     const sid = (await as(f.db, keeper, (tx) => rpc(tx, 'start_game', { p_game: game }))) as string;
     const now = new Date().toISOString();
     await as(f.db, keeper, (tx) => rpc(tx, 'save_taps', { p_session: sid, p_client_now: now, p_taps: [tap(f.athletes[0], 'goal', now)] }));

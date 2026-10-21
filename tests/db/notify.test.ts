@@ -28,7 +28,8 @@ const pairings = () => [
   { league_id: f.league, home: aliceM, away: bobM },
   { league_id: f.league, home: carolM, away: null },
 ];
-const open = (p = pairings()) => as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: p })) as Promise<string>;
+const open = (p = pairings(), games = 3) =>
+  as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: p, p_games: games })) as Promise<string>;
 const start = (game: string) => as(f.db, keeper, (tx) => rpc(tx, 'start_game', { p_game: game }));
 /** A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself). */
 const pick = (uid: string, mid: string, number: number, athletes: string[]) => as(f.db, uid, (tx) =>
@@ -122,7 +123,7 @@ describe('bid reminders', () => {
 
 describe('pick notices', () => {
   it('opening a tournament tells both sides of each pairing, not the team with a bye', async () => {
-    const g1 = await open();
+    const g1 = await open(); // 3 games, only game 1 paired: no mail for 2 and 3
     const rows = await outbox();
     expect(rows.map((r) => [r.membership_id, r.kind, r.ref])).toEqual([[aliceM, 'pick_next', g1], [bobM, 'pick_next', g1]]);
     expect(rows[0].subject).toBe('Pick your players for game 1');
@@ -139,13 +140,15 @@ describe('pick notices', () => {
     expect((await outbox()).filter((r) => r.ref === g2).map((r) => r.membership_id)).toEqual([bobM]);
   });
 
-  it('a last-game finish tells nobody; adding game N+1 afterwards tells both sides (t202)', async () => {
-    const g1 = await open();
+  it('opening with 3 games mails game 1 only; the last game finish tells nobody; raising an over tournament mails the new game', async () => {
+    const g1 = await open(pairings(), 1);
+    expect((await outbox()).map((r) => r.ref)).toEqual([g1, g1]);
     await start(g1);
     const before = (await outbox()).length;
-    await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: [], p_provisional: {}, p_last: true }));
+    await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: [], p_provisional: {} }));
     expect(await outbox()).toHaveLength(before);
-    const g2 = await as(f.db, keeper, (tx) => rpc(tx, 'add_next_game', { p_game: g1, p_pairings: pairings(), p_provisional: {} }));
+    await as(f.db, f.admin, (tx) => rpc(tx, 'set_game_count', { p_stage: f.stage, p_count: 2, p_pairings: pairings() }));
+    const g2 = (await f.db.query<{ id: string }>('select id from public.games where stage_id = $1 and number = 2', [f.stage])).rows[0].id;
     expect((await outbox()).filter((r) => r.ref === g2)).toHaveLength(2);
   });
 
@@ -167,15 +170,16 @@ describe('pick notices', () => {
     expect((await outbox()).map((r) => r.membership_id)).toEqual([aliceM]);
   });
 
-  it('after an admin undoes a game and it is finished again, the new next game gets fresh notices', async () => {
+  it('after an admin undoes a game and it is finished again, the next game gets fresh notices', async () => {
     const g1 = await open();
     await start(g1);
-    const first = await finish(g1);
+    const g2 = (await finish(g1)) as string;
+    expect((await outbox()).filter((r) => r.ref === g2)).toHaveLength(2);
     await as(f.db, f.admin, (tx) => rpc(tx, 'reset_game', { p_game: g1 }));
+    expect((await outbox()).filter((r) => r.ref === g2)).toHaveLength(0);
     await start(g1);
-    const second = await finish(g1);
-    expect(second).not.toBe(first);
-    expect((await outbox()).filter((r) => r.ref === second)).toHaveLength(2);
+    expect(await finish(g1)).toBe(g2);
+    expect((await outbox()).filter((r) => r.ref === g2)).toHaveLength(2);
   });
 });
 
@@ -231,16 +235,16 @@ describe('claim_outbox and mark_outbox', () => {
     expect(await claim()).toEqual([]);
   });
 
-  it('drops a pick notice once its game has started, or once the game was deleted', async () => {
+  it('drops a pick notice once its game has started, or once its notice was cleared by an undo', async () => {
     const g1 = await open();
     await start(g1);
     expect(await claim()).toEqual([]);
     const g2 = await finish(g1);
-    await as(f.db, f.admin, (tx) => rpc(tx, 'reset_game', { p_game: g1 })); // deletes the unstarted g2, un-starts g1
+    await as(f.db, f.admin, (tx) => rpc(tx, 'reset_game', { p_game: g1 })); // unpairs g2 (clearing its mail), un-starts g1
     const due = await claim();
     const byId = new Map((await outbox()).map((r) => [r.id, r.ref]));
-    expect(due.map((r) => byId.get(r.id))).toEqual([g1, g1]); // game 1 is unplayed again; game 2 is gone
-    expect((await outbox()).some((r) => r.ref === g2)).toBe(true);
+    expect(due.map((r) => byId.get(r.id))).toEqual([g1, g1]); // game 1 is unplayed again
+    expect((await outbox()).some((r) => r.ref === g2)).toBe(false);
   });
 
   it('drops a pick notice once the team reaches its picks after it was queued, not before (C9)', async () => {

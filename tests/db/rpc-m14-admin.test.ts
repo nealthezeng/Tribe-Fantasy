@@ -22,7 +22,7 @@ const count = async (sql: string, args: unknown[] = []) =>
 const audit = async (action: string) => (await f.db.query<{ details: Record<string, unknown> }>(
   'select details from public.audit_log where action = $1 order by id', [action])).rows;
 const pairings = () => [{ league_id: f.league, home: aliceM, away: bobM }];
-const open = () => as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: pairings() })) as Promise<string>;
+const open = () => as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: pairings(), p_games: 2 })) as Promise<string>;
 const start = (game: string) => as(f.db, keeper, (tx) => rpc(tx, 'start_game', { p_game: game })) as Promise<string>;
 /** A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself). */
 const pick = (mid: string, number: number, athletes: string[], who = alice) => as(f.db, who, (tx) =>
@@ -359,7 +359,7 @@ describe('removed-team rules', () => {
     const [carol, carolM] = await member(f.db, 'carol');
     await expect(open()).rejects.toThrow('PAIRINGS_INVALID'); // carol is a live team and missing from the pairings
     const all = [...pairings(), { league_id: f.league, home: carolM, away: null }];
-    const game = (await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: all }))) as string;
+    const game = (await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: all, p_games: 2 }))) as string;
     await start(game);
     await removeUser(carol);
     const finish = (p: unknown) => as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: p, p_provisional: {} }));
@@ -423,7 +423,7 @@ describe('removed teams get no email', () => {
     await f.db.query(`insert into public.roster_slots (stage_id, membership_id, league_id, athlete_id, price, via)
       values ($1, $2, $3, $4, 10, 'bid')`, [f.stage, carolM, f.league, A(4)]); // so carol owes a pick
     await removeUser(alice);
-    await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: bobM, away: carolM }] }));
+    await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: bobM, away: carolM }], p_games: 2 }));
     const rows = await f.db.query<{ membership_id: string }>(`select membership_id from private.outbox where kind = 'pick_next'`);
     expect(rows.rows.map((r) => r.membership_id).sort()).toEqual([bobM, carolM].sort());
   });

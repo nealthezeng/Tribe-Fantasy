@@ -86,7 +86,7 @@ beforeAll(async () => {
   // The 2v2 tournament: game 1 paired by the (all tied) standings, then three games. Fay picks one player for game 1,
   // Ava's A0 is hurt at the start of game 2, Dee starts her only two players every game (tired), Cal forgets game 3.
   const first = await pairNext();
-  await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: first.pairings }));
+  await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: first.pairings, p_games: 4 }));
   const sessionLines = new Map<string, { athlete_id: string; stats: Record<string, number> }[]>();
   for (const n of [1, 2, 3]) {
     const input = toTournamentInput(await readRows(), Date.now());

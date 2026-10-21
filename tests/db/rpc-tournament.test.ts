@@ -12,15 +12,13 @@ const pairings = () => [
   { league_id: f.league, home: aliceM, away: bobM },
   { league_id: f.league, home: carolM, away: null },
 ];
-const open = (p: unknown = pairings(), who = f.admin) =>
-  as(f.db, who, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: p })) as Promise<string>;
+const open = (p: unknown = pairings(), who = f.admin, games = 3) =>
+  as(f.db, who, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: p, p_games: games })) as Promise<string>;
 const start = (game: string, who = keeper) => as(f.db, who, (tx) => rpc(tx, 'start_game', { p_game: game })) as Promise<string>;
 const finish = (game: string, p: unknown = pairings(), who = keeper) =>
   as(f.db, who, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: p, p_provisional: { standings: 'x' } })) as Promise<string>;
 const finishLast = (game: string, who = keeper) =>
-  as(f.db, who, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: [], p_provisional: {}, p_last: true })) as Promise<string | null>;
-const addNext = (game: string, p: unknown = pairings(), who = keeper) =>
-  as(f.db, who, (tx) => rpc(tx, 'add_next_game', { p_game: game, p_pairings: p, p_provisional: { standings: 'y' } })) as Promise<string>;
+  as(f.db, who, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: [], p_provisional: {} })) as Promise<string | null>;
 /** One athlete, or null to clear. A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself). */
 const setPick = (uid: string, mid: string, number: number, athlete: string | null) =>
   as(f.db, uid, (tx) => rpc(tx, 'set_game_pick',
@@ -75,7 +73,7 @@ describe('open_tournament', () => {
 
   it('is admin-only and needs a real stage', async () => {
     await expect(open(pairings(), keeper)).rejects.toThrow('FORBIDDEN');
-    await expect(as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: crypto.randomUUID(), p_pairings: [] })))
+    await expect(as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: crypto.randomUUID(), p_pairings: [], p_games: 2 })))
       .rejects.toThrow('NOT_FOUND');
   });
 });
@@ -105,8 +103,8 @@ describe('start_game / finish_game', () => {
     await expect(finish(g2, pairings(), alice)).rejects.toThrow('FORBIDDEN');
   });
 
-  it('finishes the last game without a next game or pairings (t202)', async () => {
-    const g1 = await open();
+  it('finishes the last game without pairing anything', async () => {
+    const g1 = await open(pairings(), f.admin, 1);
     await start(g1);
     expect(await finishLast(g1)).toBeNull();
     expect(await game(1)).toMatchObject({ finished: true });
@@ -115,31 +113,8 @@ describe('start_game / finish_game', () => {
     await expect(finishLast(g1)).rejects.toThrow('GAME_NOT_LIVE');
   });
 
-  it('adds game N+1 after a last-game finish, once, for keepers only (t202)', async () => {
-    const g1 = await open();
-    await start(g1);
-    await expect(addNext(g1)).rejects.toThrow('GAME_NOT_FINISHED');
-    await finishLast(g1);
-    await expect(addNext(g1, pairings(), alice)).rejects.toThrow('FORBIDDEN');
-    await expect(addNext(g1, [{ league_id: f.league, home: aliceM, away: bobM }])).rejects.toThrow('PAIRINGS_INVALID');
-    // add_next_game compares with today in Eastern time, so the dates must too. UTC+14 puts current_date a day ahead
-    // of Eastern for most of the day (not Eastern midnight to ~5-6 am), so the old current_date version fails here
-    // most hours, as it did on CI between 00:00 UTC and Eastern midnight.
-    await f.db.query(`set timezone = 'Pacific/Kiritimati'`);
-    const today = `(now() at time zone 'America/New_York')::date`;
-    await f.db.query(`update public.stages set starts_on = ${today} - 2, ends_on = ${today} - 1 where id = $1`, [f.stage]);
-    await expect(addNext(g1)).rejects.toThrow('TOURNAMENT_ENDED');
-    await f.db.query(`update public.stages set ends_on = ${today} + 30 where id = $1`, [f.stage]);
-    const g2 = await addNext(g1);
-    expect(await game(2)).toMatchObject({ id: g2, started: false });
-    expect((await f.db.query('select 1 from public.game_pairings where game_id = $1', [g2])).rows).toHaveLength(2);
-    expect((await audit('add_next_game'))[0].details).toMatchObject({ number: 2, next_game_id: g2, provisional: { standings: 'y' } });
-    await expect(addNext(g1)).rejects.toThrow('NEXT_GAME_EXISTS');
-  });
-
   it('refuses to start a game while an earlier one is live', async () => {
     await open();
-    await f.db.query(`insert into public.games (stage_id, number) values ($1, 2)`, [f.stage]);
     await start((await game(1)).id);
     await expect(start((await game(2)).id)).rejects.toThrow('PREVIOUS_GAME_LIVE');
   });
@@ -163,10 +138,10 @@ describe('set_game_pick', () => {
     expect(picks.rows).toEqual([{ athlete_id: f.athletes[1] }]);
   });
 
-  it('takes the next game only, even before that game exists', async () => {
+  it('takes the next game only', async () => {
     await expect(setPick(alice, aliceM, 2, f.athletes[0])).rejects.toThrow('NOT_NEXT_GAME');
     await start(await open());
-    await setPick(alice, aliceM, 2, f.athletes[0]); // game 1 live, game 2 not created yet
+    await setPick(alice, aliceM, 2, f.athletes[0]); // game 1 live, game 2 not paired yet
     await expect(setPick(alice, aliceM, 3, f.athletes[0])).rejects.toThrow('NOT_NEXT_GAME');
     await expect(setPick(alice, aliceM, 0, f.athletes[0])).rejects.toThrow('PICK_LOCKED');
   });

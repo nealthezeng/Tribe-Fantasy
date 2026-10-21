@@ -97,7 +97,7 @@ describe('set_game_pick', () => {
     await expect(pick([a1, a4])).rejects.toThrow('NOT_ON_ROSTER');
     await pick([a1, a2]);
     const g1 = (await as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament',
-      { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: am, away: bm }] }))) as string;
+      { p_stage: f.stage, p_pairings: [{ league_id: f.league, home: am, away: bm }], p_games: 2 }))) as string;
     await as(f.db, keeper, (tx) => rpc(tx, 'start_game', { p_game: g1 }));
     await expect(pick([a3])).rejects.toThrow('PICK_LOCKED');
     expect(await picks()).toEqual([a1, a2].sort());

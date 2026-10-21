@@ -9,7 +9,8 @@ let f: AuctionFixture;
 let keeper: string, alice: string, aliceM: string, bobM: string;
 
 const pairings = () => [{ league_id: f.league, home: aliceM, away: bobM }];
-const open = () => as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: pairings() })) as Promise<string>;
+const open = (games = 2) =>
+  as(f.db, f.admin, (tx) => rpc(tx, 'open_tournament', { p_stage: f.stage, p_pairings: pairings(), p_games: games })) as Promise<string>;
 const start = (game: string) => as(f.db, keeper, (tx) => rpc(tx, 'start_game', { p_game: game })) as Promise<string>;
 const finish = (game: string) =>
   as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: game, p_pairings: pairings(), p_provisional: {} })) as Promise<string>;
@@ -101,7 +102,7 @@ describe('delete_stage', () => {
 });
 
 describe('reset_game', () => {
-  it('undoes the newest started game: its stats and the next game go, and it can be played again (t121)', async () => {
+  it('undoes the newest started game: its stats go, the next game is unpaired but stays, and it can be played again (t121)', async () => {
     const g1 = await open();
     const sid = await start(g1);
     await as(f.db, keeper, (tx) => rpc(tx, 'save_taps', {
@@ -111,10 +112,11 @@ describe('reset_game', () => {
     await reset(g1);
 
     expect(await gameRow(g1)).toMatchObject({ number: 1, session_id: null, started: false, finished: false });
-    expect(await gameRow(g2)).toBeUndefined();
+    expect(await gameRow(g2)).toMatchObject({ number: 2, started: false });
+    expect(await count('public.game_pairings where game_id = $1', [g2])).toBe(0);
     expect(await count('public.sessions where id = $1', [sid])).toBe(0);
     expect(await count('public.game_pairings where game_id = $1', [g1])).toBe(1); // pairings kept
-    expect((await audit('reset_game'))[0].details).toMatchObject({ number: 1, taps: 1, lines: 0, verified: false, next_game_deleted: true });
+    expect((await audit('reset_game'))[0].details).toMatchObject({ number: 1, taps: 1, lines: 0, verified: false, next_game_unpaired: true });
     await start(g1); // playable again
   });
 
@@ -126,16 +128,16 @@ describe('reset_game', () => {
     await expect(pick()).rejects.toThrow('PICK_LOCKED');
     await reset(g1);
     expect(await gameRow(g1)).toMatchObject({ started: false });
-    expect((await audit('reset_game'))[0].details).toMatchObject({ next_game_deleted: false });
+    expect((await audit('reset_game'))[0].details).toMatchObject({ next_game_unpaired: false });
     await pick();
   });
 
-  it('undoes a last-game finish: no next game to delete, and the game can be played again (t202)', async () => {
-    const g1 = await open();
+  it('undoes a last-game finish: no next game to unpair, and the game can be played again', async () => {
+    const g1 = await open(1);
     await start(g1);
-    await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: [], p_provisional: {}, p_last: true }));
+    await as(f.db, keeper, (tx) => rpc(tx, 'finish_game', { p_game: g1, p_pairings: [], p_provisional: {} }));
     await reset(g1);
-    expect((await audit('reset_game'))[0].details).toMatchObject({ next_game_deleted: false });
+    expect((await audit('reset_game'))[0].details).toMatchObject({ next_game_unpaired: false });
     await start(g1);
   });
 

@@ -25,7 +25,7 @@ const MEMBER_CALLABLE = [
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
-  'add_next_game', 'confirm_injury', 'create_session', 'delete_session', 'finish_game', 'reopen_session', 'save_taps', 'set_game_opponent',
+  'confirm_injury', 'create_session', 'delete_session', 'finish_game', 'reopen_session', 'save_taps', 'set_game_opponent',
   'start_game', 'verify_session',
 ];
 
@@ -110,13 +110,13 @@ describe('RPC gate', () => {
       ['delete_session', keeper, () => ({ p_session: c.empty })],
       // A Postgres array literal: the rpc helper sends arrays as JSON (PostgREST converts them itself).
       ['set_game_pick', player, () => ({ p_membership: c.membership, p_stage: c.stage, p_number: 1, p_athletes: '{}' })],
-      ['open_tournament', admin, () => ({ p_stage: c.stage, p_pairings: [{ league_id: c.league, home: c.membership, away: null }] }),
+      ['open_tournament', admin, () => ({ p_stage: c.stage, p_pairings: [{ league_id: c.league, home: c.membership, away: null }], p_games: 2 }),
         (r) => (c.game = r as string)],
       ['start_game', keeper, () => ({ p_game: c.game })],
-      // The last game (t202), so add_next_game can then pair game 2.
-      ['finish_game', keeper, () => ({ p_game: c.game, p_pairings: [], p_provisional: {}, p_last: true })],
-      ['add_next_game', keeper, () => ({ p_game: c.game, p_pairings: [{ league_id: c.league, home: c.membership, away: null }],
+      // Pairs game 2; then the admin raises the count (game 3 is unpaired, the tournament isn't over).
+      ['finish_game', keeper, () => ({ p_game: c.game, p_pairings: [{ league_id: c.league, home: c.membership, away: null }],
         p_provisional: {} })],
+      ['set_game_count', admin, () => ({ p_stage: c.stage, p_count: 3 })],
       ['set_game_opponent', keeper, () => ({ p_game: c.game, p_name: 'Duke' })],
       ['reset_game', admin, () => ({ p_game: c.game })],
       // M14 admin powers. c.membership's team is the player's; the share goes on the gate athlete.
