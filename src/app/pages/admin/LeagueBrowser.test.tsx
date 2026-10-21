@@ -99,11 +99,25 @@ describe('LeagueBrowser', () => {
     expect(buys.getByText('Bea')).toBeTruthy();
     expect(buys.getByText('12 credits')).toBeTruthy();
 
-    expect(screen.getByText('Game 1 · Gimp Zeal vs Money (removed)')).toBeTruthy();
+    expect(screen.getByText('Game 1 · Gimp Zeal 0 – 0 Money (removed) · Unofficial')).toBeTruthy(); // finished, not verified
     expect(screen.getByText('Game 2 · Gimp Zeal vs Money (removed)')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(close).toHaveBeenCalled();
+  });
+
+  it('shows unofficial scores for a live game in the Games list', async () => {
+    setup();
+    const L = ROWS.league;
+    L.games[0].finished_at = null; // game 1 is live
+    L.members = [member('m1', 'Gimp Zeal'), member('m2', 'Money')]; // a removed team scores nothing
+    L.slots = [...at('m1', ['a1', 'a2'], 1), ...at('m2', ['b1'], 1)];
+    L.taps = [{ id: 't1', session_id: 'p1', athlete_id: 'a1', stat: 'goal', keeper_id: 'k1', tapped_at: '2026-11-07T14:01:00Z', undoes: null },
+      { id: 't2', session_id: 'p1', athlete_id: 'a1', stat: 'goal', keeper_id: 'k1', tapped_at: '2026-11-07T14:03:00Z', undoes: null },
+      { id: 't3', session_id: 'p1', athlete_id: 'b1', stat: 'goal', keeper_id: 'k1', tapped_at: '2026-11-07T14:05:00Z', undoes: null }];
+    render(<LeagueBrowser seasonId="se" leagueId="L" onClose={() => {}} />);
+    expect(await screen.findByText('Game 1 · Gimp Zeal 6 – 3 Money · Unofficial')).toBeTruthy();
+    expect(screen.getByText('Game 2 · Gimp Zeal vs Money')).toBeTruthy();
   });
 
   it('has no Buys section once share buying has closed', async () => {

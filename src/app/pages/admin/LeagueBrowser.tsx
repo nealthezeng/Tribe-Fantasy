@@ -2,7 +2,7 @@ import { Loading } from '../../components/Loading';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickPlayingStage, type AuctionStage } from '../../lib/auction';
 import { gameLabel, todayLocal } from '../../lib/stats';
 import { supabase } from '../../lib/supabase';
-import { fetchAll, loadLeagueTournament, record, rowsOf, type LeagueTournament } from '../../lib/tournament';
+import { fetchAll, fmt, loadLeagueTournament, record, rowsOf, type LeagueTournament } from '../../lib/tournament';
 import { useLoad } from '../../lib/useLoad';
 import { credits } from '../../lib/wallet';
 import { liveRoster, TeamAdmin } from './TeamAdmin';
@@ -28,7 +28,7 @@ export interface LeagueAdminData {
 export async function loadLeagueAdminData(seasonId: string, leagueId: string): Promise<LeagueAdminData> {
   const sb = supabase!;
   const [y, leagues, members, stages, players] = await Promise.all([
-    loadLeagueTournament(seasonId, leagueId),
+    loadLeagueTournament(seasonId, leagueId, { live: true }),
     rowsOf<{ name: string }>(sb.from('leagues').select('name').eq('id', leagueId)),
     rowsOf<{ id: string }>(sb.from('memberships').select('id').eq('league_id', leagueId)),
     rowsOf<AuctionStage>(sb.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId)),
@@ -86,8 +86,18 @@ function Teams({ d, onChanged }: { d: LeagueAdminData; onChanged: () => void }) 
   const games = y.result.games.filter((g) => g.game.stageId === stageId);
   const gameName = (n: number) => gameLabel(n, games.find((g) => g.game.number === n)?.game.opponent);
   const next = y.result.next;
-  const pairing = (g: (typeof games)[number]) => (g.matchups.length === 0 ? 'Not paired yet' : g.matchups.map((m) => (m.away
-    ? `${y.team.get(m.home.membershipId)} vs ${y.team.get(m.away.membershipId)}` : `${y.team.get(m.home.membershipId)} has a bye`)).join(' · '));
+  // A live or waiting game shows its unofficial score: "Zeal 6 – 3 Flow · Unofficial".
+  const pairing = (g: (typeof games)[number]) => {
+    if (g.matchups.length === 0) return 'Not paired yet';
+    const o = y.unofficial.get(g.game.id);
+    const text = (o ?? g).matchups.map((m) => {
+      const home = y.team.get(m.home.membershipId);
+      if (!m.away) return `${home} has a bye`;
+      const away = y.team.get(m.away.membershipId);
+      return o ? `${home} ${fmt(m.home.score ?? 0)} – ${fmt(m.away.score ?? 0)} ${away}` : `${home} vs ${away}`;
+    }).join(' · ');
+    return o ? `${text} · Unofficial` : text;
+  };
   return (
     <>
       {d.sealedBuys.length > 0 && (

@@ -3,13 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
-import { buildLeagueTournament, type TournamentRows } from '../lib/tournament';
+import { buildLeagueTournament, loadLeagueTournament, type TournamentRows } from '../lib/tournament';
 import { TournamentCard } from './TournamentCard';
 
 const rows = vi.hoisted(() => ({ current: null as unknown as TournamentRows }));
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
-  loadLeagueTournament: () => Promise.resolve(buildLeagueTournament(rows.current, Date.parse('2026-11-07T16:30:00Z'))),
+  loadLeagueTournament: vi.fn<(s: string, l: string, o?: unknown) => Promise<unknown>>(() => Promise.resolve(buildLeagueTournament(rows.current, Date.parse('2026-11-07T16:30:00Z')))),
 }));
 vi.mock('../lib/rpc', () => ({ api: { setGamePick: vi.fn() } }));
 
@@ -44,8 +44,18 @@ const afterGame1 = (): TournamentRows => ({
   sessions: [{ id: 'p1', verified_at: null }],
 });
 
+/** Game 1 live (started 14:00, not finished): Ash scored twice (6), Bea blocked once (5). */
+const tap = (id: string, athlete_id: string, stat: string, at: string) =>
+  ({ id, session_id: 'p1', athlete_id, stat, keeper_id: 'k1', tapped_at: `2026-11-07T${at}:00Z`, undoes: null });
+const TAPS = [tap('t1', 'a1', 'goal', '14:01'), tap('t2', 'a1', 'goal', '14:03'), tap('t3', 'b1', 'block', '14:05')];
+const liveGame1 = (): TournamentRows => {
+  const r = afterGame1();
+  return { ...r, games: r.games.map((g) => (g.id === 'g1' ? { ...g, finished_at: null } : g)), taps: TAPS };
+};
+
 afterEach(cleanup);
 beforeEach(() => {
+  vi.mocked(loadLeagueTournament).mockClear();
   // Saves the way set_game_pick does: the set replaces this team's picks for that game.
   vi.mocked(api.setGamePick).mockReset().mockImplementation((m, stage, n, ids) => {
     rows.current = { ...rows.current, picks: [...rows.current.picks.filter((p) => !(p.membership_id === m && p.game_number === n)),
@@ -382,6 +392,71 @@ describe('TournamentCard', () => {
       });
       expect(screen.getByText('Your pick is out')).toBeTruthy();
       expect(document.querySelector('.score-side.picked')).toBeNull();
+    });
+  });
+
+  describe('live scores (t317)', () => {
+    const starters = () => [...document.querySelectorAll('.starters li')].map((li) => li.textContent);
+
+    it("shows a live game's unofficial score and each starter's stat line", async () => {
+      await show(liveGame1());
+      const strip = document.querySelector('.strip')!.textContent!;
+      expect(strip).toContain('Live');
+      expect(strip).toContain('Unofficial');
+      expect([...document.querySelectorAll('.score .pts')].map((e) => e.textContent)).toEqual(['6', '5']);
+      expect(starters()).toContain('Ash · 2 Goal6');
+      expect(starters()).toContain('Bea · 1 D5');
+      expect(starters().filter((t) => t?.includes('No stats'))).toHaveLength(2); // each side's auto-picked 2nd starter
+    });
+
+    it('replaces live numbers with verified ones', async () => {
+      const r = liveGame1();
+      await show({
+        ...r,
+        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }], // over, so the verified game stays the focus
+        games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, finished_at: '2026-11-07T15:00:00Z' })),
+        pairings: r.pairings.filter((p) => p.game_id === 'g1'),
+        sessions: [{ id: 'p1', verified_at: '2026-11-07T16:00:00Z' }],
+        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 0 }, { session_id: 'p1', athlete_id: 'b1', stats: { block: 1 }, points_played: 0 }],
+      });
+      expect(document.querySelector('.strip')!.textContent).not.toContain('Unofficial');
+      expect([...document.querySelectorAll('.score .pts')].map((e) => e.textContent)).toEqual(['3', '5']);
+      expect(document.querySelector('.strip')!.textContent).toMatch(/Lost −1/);
+      expect(document.querySelector('.score-side.lost')!.textContent).toContain('Ash');
+    });
+
+    it('shows unofficial scores on a game card waiting on stats, without W/L', async () => {
+      const r = afterGame1();
+      await show({ ...r, taps: TAPS.map((t) => ({ ...t })) });
+      const card = document.querySelector('.game')!;
+      expect(card.querySelector('.game-score')!.textContent).toBe('Zeal6vsFlow5');
+      expect(card.querySelector('summary > .meta')!.textContent).toContain('Waiting on stats');
+      expect(card.querySelector('summary > .meta')!.textContent).not.toMatch(/W [+−]|L [+−]/);
+      fireEvent.click(card.querySelector('summary')!);
+      expect(card.textContent).toContain('Unofficial until a keeper verifies.');
+      expect(card.textContent).toContain('Ash · 2 Goal');
+    });
+
+    it('polls every 15 s while a game is live, not otherwise', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await show(liveGame1());
+        expect(loadLeagueTournament).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(15_000);
+        await waitFor(() => expect(loadLeagueTournament).toHaveBeenCalledTimes(2));
+        cleanup();
+        vi.mocked(loadLeagueTournament).mockClear();
+        await show(base());
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(loadLeagueTournament).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('loads live taps', async () => {
+      await show(base());
+      expect(loadLeagueTournament).toHaveBeenCalledWith('se', 'L', { live: true });
     });
   });
 });
