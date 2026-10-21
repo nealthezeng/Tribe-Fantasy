@@ -163,7 +163,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   `role="status"` and a hidden "Loading…" for screen readers (M9 t99). Me and the tally pages still show plain
   `.muted` "Loading…" text.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
-  as background). Used for attendance, the Standings league / All leagues toggle (Leaderboards) and the team switcher.
+  as background). Used for the Standings league / All leagues toggle (Leaderboards) and the team switcher.
 - **`.subnav`**: admin's sticky row of rounded tabs (`aria-pressed`): on phones one row you swipe sideways; from
   640px the chips wrap onto a second row rather than hide past an edge a mouse can't scroll (t126). Admin shows one section
   at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
@@ -209,12 +209,12 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   and Buy / Save; at 6 players the other rows lock. "Buy shares" (`details.bid-cta`) reads as a full-width button:
   solid gold before your first buy (`.loud`), gold-outlined after. Open, it's a plain fold header.
 - **Pick card** (M13, `PickGame`): "Pick 2" with a `.count-line` "N of 2", then every roster player as a `.pickrow`:
-  the name (an Injured `.pill.bad` if hurt), a **factor chip** (`details.factor`, `Factor`) reading the combined
+  the name (an Out `.pill.bad` if a keeper marked him out for the next game), a **factor chip** (`details.factor`, `Factor`) reading the combined
   factor for the next game ("×0.45", share × tired × earlier tournaments, computed by the core, never the UI) and, one
   tap away, its parts ("66% share · ×0.75 tired · ×0.9 earlier tournaments"; a rested player shows "×1 rested").
   Pick / Your pick (green `.picked`, with "· Clear") fills one of the 2 slots; with both full the other Pick
-  buttons are off and a `.hint` says to clear one. A `.notice` names any starter who isn't your own pick (missed or
-  injured). There is no Tired pill and no bench.
+  buttons are off and a `.hint` says to clear one. An Out player's Pick is off too (a saved pick of his keeps "Your pick · Clear"). A `.notice` names any starter who isn't your own pick (missed or
+  out: "X was out, so Y played."). There is no Tired pill and no bench.
 - **Score breakdown** (opened game, `SideDetail`): the side total, then one line per starter, "name · stats" and a
   `.calc` "game score × factor = points" ("10 × 0.45 = 4.5"); the side score is the sum. A forfeit side (no players)
   says "Forfeit". The scoreboard holds two names a side.
@@ -277,7 +277,8 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   label on top, the count large in the middle and the points small below. They are not gold; gold is only the press flash.
 - Negative stats use a dashed border so the difference is not colour alone.
 - Tally buttons never animate. A tap must show instantly, even when other buttons fade.
-- Attendance and injury controls sit apart in the card header, never among the stat tiles.
+- The Out control sits apart in the card header, never among the stat tiles: "Mark out", or an "Out" `.pill.bad` ("Out from game N" until game N starts) with "Clear out". It is hidden on a closed (verified or earlier-season) board. Nobody marks their own attendance or injury any more; keepers mark Out (M15 P5).
+- The `/tally` games list opens with a "Players out" card for marking before a tournament: "Out · <stage>", rows "name · from game N" with Clear, "Nobody is out." when empty, then a Player select and "Mark out". No confirms: Mark out and Clear undo each other.
 - The tally's game card ends with the opponents list (t313): one row per game, "Game k" with its name field and Save, for every game started or not, any time. Finishing the last game asks first ("It's the last game: <stage> ends."); an over tournament says so with no button.
 
 ## Rules

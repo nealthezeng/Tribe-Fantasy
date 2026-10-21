@@ -36,7 +36,7 @@
    Change `stat_weights` before the first tap of a season; removing a stat that already has taps makes those
    sessions impossible to verify.
 3. Coaches: have each sign in once (the app asks for their name; no league needed), then **Admin → Stat keepers → Make keeper**. Don't make coaches admins.
-4. Players: **Admin → Athletes → linked account** for each player who wants to mark attendance/injuries.
+4. Players: **Admin → Athletes → linked account** for each player who wants a Me page. (Attendance and injuries are retired by M15 P5: keepers mark players Out on the Tally.)
 
 ## M4 stages and wallet (after 0001–0005)
 
@@ -53,12 +53,12 @@
    new tables): SQL Editor: paste and run `supabase/migrations/0007_auction.sql`. It only adds tables and columns and
    tightens three stats RPCs, so it's safe to run while the old site is still deployed.
 2. Before opening: **Grant allowance** for the stage, and check **Athletes**: every league needs members × `roster_size`
-   healthy opted-in players (a confirmed, uncleared injury doesn't count).
+   healthy opted-in players (a confirmed, uncleared injury doesn't count; injuries are retired by M15 P5).
 3. **Admin → Stages**: pick **Bids close** (your local time) and press **Open auction**. You can move the close time
    until bids close. Nobody, admins included, sees anyone else's bids until then.
 4. After close, press **Run auction** once. It reports how many players went by bid, by random fill, and how many
    spots stayed empty.
-5. Once rosters exist, keepers and admins can't tally, verify, reopen, correct or mark attendance for players on their
+5. Once rosters exist, keepers and admins can't tally, verify, reopen or correct for players on their
    own fantasy roster. Another keeper has to, and a correction to an admin's own player needs a second admin.
 
 ## M6 weekly play (after 0001–0007)
@@ -79,7 +79,7 @@
    safe before or after the deploy:
    - a week's pick lock can't be moved once it has passed, or to after the week ends;
    - a keeper still counts as an athlete's owner for a week after that stage ends (its closing tournament);
-   - a keeper can't confirm their own injury.
+   - a keeper can't confirm their own injury (retired by M15 P5, which drops `confirm_injury`).
 2. **Admin → Settings** on the live season: if `upset_k` shows 2, set it to 0.5 before any week is scored. A season
    stores every setting when it's saved, so the new default only reaches seasons that don't store `upset_k`.
 3. **Admin → Backup**: download a backup every week and keep it somewhere private. The ledger and standings CSVs
@@ -433,3 +433,33 @@ and push right after.
 What it does: all games exist from the start, so finishing game N pairs N+1 (if it exists); the last game's finish
 just ends the tournament. Admins change the count later (Admin -> Seasons -> Tournament -> "Save count"); it can't go
 below the highest started game. Raising the count of an over tournament pairs the new game at once.
+
+## M15 P5 Out marking (after 0001-0026)
+
+`0027_out.sql` adds the `outs` table (RLS on, read for league members and staff, writes only through RPCs) and the
+keeper RPCs `set_out` and `clear_out`, drops `report_injury`, `confirm_injury`, `clear_injury` and `set_attendance`,
+and clears every open injury. The `injuries` and `attendance` tables stay as read-only history. Games that already
+started keep their injury swap; later games are unaffected.
+
+1. Between tournaments only (none open, nobody tallying). Backup first (Admin -> Backup).
+2. Pre-check, SQL Editor: open injuries 0027 will clear (re-mark these Out after step 5; expect none):
+   `select a.name, i.confirmed_at from public.injuries i join public.athletes a on a.id = i.athlete_id where i.cleared_at is null;`
+3. SQL Editor: paste and run `supabase/migrations/0027_out.sql`. If the editor offers "Run and enable RLS", choose
+   **Run without RLS** (0027 enables RLS on `outs` itself). From here until step 4 the old site's Me injury/attendance
+   buttons and the tally's Present/Confirm injury buttons fail (functions dropped), so:
+4. Push (deploy) straight away.
+5. Anon probes (anon key, no sign-in), each **42501**:
+   `curl -X POST "$URL/rest/v1/rpc/set_out" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_stage":null,"p_athlete":null}'`
+   and `clear_out` with the same body; `report_injury` `{"p_athlete":null}` -> **PGRST202** (dropped).
+6. Signed in as a keeper: /tally -> Players out -> mark a player Out, see the "Out" pill on the buy list or pick card,
+   Clear it; Admin -> History shows both. Re-mark anyone from step 2.
+7. Rollback, in this order: (a) note the current Out marks (`select * from public.outs where until_game is null`;
+   they are lost); (b) revert the code and push (the new bundle reads `outs`, so the table must outlive it);
+   (c) SQL Editor: paste and run `supabase/rollback/0027_out_down.sql` (drops `set_out`, `clear_out`, `outs`;
+   restores `report_injury`, `confirm_injury`, `clear_injury`, `set_attendance` with their grants). Injuries cleared
+   by 0027 stay cleared (players re-report). Past scores are unaffected either way.
+
+What it does: a keeper (admins included) marks a player Out for the tournament; from the next unstarted game on, the
+scorer swaps him out of every pick. Clearing an Out that already covered a started game ends it at the next game (those
+games keep the swap); clearing one that never took effect deletes it.
+What admins can do: mark and clear Out like keepers (Tally), see every mark in History.

@@ -32,12 +32,15 @@ So at least one keeper who is **not** a manager must be there or online to verif
    **Stats** (games are listed by date and marked **Not verified**), checks the totals and taps **Verify these
    totals**. Stats count toward the standings 48 hours after they're verified.
 
-## Injuries
+## Out
 
-- The player reports it on their **Me** page, or tells a keeper.
-- A keeper taps **Confirm injury** on the Tally screen. Nobody can confirm their own injury.
-- From then on, a manager who picked that player gets an auto-pick for that slot instead. There is no bench.
-- When the player is back, they tap **I'm back** on their Me page.
+- A keeper marks a player **Out** on the Tally screen. Before the tournament: **Tally** -> **Players out** card
+  (pick the player, **Mark out**). During it: **Mark out** in the player's card header on the live board, from the
+  next game on. A manager who picked that player gets an auto-pick for that slot instead. There is no bench. A game
+  that has already started still plays him.
+- When the player is back, a keeper taps **Clear out** (same card or board button). Players don't report anything
+  themselves.
+- A wrong tap is fine: **Mark out** and **Clear out** undo each other. Admin -> History lists every mark.
 
 ## When something goes wrong
 
