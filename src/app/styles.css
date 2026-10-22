@@ -233,6 +233,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .bid { display: grid; grid-template-columns: 4.5rem 4rem var(--tap); gap: var(--s2); align-items: center; }
 .bid input, .bid button { padding-inline: var(--s2); } /* "Credits" placeholder must fit the 4.5rem box (t251) */
 .bid small { grid-column: 1 / -1; text-align: right; }
+.bid-row .meta small { flex-basis: 100%; } /* last tournament's points a game, under the name (t322) */
 .icon { width: var(--tap); padding: 0; }
 .icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
 .list li > .row { flex: 1 1 100%; }

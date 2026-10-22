@@ -9,7 +9,7 @@ import {
 import { SharesHelp } from '../components/Help';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
+import { fmt, lastTournamentForm, loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
 import { balance as sumLedger, credits } from '../lib/wallet';
@@ -132,7 +132,11 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
       )}
       <BidList open={mine.length === 0} loud={mine.length === 0}
         summary={<>Buy shares <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} players</span></>}>
-        <WithTournament seasonId={seasonId} leagueId={leagueId}>{(tournament) => (
+        <WithTournament seasonId={seasonId} leagueId={leagueId}>{(tournament) => {
+          const form = tournament ? lastTournamentForm(tournament, stage.id) : null;
+          return (
+          <>
+          {form && <p className="hint">Points a game at {form.name}, the last tournament. Tap a name for game by game.</p>}
           <ul className="list">
             {/* Players you've bought first, so your buys are findable among the rest (t237). A player who opted out
                 after you bought stays until you remove him: he still counts toward the limit. */}
@@ -141,16 +145,18 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
               .map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
               // Rounded as the Rules page does; no chip until (or unless) the tournament has loaded.
+              const perGame = form?.perGame.get(a.id);
               const factor = tournament ? +repeatFactor(tournament.result, membershipId, a.id, stage.id, settings).toFixed(2) : 1;
               return (
                 <li key={a.id} className="bid-row">
                   <span className="meta">
-                    <span className="title">{a.name}</span>
+                    {form ? <Link className="title" to={`/player/${a.id}?t=${form.stageId}`}>{a.name}</Link> : <span className="title">{a.name}</span>}
                     {factor < 1 && (
                       <span className="pill warn" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
                     )}
                     {out.has(a.id) && <span className="pill bad">Out</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}
+                    {perGame !== undefined && <small>{fmt(perGame)} a game</small>}
                   </span>
                   {a.user_id === userId ? <span className="muted">That's you</span> : (
                     <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}
@@ -164,7 +170,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
               );
             })}
           </ul>
-        )}</WithTournament>
+          </>
+          );
+        }}</WithTournament>
       </BidList>
     </article>
   );

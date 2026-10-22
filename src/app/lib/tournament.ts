@@ -1,3 +1,4 @@
+import { rawScore } from '../../core/scoring';
 import { parseSettings, type SeasonSettings } from '../../core/settings';
 import { swissPairings } from '../../core/swiss';
 import {
@@ -375,6 +376,30 @@ export function pastTournaments(y: Pick<LeagueTournament, 'result' | 'team' | 'o
     return { stageId, name: y.stage.get(stageId) ?? '', ...y.stageDates.get(stageId)!, rows,
       waiting: games.some((g) => g.status === 'live' || g.status === 'pending') };
   }).sort((a, b) => b.starts_on.localeCompare(a.starts_on));
+}
+
+export interface LastForm { stageId: string; name: string; perGame: Map<string, number> }
+
+/**
+ * The buy list's form line: the latest tournament other than `excludeStageId` with a final game, and each athlete's
+ * base points a game there (a final game without their line counts 0). Athletes with no line get no entry. Live,
+ * pending and void games never count. Null before any such tournament.
+ */
+export function lastTournamentForm(y: LeagueTournament, excludeStageId: string): LastForm | null {
+  const finals = new Map<string, GameOutcome[]>();
+  for (const g of y.result.games) {
+    if (g.status === 'final' && g.game.stageId !== excludeStageId) finals.set(g.game.stageId, [...(finals.get(g.game.stageId) ?? []), g]);
+  }
+  const date = (id: string) => y.stageDates.get(id)?.starts_on ?? '';
+  const stageId = [...finals.keys()].sort((a, b) => date(b).localeCompare(date(a)) || b.localeCompare(a))[0];
+  if (!stageId) return null;
+  const games = finals.get(stageId)!;
+  const sessions = new Set(games.map((g) => g.game.sessionId));
+  const totals = new Map<string, number>();
+  for (const l of y.input.statLines) {
+    if (sessions.has(l.sessionId)) totals.set(l.athleteId, (totals.get(l.athleteId) ?? 0) + rawScore(l.stats, y.settings.stat_weights));
+  }
+  return { stageId, name: y.stage.get(stageId) ?? '', perGame: new Map([...totals].map(([a, t]) => [a, t / games.length])) };
 }
 
 export const countLeagues = async (seasonId: string) => (await leaguesOf(seasonId)).length;

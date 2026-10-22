@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS } from '../../core/settings';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -393,6 +394,36 @@ describe('pastTournaments', () => {
     const all = pastTournaments(build(null));
     expect(all.map((t) => t.stageId)).toEqual(['S2', 'S1']);
     expect(all[0].waiting).toBe(false);
+  });
+});
+
+describe('lastTournamentForm', () => {
+  const game = (stageId: string, number: number, status: string) => ({ game: { id: `${stageId}${number}`, stageId, number, sessionId: `s${stageId}${number}` }, status, matchups: [] });
+  const line = (id: string, athleteId: string, stats: Record<string, number>) => ({ sessionId: `s${id}`, athleteId, stats, pointsPlayed: 5 });
+  const build = (games: ReturnType<typeof game>[], statLines = [
+    line('A1', 'a1', { goal: 5 }), line('B1', 'a1', { goal: 2 }), line('B2', 'a1', { assist: 1 }), line('B1', 'a2', { goal: 1 }),
+  ]) => ({
+    settings: DEFAULT_SETTINGS, input: { statLines }, result: { games },
+    stage: new Map([['A', 'A'], ['B', 'B'], ['C', 'C']]),
+    stageDates: new Map([['A', { starts_on: '2026-01-01', ends_on: '2026-01-02' }], ['B', { starts_on: '2026-02-01', ends_on: '2026-02-02' }],
+      ['C', { starts_on: '2026-03-01', ends_on: '2026-03-02' }]]),
+  }) as unknown as LeagueTournament;
+  const finals = [game('A', 1, 'final'), game('B', 1, 'final'), game('B', 2, 'final'), game('C', 1, 'upcoming')];
+
+  it("averages base points over the last tournament's verified games", () => {
+    // a1: goal 2 (g1) + assist 1 (g2) → (6 + 3) / 2; a2: goal 1 in g1 only → 3 / 2. A's lines are ignored.
+    const form = lastTournamentForm(build(finals), 'C')!;
+    expect(form).toMatchObject({ stageId: 'B', name: 'B' });
+    expect([...form.perGame]).toEqual([['a1', 4.5], ['a2', 1.5]]);
+  });
+  it('skips the excluded stage, live, pending and void games', () => {
+    expect(lastTournamentForm(build(finals), 'B')!.stageId).toBe('A');
+    const form = lastTournamentForm(build([game('A', 1, 'final'), game('B', 1, 'final'), game('B', 2, 'live'), game('B', 3, 'pending'), game('B', 4, 'void')],
+      [line('B1', 'a1', { goal: 2 }), line('B2', 'a1', { goal: 9 }), line('B3', 'a1', { goal: 9 }), line('B4', 'a1', { goal: 9 })]), 'C')!;
+    expect([...form.perGame]).toEqual([['a1', 6]]); // only the final game: neither lines nor divisor
+  });
+  it('returns null before any game is verified', () => {
+    expect(lastTournamentForm(build([game('B', 1, 'live'), game('B', 2, 'upcoming')]), 'C')).toBeNull();
   });
 });
 

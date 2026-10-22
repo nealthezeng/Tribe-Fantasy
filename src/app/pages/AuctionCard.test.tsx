@@ -6,6 +6,7 @@ import type { AuctionStage, BidRow } from '../lib/auction';
 import { AuctionCard } from './AuctionCard';
 import { api } from '../lib/rpc';
 import { pairKey } from '../../core/week';
+import { DEFAULT_SETTINGS } from '../../core/settings';
 import { loadLeagueTournament } from '../lib/tournament';
 
 type Row = Record<string, unknown>;
@@ -55,8 +56,14 @@ vi.mock('../lib/rpc', () => ({
 
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
-  loadLeagueTournament: vi.fn(async () => ({ result: { startedIn: {} } })),
+  loadLeagueTournament: vi.fn(),
 }));
+
+/** A real-shaped league tournament with no games; `over` replaces top-level fields. */
+const tournament = (over: Record<string, unknown> = {}) => ({
+  settings: DEFAULT_SETTINGS, input: { statLines: [] }, result: { games: [], startedIn: {} },
+  stage: new Map(), stageDates: new Map(), ...over,
+}) as never;
 
 afterEach(cleanup);
 
@@ -68,7 +75,7 @@ beforeEach(() => {
   db.outs = [];
   db.bids = [];
   db.credit_ledger = [{ amount: 115 }];
-  vi.mocked(loadLeagueTournament).mockReset().mockResolvedValue({ result: { startedIn: {} } } as never);
+  vi.mocked(loadLeagueTournament).mockReset().mockResolvedValue(tournament());
   vi.mocked(api.placeBid).mockClear();
   vi.mocked(api.deleteBid).mockClear();
 });
@@ -169,7 +176,7 @@ describe('AuctionCard', () => {
   });
 
   it('chips a player you started in an earlier tournament with the repeat factor; ×1 shows nothing', async () => {
-    vi.mocked(loadLeagueTournament).mockResolvedValue({ result: { startedIn: { [pairKey('m1', 'a')]: ['s0'] } } } as never);
+    vi.mocked(loadLeagueTournament).mockResolvedValue(tournament({ result: { games: [], startedIn: { [pairKey('m1', 'a')]: ['s0'] } } }));
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('a', 'Ari Banks') as unknown as Row, athlete('b', 'Bo Castellanos') as unknown as Row];
     renderCard();
@@ -178,6 +185,35 @@ describe('AuctionCard', () => {
     // The repeat data loads apart from the buy list: wait for it.
     expect((await row('Ari Banks').findByText('×0.9')).getAttribute('aria-label')).toContain('Repeat factor ×0.9');
     expect(row('Bo Castellanos').queryByText(/^×/)).toBeNull();
+  });
+
+  it("shows each player's points a game at the last tournament, the name linking to their games", async () => {
+    const g = (id: string) => ({ game: { id, stageId: 'B', number: 1, sessionId: `s${id}` }, status: 'final' });
+    vi.mocked(loadLeagueTournament).mockResolvedValue(tournament({
+      result: { games: [g('g1'), g('g2')], startedIn: {} },
+      input: { statLines: [{ sessionId: 'sg1', athleteId: 'a', stats: { goal: 2 }, pointsPlayed: 5 }, { sessionId: 'sg2', athleteId: 'a', stats: { assist: 1 }, pointsPlayed: 5 }] },
+      stage: new Map([['B', 'B']]), stageDates: new Map([['B', { starts_on: '2026-02-01', ends_on: '2026-02-02' }]]),
+    }));
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Ari Banks') as unknown as Row, athlete('b', 'Bo Castellanos') as unknown as Row];
+    renderCard();
+    expect(await screen.findByText('Points a game at B, the last tournament. Tap a name for game by game.')).toBeTruthy();
+    const row = (n: string) => within(screen.getByText(n).closest('li')!);
+    expect(await row('Ari Banks').findByText('4.5 a game')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Ari Banks' }).getAttribute('href')).toBe('/player/a?t=B');
+    expect(row('Bo Castellanos').queryByText(/a game/)).toBeNull();
+  });
+
+  it('shows the plain list when there is no last tournament', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Ari Banks') as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    await waitFor(() => expect(loadLeagueTournament).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(/Points a game at/)).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Ari Banks' })).toBeNull();
+    expect(screen.getByText('Ari Banks')).toBeTruthy();
   });
 
   it('still lists the players, without chips, when the tournament load fails', async () => {
