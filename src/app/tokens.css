@@ -1,6 +1,7 @@
 /* Design tokens: every colour, font, size and spacing value the app uses. Change the look here.
    styles.css only reads these; components never hard-code a colour or font.
-   Two places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html.
+   Three places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html, the manifest's
+   theme_color and background_color, and the background of the icons in public/.
    Dark is the base (M9): the scoreboard's world of smoked glass, gold glow and white type. Light mode (t118) is the
    block at the bottom: white glass on a pale page; the top bar, hero and scoreboard stay black. An inline script in
    index.html sets data-theme on <html> before first paint (saved choice, else the phone's setting); the avatar
