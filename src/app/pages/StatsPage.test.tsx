@@ -7,6 +7,7 @@ import { StatsPage } from './StatsPage';
 
 const m = vi.hoisted(() => ({
   isKeeper: true,
+  signedIn: true,
   isAdmin: false,
   season: { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } } as { id: string; name: string; settings: unknown } | null,
   load: vi.fn(),
@@ -14,7 +15,7 @@ const m = vi.hoisted(() => ({
   rpc: vi.fn(),
   tables: {} as Record<string, unknown[]>,
 }));
-vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper, session: { user: { id: 'k1' } } }) }));
+vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper, session: m.signedIn ? { user: { id: 'k1' } } : null }) }));
 vi.mock('../lib/stats', async (orig) => ({
   ...(await orig<typeof import('../lib/stats')>()),
   loadCurrentSeason: () => Promise.resolve(m.season),
@@ -48,6 +49,7 @@ afterEach(() => {
 });
 beforeEach(() => {
   m.isKeeper = true;
+  m.signedIn = true;
   m.isAdmin = false;
   m.season = { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } };
   m.rpc.mockReset().mockImplementation((fn: string) => (fn === 'can_read_league_data' ? Promise.resolve({ data: true, error: null }) : undefined)); // other rpcs keep returning nothing, as before
@@ -259,6 +261,27 @@ describe('StatsPage live numbers (t318)', () => {
     expect(screen.queryByText('Not verified')).toBeNull();
     expect(screen.queryByText(/No stats yet/)).toBeNull();
     expect(screen.queryByText('All stats')).toBeNull();
+  });
+
+  it('never asks can_read_league_data when signed out', async () => {
+    m.signedIn = false;
+    show();
+    expect(await screen.findByRole('cell', { name: 'Ari' })).toBeTruthy();
+    expect(m.rpc).not.toHaveBeenCalledWith('can_read_league_data', expect.anything());
+  });
+
+  it('never flashes the table to a non-member whose session arrives after mount', async () => {
+    m.signedIn = false;
+    const view = show();
+    expect(await screen.findByRole('cell', { name: 'Ari' })).toBeTruthy(); // signed out: today's page
+    m.rpc.mockImplementation((fn: string) => (fn === 'can_read_league_data'
+      ? new Promise((r) => setTimeout(() => r({ data: false, error: null }), 50)) : undefined));
+    m.signedIn = true;
+    view.rerender(<HashRouter><StatsPage /></HashRouter>);
+    expect(screen.queryByRole('cell', { name: 'Ari' })).toBeNull();
+    expect(screen.queryByText('Not verified')).toBeNull();
+    expect(await screen.findByText('Join a league to see stats.')).toBeTruthy();
+    expect(screen.queryByRole('cell', { name: 'Ari' })).toBeNull();
   });
 
   it('shows the stats when the check fails', async () => {

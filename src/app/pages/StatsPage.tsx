@@ -31,14 +31,16 @@ export function StatsPage() {
     return season && { season, wanted, ...await loadTournamentStats(season.id, wanted, { live: season.settings }) };
   }, [wanted]);
   // Outside every league (or an athlete-only account) there are no stats to read. A failed check must not hide stats from members.
-  const member = useLoad(() => (userId ? api.canReadLeagueData().catch(() => true) : Promise.resolve(true)), [userId]);
+  // Tagged with the user it was asked for: useLoad keeps old data across a dep change, and auth can arrive after mount.
+  const member = useLoad(async () => ({ uid: userId, ok: userId ? await api.canReadLeagueData().catch(() => true) : true }), [userId]);
+  const memberKnown = !!member.data && member.data.uid === userId;
   // Keepers' taps still on this phone, so an unsaved game shows here and not only in the Tally picker.
   const unsaved = useMemo(
     () => new Map(isKeeper && userId ? queuedSessions(userId).map((q) => [q.sessionId, q.count]) : []),
     [isKeeper, userId],
   );
   // Still showing the previous tournament while the picked one loads: treat as loading.
-  const loaded = member.data === undefined || (data.data && data.data.wanted !== wanted) ? undefined : data.data;
+  const loaded = !memberKnown || (data.data && data.data.wanted !== wanted) ? undefined : data.data;
   const season = loaded?.season;
   // Live numbers move, so refresh while any are shown (none for a void game or a reader without live access).
   usePoll(data.reload, !!loaded?.liveGames.length);
@@ -87,7 +89,7 @@ export function StatsPage() {
 
   const weights = season?.settings.stat_weights;
   const { stage, stages } = loaded ?? {};
-  if (member.data === false) {
+  if (memberKnown && !member.data?.ok) {
     return (
       <section className="page">
         <h1>Stats</h1>
