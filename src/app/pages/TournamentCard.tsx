@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Loading } from '../components/Loading';
@@ -119,7 +119,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   // Since you last looked (t319): after each load, compare what this device last saw with what is shown now.
   const key = g && !upcoming && mine && them ? seenKey(membershipId, g.game.id) : null;
   const [since, setSince] = useState<{ key: string; chips: NonNullable<ReturnType<typeof changes>>; from: Seen } | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!key || !mine || !them) return;
     const cur: Seen = { mine: mine.score, them: them.score, points: { mine: mine.points ?? {}, them: them.points ?? {} } };
     const prev = readSeen(key);
@@ -412,7 +412,7 @@ function StarterSide({ y, g, side, name, since }: { y: LeagueTournament; g: Game
           {side.athleteIds.map((a) => (
             <li key={a}>
               <small>{athleteName(y, a)} · {statsOf(y, g, a)}</small>
-              {side.points && <strong className="num">{since?.[a] != null && <span className={since[a] > 0 ? 'since up' : 'since down'}>{signed(since[a])}</span>}{fmt(side.points[a])}</strong>}
+              {side.points && <strong className="num">{since?.[a] != null && <span className={since[a] > 0 ? 'since up' : 'since down'}>{signed(since[a])}<span className="sr-only"> since you last looked, now </span></span>}{fmt(side.points[a])}</strong>}
             </li>
           ))}
         </ul>

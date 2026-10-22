@@ -34,7 +34,8 @@ So at least one keeper who is **not** a manager must be there or online to verif
 5. **Meanwhile:** managers (and admins and keepers) see live scores for the started game on the League tab and in
    Stats, marked **Unofficial**. They refresh by themselves every 15 seconds. Verify makes them final: the label goes
    and the game counts toward the standings. Nothing to do for the live view; if a number looks wrong, fix the taps
-   and let the keeper verify.
+   and let the keeper verify. Verify every game: an unverified game keeps the League tab in live mode (refreshing
+   every 15 seconds).
 
 ## Out
 

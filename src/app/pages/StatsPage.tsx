@@ -36,8 +36,8 @@ export function StatsPage() {
   // Still showing the previous tournament while the picked one loads: treat as loading.
   const loaded = data.data && data.data.wanted !== wanted ? undefined : data.data;
   const season = loaded?.season;
-  // Live = started, has a game session, not verified yet: its numbers move, so refresh.
-  usePoll(data.reload, !!loaded?.games.some((g) => g.started_at && g.session_id && !g.verified_at));
+  // Live numbers move, so refresh while any are shown (none for a void game or a reader without live access).
+  usePoll(data.reload, !!loaded?.liveGames.length);
 
   async function exportCsv() {
     if (!season) return;

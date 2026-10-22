@@ -62,7 +62,7 @@ export const teamLabel = (m: { team_name: string; removed_at: string | null }): 
 export function toTournamentInput(rows: TournamentRows, now: number): TournamentInput {
   const settings = parseSettings(rows.settings);
   const athletes = new Set(rows.athletes.map((a) => a.id));
-  // Unverified sessions have no stat lines yet: their live taps stand in (only staff load them).
+  // Unverified sessions have no stat lines yet: their live taps stand in (staff and live readers load them).
   const live = rows.sessions.filter((s) => s.verified_at === null).flatMap((s) =>
     liveStatLines(s.id, rows.taps.filter((t) => t.session_id === s.id).map(rowToTap), settings));
   return {
@@ -156,6 +156,7 @@ export async function rowsOf<T>(q: PromiseLike<{ data: unknown; error: unknown }
 }
 
 /** Live taps of started, unverified games (any league reader), one RPC per game, keepers named `k1`, `k2`, ... */
+// ponytail: PostgREST max-rows (1000) silently caps each RPC result, so a game over 1000 taps loses its newest; page it with fetchAll + range if that grows.
 export async function loadLiveTaps(games: { id: string; session_id: string | null }[]): Promise<TournamentRows['taps']> {
   const per = await Promise.all(games.filter((g) => g.session_id).map(async (g) =>
     (await api.liveGameTaps(g.id)).map((t) => ({

@@ -473,7 +473,7 @@ describe('TournamentCard', () => {
       store({ mine: 3, them: 5, points: { mine: { a1: 3 }, them: { b1: 5 } } });
       await show(liveGame1());
       // The chips are set by an effect after the load renders: wait for them.
-      await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent).toBe('+3'));
+      await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent?.trim()).toBe('+3 since you last looked, now'));
       expect(row('Ash').querySelector('.since')!.className).toBe('since up');
       expect(row('Bea').querySelector('.since')).toBeNull();
       expect(chips()).toHaveLength(1);
@@ -491,7 +491,7 @@ describe('TournamentCard', () => {
         sessions: [{ id: 'p1', verified_at: '2026-11-07T16:00:00Z' }],
         lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 0 }, { session_id: 'p1', athlete_id: 'b1', stats: { block: 1 }, points_played: 0 }],
       });
-      await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent).toBe('−3'));
+      await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent?.trim()).toBe('−3 since you last looked, now'));
       expect(row('Ash').querySelector('.since')!.className).toBe('since down');
     });
 
@@ -523,10 +523,10 @@ describe('TournamentCard', () => {
         expect(document.querySelector('.since')).toBeNull();
         rows.current = { ...rows.current, taps: [...rows.current.taps, tap('t4', 'a1', 'goal', '14:07')] };
         await vi.advanceTimersByTimeAsync(15_000);
-        await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent).toBe('+3'));
+        await waitFor(() => expect(row('Ash').querySelector('.since')?.textContent?.trim()).toBe('+3 since you last looked, now'));
         await vi.advanceTimersByTimeAsync(15_000);
         await waitFor(() => expect(loadLeagueTournament).toHaveBeenCalledTimes(3));
-        expect(row('Ash').querySelector('.since')?.textContent).toBe('+3');
+        expect(row('Ash').querySelector('.since')?.textContent?.trim()).toBe('+3 since you last looked, now');
       } finally {
         vi.useRealTimers();
       }

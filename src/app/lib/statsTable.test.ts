@@ -72,4 +72,13 @@ describe('statsTable', () => {
     expect([plain.liveLines, plain.liveGames]).toEqual([[], []]);
     expect(mockRpc).not.toHaveBeenCalled();
   });
+
+  it('shows verified lines only when a live read is FORBIDDEN (athlete-only account), and rethrows other errors', async () => {
+    mockRpc.mockReset().mockResolvedValue({ error: { message: 'FORBIDDEN' }, data: null });
+    const s = await loadTournamentStats('se', null, { today: '2026-10-17', live: parseSettings({}) });
+    expect([s.liveLines, s.liveGames]).toEqual([[], []]);
+    expect(s.lines).toHaveLength(1);
+    mockRpc.mockReset().mockResolvedValue({ error: { message: 'NOT_FOUND' }, data: null });
+    await expect(loadTournamentStats('se', null, { today: '2026-10-17', live: parseSettings({}) })).rejects.toMatchObject({ message: 'NOT_FOUND' });
+  });
 });

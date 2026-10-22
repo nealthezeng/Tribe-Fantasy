@@ -1,7 +1,7 @@
 import { rawScore } from '../../core/scoring';
 import type { SeasonSettings } from '../../core/settings';
 import { liveStatLines } from '../../core/tournament';
-import { rowToTap } from '../tally/queue';
+import { errorCode, rowToTap } from '../tally/queue';
 import { pickPlayingStage, type AuctionStage } from './auction';
 import { gameLabel, todayLocal } from './stats';
 import { supabase } from './supabase';
@@ -70,8 +70,13 @@ export async function loadTournamentStats(seasonId: string, wanted: string | nul
       : [],
   ]);
   const verified = new Map(sessions.map((s) => [s.id, s.verified_at]));
-  const open = live ? games.filter((g) => g.started_at !== null && g.session_id !== null && verified.get(g.session_id) === null) : [];
-  const taps = await loadLiveTaps(open);
+  let open = live ? games.filter((g) => g.started_at !== null && g.session_id !== null && verified.get(g.session_id) === null) : [];
+  // An athlete-only account reads sessions but not live taps (FORBIDDEN): it sees verified numbers only.
+  const taps = await loadLiveTaps(open).catch((e) => {
+    if (errorCode(e) !== 'FORBIDDEN') throw e;
+    open = [];
+    return [];
+  });
   const liveLines = open.flatMap((g) => liveStatLines(g.session_id!, taps.filter((t) => t.session_id === g.session_id).map(rowToTap), live!))
     .map((l) => ({ session_id: l.sessionId, athlete_id: l.athleteId, stats: l.stats }));
   return {

@@ -10,14 +10,30 @@ const m = vi.hoisted(() => ({
   isAdmin: false,
   season: { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } } as { id: string; name: string; settings: unknown } | null,
   load: vi.fn(),
+  real: null as null | ((...a: unknown[]) => unknown),
+  rpc: vi.fn(),
+  tables: {} as Record<string, unknown[]>,
 }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper, session: { user: { id: 'k1' } } }) }));
 vi.mock('../lib/stats', async (orig) => ({
   ...(await orig<typeof import('../lib/stats')>()),
   loadCurrentSeason: () => Promise.resolve(m.season),
 }));
-vi.mock('../lib/statsTable', async (orig) => ({ ...(await orig<typeof import('../lib/statsTable')>()), loadTournamentStats: m.load }));
-vi.mock('../lib/supabase', () => ({ supabase: {} }));
+vi.mock('../lib/statsTable', async (orig) => {
+  const real = await orig<typeof import('../lib/statsTable')>();
+  m.real = real.loadTournamentStats as never;
+  return { ...real, loadTournamentStats: m.load };
+});
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    rpc: (...a: unknown[]) => m.rpc(...a),
+    from: (table: string) => {
+      const b = { select: () => b, eq: () => b, in: () => b, not: () => b, order: () => b, range: () => b,
+        then: (resolve: (v: unknown) => void) => resolve({ data: m.tables[table] ?? [], error: null }) };
+      return b;
+    },
+  },
+}));
 
 const stage = (id: string) => ({ id, name: `Tourney ${id}`, starts_on: '2026-01-01', ends_on: '2026-01-02', auction_run_at: 'x' });
 const names = new Map([['a', 'Ari'], ['b', 'Bo']]);
@@ -222,6 +238,30 @@ describe('StatsPage live numbers (t318)', () => {
     show();
     expect(await screen.findByRole('cell', { name: 'Ari' })).toBeTruthy();
     expect(screen.queryByText(/No stats yet/)).toBeNull();
+  });
+
+  it('still shows the verified lines when the live read is FORBIDDEN (athlete-only account)', async () => {
+    m.tables = {
+      stages: [{ id: 'S2', name: 'Tourney S2', starts_on: '2026-01-01', ends_on: '2026-01-02', auction_run_at: 'x' }],
+      games: [
+        { id: 'g1', stage_id: 'S2', number: 1, session_id: 's1', started_at: 'a', finished_at: 'b', opponent: null },
+        { id: 'g2', stage_id: 'S2', number: 2, session_id: 's2', started_at: 'c', finished_at: null, opponent: null },
+      ],
+      athletes: [{ id: 'a', name: 'Ari' }, { id: 'b', name: 'Bo' }],
+      sessions: [{ id: 's1', verified_at: 'v' }, { id: 's2', verified_at: null }],
+      stat_lines: lines,
+    };
+    m.rpc.mockReset().mockResolvedValue({ data: null, error: { message: 'FORBIDDEN' } });
+    m.load.mockImplementation((...a: unknown[]) => m.real!(...a));
+    try {
+      show();
+      expect(await screen.findByRole('cell', { name: 'Bo' })).toBeTruthy();
+      expect(m.rpc).toHaveBeenCalled();
+      expect(screen.queryByText(/Unofficial/)).toBeNull();
+      expect(screen.queryByRole('alert')).toBeNull();
+    } finally {
+      m.tables = {};
+    }
   });
 
   describe('polling', () => {

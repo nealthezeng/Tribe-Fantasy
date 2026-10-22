@@ -275,7 +275,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   for keepers while a game is open. While a game is started and unverified, a `p.strip` above the table reads the
   `.live` dot, "Live" and "Unofficial: includes game 2" ("games 3 and 4", "games 2, 3 and 4"), and the table totals
   include that game's live lines.
-- **Live refresh**: the League tab (while any of the league's games is live or waiting on stats) and Stats (while a shown
+- **Live refresh**: the League tab (while any of the league's games is live or waiting on stats and has pairings) and Stats (while a shown
   game is started and unverified) reload every 15 s while the tab is visible, at once when it becomes visible again, and
   keep the old numbers on screen until the new ones arrive. Nothing else polls.
 
