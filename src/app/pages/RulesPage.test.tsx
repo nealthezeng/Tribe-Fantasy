@@ -89,7 +89,7 @@ describe('RulesPage', () => {
   it('shows Callahan at +12 and the repeat factor from the first repeat', () => {
     render(<RulesPage />);
     expect(screen.getByText('Callahan').parentElement?.textContent).toBe('Callahan+12');
-    const decay = screen.getByRole('heading', { name: 'Starting the same player every tournament' }).closest('article')!;
+    const decay = screen.getByRole('heading', { name: 'Starting the same player every tournament' }).closest('details')!;
     expect(within(decay).getByRole('cell', { name: '1' }).nextElementSibling?.textContent).toBe('×0.9');
   });
 
@@ -105,5 +105,63 @@ describe('RulesPage', () => {
     // D: +5. Example: 2 goals × 3 = 6.
     expect(screen.getByText('D').parentElement?.textContent).toBe('D+5');
     expect(document.body.textContent).toContain('6 × 50% × 0.5 = 1.5');
+  });
+
+  it('leads with the four steps, then six closed folds', () => {
+    const { container } = render(<RulesPage />);
+    const page = container.querySelector('section.page')!;
+    expect(page.children[0].tagName).toBe('H1');
+    expect(page.children[1].matches('ol.guide-steps')).toBe(true);
+    expect(page.children[1].querySelectorAll('li').length).toBe(4);
+    const folds = [...page.querySelectorAll('details.card')];
+    expect(folds.map((d) => d.querySelector(':scope > summary > h2')?.textContent)).toEqual(
+      ['The season', 'Credits and shares', 'Picks', 'Scoring', 'Standings points', 'Questions']);
+    expect(folds.some((d) => d.hasAttribute('open'))).toBe(false);
+  });
+
+  it('keeps the visible part short', () => {
+    const { container } = render(<RulesPage />);
+    const words = [...container.querySelector('section.page')!.children]
+      .filter((c) => c.tagName !== 'DETAILS')
+      .reduce((sum, c) => sum + c.innerHTML.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length, 0);
+    expect(words).toBeLessThanOrEqual(120);
+  });
+
+  it('moves creating and leaving a league into Questions', () => {
+    render(<RulesPage />);
+    const fold = (name: string) => screen.getByRole('heading', { name, level: 2 }).closest('details')!;
+    const q = within(fold('Questions'));
+    expect(q.getByRole('heading', { name: 'Can I create or leave a league?' })).toBeTruthy();
+    expect(fold('Questions').textContent).toContain('You can create one league a season');
+    expect(fold('The season').textContent).not.toMatch(/leave/i);
+  });
+
+  it('states the roster size once', () => {
+    render(<RulesPage />);
+    expect((document.body.textContent ?? '').match(/up to 6 players/g)?.length).toBe(1);
+  });
+
+  it("uses the season's numbers everywhere (t325)", async () => {
+    current = {
+      id: 'se', name: 'Spring 2027',
+      settings: parseSettings({
+        picks_per_game: 3, roster_size: 5, stat_weights: { goal: 4, assist: 3, block: 5, callahan: 10, turnover: -1 },
+        tiredness_multipliers: [0.6], decay_floor: 0.5, stat_lock_hours: 24, min_shares: 100, max_members: 8,
+      }),
+    };
+    render(<RulesPage />);
+    await screen.findByText(/Spring 2027's settings/);
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('Pick 3 each game');
+    expect(text).toContain('Each game you start 3');
+    expect(text).toContain('up to 5 players');
+    expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+4');
+    expect(screen.getByText('Callahan').parentElement?.textContent).toBe('Callahan+10');
+    expect(screen.getByText('The game before').parentElement?.textContent).toBe('The game before×0.6');
+    expect(text).toContain('Resting a player for 1 game');
+    expect(text).toContain('never drops below ×0.5');
+    expect(text).toContain('reopened for 24 hours');
+    expect(text).toContain('In a 8-team league');
+    expect(text).toContain('2 Goal by a player you own half of, started the game before: 8 × 50% × 0.6 = 2.4');
   });
 });
