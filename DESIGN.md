@@ -152,6 +152,10 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
 - **`.actions`**: a row of equal-width buttons that never wraps unevenly. Admin athlete rows (`li.athlete`)
   stack name, account picker and `.actions` on phones and sit on one line from 640px.
 - **Bullet lists** directly inside a `.card` (the rules page) have no margin and 8px gaps.
+- **Rules page** (`/rules`): the `h1` "How Tribe Fantasy works", the same four steps as the guide, the `.notice` (free to play,
+  donations, whose settings the numbers are), then six closed `details.card` folds, each `summary > h2`: The season, Credits and
+  shares, Picks, Scoring, Standings points, Questions. Under 120 words show before the folds. Every number is derived from the
+  season's settings (the defaults when signed out); the email timings and the 100 / 50-credit example stay literal text.
 - **Banners** like "Welcome! Set your name" show only on the League page, never on task screens like Tally.
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
   `.warn`, `.bad`.
@@ -188,9 +192,17 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   points changed since this device last looked, and stays until the next change (the sign carries the meaning, not the colour). A verified
   game shows the same block without the pill. Then `.tiles`: Place "N `.of` M",
   Record, Points, only once any game counts; before that the strip says "N teams · No games yet". Then the "Next
-  game" card (the pick), the Buy shares card (only while buying is open), the games, the Join / Create `.more`
+  game" card (the pick), the Buy shares card (while buying is open; between close and settling it is the single notice
+  "Buying closed for <tournament>. Your players show here once the shares are settled."; after settling the pick card lists the
+  roster), the games, the Join / Create `.more`
   links, and last a muted `details.settings` "League settings" fold. It always renders for your team and opens
   with Rename team first (`rename_my_team`: 1–40 characters, unique in the league), then Manage league and Leave.
+- **First-visit guide** (`Guide`, `aside.notice.guide`): above everything else on League, an `h2` "How it works", the four steps
+  (`GuideSteps`, `ol.guide-steps`: Get a team, Buy shares, Pick N each game, Higher score wins) and a row with a "Got it" button and an
+  "All the rules" `.more` link to `/rules`. Shown once per account and device: "Got it" stores `tribe.guide.<uid>` = `1`, and the
+  guide stays hidden after that; existing players see it once too. Blocked storage (private mode) shows it every visit and "Got it"
+  hides it for this visit only, with no error. The Rules page always opens with the same steps, so there is no "show again". The pick
+  count comes from the season's settings.
 - **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; each button is named by
   its **league** (the team name is the headline below). The choice is remembered on the device and shared with the
   Credits page. Long rows scroll sideways rather than squeeze. Only the current season's teams are listed (all of them
@@ -214,8 +226,19 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   under 10% of the balance (or 2 minimum buys) that link becomes a gold button (t234). The list puts players you'd
   bought when the page loaded first; the order stays put while you buy (t237). A player row has the credits input
   and Buy / Save; at 6 players the other rows lock. "Buy shares" (`details.bid-cta`) reads as a full-width button:
-  solid gold before your first buy (`.loud`), gold-outlined after. Open, it's a plain fold header.
-- **Pick card** (M13, `PickGame`): "Pick 2" with a `.count-line` "N of 2", then every roster player as a `.pickrow`:
+  solid gold before your first buy (`.loud`), gold-outlined after. Open, it's a plain fold header. Above the rows a `.hint`
+  "Points a game at <tournament>, the last tournament. Tap a name for game by game." (the last tournament = the most recent
+  other tournament with a final game; no such tournament, no line and the names stay plain); each name links to
+  `/player/<id>?t=<stage>` and, under it, a small "N a game" (that tournament's average, a game without his line counting 0;
+  nothing for a player with no lines, never "0").
+- **`?` help** (`Help.tsx`, `.help`): a 44px target around a 22px `--surface-2` circle, opening `.help-pop`, a native `popover`
+  (the browser centres it in the top layer; Esc or a tap outside closes it; nothing positions it, so it never overflows at 375px).
+  Three texts, every number from the season's settings: **shares** (shares, credits, the repeat chip) in the Buy shares head;
+  **the × factor** (share × tired × earlier tournaments, with the tiredness list and the floor) in the pick card head and beside
+  the next-game line on the team page; **unofficial and verified** (who taps, who verifies, the lock hours) beside the League
+  "Unofficial" pill, at the end of the Stats live strip, and as the first child of the Stats "All stats" fold (a button can't sit
+  in a `summary`). Credits page and game cards have none.
+- **Pick card** (M13, `PickGame`): "Pick 2" (with a `?` in its head) with a `.count-line` "N of 2", then every roster player as a `.pickrow`:
   the name (an Out `.pill.bad` if a keeper marked him out for the next game), a **factor chip** (`details.factor`, `Factor`) reading the combined
   factor for the next game ("×0.45", share × tired × earlier tournaments, computed by the core, never the UI) and, one
   tap away, its parts ("66% share · ×0.75 tired · ×0.9 earlier tournaments"; a rested player shows "×1 rested").
@@ -254,8 +277,8 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   cards. Links inherit the text colour and underline on hover and focus.
 - **Standings** (`.ranks`, on Leaderboards): a ranked list. Rank and points in the display face, the rank muted and yours in
   `--gold-text`; the team with its owner's real name and record under it ("Neal Zeng · 2–1"; "League · Neal Zeng · 2–1" in All leagues). A `.segmented` [league]
-  [All leagues] toggle shows only when the season has 2+ leagues. It's a leaderboard from day one: before any game
-  counts every row reads T1 · 0–0 · 0 (the user's call, t239). A long list keeps the top 5, everyone tied with 5th and your row,
+  [All leagues] toggle shows only when the season has 2+ leagues. Before any game counts the card shows only "Standings start after the first game." (no rows, no
+  toggle); this overturns t239, "a leaderboard from day one", per the M15 spec (§5.7). A long list keeps the top 5, everyone tied with 5th and your row,
   and only cuts when that hides 4+ teams; the gap row says "N more teams" to screen readers. Ties list by team name.
 - **`.steps`**: a real sequence as numbered inline steps (admin Tournaments: grant, open, run, open tournament).
 - **Fold the rare forms**: forms used once a season (add a tournament, new league, adjust credits) live in a
@@ -275,6 +298,9 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   for keepers while a game is open. While a game is started and unverified, a `p.strip` above the table reads the
   `.live` dot, "Live" and "Unofficial: includes game 2" ("games 3 and 4", "games 2, 3 and 4"), and the table totals
   include that game's live lines.
+- **Stats outside a league**: a signed-in account that can't read league data (no league, or athlete-only; checked with
+  `can_read_league_data()`) sees the `h1` and "Join a league to see stats." with a "Join a league" button to `/leagues`: no
+  switcher, table, live strip or All stats. While the check is unknown the page is loading; if the check fails the usual page shows.
 - **Live refresh**: the League tab (while any of the league's games is live or waiting on stats and has pairings) and Stats (while a shown
   game is started and unverified) reload every 15 s while the tab is visible, at once when it becomes visible again, and
   keep the old numbers on screen until the new ones arrive. Nothing else polls.
