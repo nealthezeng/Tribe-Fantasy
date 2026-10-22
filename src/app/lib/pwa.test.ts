@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest';
-import { registerServiceWorker } from './pwa';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { registerServiceWorker, startPwa } from './pwa';
 
 const OWN = 'https://h.test/Tribe-Fantasy/assets/index-a.js';
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 function setup(cached?: Response) {
-  vi.spyOn(document, 'addEventListener'); // so afterEach can remove this test's listeners
   const reg = { update: vi.fn(async () => {}) };
   const sw = Object.assign(new EventTarget(), { register: vi.fn(async () => reg) });
   const reload = vi.fn();
@@ -20,16 +19,21 @@ function show(state: 'visible' | 'hidden') {
   document.dispatchEvent(new Event('visibilitychange'));
 }
 
+beforeEach(() => {
+  vi.spyOn(document, 'addEventListener'); // so afterEach can remove this test's listeners
+});
 afterEach(() => {
   for (const [type, fn] of vi.mocked(document.addEventListener).mock.calls) document.removeEventListener(type, fn);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 it('registers sw.js under the site path', async () => {
+  vi.stubEnv('BASE_URL', '/Tribe-Fantasy/'); // vitest itself runs at '/'
   const t = setup();
   await t.start();
-  expect(t.sw.register).toHaveBeenCalledWith(`${import.meta.env.BASE_URL}sw.js`);
+  expect(t.sw.register).toHaveBeenCalledWith('/Tribe-Fantasy/sw.js');
 });
 
 it('checks for a new version whenever the app comes back to the front', async () => {
@@ -53,6 +57,7 @@ it('reloads on the next return once a new version has taken over', async () => {
   expect(t.reload).not.toHaveBeenCalled(); // never while someone is using it
   show('visible');
   await tick();
+  expect(t.match).toHaveBeenCalledWith(OWN); // asks about this page's own bundle
   expect(t.reload).toHaveBeenCalledTimes(1);
   expect(t.reg.update).not.toHaveBeenCalled();
 });
@@ -88,4 +93,27 @@ it('does nothing while hidden', async () => {
   await tick();
   expect(t.reg.update).not.toHaveBeenCalled();
   expect(t.reload).not.toHaveBeenCalled();
+});
+
+it('counts a failed cache lookup as found: no reload, just the update check', async () => {
+  const t = setup();
+  t.match.mockRejectedValue(new Error('cache storage blocked')); // vitest fails the run on an unhandled rejection
+  await t.start();
+  t.sw.dispatchEvent(new Event('controllerchange'));
+  show('visible');
+  await tick();
+  expect(t.reload).not.toHaveBeenCalled();
+  expect(t.reg.update).toHaveBeenCalledTimes(1);
+});
+
+it('never stops the app starting, even where the worker API throws', () => {
+  vi.stubEnv('PROD', true);
+  Object.defineProperty(navigator, 'serviceWorker', {
+    configurable: true, get: () => { throw new DOMException('opaque origin', 'SecurityError'); },
+  });
+  try {
+    expect(() => startPwa()).not.toThrow();
+  } finally {
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+  }
 });

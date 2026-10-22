@@ -57,6 +57,7 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
   background: var(--pane-bg); color: var(--fg);
 }
 .account-who { display: grid; padding: var(--s2) var(--s3) var(--s3); margin-bottom: var(--s1); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.account-hint { padding: var(--s2) var(--s3) var(--s3); font-size: var(--fs-sm); color: var(--muted); }
 .account-menu :is(a, button), .account-menu button:is(:hover, :active):not(:disabled) {
   display: grid; justify-content: stretch; justify-items: start; align-content: center; width: 100%; min-height: var(--tap-lg); padding: 6px var(--s3); border: 0; border-radius: var(--radius-xs);
   background: none; color: var(--fg); font-weight: var(--fw-semi); text-decoration: none; text-align: left;

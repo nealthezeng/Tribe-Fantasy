@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Loading } from '../components/Loading';
 import { Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { isStandalone } from '../lib/pwa';
 import { supabase } from '../lib/supabase';
 
 export function LoginPage() {
@@ -49,7 +50,11 @@ export function LoginPage() {
         </form>
       ) : (
         <form onSubmit={verifyCode}>
-          <p className="notice">Code sent to <strong>{email.trim()}</strong>.</p>
+          <p className="notice">
+            Code sent to <strong>{email.trim()}</strong>.
+            {/* The installed app has its own storage, and the email's link opens the browser, not the app. */}
+            {isStandalone() && ' Type the code from the email here: its link opens your browser, not this app.'}
+          </p>
           <label>Code<input className="code" inputMode="numeric" maxLength={6} autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} /></label>
           <button disabled={busy}>{busy ? 'Checking…' : 'Sign in'}</button>
           <button type="button" className="linklike" onClick={() => setSent(false)}>Use a different email</button>

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { startPwa } from '../lib/pwa';
 import { Layout } from './Layout';
 
 const auth = vi.hoisted(() => ({ isAdmin: false, displayName: 'Pat' as string | null | undefined }));
@@ -73,5 +74,67 @@ describe('Layout', () => {
     expect(localStorage.getItem('theme')).toBe('light');
     fireEvent.click(screen.getByRole('button', { name: 'Dark mode', hidden: true }));
     expect(document.documentElement.dataset.theme).toBe('dark');
+  });
+});
+
+describe('Install app (t328)', () => {
+  beforeAll(() => startPwa());
+  afterEach(() => {
+    cleanup();
+    window.dispatchEvent(new Event('appinstalled')); // drops a prompt a test left behind
+    Reflect.deleteProperty(navigator, 'userAgent');
+    Reflect.deleteProperty(HTMLElement.prototype, 'hidePopover');
+    vi.unstubAllGlobals();
+    auth.isAdmin = false;
+  });
+  const menu = () => document.getElementById('account-menu')!;
+  const installItem = () => screen.queryByRole('button', { name: 'Install app', hidden: true });
+  function offer() {
+    const e = Object.assign(new Event('beforeinstallprompt', { cancelable: true }), { prompt: vi.fn(async () => {}) });
+    act(() => { window.dispatchEvent(e); });
+    return e;
+  }
+  const userAgent = (ua: string) => Object.defineProperty(navigator, 'userAgent', { configurable: true, value: ua });
+  const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  const MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
+
+  it('offers Install app once the browser can install, and prompts once', () => {
+    auth.isAdmin = true;
+    const hide = vi.fn();
+    HTMLElement.prototype.hidePopover = hide; // jsdom has no popover API
+    renderLayout();
+    expect(installItem()).toBeNull();
+    const e = offer();
+    expect(e.defaultPrevented).toBe(true); // kept for the menu, not shown by the browser
+    const item = installItem()!;
+    expect(menu().contains(item)).toBe(true);
+    expect([...menu().querySelectorAll('a, button')].map((el) => el.textContent).slice(0, 5))
+      .toEqual(['Me', 'Credits', 'Rules', 'Admin', 'Install app']); // then the theme item
+    fireEvent.click(item);
+    expect(hide).toHaveBeenCalled();
+    expect(e.prompt).toHaveBeenCalledTimes(1);
+    expect(installItem()).toBeNull(); // single use
+  });
+
+  it('tells iPhone users how to add it to the home screen', () => {
+    userAgent(IPHONE);
+    renderLayout();
+    fireEvent.click(installItem()!);
+    expect(within(menu()).getByText('In Safari, tap Share, then Add to Home Screen.').className).toBe('account-hint');
+    expect(installItem()).toBeNull();
+  });
+
+  it('offers nothing inside the installed app', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(display-mode: standalone)' }));
+    userAgent(IPHONE);
+    renderLayout();
+    offer();
+    expect(installItem()).toBeNull();
+  });
+
+  it('offers nothing where the browser cannot install', () => {
+    userAgent(MAC); // a desktop Mac, not an iPad (no touch points)
+    renderLayout();
+    expect(installItem()).toBeNull();
   });
 });
