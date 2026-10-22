@@ -18,7 +18,7 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(supabase)); // no client: nothing to wait for
   const [displayName, setDisplayName] = useState<string | null | undefined>(undefined);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isKeeper, setIsKeeper] = useState(false);
@@ -70,8 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setSession(data.session);
       await loadProfile(data.session);
-      setLoading(false);
-    });
+    })
+      // A failed check reads as signed out; the next auth event retries. Either way loading ends.
+      .catch(() => {})
+      .finally(() => setLoading(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       // Clear a stale user's name/roles synchronously so no render shows them alongside the new session.
