@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { errorMessage } from '../lib/errors';
@@ -36,6 +36,9 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
   // Install app: the browser's own dialog where it offers one, the Add to Home Screen hint on an iPhone/iPad.
   const canPrompt = useCanInstall();
   const [hint, setHint] = useState(false);
+  // Focus moves to the hint when it replaces the button, so a screen reader reads it (and focus isn't lost).
+  const hintRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (hint) hintRef.current?.focus(); }, [hint]);
   const install = () => {
     if (canPrompt) { close(); promptInstall(); } else setHint(true);
   };
@@ -55,7 +58,7 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
         <NavLink to="/rules" onClick={close}>Rules</NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
         {hint
-          ? <p className="account-hint" role="status">In Safari, tap Share, then Add to Home Screen.</p>
+          ? <p className="account-hint" tabIndex={-1} ref={hintRef}>In Safari, tap Share, then Add to Home Screen.</p>
           : !isStandalone() && (canPrompt || isIos()) && <button type="button" onClick={install}>Install app</button>}
         <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>

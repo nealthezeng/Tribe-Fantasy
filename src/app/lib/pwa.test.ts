@@ -122,6 +122,39 @@ it("checks the running bundle and this site's own stylesheets, never another sit
   }
 });
 
+it("never reloads a keeper's tally board mid-game; reloads on a later return without it", async () => {
+  const t = setup(undefined);
+  await t.start();
+  t.sw.dispatchEvent(new Event('controllerchange'));
+  document.body.innerHTML = '<div class="tally-bar"></div>';
+  try {
+    show('visible');
+    await tick();
+    expect(t.reload).not.toHaveBeenCalled();
+    expect(t.reg.update).toHaveBeenCalledTimes(1);
+  } finally {
+    document.body.innerHTML = '';
+  }
+  show('visible');
+  await tick();
+  expect(t.reload).toHaveBeenCalledTimes(1);
+});
+
+it('never reloads offline; reloads on a later return once online', async () => {
+  const t = setup(undefined);
+  await t.start();
+  t.sw.dispatchEvent(new Event('controllerchange'));
+  const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+  show('visible');
+  await tick();
+  expect(t.reload).not.toHaveBeenCalled();
+  expect(t.reg.update).toHaveBeenCalledTimes(1);
+  onLine.mockReturnValue(true);
+  show('visible');
+  await tick();
+  expect(t.reload).toHaveBeenCalledTimes(1);
+});
+
 it('does nothing while hidden', async () => {
   const t = setup(undefined);
   await t.start();

@@ -285,7 +285,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
           <button type="button" className="secondary" onClick={() => {
             try { localStorage.setItem(BRIGHT_KEY, bright ? '0' : '1'); } catch { /* storage blocked: lasts until you leave the board */ }
             setBright(!bright);
-          }}>{bright ? 'Dark board' : 'Bright board'}</button>
+          }}>{bright ? 'Normal board' : 'Bright board'}</button>
         </div>
         <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length]])} />
       </div>

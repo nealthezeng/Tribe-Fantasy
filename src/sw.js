@@ -27,7 +27,8 @@ self.addEventListener('activate', (event) => {
 
 // ignoreVary: the page's crossorigin script and stylesheet requests never match install's under the server's Vary
 // (Origin, Accept-Encoding). Safe: precached files are content-hashed and './' is this build's page.
-const pastVary = { ignoreVary: true };
+// cacheName: only this deploy's own cache, never an older shell or another app's cache on this origin.
+const pastVary = { ignoreVary: true, cacheName: CACHE };
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;

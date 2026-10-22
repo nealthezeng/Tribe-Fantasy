@@ -120,8 +120,11 @@ describe('Install app (t328)', () => {
     userAgent(IPHONE);
     renderLayout();
     fireEvent.click(installItem()!);
-    expect(within(menu()).getByText('In Safari, tap Share, then Add to Home Screen.').className).toBe('account-hint');
-    expect(within(menu()).getByRole('status', { hidden: true }).textContent).toBe('In Safari, tap Share, then Add to Home Screen.'); // announced
+    const hint = within(menu()).getByText('In Safari, tap Share, then Add to Home Screen.');
+    expect(hint.className).toBe('account-hint');
+    expect(document.activeElement).toBe(hint); // focus moves to it, so it is read out
+    expect(hint.getAttribute('role')).toBeNull(); // no status role too: it would be read out twice
+    expect(hint.textContent).toBe('In Safari, tap Share, then Add to Home Screen.');
     expect(installItem()).toBeNull();
   });
 

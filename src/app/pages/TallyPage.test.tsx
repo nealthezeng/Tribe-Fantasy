@@ -147,12 +147,12 @@ describe('TallyPage bright board (t330)', () => {
   it('opens the board bright by default', async () => {
     await open();
     expect(tally()).toBe('bright');
-    expect(screen.getByRole('button', { name: 'Dark board' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Normal board' })).toBeTruthy();
   });
 
   it('remembers a keeper turning it off on this device', async () => {
     await open();
-    fireEvent.click(screen.getByRole('button', { name: 'Dark board' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Normal board' }));
     expect(tally()).toBeUndefined();
     expect(screen.getByRole('button', { name: 'Bright board' })).toBeTruthy();
     expect(localStorage.getItem('tribe.tally.bright')).toBe('0');
@@ -186,7 +186,7 @@ describe('TallyPage bright board (t330)', () => {
     try {
       await open();
       expect(tally()).toBe('bright');
-      fireEvent.click(screen.getByRole('button', { name: 'Dark board' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Normal board' }));
       expect(tally()).toBeUndefined();
       expect(screen.getByRole('button', { name: 'Bright board' })).toBeTruthy();
     } finally {

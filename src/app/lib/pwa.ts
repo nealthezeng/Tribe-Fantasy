@@ -20,7 +20,9 @@ export async function registerServiceWorker(
     // ignoreVary as in sw.js; a failed lookup counts as found: no reload
     const found = () =>
       Promise.all(ownUrls.map((u) => caches.match(u, { ignoreVary: true }).then(Boolean, () => true)));
-    if (changed && (await found()).includes(false)) reload();
+    // Never reloads a keeper's board mid-game, and never reloads offline: both wait for a later return.
+    const settled = navigator.onLine && !document.querySelector('.tally-bar');
+    if (changed && settled && (await found()).includes(false)) reload();
     else reg.update().catch(() => {}); // offline: stay quiet
   });
 }

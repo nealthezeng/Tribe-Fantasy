@@ -2,7 +2,6 @@
   "name": "Tribe Fantasy",
   "short_name": "Tribe Fantasy",
   "description": "Fantasy league for our college ultimate team. Every dollar goes to the team fund.",
-  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

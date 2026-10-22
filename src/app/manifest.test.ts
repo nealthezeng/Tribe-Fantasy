@@ -20,7 +20,7 @@ describe('the web app manifest', () => {
       name: 'Tribe Fantasy',
       short_name: 'Tribe Fantasy',
       description: 'Fantasy league for our college ultimate team. Every dollar goes to the team fund.',
-      id: './',
+      // No id: a relative id resolves against start_url's origin, not the site path. Unset, it is start_url.
       start_url: './',
       scope: './',
       display: 'standalone',
@@ -33,7 +33,7 @@ describe('the web app manifest', () => {
       ],
     });
     // Relative URLs resolve against the manifest's own URL, so they follow the base path.
-    const strings = [manifest.id, manifest.start_url, manifest.scope, ...manifest.icons.map((i: { src: string }) => i.src)];
+    const strings = [manifest.start_url, manifest.scope, ...manifest.icons.map((i: { src: string }) => i.src)];
     for (const s of strings) expect(s.startsWith('/')).toBe(false);
   });
 

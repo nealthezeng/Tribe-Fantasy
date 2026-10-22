@@ -104,7 +104,7 @@ it('loads pages from the network and the cached shell only when offline', async 
   w.fetchMock.mockRejectedValueOnce(new TypeError('offline'));
   w.caches.match.mockResolvedValueOnce(shell);
   expect(await fetchEvent(w, url, 'GET', 'navigate')).toBe(shell);
-  expect(w.caches.match).toHaveBeenCalledWith('./', { ignoreVary: true });
+  expect(w.caches.match).toHaveBeenCalledWith('./', { ignoreVary: true, cacheName: 'tribe-shell-new' });
   expect(w.caches.open).not.toHaveBeenCalled();
   expect(w.cache.put).not.toHaveBeenCalled();
   expect(w.cache.add).not.toHaveBeenCalled();
@@ -125,8 +125,9 @@ it("serves this build's files from the cache and anything else from the network 
   expect(await fetchEvent(w, 'https://h.test/Tribe-Fantasy/assets/index-a.js')).toBe(hit);
   expect(w.fetchMock).not.toHaveBeenCalled();
   // The page's crossorigin script and stylesheet requests differ from install's under Vary (Origin, Accept-Encoding).
+  // Only this deploy's own cache: never an older shell or another app's cache on this origin.
   expect(w.caches.match).toHaveBeenCalledWith(
-    expect.objectContaining({ url: 'https://h.test/Tribe-Fantasy/assets/index-a.js' }), { ignoreVary: true });
+    expect.objectContaining({ url: 'https://h.test/Tribe-Fantasy/assets/index-a.js' }), { ignoreVary: true, cacheName: 'tribe-shell-new' });
 
   const net = new Response('net');
   w.fetchMock.mockResolvedValueOnce(net);
