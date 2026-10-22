@@ -514,4 +514,5 @@ Supabase). Nothing changes in the database and the Supabase settings stay as the
    ```
 
 What admins can do: nothing new. Install, the bright tally board and the app's file cache are per phone, and a new
-deploy reaches an open installed app the next time it comes back to the front.
+deploy reaches an open installed app within two returns to the front (the first fetches it, the second reloads; at
+once on a fresh start), never while the tally board is on screen or the phone is offline.

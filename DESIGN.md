@@ -155,11 +155,12 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   gets a baby blue ring while you're on Me.
 - **Install as an app** (M15 P8): *Install app* shows only outside the installed app, when the browser has offered to
   install (Chrome, Edge, Android: it opens the browser's own dialog) or on an iPhone/iPad, where it turns into the hint
-  "In Safari, tap Share, then Add to Home Screen." (`.account-hint`). Inside the installed app the sign-in page's "Code
+  "In Safari, tap Share, then Add to Home Screen." (`.account-hint`, which takes focus). Inside the installed app the sign-in page's "Code
   sent" box adds "Type the code from the email here: its link opens your browser, not this app." (an iPhone gives the
   home-screen app its own storage, so a Safari sign-in doesn't carry over). A service worker (`src/sw.js`, production
   builds only) keeps the app's own files for offline starts; it never touches Supabase. A new deploy reaches an open
-  installed app the next time it comes back to the front.
+  installed app within two returns to the front (the first fetches it, the second reloads; at once on a fresh start),
+  never while the tally board is on screen or the phone is offline.
 - **`.page`**: a page's outer stack (16px gaps, a little extra space under the heading).
 - **`.card`**: a smoked-glass pane (`--pane-*`), hairline border, 14px radius, 16px padding. `details.card` is a collapsible card
   with a drawn chevron.
@@ -336,7 +337,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   label on top, the count large in the middle and the points small below. They are not gold; gold is only the press flash.
 - Negative stats use a dashed border so the difference is not colour alone.
 - Tally buttons never animate. A tap must show instantly, even when other buttons fade.
-- The board is bright by default for daylight (see Colour). A "Dark board" / "Bright board" button in the tally bar's
+- The board is bright by default for daylight (see Colour). A "Normal board" / "Bright board" button in the tally bar's
   status row switches it at once, with nothing fading, and the phone remembers the choice (`tribe.tally.bright`). The
   `/tally` games list keeps the app's own theme.
 - The Out control sits apart in the card header, never among the stat tiles: "Mark out", or an "Out" `.pill.bad` ("Out from game N" until game N starts) with "Clear out". It is hidden on a closed (verified or earlier-season) board. Nobody marks their own attendance or injury any more; keepers mark Out (M15 P5).
