@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
 import {
-  countLeagues, fmt, loadLeagueTournament, loadSeasonStandings, mergeStandings, pastTournaments, record, type LeagueTournament, type OverallStanding,
+  anyCounted, countLeagues, fmt, loadLeagueTournament, loadSeasonStandings, mergeStandings, pastTournaments, record, type LeagueTournament, type OverallStanding,
 } from '../lib/tournament';
 import { formatDay } from '../lib/stats';
 import { useLoad } from '../lib/useLoad';
@@ -68,6 +68,7 @@ function PastTournaments({ y, membershipId }: { y: LeagueTournament; membershipI
 function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
   y: LeagueTournament; membershipId: string; leagueId: string; leagueName: string; seasonId: string;
 }) {
+  const started = anyCounted(y);
   const [all, setAll] = useState(false);
   const [wanted, setWanted] = useState(false); // stays true once asked for, so toggling back doesn't refetch
   const leagues = useLoad(() => countLeagues(seasonId), [seasonId]);
@@ -77,21 +78,22 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
     <article className="card" aria-label="Standings">
       <div className="head">
         <h2>Standings</h2>
-        {(leagues.data ?? 0) > 1 && (
+        {started && (leagues.data ?? 0) > 1 && (
           <div className="segmented" role="group" aria-label="Standings for">
             <button type="button" aria-pressed={!all} onClick={() => setAll(false)}>{leagueName}</button>
             <button type="button" aria-pressed={all} onClick={() => { setAll(true); setWanted(true); }}>All leagues</button>
           </div>
         )}
       </div>
-      {rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} linkable={new Set(y.team.keys())} />
+      {!started ? <p className="muted">Standings start after the first game.</p>
+        : rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} linkable={new Set(y.team.keys())} />
         : season.error ? <p className="error" role="alert">{season.error}</p> : <Loading />}
     </article>
   );
 }
 
 /**
- * Ranked rows: place, team (league, owner and record under it), points; a leaderboard from day one, all tied at first (t239).
+ * Ranked rows: place, team (league, owner and record under it), points; all tied at first is fine here (t239), since the card only shows rows once a game counts (t323).
  * A long list shows the top 5 (with everyone tied with 5th) and your row, if that hides at least 4 teams.
  */
 function RankList({ rows, membershipId, showLeague, linkable }: {

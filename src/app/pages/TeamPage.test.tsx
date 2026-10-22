@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
@@ -56,6 +56,13 @@ describe('TeamPage', () => {
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([expect.stringContaining('Ari'), expect.stringContaining('Bo')]);
     expect(screen.getByLabelText('Counts ×0.45')).toBeTruthy();
     expect(screen.queryByText(/credit|pick/i)).toBeNull();
+  });
+
+  it('shows share percentages, never credits', async () => {
+    visit(ID2);
+    fireEvent.click(await screen.findByLabelText('Counts ×0.45'));
+    expect(document.querySelector('.factor[open] .parts')!.textContent).toMatch(/\d+% share/);
+    expect(document.body.textContent).not.toMatch(/credit/i);
   });
 
   it('explains the × on the team page', async () => {

@@ -3,6 +3,7 @@ import { VerifiedHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { api } from '../lib/rpc';
 import { errorMessage } from '../lib/errors';
 import {
   downloadText, loadCurrentSeason, SESSION_COLUMNS, sessionState, statLabel, toCsv, type SessionRow,
@@ -29,13 +30,15 @@ export function StatsPage() {
     const season = await loadCurrentSeason();
     return season && { season, wanted, ...await loadTournamentStats(season.id, wanted, { live: season.settings }) };
   }, [wanted]);
+  // Outside every league (or an athlete-only account) there are no stats to read. A failed check must not hide stats from members.
+  const member = useLoad(() => (userId ? api.canReadLeagueData().catch(() => true) : Promise.resolve(true)), [userId]);
   // Keepers' taps still on this phone, so an unsaved game shows here and not only in the Tally picker.
   const unsaved = useMemo(
     () => new Map(isKeeper && userId ? queuedSessions(userId).map((q) => [q.sessionId, q.count]) : []),
     [isKeeper, userId],
   );
   // Still showing the previous tournament while the picked one loads: treat as loading.
-  const loaded = data.data && data.data.wanted !== wanted ? undefined : data.data;
+  const loaded = member.data === undefined || (data.data && data.data.wanted !== wanted) ? undefined : data.data;
   const season = loaded?.season;
   // Live numbers move, so refresh while any are shown (none for a void game or a reader without live access).
   usePoll(data.reload, !!loaded?.liveGames.length);
@@ -84,6 +87,15 @@ export function StatsPage() {
 
   const weights = season?.settings.stat_weights;
   const { stage, stages } = loaded ?? {};
+  if (member.data === false) {
+    return (
+      <section className="page">
+        <h1>Stats</h1>
+        <p>Join a league to see stats.</p>
+        <Link to="/leagues" className="button">Join a league</Link>
+      </section>
+    );
+  }
   const csvButton = isAdmin && <button className="secondary" onClick={() => void exportCsv()}>Download CSV</button>;
   return (
     <section className="page">

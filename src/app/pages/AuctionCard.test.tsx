@@ -109,12 +109,20 @@ describe('AuctionCard', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('shows nothing on League once buying has closed', async () => {
+  it('says Buying closed once while shares wait to be settled', async () => {
     db.stages = [closedStage];
     const { container } = renderCard();
     await loaded();
-    expect(container.textContent).toBe('');
+    expect(await screen.findByText('Buying closed for Fall. Your players show here once the shares are settled.')).toBeTruthy();
+    expect(container.textContent!.match(/Buying closed/g)).toHaveLength(1);
     expect(loadLeagueTournament).not.toHaveBeenCalled();
+  });
+
+  it('shows nothing once the shares are settled', async () => {
+    db.stages = [{ ...closedStage, auction_run_at: '2026-10-11T00:00:00Z' }];
+    const { container } = renderCard();
+    await loaded();
+    expect(container.textContent).toBe('');
   });
 
   it('explains buying shares from the card head', async () => {

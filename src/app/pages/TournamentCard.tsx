@@ -8,7 +8,7 @@ import { api } from '../lib/rpc';
 import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
 import { formatDay, gameLabel, statLabel } from '../lib/stats';
 import type { Seen } from '../lib/seen';
-import { fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
+import { anyCounted, fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
 
@@ -109,7 +109,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const dates = focus && y.stageDates.get(focus.stageId);
   const row = y.result.standings.find((r) => r.membershipId === membershipId);
   // Before any game counts, Place / Record / Points would read T1 / 0–0 / 0: say so in the strip instead (t228).
-  const anyPlayed = y.result.standings.some((r) => r.wins + r.losses + r.ties > 0);
+  const anyPlayed = anyCounted(y);
   const upcoming = status === 'upcoming';
   // Before a game starts the scorer's auto-picks are a guess, so show only the manager's own picks.
   const minePlayers = !mine ? [] : upcoming ? mine.picked : mine.athleteIds;

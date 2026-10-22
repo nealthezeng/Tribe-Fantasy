@@ -88,6 +88,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
   if (!data) return null; // loading, or no stage yet
   const { stage, settings, minBid, rosterSize, athletes, out, bids, balance } = data;
   const phase = auctionPhase(stage, now);
+  if (phase === 'closed') return <p className="notice">Buying closed for {stage.name}. Your players show here once the shares are settled.</p>;
   if (phase !== 'open') return null;
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);

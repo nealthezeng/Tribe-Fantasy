@@ -50,6 +50,7 @@ beforeEach(() => {
   m.isKeeper = true;
   m.isAdmin = false;
   m.season = { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } };
+  m.rpc.mockReset().mockImplementation((fn: string) => (fn === 'can_read_league_data' ? Promise.resolve({ data: true, error: null }) : undefined)); // other rpcs keep returning nothing, as before
   m.load.mockReset();
   m.load.mockResolvedValue({ stages: [stage('S2'), stage('S1')], stage: stage('S2'), games: [], lines, names, liveLines: [], liveGames: [] });
   window.location.hash = '#/stats';
@@ -248,6 +249,23 @@ describe('StatsPage live numbers (t318)', () => {
     show();
     expect(await screen.findByRole('cell', { name: 'Ari' })).toBeTruthy();
     expect(screen.queryByText(/No stats yet/)).toBeNull();
+  });
+
+  it('tells a signed-in user outside every league to join one', async () => {
+    m.rpc.mockImplementation((fn: string) => Promise.resolve({ data: fn === 'can_read_league_data' ? false : null, error: null }));
+    show();
+    expect(await screen.findByText('Join a league to see stats.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Join a league' }).getAttribute('href')).toBe('#/leagues');
+    expect(screen.queryByText('Not verified')).toBeNull();
+    expect(screen.queryByText(/No stats yet/)).toBeNull();
+    expect(screen.queryByText('All stats')).toBeNull();
+  });
+
+  it('shows the stats when the check fails', async () => {
+    m.rpc.mockImplementation((fn: string) => Promise.resolve(fn === 'can_read_league_data' ? { data: null, error: { message: 'boom' } } : { data: null, error: null }));
+    show();
+    expect(await screen.findByRole('cell', { name: 'Ari' })).toBeTruthy();
+    expect(screen.queryByText('Join a league to see stats.')).toBeNull();
   });
 
   it('still shows the verified lines when the live read is FORBIDDEN (athlete-only account)', async () => {

@@ -44,25 +44,50 @@ const base = (): TournamentRows => ({
 
 afterEach(() => { cleanup(); localStorage.clear(); overall.leagues = 1; auth.signedIn = true; });
 beforeEach(() => {
-  rows.current = base();
+  rows.current = counted();
   myTeams.current = [team('m1', 'Zeal', 'League A')];
+});
+/** One final game already counted (a 0–0 tie): the standings are real from here. */
+const counted = (): TournamentRows => ({
+  ...base(),
+  games: [{ id: 'g1', stage_id: 'S1', number: 1, session_id: 'p1', started_at: '2026-10-20T14:00:00Z', finished_at: '2026-10-20T15:00:00Z', opponent: null },
+    { id: 'g2', stage_id: 'S1', number: 2, session_id: null, started_at: null, finished_at: null, opponent: null }], // keeps S1 the tournament being played
+  pairings: [{ game_id: 'g1', home: 'm1', away: 'm2' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
+  sessions: [{ id: 'p1', verified_at: '2026-10-20T20:00:00Z' }],
 });
 const show = () => render(<MemoryRouter><LeaderboardsPage /></MemoryRouter>);
 const standings = async () => within(await screen.findByRole('article', { name: 'Standings' }));
 
 describe('LeaderboardsPage', () => {
+  it('hides the standings until a game counts', async () => {
+    rows.current = base();
+    overall.leagues = 2;
+    const { container } = show();
+    expect(await screen.findByText('Standings start after the first game.')).toBeTruthy();
+    expect(container.querySelector('.ranks')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'All leagues' })).toBeNull();
+  });
+
+  it('shows the standings once a game counts', async () => {
+    show();
+    await standings();
+    expect(await screen.findByText('Zeal (you)')).toBeTruthy();
+    expect(document.querySelectorAll('.ranks li').length).toBe(2);
+    expect(screen.queryByText('Standings start after the first game.')).toBeNull();
+  });
+
   it("shows the chosen team's league standings with each owner beside the record", async () => {
     show();
     const row = (await screen.findByText('Zeal (you)')).closest('li')!;
-    expect(row.querySelector('small')?.textContent).toBe('Neal Zeng · 0–0');
-    expect((await standings()).getByText('Flow').closest('li')?.querySelector('small')?.textContent).toBe('Sam Sample · 0–0');
+    expect(row.querySelector('small')?.textContent).toBe('Neal Zeng · 0–0–1');
+    expect((await standings()).getByText('Flow').closest('li')?.querySelector('small')?.textContent).toBe('Sam Sample · 0–0–1');
   });
 
   it('shows just the record when an owner has no name (no stray separator)', async () => {
-    rows.current = { ...base(), profiles: [] };
+    rows.current = { ...counted(), profiles: [] };
     show();
     const row = (await screen.findByText('Zeal (you)')).closest('li')!;
-    expect(row.querySelector('small')?.textContent).toBe('0–0');
+    expect(row.querySelector('small')?.textContent).toBe('0–0–1');
   });
 
   it('follows the remembered team choice, with a switch for 2+ teams', async () => {
@@ -95,7 +120,7 @@ describe('LeaderboardsPage', () => {
   });
 
   it('keeps showing the standings between tournaments (T4)', async () => {
-    rows.current = { ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] };
+    rows.current = { ...counted(), stages: [{ ...base().stages[0], auction_run_at: null }] };
     show();
     expect((await standings()).getByText('Flow')).toBeTruthy();
   });
@@ -193,7 +218,7 @@ describe('Standings toggle (t226)', () => {
     expect(await items()).toHaveLength(12);
   });
 
-  it('never cuts inside a tie, and is a leaderboard before any game counts (t239)', async () => {
+  it('never cuts inside a tie, and lists the whole season even when every team is 0–0 (t239)', async () => {
     overall.leagues = 2;
     overall.current = [...'abcdefghi'.split('').map((c) => row(c, `Team ${c}`, 'League B', 1, true)), row('m1', 'Zeal', 'League A', 10)];
     show();
