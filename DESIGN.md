@@ -232,7 +232,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   `/player/<id>?t=<stage>` and, under it, a small "N a game" (that tournament's average, a game without his line counting 0;
   nothing for a player with no lines, never "0").
 - **`?` help** (`Help.tsx`, `.help`): a 44px target around a 22px `--surface-2` circle, opening `.help-pop`, a native `popover`
-  (the browser centres it in the top layer; Esc or a tap outside closes it; nothing positions it, so it never overflows at 375px).
+  with the notice's raised shadow (the browser centres it in the top layer; Esc or a tap outside closes it; nothing positions it, so it never overflows at 375px).
   Three texts, every number from the season's settings: **shares** (shares, credits, the repeat chip) in the Buy shares head;
   **the × factor** (share × tired × earlier tournaments, with the tiredness list and the floor) in the pick card head and beside
   the next-game line on the team page; **unofficial and verified** (who taps, who verifies, the lock hours) beside the League
@@ -277,7 +277,7 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   cards. Links inherit the text colour and underline on hover and focus.
 - **Standings** (`.ranks`, on Leaderboards): a ranked list. Rank and points in the display face, the rank muted and yours in
   `--gold-text`; the team with its owner's real name and record under it ("Neal Zeng · 2–1"; "League · Neal Zeng · 2–1" in All leagues). A `.segmented` [league]
-  [All leagues] toggle shows only when the season has 2+ leagues. Before any game counts the card shows only "Standings start after the first game." (no rows, no
+  [All leagues] toggle shows only when the season has 2+ leagues. Before a verified game this league was paired in (a bye counts) the card shows only "Standings start after the first game." (no rows, no
   toggle); this overturns t239, "a leaderboard from day one", per the M15 spec (§5.7). A long list keeps the top 5, everyone tied with 5th and your row,
   and only cuts when that hides 4+ teams; the gap row says "N more teams" to screen readers. Ties list by team name.
 - **`.steps`**: a real sequence as numbered inline steps (admin Tournaments: grant, open, run, open tournament).

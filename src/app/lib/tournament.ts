@@ -90,8 +90,8 @@ export function toTournamentInput(rows: TournamentRows, now: number): Tournament
   };
 }
 
-/** Some team has a counted game, so Place / Record / Points mean something (before that they're all T1 / 0–0 / 0). */
-export const anyCounted = (y: Pick<LeagueTournament, 'result'>): boolean => y.result.standings.some((r) => r.wins + r.losses + r.ties > 0);
+/** A verified game this league was paired in (a bye counts), so Place / Record / Points mean something (before that they're all T1 / 0–0 / 0). */
+export const anyCounted = (y: Pick<LeagueTournament, 'result'>): boolean => y.result.games.some((g) => g.status === 'final' && g.matchups.length > 0);
 
 export interface LeagueTournament {
   settings: SeasonSettings;

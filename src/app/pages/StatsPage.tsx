@@ -21,7 +21,7 @@ export const STATE_PILL = {
 } as const;
 
 export function StatsPage() {
-  const { isAdmin, isKeeper, session } = useAuth();
+  const { isAdmin, isKeeper, loading, session } = useAuth();
   const userId = session?.user.id;
   const [params] = useSearchParams();
   const wanted = params.get('t');
@@ -33,7 +33,7 @@ export function StatsPage() {
   // Outside every league (or an athlete-only account) there are no stats to read. A failed check must not hide stats from members.
   // Tagged with the user it was asked for: useLoad keeps old data across a dep change, and auth can arrive after mount.
   const member = useLoad(async () => ({ uid: userId, ok: userId ? await api.canReadLeagueData().catch(() => true) : true }), [userId]);
-  const memberKnown = !!member.data && member.data.uid === userId;
+  const memberKnown = !loading && !!member.data && member.data.uid === userId;
   // Keepers' taps still on this phone, so an unsaved game shows here and not only in the Tally picker.
   const unsaved = useMemo(
     () => new Map(isKeeper && userId ? queuedSessions(userId).map((q) => [q.sessionId, q.count]) : []),

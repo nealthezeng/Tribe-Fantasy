@@ -42,7 +42,7 @@ export function VerifiedHelp({ hours }: { hours: number }) {
   return (
     <Help label="What unofficial and verified mean">
       Keepers tap stats during the game, then a keeper checks and verifies them. Until then scores are unofficial and can change.
-      Verified stats count; they can be reopened for {hours} hours, then they're locked.
+      Verified stats count; they can be reopened for {hours} {hours === 1 ? 'hour' : 'hours'}, then they're locked.
     </Help>
   );
 }

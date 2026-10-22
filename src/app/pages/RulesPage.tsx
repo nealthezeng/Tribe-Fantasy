@@ -155,7 +155,7 @@ export function RulesPage() {
             </div>
             <p className="muted">It never drops below ×{n(S.decay_floor)}.</p>
           </div>
-          <p className="muted">A game counts as soon as a stat keeper verifies its stats. They can be reopened for {S.stat_lock_hours} hours after that.</p>
+          <p className="muted">A game counts as soon as a stat keeper verifies its stats. They can be reopened for {S.stat_lock_hours} {S.stat_lock_hours === 1 ? 'hour' : 'hours'} after that.</p>
           <p className="muted">Live scores during a game are unofficial and can shift until a keeper verifies the stats.</p>
         </div>
       </details>
@@ -202,7 +202,7 @@ export function RulesPage() {
           <p>Yes: 24 hours and 2 hours before buying shares closes, and when it's time to pick your players for the
             next game. Turn them off on the Me page.</p>
           <h3>What if a stat is wrong?</h3>
-          <p>Tell a stat keeper. A game's stats can be reopened for {S.stat_lock_hours} hours after they're verified, and an admin can correct them after
+          <p>Tell a stat keeper. A game's stats can be reopened for {S.stat_lock_hours} {S.stat_lock_hours === 1 ? 'hour' : 'hours'} after they're verified, and an admin can correct them after
             that. Scores update by themselves.</p>
           <h3>Can I create or leave a league?</h3>
           <p>Anyone can create a league, open to all or with a password, or join one from the list. You can create one

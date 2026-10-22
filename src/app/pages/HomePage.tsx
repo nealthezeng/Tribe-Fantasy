@@ -156,9 +156,9 @@ export function HomePage() {
 
   return (
     <section className="page">
-      <Guide uid={uid!} />
       {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
       <h1 className={data?.length ? 'sr-only' : undefined}>Your teams</h1>
+      <Guide uid={uid!} />
       {error && <p className="error" role="alert">{error}</p>}
       {!data && !error && <Loading />}
       {data && data.length === 0 && (

@@ -287,7 +287,7 @@ details.factor[open] > summary::after { content: '▴'; }
 .help > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); font-size: var(--fs-xs); font-weight: var(--fw-semi); line-height: 1; }
 .help:hover > span { background: var(--line); }
 .head > .help { margin-right: auto; }
-.help-pop { padding: var(--s3); background: var(--card-solid); color: var(--fg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); font-size: var(--fs-sm); max-width: min(20rem, calc(100vw - 2 * var(--gutter))); }
+.help-pop { padding: var(--s3); background: var(--card-solid); color: var(--fg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); box-shadow: var(--pane-highlight), var(--pane-shadow); font-size: var(--fs-sm); max-width: min(20rem, calc(100vw - 2 * var(--gutter))); }
 /* Past tournaments: dates and the waiting pill drop under a long name instead of squeezing it. */
 .past details > summary { flex-wrap: wrap; }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }

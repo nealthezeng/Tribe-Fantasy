@@ -28,6 +28,11 @@ describe('Help', () => {
     expect(text('What unofficial and verified mean')).toContain('reopened for 24 hours');
   });
 
+  it('says 1 hour, not 1 hours', () => {
+    render(<VerifiedHelp hours={1} />);
+    expect(text('What unofficial and verified mean')).toContain('reopened for 1 hour,');
+  });
+
   it('reads the default tired steps, and never for none', () => {
     const { unmount } = render(<FactorHelp settings={DEFAULT_SETTINGS} />);
     expect(text('What the × means')).toContain('×0.5 if they started the game before, ×0.75 if 2 games before');

@@ -8,6 +8,7 @@ import { StatsPage } from './StatsPage';
 const m = vi.hoisted(() => ({
   isKeeper: true,
   signedIn: true,
+  loading: false,
   isAdmin: false,
   season: { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } } as { id: string; name: string; settings: unknown } | null,
   load: vi.fn(),
@@ -15,7 +16,7 @@ const m = vi.hoisted(() => ({
   rpc: vi.fn(),
   tables: {} as Record<string, unknown[]>,
 }));
-vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper, session: m.signedIn ? { user: { id: 'k1' } } : null }) }));
+vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ isAdmin: m.isAdmin, isKeeper: m.isKeeper, loading: m.loading, session: m.signedIn ? { user: { id: 'k1' } } : null }) }));
 vi.mock('../lib/stats', async (orig) => ({
   ...(await orig<typeof import('../lib/stats')>()),
   loadCurrentSeason: () => Promise.resolve(m.season),
@@ -50,6 +51,7 @@ afterEach(() => {
 beforeEach(() => {
   m.isKeeper = true;
   m.signedIn = true;
+  m.loading = false;
   m.isAdmin = false;
   m.season = { id: 'se', name: 'Spring', settings: { stat_weights: { goal: 3, assist: 2 }, stat_lock_hours: 1 } };
   m.rpc.mockReset().mockImplementation((fn: string) => (fn === 'can_read_league_data' ? Promise.resolve({ data: true, error: null }) : undefined)); // other rpcs keep returning nothing, as before
@@ -229,7 +231,7 @@ describe('StatsPage live numbers (t318)', () => {
     await screen.findByRole('cell', { name: 'Ari' });
     const label = { name: 'What unofficial and verified mean' };
     const fold = document.querySelector('details.card') as HTMLElement;
-    expect(within(fold).getByRole('button', label).nextElementSibling!.textContent).toContain('reopened for 1 hours');
+    expect(within(fold).getByRole('button', label).nextElementSibling!.textContent).toContain('reopened for 1 hour,');
     expect(within(document.querySelector('.strip') as HTMLElement).getByRole('button', label)).toBeTruthy();
   });
 
@@ -280,6 +282,21 @@ describe('StatsPage live numbers (t318)', () => {
     view.rerender(<HashRouter><StatsPage /></HashRouter>);
     expect(screen.queryByRole('cell', { name: 'Ari' })).toBeNull();
     expect(screen.queryByText('Not verified')).toBeNull();
+    expect(await screen.findByText('Join a league to see stats.')).toBeTruthy();
+    expect(screen.queryByRole('cell', { name: 'Ari' })).toBeNull();
+  });
+
+  it('waits for auth to finish before it trusts a missing session', async () => {
+    m.signedIn = false;
+    m.loading = true;
+    m.rpc.mockImplementation((fn: string) => (fn === 'can_read_league_data'
+      ? new Promise((r) => setTimeout(() => r({ data: false, error: null }), 50)) : undefined));
+    const view = show();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(screen.queryByRole('cell', { name: 'Ari' })).toBeNull();
+    m.signedIn = true;
+    m.loading = false;
+    view.rerender(<HashRouter><StatsPage /></HashRouter>);
     expect(await screen.findByText('Join a league to see stats.')).toBeTruthy();
     expect(screen.queryByRole('cell', { name: 'Ari' })).toBeNull();
   });

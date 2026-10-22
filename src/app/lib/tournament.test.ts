@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import type { TournamentResult } from '../../core/tournament';
-import { buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { anyCounted, buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -424,6 +424,18 @@ describe('lastTournamentForm', () => {
   });
   it('returns null before any game is verified', () => {
     expect(lastTournamentForm(build([game('B', 1, 'live'), game('B', 2, 'upcoming')]), 'C')).toBeNull();
+  });
+});
+
+describe('anyCounted', () => {
+  const g = (status: string, matchups: unknown[]) => ({ status, matchups });
+  const has = (...games: ReturnType<typeof g>[]) => anyCounted({ result: { games } } as unknown as LeagueTournament);
+  it('counts a verified game this league was paired in, a bye included', () => {
+    expect(has(g('final', [{ home: {}, away: null }]))).toBe(true);
+  });
+  it('does not count a game that is not final, or one with no matchup for this league', () => {
+    expect(has(g('live', [{}]), g('pending', [{}]), g('upcoming', []))).toBe(false);
+    expect(has(g('final', []))).toBe(false);
   });
 });
 
