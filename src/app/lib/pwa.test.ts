@@ -2,16 +2,17 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { registerServiceWorker, startPwa } from './pwa';
 
-const OWN = 'https://h.test/Tribe-Fantasy/assets/index-a.js';
+const JS = 'https://h.test/Tribe-Fantasy/assets/index-a.js';
+const CSS = 'https://h.test/Tribe-Fantasy/assets/index-a.css';
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-function setup(cached?: Response) {
+function setup(cached?: Response, own = [JS]) {
   const reg = { update: vi.fn(async () => {}) };
   const sw = Object.assign(new EventTarget(), { register: vi.fn(async () => reg) });
   const reload = vi.fn();
-  const match = vi.fn(async (): Promise<Response | undefined> => cached);
+  const match = vi.fn<(u: string, o?: CacheQueryOptions) => Promise<Response | undefined>>(async () => cached);
   vi.stubGlobal('caches', { match });
-  const start = () => registerServiceWorker(sw as unknown as ServiceWorkerContainer, OWN, reload);
+  const start = () => registerServiceWorker(sw as unknown as ServiceWorkerContainer, own, reload);
   return { reg, sw, reload, match, start };
 }
 function show(state: 'visible' | 'hidden') {
@@ -57,7 +58,7 @@ it('reloads on the next return once a new version has taken over', async () => {
   expect(t.reload).not.toHaveBeenCalled(); // never while someone is using it
   show('visible');
   await tick();
-  expect(t.match).toHaveBeenCalledWith(OWN); // asks about this page's own bundle
+  expect(t.match).toHaveBeenCalledWith(JS, { ignoreVary: true }); // asks about this page's own bundle
   expect(t.reload).toHaveBeenCalledTimes(1);
   expect(t.reg.update).not.toHaveBeenCalled();
 });
@@ -75,13 +76,50 @@ it('reloads even if the old shell was still there when the new version took over
 });
 
 it('never reloads a page that is already the new version', async () => {
-  const t = setup(new Response('own file'));
+  const t = setup(new Response('own file'), [JS, CSS]);
   await t.start();
   t.sw.dispatchEvent(new Event('controllerchange'));
   await tick();
   show('visible');
   await tick();
+  expect(t.match).toHaveBeenCalledWith(JS, { ignoreVary: true });
+  expect(t.match).toHaveBeenCalledWith(CSS, { ignoreVary: true });
   expect(t.reload).not.toHaveBeenCalled();
+  expect(t.reg.update).toHaveBeenCalledTimes(1);
+});
+
+it('reloads a page whose bundle is still cached but whose stylesheet is not (a CSS-only deploy)', async () => {
+  const t = setup(undefined, [JS, CSS]);
+  t.match.mockImplementation(async (u) => (u === JS ? new Response('same bundle') : undefined));
+  await t.start();
+  t.sw.dispatchEvent(new Event('controllerchange'));
+  show('visible');
+  await tick();
+  expect(t.match).toHaveBeenCalledWith(CSS, { ignoreVary: true });
+  expect(t.reload).toHaveBeenCalledTimes(1);
+  expect(t.reg.update).not.toHaveBeenCalled();
+});
+
+it("checks the running bundle and this site's own stylesheets, never another site's", async () => {
+  vi.stubEnv('PROD', true);
+  const t = setup(new Response('cached'));
+  Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: t.sw });
+  document.head.innerHTML = '<link rel="stylesheet" href="/Tribe-Fantasy/assets/index-b.css">' +
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo">';
+  try {
+    startPwa();
+    await tick();
+    t.sw.dispatchEvent(new Event('controllerchange'));
+    show('visible');
+    await tick();
+    expect(t.match.mock.calls.map(([u]) => u)).toEqual([
+      expect.stringMatching(/pwa\.ts/), // import.meta.url: the entry bundle in a build
+      `${location.origin}/Tribe-Fantasy/assets/index-b.css`,
+    ]);
+  } finally {
+    Reflect.deleteProperty(navigator, 'serviceWorker');
+    document.head.innerHTML = '';
+  }
 });
 
 it('does nothing while hidden', async () => {

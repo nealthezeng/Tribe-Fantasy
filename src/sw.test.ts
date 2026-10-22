@@ -29,7 +29,7 @@ function boot(files = ['assets/index-a.js']) {
     open: vi.fn(async () => cache),
     keys: vi.fn(async () => [] as string[]),
     delete: vi.fn(async () => true),
-    match: vi.fn(async (): Promise<Response | undefined> => undefined),
+    match: vi.fn<(r: unknown, o?: CacheQueryOptions) => Promise<Response | undefined>>(async () => undefined),
   };
   const fetchMock = vi.fn(async (): Promise<Response> => new Response('net'));
   new Function(
@@ -104,10 +104,18 @@ it('loads pages from the network and the cached shell only when offline', async 
   w.fetchMock.mockRejectedValueOnce(new TypeError('offline'));
   w.caches.match.mockResolvedValueOnce(shell);
   expect(await fetchEvent(w, url, 'GET', 'navigate')).toBe(shell);
-  expect(w.caches.match).toHaveBeenCalledWith('./');
+  expect(w.caches.match).toHaveBeenCalledWith('./', { ignoreVary: true });
   expect(w.caches.open).not.toHaveBeenCalled();
   expect(w.cache.put).not.toHaveBeenCalled();
   expect(w.cache.add).not.toHaveBeenCalled();
+});
+
+it('answers an offline page with a network error, not nothing, when the shell is not cached', async () => {
+  const w = boot();
+  w.fetchMock.mockRejectedValueOnce(new TypeError('offline'));
+  const res = await fetchEvent(w, 'https://h.test/Tribe-Fantasy/', 'GET', 'navigate');
+  expect(res).toBeInstanceOf(Response);
+  expect((res as Response).type).toBe('error');
 });
 
 it("serves this build's files from the cache and anything else from the network without keeping it", async () => {
@@ -116,6 +124,9 @@ it("serves this build's files from the cache and anything else from the network 
   w.caches.match.mockResolvedValueOnce(hit);
   expect(await fetchEvent(w, 'https://h.test/Tribe-Fantasy/assets/index-a.js')).toBe(hit);
   expect(w.fetchMock).not.toHaveBeenCalled();
+  // The page's crossorigin script and stylesheet requests differ from install's under Vary (Origin, Accept-Encoding).
+  expect(w.caches.match).toHaveBeenCalledWith(
+    expect.objectContaining({ url: 'https://h.test/Tribe-Fantasy/assets/index-a.js' }), { ignoreVary: true });
 
   const net = new Response('net');
   w.fetchMock.mockResolvedValueOnce(net);

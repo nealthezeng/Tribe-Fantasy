@@ -25,12 +25,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// ignoreVary: the page's crossorigin script and stylesheet requests never match install's under the server's Vary
+// (Origin, Accept-Encoding). Safe: precached files are content-hashed and './' is this build's page.
+const pastVary = { ignoreVary: true };
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET' || new URL(request.url).origin !== location.origin) return;
   event.respondWith(
     request.mode === 'navigate'
-      ? fetch(request).catch(() => caches.match('./')) // online: always the newest page (magic links, ?code=)
-      : caches.match(request).then((hit) => hit || fetch(request)),
+      // online: always the newest page (magic links, ?code=); offline with no shell: the browser's own offline page
+      ? fetch(request).catch(() => caches.match('./', pastVary).then((page) => page || Response.error()))
+      : caches.match(request, pastVary).then((hit) => hit || fetch(request)),
   );
 });
