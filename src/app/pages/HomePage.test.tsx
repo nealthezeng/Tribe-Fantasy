@@ -9,7 +9,7 @@ import { HomePage } from './HomePage';
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false, isAdmin: false }),
 }));
-const season = vi.hoisted(() => ({ settings: {} as Record<string, unknown> }));
+const season = vi.hoisted(() => ({ settings: {} as Record<string, unknown>, loaded: {} as Record<string, unknown> }));
 const team = vi.hoisted(() => (id: string, team_name: string, season_id: string) => ({
   id, team_name, league_id: `L-${id}`, created_at: '2026-10-01T00:00:00Z', donation_code: 'BKRT', credit_ledger: [],
   leagues: { name: `League ${id}`, season_id, seasons: { name: season_id, get settings() { return season.settings; } } },
@@ -21,7 +21,7 @@ vi.mock('../lib/supabase', () => {
 });
 vi.mock('../lib/stats', async (orig) => ({
   ...(await orig<typeof import('../lib/stats')>()),
-  loadCurrentSeason: () => Promise.resolve({ id: 'spring', name: 'Spring', settings: {} }),
+  loadCurrentSeason: () => Promise.resolve({ id: 'spring', name: 'Spring', get settings() { return season.loaded; } }),
 }));
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
@@ -32,7 +32,8 @@ vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), do
 // The team itself (matchup, auction, standings) has its own tests.
 vi.mock('./TournamentCard', () => ({ TournamentCard: ({ teamName }: { teamName: string }) => <h2>{teamName}</h2> }));
 
-afterEach(() => { cleanup(); localStorage.clear(); season.settings = {}; });
+beforeEach(() => localStorage.setItem('tribe.guide.u1', '1')); // the guide has its own tests below
+afterEach(() => { cleanup(); localStorage.clear(); season.settings = {}; season.loaded = {}; });
 const show = () => render(<MemoryRouter><HomePage /></MemoryRouter>);
 const switcher = () => within(screen.getByRole('group', { name: 'League' }));
 
@@ -158,5 +159,25 @@ describe('CreditsPage with several teams', () => {
     season.settings = { donations_enabled: true, venmo_handle: 'tribe-fund' };
     render(<MemoryRouter><CreditsPage /></MemoryRouter>);
     expect(await screen.findByRole('article', { name: 'Donors' })).toBeTruthy();
+  });
+});
+
+describe('First-visit guide on League (t320)', () => {
+  beforeEach(() => localStorage.clear());
+  it('shows the guide above the Get started card for a new user', async () => {
+    const { supabase } = await import('../lib/supabase');
+    const q = { select: () => q, eq: () => q, order: () => Promise.resolve({ data: [], error: null }) };
+    const from = vi.spyOn(supabase!, 'from').mockReturnValue(q as never);
+    show();
+    const guide = await screen.findByRole('complementary', { name: 'How it works' });
+    const started = await screen.findByRole('heading', { name: 'Get started' });
+    expect(guide.compareDocumentPosition(started) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    from.mockRestore();
+  });
+
+  it('uses the season pick count', async () => {
+    season.loaded = { picks_per_game: 3 };
+    show();
+    await screen.findByText(/Pick 3 each game/);
   });
 });

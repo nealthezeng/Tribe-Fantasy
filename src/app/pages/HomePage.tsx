@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Guide } from '../components/Guide';
 import { Loading } from '../components/Loading';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
@@ -155,6 +156,7 @@ export function HomePage() {
 
   return (
     <section className="page">
+      <Guide uid={uid!} />
       {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
       <h1 className={data?.length ? 'sr-only' : undefined}>Your teams</h1>
       {error && <p className="error" role="alert">{error}</p>}
