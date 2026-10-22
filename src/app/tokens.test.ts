@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 // tokens.css is the one place for colours, fonts, sizes and motion; styles.css only reads them.
 const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
+const tokens = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8');
 
 describe('styles.css reads every design value from tokens.css', () => {
   it.each([
@@ -43,5 +44,15 @@ describe('the tally board never moves', () => {
     for (const selector of moving.filter((sel) => /button/.test(sel))) {
       expect(selector).toMatch(/\.tally-buttons, \.tally-head, \.tally-bar/);
     }
+  });
+});
+
+describe('the bright tally board (t330)', () => {
+  it('builds the bright tally on light mode, with more contrast', () => {
+    expect(tokens).toMatch(/:root\[data-theme='light'\],\s*:root\[data-tally='bright'\]\s*\{/);
+    // The last such block: the light block's own selector list ends with the same selector.
+    const bright = [...tokens.matchAll(/:root\[data-tally='bright'\] \{([^}]*)\}/g)].pop()?.[1] ?? '';
+    expect(bright).toContain('--bg: #ffffff');
+    expect(bright).toContain('--fg: #000000');
   });
 });

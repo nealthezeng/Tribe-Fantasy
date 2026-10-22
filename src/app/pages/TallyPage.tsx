@@ -82,6 +82,8 @@ function SessionPicker({ season, keeperId, onPick }: {
 
 interface AthleteRow { id: string; name: string }
 
+const BRIGHT_KEY = 'tribe.tally.bright';
+
 function TallyBoard({ season, sessionId, keeperId, onBack }: {
   season: CurrentSeason; sessionId: string; keeperId: string; onBack: () => void;
 }) {
@@ -95,6 +97,15 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   const [online, setOnline] = useState(navigator.onLine);
   const [search, setSearch] = useState('');
   const [hint, setHint] = useState<string | null>(null);
+  // t330: bright by default for daylight; '0' in storage is a keeper's choice to turn it off on this device.
+  const [bright, setBright] = useState(() => {
+    try { return localStorage.getItem(BRIGHT_KEY) !== '0'; } catch { return true; }
+  });
+  useEffect(() => { // only the board itself is bright: leaving it, by any way, restores the app's own theme
+    if (!bright) return;
+    document.documentElement.dataset.tally = 'bright';
+    return () => { delete document.documentElement.dataset.tally; };
+  }, [bright]);
   const queueRef = useRef(queue);
   const sending = useRef(false);
   const inFlight = useRef<Set<string>>(new Set());
@@ -271,6 +282,10 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
             {queue.length > 0 && online && <span className="pill info">Saving · {queue.length} unsaved</span>}
             {queue.length > 0 && !online && <span className="pill warn">Offline · {queue.length} unsaved</span>}
           </span>
+          <button type="button" className="secondary" onClick={() => {
+            try { localStorage.setItem(BRIGHT_KEY, bright ? '0' : '1'); } catch { /* storage blocked: lasts until you leave the board */ }
+            setBright(!bright);
+          }}>{bright ? 'Dark board' : 'Bright board'}</button>
         </div>
         <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length]])} />
       </div>

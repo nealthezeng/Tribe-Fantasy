@@ -53,6 +53,7 @@ afterEach(() => {
   gone.games = null;
   cleanup();
   localStorage.clear();
+  delete document.documentElement.dataset.tally;
 });
 
 describe('TallyPage session list', () => {
@@ -133,5 +134,63 @@ describe('TallyPage Out toggle', () => {
     const stat = screen.getAllByRole('button').find((b) => /^A0, /.test(b.getAttribute('aria-label') ?? ''))!;
     expect((stat as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Mark A0 out from the next game' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe('TallyPage bright board (t330)', () => {
+  const tally = () => document.documentElement.dataset.tally;
+  const open = async () => {
+    render(<MemoryRouter initialEntries={['/tally?game=game']}><TallyPage /></MemoryRouter>);
+    await screen.findByText('A0');
+  };
+
+  it('opens the board bright by default', async () => {
+    await open();
+    expect(tally()).toBe('bright');
+    expect(screen.getByRole('button', { name: 'Dark board' })).toBeTruthy();
+  });
+
+  it('remembers a keeper turning it off on this device', async () => {
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: 'Dark board' }));
+    expect(tally()).toBeUndefined();
+    expect(screen.getByRole('button', { name: 'Bright board' })).toBeTruthy();
+    expect(localStorage.getItem('tribe.tally.bright')).toBe('0');
+    cleanup();
+    await open();
+    expect(tally()).toBeUndefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Bright board' }));
+    expect(tally()).toBe('bright');
+    expect(localStorage.getItem('tribe.tally.bright')).toBe('1');
+  });
+
+  it('leaves the games list and every other page as they were', async () => {
+    render(<MemoryRouter initialEntries={['/tally']}><TallyPage /></MemoryRouter>);
+    await screen.findByText('Open games');
+    expect(tally()).toBeUndefined();
+    cleanup();
+    await open();
+    fireEvent.click(screen.getByRole('button', { name: '← Games' }));
+    await screen.findByText('Open games');
+    expect(tally()).toBeUndefined();
+    cleanup();
+    await open();
+    expect(tally()).toBe('bright');
+    cleanup(); // unmounting is leaving: a tab, Back, the menu
+    expect(tally()).toBeUndefined();
+  });
+
+  it('stays bright when storage is blocked', async () => {
+    const blocked = () => { throw new Error('blocked'); };
+    const spies = [vi.spyOn(Storage.prototype, 'getItem').mockImplementation(blocked), vi.spyOn(Storage.prototype, 'setItem').mockImplementation(blocked)];
+    try {
+      await open();
+      expect(tally()).toBe('bright');
+      fireEvent.click(screen.getByRole('button', { name: 'Dark board' }));
+      expect(tally()).toBeUndefined();
+      expect(screen.getByRole('button', { name: 'Bright board' })).toBeTruthy();
+    } finally {
+      spies.forEach((spy) => spy.mockRestore());
+    }
   });
 });
