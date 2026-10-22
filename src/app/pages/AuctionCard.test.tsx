@@ -110,6 +110,14 @@ describe('AuctionCard', () => {
     expect(loadLeagueTournament).not.toHaveBeenCalled();
   });
 
+  it('explains buying shares from the card head', async () => {
+    db.stages = [openStage as unknown as Row];
+    renderCard();
+    const help = await screen.findByRole('button', { name: 'How buying shares works' });
+    expect(help.closest('.head')).toBeTruthy();
+    expect(help.nextElementSibling!.textContent).toContain('A player has 200 shares');
+  });
+
   it('shows the combined header with nothing bought yet, list open, no separate team card', async () => {
     db.stages = [openStage as unknown as Row];
     renderCard();

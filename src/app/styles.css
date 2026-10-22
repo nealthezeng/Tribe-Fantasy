@@ -89,7 +89,7 @@ button, .button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
 /* Button lettering (tokens --font-button etc.). Text links, menu items and tally tiles keep their own lettering. */
-:is(button, .button):not(.linklike, .account-button, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
+:is(button, .button):not(.linklike, .account-button, .help, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
   font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
   text-transform: var(--button-case); letter-spacing: var(--button-track);
 }
@@ -281,6 +281,12 @@ details.factor[open] > summary::after { content: '▴'; }
 .parts b { color: var(--fg); font-weight: var(--fw-semi); }
 .calc { white-space: nowrap; }
 .hint { font-size: var(--fs-sm); color: var(--muted); }
+/* t321: a "?" help. A 44 px target around a 22 px circle; its text is a native popover (the browser centres it; Esc and tap-outside close it). */
+.help, .help:hover:not(:disabled), .help:active:not(:disabled) { background: none; color: var(--fg); min-width: var(--tap); padding: 0; display: inline-grid; place-items: center; justify-self: start; }
+.help > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); font-size: var(--fs-xs); font-weight: var(--fw-semi); line-height: 1; }
+.help:hover > span { background: var(--line); }
+.head > .help { margin-right: auto; }
+.help-pop { padding: var(--s3); background: var(--card-solid); color: var(--fg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); font-size: var(--fs-sm); max-width: min(20rem, calc(100vw - 2 * var(--gutter))); }
 /* Past tournaments: dates and the waiting pill drop under a long name instead of squeezing it. */
 .past details > summary { flex-wrap: wrap; }
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
@@ -424,13 +430,13 @@ details.factor[open] > summary::after { content: '▴'; }
      Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
      moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
      tokens.test.ts fails if a lift or squeeze rule forgets it. */
-  :is(button, .button):not(.linklike, .account-button, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
+  :is(button, .button):not(.linklike, .account-button, .help, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .account-button, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .account-button, .help, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .account-button, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .account-button, .help, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly: no fades either. */

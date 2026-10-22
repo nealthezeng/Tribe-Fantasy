@@ -6,6 +6,7 @@ import {
   AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, timeLeft,
   type AuctionStage, type BidRow,
 } from '../lib/auction';
+import { SharesHelp } from '../components/Help';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
@@ -107,6 +108,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
       <div className={flash ? 'bid-header over' : 'bid-header'}>
         <div className="head">
           <h2>{stage.name}: buy shares</h2>
+          <SharesHelp settings={settings} />
           <span className="pill info">Closes {timeLeft(stage.bid_close_at!, now)}</span>
         </div>
         <div className="bid-sums">

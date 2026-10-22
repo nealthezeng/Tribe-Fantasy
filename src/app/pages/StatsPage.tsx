@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { VerifiedHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
@@ -99,13 +100,14 @@ export function StatsPage() {
         <>
           <TournamentSwitch stages={stages!} stage={stage} />
           {loaded.liveGames.length > 0 && (
-            <p className="strip"><span className="live"><span className="dot" aria-hidden="true" />Live</span> Unofficial: includes {gamesList(loaded.liveGames)}</p>
+            <p className="strip"><span className="live"><span className="dot" aria-hidden="true" />Live</span> Unofficial: includes {gamesList(loaded.liveGames)}<VerifiedHelp hours={season!.settings.stat_lock_hours} /></p>
           )}
           {loaded.lines.length + loaded.liveLines.length === 0
             ? <p className="muted">No stats yet for {stage.name}.</p>
             : <StatTable stats={Object.keys(weights)} rows={totals([...loaded.lines, ...loaded.liveLines], loaded.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
           <details className="card" open={isKeeper && loaded.games.some((g) => g.session_id && (!g.verified_at || unsaved.has(g.session_id)))}>
             <summary>All stats</summary>
+            <VerifiedHelp hours={season!.settings.stat_lock_hours} />
             {loaded.games.length === 0 && <p className="muted">No games yet.</p>}
             <ul className="list">
               {loaded.games.map((g) => <GameItem key={g.id} g={g} lockHours={season!.settings.stat_lock_hours} keeper={isKeeper} unsaved={g.session_id ? unsaved.get(g.session_id) ?? 0 : 0} />)}

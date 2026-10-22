@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
+import { FactorHelp, VerifiedHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
@@ -148,7 +149,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
               {status === 'live' && <span className="live"><span className="dot" aria-hidden="true" />Live</span>}
               {status === 'upcoming' && <span>Next up</span>}
               {status === 'pending' && <span>Waiting on stats</span>}
-              {unofficial && <span className="pill warn">Unofficial</span>}
+              {unofficial && <><span className="pill warn">Unofficial</span><VerifiedHelp hours={y.settings.stat_lock_hours} /></>}
               {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
             </>}
             {doomed && <span className="pill warn">Your pick is out</span>}
@@ -265,7 +266,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
 
   return (
     <div className="stack">
-      <h2>{title}</h2>
+      <div className="head"><h2>{title}</h2><FactorHelp settings={y.settings} /></div>
       <p>
         {them ? <>You play <strong><Link className="team-link" to={`/team/${them.membershipId}`}>{y.team.get(them.membershipId)}</Link></strong>.</>
           : them === null ? 'You have a bye this game.'

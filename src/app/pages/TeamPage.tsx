@@ -1,5 +1,6 @@
 import { Link, Navigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { FactorHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { gameLabel } from '../lib/stats';
 import { supabase } from '../lib/supabase';
@@ -58,6 +59,7 @@ export function TeamPage() {
           <p className="muted">
             {gameLabel(next.number, games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number)?.game.opponent)}
             {' · '}{y.stage.get(next.stageId)}
+            <FactorHelp settings={y.settings} />
           </p>
           {!side ? <p className="muted">{team.removed_at ? 'No players.' : 'No players this tournament.'}</p> : (
             <ul className="list">

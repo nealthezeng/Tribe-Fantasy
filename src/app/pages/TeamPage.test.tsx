@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS } from '../../core/settings';
 import type { MembershipRow } from './HomePage';
 import { TeamPage } from './TeamPage';
 
@@ -31,6 +32,7 @@ const tournament = (over: Record<string, unknown> = {}) => ({
   team: new Map([[ID2, 'Flow'], [ID3, 'Idle'], [ID4, 'Old (removed)']]),
   owner: new Map([[ID2, 'Sam Owner']]),
   stage: new Map([['S1', 'Fall beta']]),
+  settings: DEFAULT_SETTINGS,
   athlete: new Map([['a', 'Ari'], ['b', 'Bo']]),
   result: { games: [], next: { stageId: 'S1', number: 2, sides: [side(ID2)] } },
   ...over,
@@ -54,6 +56,12 @@ describe('TeamPage', () => {
     expect(screen.getAllByRole('listitem').map((li) => li.textContent)).toEqual([expect.stringContaining('Ari'), expect.stringContaining('Bo')]);
     expect(screen.getByLabelText('Counts ×0.45')).toBeTruthy();
     expect(screen.queryByText(/credit|pick/i)).toBeNull();
+  });
+
+  it('explains the × on the team page', async () => {
+    visit(ID2);
+    const help = await screen.findByRole('button', { name: 'What the × means' });
+    expect(help.nextElementSibling!.textContent).toContain('never below ×0.6');
   });
 
   it('names the next game like the pick card, with the real opponent once a keeper sets it', async () => {

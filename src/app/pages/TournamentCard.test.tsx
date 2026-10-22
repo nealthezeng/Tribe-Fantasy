@@ -397,6 +397,12 @@ describe('TournamentCard', () => {
     });
   });
 
+  it('explains the × on the pick card', async () => {
+    await show(afterGame1());
+    const help = picks().getByRole('button', { name: 'What the × means' });
+    expect(help.nextElementSibling!.textContent).toContain('Tired: ×0.5 if they started the game before');
+  });
+
   describe('live scores (t317)', () => {
     const starters = () => [...document.querySelectorAll('.starters li')].map((li) => li.textContent);
 
@@ -409,6 +415,15 @@ describe('TournamentCard', () => {
       expect(starters()).toContain('Ash · 2 Goal6');
       expect(starters()).toContain('Bea · 1 D5');
       expect(starters().filter((t) => t?.includes('No stats'))).toHaveLength(2); // each side's auto-picked 2nd starter
+    });
+
+    it('explains Unofficial beside the pill, with no DOM nesting warning', async () => {
+      const err = vi.spyOn(console, 'error');
+      await show(liveGame1());
+      const help = within(document.querySelector('.strip') as HTMLElement).getByRole('button', { name: 'What unofficial and verified mean' });
+      expect(help.nextElementSibling!.textContent).toContain('reopened for 48 hours');
+      expect(err.mock.calls.some((c) => /validateDOMNesting|cannot be a descendant/.test(String(c[0])))).toBe(false);
+      err.mockRestore();
     });
 
     it('replaces live numbers with verified ones', async () => {

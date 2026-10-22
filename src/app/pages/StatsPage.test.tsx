@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { HashRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { storeQueue, type QueuedTap } from '../tally/queue';
@@ -218,6 +218,16 @@ describe('StatsPage live numbers (t318)', () => {
     const cell = await screen.findByRole('cell', { name: 'Ari' });
     expect(cell.closest('tr')!.textContent).toContain('6'); // goal 1 + 1 live = 2 goals x 3
     expect(screen.getByText('Unofficial: includes game 2').closest('p')!.textContent).toContain('Live');
+  });
+
+  it('explains the game states in All stats and beside the live strip', async () => {
+    withLive([verified, live], [lines[0]], [ashTap], [2]);
+    show();
+    await screen.findByRole('cell', { name: 'Ari' });
+    const label = { name: 'What unofficial and verified mean' };
+    const fold = document.querySelector('details.card') as HTMLElement;
+    expect(within(fold).getByRole('button', label).nextElementSibling!.textContent).toContain('reopened for 1 hours');
+    expect(within(document.querySelector('.strip') as HTMLElement).getByRole('button', label)).toBeTruthy();
   });
 
   it('names several live games', async () => {
