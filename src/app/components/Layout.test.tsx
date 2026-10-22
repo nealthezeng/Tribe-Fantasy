@@ -121,6 +121,7 @@ describe('Install app (t328)', () => {
     renderLayout();
     fireEvent.click(installItem()!);
     expect(within(menu()).getByText('In Safari, tap Share, then Add to Home Screen.').className).toBe('account-hint');
+    expect(within(menu()).getByRole('status', { hidden: true }).textContent).toBe('In Safari, tap Share, then Add to Home Screen.'); // announced
     expect(installItem()).toBeNull();
   });
 

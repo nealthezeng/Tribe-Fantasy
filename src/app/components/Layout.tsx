@@ -55,7 +55,7 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
         <NavLink to="/rules" onClick={close}>Rules</NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
         {hint
-          ? <p className="account-hint">In Safari, tap Share, then Add to Home Screen.</p>
+          ? <p className="account-hint" role="status">In Safari, tap Share, then Add to Home Screen.</p>
           : !isStandalone() && (canPrompt || isIos()) && <button type="button" onClick={install}>Install app</button>}
         <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
