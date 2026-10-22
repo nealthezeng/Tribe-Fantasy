@@ -28,6 +28,7 @@ Unlike a generic fantasy sports app, the "athletes" are the users' own teammates
 - Stats are entered live at tournament games on phones/tablets by keepers, then verified by a second person before they count toward league scoring.
 - Money flows only as donations recorded by admins/treasurer against a university club-sports or student-org giving channel — never a personal payment account.
 - Deployed as a public GitHub Pages SPA (hash routing) backed by Supabase (Postgres + auth + RLS); all writes go through security-definer RPCs.
+- Installs as a phone app (web app manifest + an app-shell service worker, M15 P8); keepers get a bright tally board for daylight.
 
 ## Capabilities and Constraints
 

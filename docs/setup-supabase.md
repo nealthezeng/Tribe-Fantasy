@@ -487,3 +487,31 @@ verified yet. The League tab, Stats and the admin league browser show those numb
 
 What admins can do: read live numbers like everyone (League, Stats, the league browser's Games list); Verify stays
 the keeper tool.
+
+## M15 P8 Install as an app (no migration)
+
+P8 adds a web app manifest, icons and a service worker that keeps the app's own files (never anything from
+Supabase). Nothing changes in the database and the Supabase settings stay as they are: a sign-in link still returns to
+`https://nealthezeng.github.io/Tribe-Fantasy/`.
+
+1. Any time except a tournament weekend. Push (deploy).
+2. Check `https://nealthezeng.github.io/Tribe-Fantasy/manifest.webmanifest` and `.../sw.js` load (the worker starts
+   with `const CACHE = 'tribe-shell-`).
+3. On a phone: install it (account menu -> Install app, or on an iPhone Safari's Share -> Add to Home Screen), open it
+   from the home screen and sign in **with the 6-digit code**. On an iPhone the installed app has its own storage, so
+   it starts signed out, and the email's link opens Safari, not the app.
+4. Rollback: reverting the code is not enough. A phone whose browser gets a 404 for `sw.js` keeps the old worker. Revert
+   the P8 commits, then add `public/sw.js` with exactly this and push; leave it there for a few months:
+
+   ```js
+   // Removes the Tribe Fantasy service worker (M15 P8) from every phone that installed it.
+   self.addEventListener('install', () => self.skipWaiting());
+   self.addEventListener('activate', (event) => event.waitUntil(
+     caches.keys()
+       .then((keys) => Promise.all(keys.filter((k) => k.startsWith('tribe-shell-')).map((k) => caches.delete(k))))
+       .then(() => self.registration.unregister()),
+   ));
+   ```
+
+What admins can do: nothing new. Install, the bright tally board and the app's file cache are per phone, and a new
+deploy reaches an open installed app the next time it comes back to the front.

@@ -16,6 +16,10 @@ Keep the look clean and simple. Colours, fonts and sizes live in `src/app/tokens
 - `src/core/`: pure game logic with no dependencies. `src/app/`: the UI. `supabase/migrations/`: the database.
   Every write goes through a security-definer RPC.
 - Supabase setup and go-live steps: `docs/setup-supabase.md`. Never edit an applied migration. Add a new one.
+- Installable app (M15 P8): `public/` holds the manifest and icons. The service worker is `src/sw.js`, a template the
+  `serviceWorker` plugin in `vite.config.ts` turns into `dist/sw.js` with the build's file list; it registers in
+  production builds only (`src/app/lib/pwa.ts`), so `npm run dev` never has one. Removing it needs a self-removing
+  worker, not just a revert: see `docs/setup-supabase.md`, "M15 P8".
 
 ## Commands
 

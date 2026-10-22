@@ -5,7 +5,8 @@ What the shipped UI looks like, recorded from `src/app/styles.css`, `src/app/com
 in [docs/frontend-principles.md](docs/frontend-principles.md). Who it is for lives in [PRODUCT.md](PRODUCT.md).
 **To change the look, edit `src/app/tokens.css`**: every colour, font, size, radius, shadow and
 duration lives there. `src/app/styles.css` imports it and only reads the tokens. The favicon and `theme-color` in
-`index.html` can't read CSS, so they repeat gold, baby blue and the bar colour by hand. Reuse the classes in
+`index.html` can't read CSS, so they repeat gold, baby blue and the bar colour by hand; so do the app manifest
+(`public/manifest.webmanifest`: the bar and page colours) and the app icons' background. Reuse the classes in
 `styles.css` before adding new ones. No UI libraries.
 
 ## Colour
@@ -16,6 +17,13 @@ black in both. The site follows the phone's setting until someone picks Light mo
 (remembered on that device). An inline script in `index.html` sets `data-theme` on `<html>` before first paint;
 `tokens.css` holds the dark values in `:root` and only the differences under `:root[data-theme='light']`. The
 table below lists the dark values. The team's two colours are fixed by the user: gold and baby blue.
+
+**Bright tally** (M15 t330): the tally board alone has a daylight theme, on by default. While the board is on screen
+it sets `data-tally="bright"` on `<html>`; `tokens.css` applies light mode's values under that attribute too (the light
+block's selector is `:root[data-theme='light'], :root[data-tally='bright']`) and then a short `:root[data-tally='bright']`
+block with more contrast: a white page and panes, black text, `--muted` #39424c (about 10:1), dark stat-tile edges
+(`--line-strong` #1c232b), and no glow, glass blur or pane shadow. The top bar stays black. Leaving the board removes
+the attribute, so every other page keeps the app's own theme.
 
 | Token | Value | Role |
 |---|---|---|
@@ -54,6 +62,11 @@ Status, each with a soft background for pills:
 `DiscMark` in `Layout.tsx`: a disc seen from above. Gold circle, darker gold ring (#c99400), baby blue centre.
 The same drawing is the favicon in `index.html`; change both together. It sits at 24px beside "Tribe Fantasy"
 in the black top bar. The signed-out hero shows the team's crest instead (below).
+
+The installed app's icons (M15 t326) are the team crest (`src/app/assets/team-logo.png`) centred at 66% of the side
+on a `#05070a` square (`--bar`): `public/icon-192.png`, `public/icon-512.png` (also the maskable icon: the round crest
+sits inside the 80% safe circle) and `public/apple-touch-icon.png` (180px). They were drawn once with PowerShell's
+System.Drawing (the command is in `docs/superpowers/plans/2026-10-22-m15-p8.md`, Task 1); redraw them when the crest changes.
 
 ## Type
 
@@ -137,8 +150,16 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   (`/tally?game=<id>` opens that board directly), not from a tab. The dock is hidden while the
   tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that. Deep routes light their tab:
   `/stats/*`, `/player/*` and `/tally` light Stats, `/team/*` lights Leaderboards; Me, Credits, Rules and Admin light none.
-- **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*
-  and *Sign out*. The avatar gets a baby blue ring while you're on Me.
+- **Account menu**: a gold avatar with the user's initial opens a native `popover` with the name and email, *Me*,
+  *Credits*, *Rules*, *Admin* (admins), *Install app* (below), *Light mode* / *Dark mode* and *Sign out*. The avatar
+  gets a baby blue ring while you're on Me.
+- **Install as an app** (M15 P8): *Install app* shows only outside the installed app, when the browser has offered to
+  install (Chrome, Edge, Android: it opens the browser's own dialog) or on an iPhone/iPad, where it turns into the hint
+  "In Safari, tap Share, then Add to Home Screen." (`.account-hint`). Inside the installed app the sign-in page's "Code
+  sent" box adds "Type the code from the email here: its link opens your browser, not this app." (an iPhone gives the
+  home-screen app its own storage, so a Safari sign-in doesn't carry over). A service worker (`src/sw.js`, production
+  builds only) keeps the app's own files for offline starts; it never touches Supabase. A new deploy reaches an open
+  installed app the next time it comes back to the front.
 - **`.page`**: a page's outer stack (16px gaps, a little extra space under the heading).
 - **`.card`**: a smoked-glass pane (`--pane-*`), hairline border, 14px radius, 16px padding. `details.card` is a collapsible card
   with a drawn chevron.
@@ -315,6 +336,9 @@ text (the code names `bids`, `place_bid`, `run_auction` stay).
   label on top, the count large in the middle and the points small below. They are not gold; gold is only the press flash.
 - Negative stats use a dashed border so the difference is not colour alone.
 - Tally buttons never animate. A tap must show instantly, even when other buttons fade.
+- The board is bright by default for daylight (see Colour). A "Dark board" / "Bright board" button in the tally bar's
+  status row switches it at once, with nothing fading, and the phone remembers the choice (`tribe.tally.bright`). The
+  `/tally` games list keeps the app's own theme.
 - The Out control sits apart in the card header, never among the stat tiles: "Mark out", or an "Out" `.pill.bad` ("Out from game N" until game N starts) with "Clear out". It is hidden on a closed (verified or earlier-season) board. Nobody marks their own attendance or injury any more; keepers mark Out (M15 P5).
 - The `/tally` games list opens with a "Players out" card for marking before a tournament: "Out · <stage>", rows "name · from game N" with Clear, "Nobody is out." when empty, then a Player select and "Mark out". No confirms: Mark out and Clear undo each other.
 - The tally's game card ends with the opponents list (t313): one row per game, "Game k" with its name field and Save, for every game started or not, any time. Finishing the last game asks first ("It's the last game: <stage> ends."); an over tournament says so with no button.
