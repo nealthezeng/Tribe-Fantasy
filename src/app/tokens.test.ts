@@ -45,6 +45,10 @@ describe('the tally board never moves', () => {
       expect(selector).toMatch(/\.tally-buttons, \.tally-head, \.tally-bar/);
     }
   });
+
+  it('nothing on the board fades, pills and links included, the bright/dark switch too (t330)', () => {
+    expect(styles).toMatch(/\.page:has\(\.tally-bar\) :is\(button, \.button, a, \.pill\) \{ transition: none; \}/);
+  });
 });
 
 describe('the bright tally board (t330)', () => {

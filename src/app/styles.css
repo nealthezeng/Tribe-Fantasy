@@ -443,8 +443,9 @@ details.factor[open] > summary::after { content: '▴'; }
   :is(button, .button):not(.linklike, .account-button, .help, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
-  /* A tally tap must show instantly: no fades either. */
-  .tally-buttons button, .tally-head button, .tally-bar button { transition: none; }
+  /* A tally tap must show instantly, and nothing on the board fades (buttons, pills, links), the bright/dark switch
+     included (t330). (0,3,0) beats the fade rule above; the games list has no .tally-bar, so it keeps its fades. */
+  .page:has(.tally-bar) :is(button, .button, a, .pill) { transition: none; }
 }
 
 /* Played games as cards (t93): the matchup as a small black scoreboard, the caption under it, not inside. One column on
