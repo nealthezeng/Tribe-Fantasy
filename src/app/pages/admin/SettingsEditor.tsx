@@ -72,9 +72,10 @@ export function SettingsEditor({ seasonId }: { seasonId: string }) {
     }
   }
 
-  const field = ([k, label]: string[]) => (
+  // Stat points may be fractional (any finite number); the credit, roster and pick settings are whole numbers.
+  const field = ([k, label]: string[], step?: string) => (
     <label key={k}>{label}
-      <input type="number" value={(fields ?? savedFields)[k]}
+      <input type="number" step={step} value={(fields ?? savedFields)[k]}
         onChange={(e) => { setFields({ ...(fields ?? savedFields), [k]: e.target.value }); setText(null); setStatus(null); }} />
     </label>
   );
@@ -86,9 +87,9 @@ export function SettingsEditor({ seasonId }: { seasonId: string }) {
         {saved !== undefined && (
           <>
             <h2>Points for stats</h2>
-            <div className="row">{STATS.map(field)}</div>
+            <div className="row">{STATS.map((f) => field(f, 'any'))}</div>
             <h2>Credits and picks</h2>
-            <div className="row">{CREDITS.map(field)}</div>
+            <div className="row">{CREDITS.map((f) => field(f))}</div>
             <details className="section">
               <summary>Advanced (all settings as JSON)</summary>
               <textarea aria-label="Season settings JSON" value={text ?? JSON.stringify(saved, null, 2)} spellCheck={false}

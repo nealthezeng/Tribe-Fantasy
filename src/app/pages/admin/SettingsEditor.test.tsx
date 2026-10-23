@@ -44,6 +44,8 @@ describe('SettingsEditor', () => {
       Goal: '3', Assist: '3', Block: '5', Callahan: '12', Turnover: '-1', 'Free credits each tournament': '90',
       'Extra for the last-placed team': '30', 'Players a team can own': '6', 'Picks each game': '2',
     });
+    expect(['Goal', 'Assist', 'Block', 'Callahan', 'Turnover'].map((n) => field(n).step)).toEqual(Array(5).fill('any'));
+    expect(field('Free credits each tournament').hasAttribute('step')).toBe(false);
     expect(screen.getByRole('heading', { name: 'Points for stats' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Credits and picks' })).toBeTruthy();
   });
