@@ -225,6 +225,29 @@ describe('GameControls', () => {
     expect(await screen.findByText('Another keeper already started this game.')).toBeTruthy();
   });
 
+  it('shows a failed Start right under the action line, above the games', async () => {
+    state.game = upcoming;
+    vi.mocked(api.startGame).mockRejectedValue({ message: 'GAME_STARTED' });
+    view(<GameControls season={season} onOpen={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Start game 2' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.closest('details')).toBeNull();
+    const list = document.querySelector('.card .list')!;
+    expect(alert.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start game 2' }).compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('shows a failed Save opponents inside the Opponents fold, not on the game card', async () => {
+    state.game = upcoming;
+    vi.mocked(api.setGameOpponent).mockRejectedValue({ message: 'NOT_KEEPER' });
+    view(<GameControls season={season} onOpen={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText('Game 2'), { target: { value: 'Duke' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save opponents' }));
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].closest('details')).toBe(screen.getByText('Opponents').closest('details'));
+  });
+
   it('can still finish a game whose session was deleted, from the session list', async () => {
     state.game = { ...live, session_id: null };
     view(<GameControls season={season} onOpen={vi.fn()} />);

@@ -43,16 +43,19 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [opponentsError, setOpponentsError] = useState<string | null>(null); // shown in the Opponents fold, by its Save
   const [drafts, setDrafts] = useState<Record<string, string>>({}); // unsaved opponent text by game id
 
-  async function run(action: () => Promise<void>) {
+  /** `fail` says where the error shows: the stage card by default, near the button that failed. */
+  async function run(action: () => Promise<void>, fail = setError) {
     setBusy(true);
     setStatus(null);
     setError(null);
+    setOpponentsError(null);
     try {
       await action();
     } catch (err) {
-      setError(errorMessage(err));
+      fail(errorMessage(err));
       setPreview(null);
     }
     setBusy(false);
@@ -130,7 +133,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
     void run(async () => {
       for (const g of changed) await api.setGameOpponent(g.id, drafts[g.id]);
       setDrafts({});
-    });
+    }, setOpponentsError);
   };
 
   return (
@@ -141,6 +144,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
         {!live && !over && <button disabled={busy} onClick={start}>Start game {n}</button>}
         {live && game.session_id && <Link className="button" to={`/tally?game=${game.session_id}`}>Tally game {n}</Link>}
         {live && !game.session_id && <><p>Its tally was deleted, so it won't count. Finish it to pair the next game.</p>{finishing}</>}
+        {messages}
         <ul className="list">
           {games.map((g) => {
             const w = word(g);
@@ -159,7 +163,6 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
             );
           })}
         </ul>
-        {messages}
       </article>
       <details className="card">
         <summary><h2>Opponents</h2></summary>
@@ -170,6 +173,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
           ))}
           <button className="secondary" disabled={busy || changed.length === 0}>Save opponents</button>
         </form>
+        {opponentsError && <p className="error" role="alert">{opponentsError}</p>}
       </details>
     </>
   );
