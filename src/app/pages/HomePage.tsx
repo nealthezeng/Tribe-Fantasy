@@ -189,7 +189,7 @@ function Team({ m, uid }: { m: MembershipRow; uid: string }) {
   const subtitle = [m.leagues.name, m.leagues.seasons?.name].filter(Boolean).join(' · ');
   return (
     <TournamentCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id}
-      teamName={m.team_name} subtitle={subtitle}>
+      teamName={m.team_name} subtitle={subtitle} leagueName={m.leagues.name}>
       <AuctionCard membershipId={m.id} leagueId={m.league_id} seasonId={m.leagues.season_id} userId={uid}
         teamName={m.team_name} getCredits={donateFor(m) !== null} />
     </TournamentCard>

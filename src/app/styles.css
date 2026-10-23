@@ -71,11 +71,12 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .page > :first-child { margin-bottom: var(--s2); }
 .card { background: var(--pane-bg); border: 1px solid var(--pane-border); border-radius: var(--radius); padding: var(--s4); }
 /* Frosted glass: the few panes that float (not list rows, not the tally board) blur what's behind them. */
-.card, .tiles > div, .account-menu, .bid-header, .subnav { -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur); }
-.card, .tiles > div, .account-menu { box-shadow: var(--pane-highlight), var(--pane-shadow); }
+.card, .account-menu, .bid-header, .subnav { -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur); }
+.card, .account-menu { box-shadow: var(--pane-highlight), var(--pane-shadow); }
 .section { border-top: 1px solid var(--line); padding-top: var(--s4); margin-top: var(--s1); }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
 .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); }
+.head > h2 { min-width: 0; overflow-wrap: anywhere; } /* a long league name wraps, never pushes the row sideways */
 :where(.page, .card, .stack, .section, form) > :is(button, .button) { justify-self: start; }
 
 /* Controls */
@@ -239,7 +240,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
 .list li > .row { flex: 1 1 100%; }
 
-/* League tab, matchup first: a big headline, a line of facts, a black scoreboard, then three number tiles. */
+/* League tab, matchup first: a big headline, a line of facts, a black scoreboard. */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .matchup { display: grid; gap: var(--s2); }
 .display { overflow-wrap: anywhere; font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); font-stretch: normal; font-size: var(--fs-matchup); line-height: 0.9; }
@@ -304,11 +305,6 @@ details.factor[open] > summary::after { content: '▴'; }
 .help-pop { padding: var(--s3); background: var(--card-solid); color: var(--fg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); box-shadow: var(--pane-highlight), var(--pane-shadow); font-size: var(--fs-sm); max-width: min(20rem, calc(100vw - 2 * var(--gutter))); }
 /* Past tournaments: dates and the waiting pill drop under a long name instead of squeezing it. */
 .past details > summary { flex-wrap: wrap; }
-.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
-.tiles > div { display: grid; gap: var(--s1); align-content: start; padding: var(--s3); background: var(--pane-bg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); }
-.tiles dt { font-size: var(--fs-sm); color: var(--muted); }
-.tiles dd { margin: 0; }
-.of { font-size: var(--fs-sm); font-weight: var(--fw-medium); color: var(--muted); }
 /* A real sequence, numbered: the steps of a tournament in admin. */
 .steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); font-size: var(--fs-sm); color: var(--muted); }
 .steps li { counter-increment: step; display: inline-flex; align-items: center; gap: var(--s2); }

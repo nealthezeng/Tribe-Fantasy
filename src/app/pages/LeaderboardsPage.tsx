@@ -1,9 +1,10 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { Link, Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { Loading } from '../components/Loading';
+import { RankList } from '../components/RankList';
 import {
-  anyCounted, countLeagues, fmt, loadLeagueTournament, loadSeasonStandings, mergeStandings, pastTournaments, record, type LeagueTournament, type OverallStanding,
+  anyCounted, countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, pastTournaments, type LeagueTournament,
 } from '../lib/tournament';
 import { formatDay } from '../lib/stats';
 import { useLoad } from '../lib/useLoad';
@@ -89,46 +90,5 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
         : rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} linkable={new Set(y.team.keys())} />
         : season.error ? <p className="error" role="alert">{season.error}</p> : <Loading />}
     </article>
-  );
-}
-
-/**
- * Ranked rows: place, team (league, owner and record under it), points; all tied at first is fine here (t239), since the card only shows rows once a game counts (t323).
- * A long list shows the top 5 (with everyone tied with 5th) and your row, if that hides at least 4 teams.
- */
-function RankList({ rows, membershipId, showLeague, linkable }: {
-  rows: OverallStanding[]; membershipId: string; showLeague: boolean;
-  /** Membership ids whose names link to their team page (your own league's; other leagues' teams stay plain text). */
-  linkable?: Set<string>;
-}) {
-  const [open, setOpen] = useState(false);
-  const top = rows.filter((r) => r.place <= (rows[Math.min(4, rows.length - 1)]?.place ?? 0) || r.membershipId === membershipId);
-  const cut = !open && rows.length - top.length >= 4;
-  const shown = cut ? top : rows;
-  return (
-    <>
-      <ol className="ranks">
-        {shown.map((r, i) => {
-          const me = r.membershipId === membershipId;
-          const skipped = i > 0 ? rows.indexOf(r) - rows.indexOf(shown[i - 1]) - 1 : 0;
-          return (
-            <Fragment key={r.membershipId}>
-              {skipped > 0 && <li className="gap"><span aria-hidden="true">···</span><span className="sr-only">{skipped} more {skipped === 1 ? 'team' : 'teams'}</span></li>}
-              <li aria-current={me ? 'true' : undefined}>
-                <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
-                <span className="who">
-                  <strong>
-                    {linkable?.has(r.membershipId) ? <Link className="team-link" to={`/team/${r.membershipId}`}>{r.team}{me && ' (you)'}</Link> : <>{r.team}{me && ' (you)'}</>}
-                  </strong>
-                  <small>{[showLeague && r.league, r.owner, record(r)].filter(Boolean).join(' · ')}</small>
-                </span>
-                <span className="points">{fmt(r.points)}<span className="sr-only"> points</span></span>
-              </li>
-            </Fragment>
-          );
-        })}
-      </ol>
-      {cut && <button type="button" className="secondary" onClick={() => setOpen(true)}>Show all {rows.length} teams</button>}
-    </>
   );
 }

@@ -346,6 +346,21 @@ export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament
   })).sort((a, b) => a.place - b.place || a.team.localeCompare(b.team) || a.league.localeCompare(b.league));
 }
 
+/** The short table (ruling 8): the top 3, your row and the rows next to it; each skipped run becomes one `{ gap: n }`. */
+export function shortRows<T extends { membershipId: string }>(rows: T[], me: string): (T | { gap: number })[] {
+  const at = rows.findIndex((r) => r.membershipId === me);
+  const out: (T | { gap: number })[] = [];
+  let gap = 0;
+  rows.forEach((r, i) => {
+    if (i >= 3 && Math.abs(i - at) > 1) { gap++; return; }
+    if (gap) out.push({ gap });
+    gap = 0;
+    out.push(r);
+  });
+  if (gap) out.push({ gap });
+  return out;
+}
+
 export interface PastTournament { stageId: string; name: string; starts_on: string; ends_on: string; waiting: boolean; rows: OverallStanding[] }
 
 /**

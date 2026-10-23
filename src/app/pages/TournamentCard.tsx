@@ -3,11 +3,12 @@ import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { FactorHelp, VerifiedHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
+import { RankList } from '../components/RankList';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
 import type { Seen } from '../lib/seen';
-import { anyCounted, fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
+import { anyCounted, fmt, loadLeagueTournament, mergeStandings, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
 import { factorWords, gameName, heldNote, pctExact, statusWord, statWords } from '../lib/words';
@@ -26,10 +27,10 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 
 /**
  * One team on the League tab, in the order a manager needs it: the matchup headline, what to do now (the next pick,
- * then `children`: the auction), then the games played as cards. The standings are on the Leaderboards tab.
+ * then `children`: the auction), the league's short table, then the games played as cards.
  */
-export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, children }: {
-  membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string;
+export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, leagueName, children }: {
+  membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string; leagueName: string;
   children?: ReactNode;
 }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId, { live: true }), [seasonId, leagueId]);
@@ -57,6 +58,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
         </article>
       )}
       {children}
+      <LeagueTable y={data} membershipId={membershipId} leagueName={leagueName} />
       {played.length > 0 && (
         <section className="stack" aria-label={`${teamName} games`}>
           <h2>Games</h2>
@@ -108,8 +110,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const mine = shown ? sides(shown).find((x) => x?.membershipId === membershipId) ?? null
     : y.result.next?.sides.find((x) => x.membershipId === membershipId) ?? null;
   const them = shown ? opponentIn(shown, membershipId) : undefined; // undefined = not paired yet, null = bye
-  const row = y.result.standings.find((r) => r.membershipId === membershipId);
-  // Before any game counts, Place / Record / Points would read T1 / 0–0 / 0: say so in the strip instead (t228).
+  // Before any game counts, the strip says so (t228).
   const anyPlayed = anyCounted(y);
   const upcoming = status === 'upcoming';
   // Before a game starts the scorer's auto-picks are a guess, so show only the manager's own picks.
@@ -182,14 +183,22 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
           <StarterSide y={y} g={shown} side={them} name={y.team.get(them.membershipId) ?? 'A team'} since={now?.chips.them} />
         </section>
       )}
-      {anyPlayed && (
-        <dl className="tiles">
-          <div><dt>Place</dt><dd><span className="big">{row ? `${row.tied ? 'T' : ''}${row.place}` : '–'}</span> <span className="of">of {y.result.standings.length}</span></dd></div>
-          <div><dt>Record</dt><dd className="big">{row ? record(row) : '–'}</dd></div>
-          <div><dt>Points</dt><dd className="big">{row ? fmt(row.points) : '–'}</dd></div>
-        </dl>
-      )}
     </>
+  );
+}
+
+/** The league's short table (layout A, ruling 8): the top 3 and your neighbours. "Full table" opens Leaderboards. */
+function LeagueTable({ y, membershipId, leagueName }: { y: LeagueTournament; membershipId: string; leagueName: string }) {
+  const started = anyCounted(y);
+  return (
+    <article className="card" aria-label={leagueName}>
+      <div className="head">
+        <h2>{leagueName}</h2>
+        {started && <Link className="more" to="/leaderboards">Full table</Link>}
+      </div>
+      {started ? <RankList rows={mergeStandings([{ name: leagueName, y }])} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} short />
+        : <p className="muted">Standings start after the first game.</p>}
+    </article>
   );
 }
 

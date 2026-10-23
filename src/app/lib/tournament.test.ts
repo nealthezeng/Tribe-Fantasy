@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import type { TournamentResult } from '../../core/tournament';
-import { anyCounted, buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { anyCounted, buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, shortRows, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -257,6 +257,18 @@ describe('mergeStandings', () => {
     ]);
     expect(out[0].team).toBe('Team b1');
     expect(out[0].owner).toBe('Owner b1');
+  });
+});
+
+describe('shortRows', () => {
+  const rows = (n: number) => Array.from({ length: n }, (_, i) => ({ membershipId: `m${i + 1}` }));
+  /** Each row as its place, each gap as "gap n". */
+  const short = (n: number, me: number) => shortRows(rows(n), `m${me}`).map((r) => ('gap' in r ? `gap ${r.gap}` : r.membershipId.slice(1)));
+  it('keeps the top 3, your row and the rows next to it; each skipped run is one gap', () => {
+    expect(short(9, 2)).toEqual(['1', '2', '3', 'gap 6']);
+    expect(short(9, 6)).toEqual(['1', '2', '3', 'gap 1', '5', '6', '7', 'gap 2']);
+    expect(short(9, 9)).toEqual(['1', '2', '3', 'gap 4', '8', '9']);
+    expect(short(3, 3)).toEqual(['1', '2', '3']);
   });
 });
 

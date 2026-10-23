@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 const show = async (r: TournamentRows) => {
   rows.current = r;
-  render(<MemoryRouter><TournamentCard membershipId="m1" leagueId="L" seasonId="se" teamName="Zeal" subtitle="League A" /></MemoryRouter>);
+  render(<MemoryRouter><TournamentCard membershipId="m1" leagueId="L" seasonId="se" teamName="Zeal" subtitle="League A" leagueName="League A" /></MemoryRouter>);
   await waitFor(() => expect(screen.queryByRole('status')).toBeNull()); // loaded
 };
 /** The pick list in the Next game card (game cards below repeat players' names). */
@@ -367,20 +367,55 @@ describe('TournamentCard', () => {
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
     expect(screen.getByText('No picks yet')).toBeTruthy();
     expect(screen.getByText('Hidden')).toBeTruthy();
-    expect(screen.queryByText('Record')).toBeNull(); // game 1 isn't verified: no game counts yet, so no tiles (t228)
     // Blake and Bryn (rested) are who the scorer would auto-pick for Flow: shown nowhere until game 2 starts.
     expect(document.body.textContent).not.toContain('Blake');
     expect(document.body.textContent).not.toContain('Bryn');
     expect(screen.getByText(/Waiting on stats/)).toBeTruthy(); // game 1, finished but not verified
   });
 
-  it('has no standings on the League tab any more (they moved to Leaderboards), and nothing to pick between tournaments (T4)', async () => {
+  it('has nothing to pick between tournaments (T4)', async () => {
     // No games and no playing stage: the next auction hasn't run.
     await show({ ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] });
-    expect(screen.queryByRole('article', { name: 'Standings' })).toBeNull();
     expect(document.querySelector('.strip')?.textContent).toContain('No games yet');
     expect(screen.queryByRole('heading', { name: 'Games' })).toBeNull(); // nothing played: no empty section
     expect(screen.queryByRole('article', { name: 'Next game' })).toBeNull();
+  });
+
+  describe('league table (ruling 8)', () => {
+    const table = () => within(screen.getByRole('article', { name: 'League A' }));
+
+    it('shows a short league table with Full table instead of the tiles', async () => {
+      const r = finalGame1();
+      // Flow beat Zeal; four more teams (no players) played each other: six rows, Zeal last.
+      const more = ['m3', 'm4', 'm5', 'm6'];
+      await show({
+        ...r,
+        members: [...r.members, ...more.map((id) => ({ id, team_name: `Team ${id}`, created_at: '2026-10-01T00:00:00Z', removed_at: null }))],
+        pairings: [...r.pairings, { game_id: 'g1', home: 'm3', away: 'm4' }, { game_id: 'g1', home: 'm5', away: 'm6' }],
+        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 0 },
+          { session_id: 'p1', athlete_id: 'b1', stats: { goal: 2 }, points_played: 0 }],
+      });
+      // The top 3, one gap, then the row above yours and yours.
+      expect(table().getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent ?? li.textContent))
+        .toEqual(['Flow', expect.stringMatching(/^Team m/), expect.stringMatching(/^Team m/), '1 more team', expect.stringMatching(/^Team m/), 'Zeal (you)']);
+      expect(document.querySelector('.ranks [aria-current]')?.textContent).toContain('Zeal (you)');
+      expect(table().getByRole('link', { name: 'Full table' }).getAttribute('href')).toBe('/leaderboards');
+      expect(table().queryByRole('button', { name: /Show all/ })).toBeNull();
+      expect(screen.queryByText('Place')).toBeNull();
+      expect(screen.queryByText('Record')).toBeNull();
+    });
+
+    it('says standings start after the first game before any game counts', async () => {
+      await show(afterGame1()); // game 1 finished, not verified: nothing counts yet
+      expect(table().getByText('Standings start after the first game.')).toBeTruthy();
+      expect(table().queryByRole('list')).toBeNull();
+      expect(table().queryByRole('link', { name: 'Full table' })).toBeNull(); // nothing to open yet
+      // After the pick card, before the games.
+      const [next, league, games] = [screen.getByRole('article', { name: 'Next game' }), screen.getByRole('article', { name: 'League A' }),
+        screen.getByRole('region', { name: 'Zeal games' })];
+      expect(next.compareDocumentPosition(league) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(league.compareDocumentPosition(games) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
   });
 
   describe('game cards (t93, t90)', () => {
@@ -502,7 +537,7 @@ describe('TournamentCard', () => {
       expect(document.querySelector('.strip')?.textContent).toMatch(/Won \+/);
       expect(document.querySelector('.score-side.lost')?.textContent).toContain('Bea');
       expect(document.querySelector('.score-side')?.textContent).toMatch(/^You played[\d.]+Ash\w+$/); // two starters
-      expect(screen.getByText('Record').nextElementSibling?.textContent).toBe('1–0');
+      expect(document.querySelector('.ranks [aria-current] small')?.textContent).toBe('1–0');
     });
 
     it('says Bye and shows no scoreboard when the team sits out', async () => {
