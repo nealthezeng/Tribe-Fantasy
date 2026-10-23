@@ -84,6 +84,10 @@ export function StatsPage() {
 
   const weights = season?.settings.stat_weights;
   const stage = loaded?.stage;
+  // The open games split by whether a keeper finished them: only an unfinished one is "Live".
+  const finished = (n: number) => !!loaded?.games.find((g) => g.number === n)?.finished_at;
+  const liveNow = loaded?.liveGames.filter((n) => !finished(n)) ?? [];
+  const notVerified = loaded?.liveGames.filter(finished) ?? [];
   if (memberKnown && !member.data?.ok) {
     return (
       <section className="page">
@@ -110,7 +114,8 @@ export function StatsPage() {
         <>
           {loaded.liveGames.length > 0 && (
             <p className="strip">
-              <span><span className="live"><span className="dot" aria-hidden="true" />Live</span> · includes {gamesList(loaded.liveGames)}, not verified yet</span>
+              {liveNow.length > 0 && <span><span className="live"><span className="dot" aria-hidden="true" />Live</span> · includes {gamesList(liveNow)}, not verified yet</span>}
+              {notVerified.length > 0 && <span><strong>Not verified</strong> · includes {gamesList(notVerified)}</span>}
               <VerifiedHelp hours={season!.settings.stat_lock_hours} />
             </p>
           )}
@@ -136,12 +141,14 @@ export function StatsPage() {
 /** "game 2", "games 3 and 4", "games 2, 3 and 4". */
 const gamesList = (n: number[]) => (n.length === 1 ? `game ${n[0]}` : `games ${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`);
 
-/** One game, one row; a started game (it has a session) opens its game page. */
+/** One game, one row; a started game (it has a session) opens its game page, or the board while this phone holds
+ *  its unsent taps (only the board sends them, as on the hub). */
 function GameItem({ g, unsaved }: { g: StatsGame; unsaved: number }) {
   const body = <>
     <span className="who"><b>{g.label}</b></span>
     <Status word={rowStatus(g)} />
     {unsaved > 0 && <span className="pill warn">{unsaved} unsaved</span>}
   </>;
-  return <li>{g.session_id ? <Link className="row-link" to={`/stats/${g.session_id}`}>{body}</Link> : <div className="row-link">{body}</div>}</li>;
+  const to = unsaved > 0 ? `/tally?game=${g.session_id}` : `/stats/${g.session_id}`;
+  return <li>{g.session_id ? <Link className="row-link" to={to}>{body}</Link> : <div className="row-link">{body}</div>}</li>;
 }

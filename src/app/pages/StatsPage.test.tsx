@@ -209,15 +209,16 @@ describe('StatsPage games list (t306, t307)', () => {
     expect(screen.getByRole('link', { name: /^Game 2 vs UNC/ }).getAttribute('href')).toBe('#/stats/s2');
   });
 
-  it('shows a keeper unsaved taps on a verified game, its row opening the game', async () => {
+  it('shows a keeper unsaved taps on a verified game, its row opening the board (only the board can send them)', async () => {
     const SID = '00000000-0000-4000-8000-0000000000a1';
     storeQueue('k1', SID, [{} as QueuedTap, {} as QueuedTap]);
     withGames([game(1, SID, 'Duke', '2020-01-01T00:00:00Z'), game(2, 's2', null, null)]);
     show();
     await screen.findByText('Game 1 vs Duke');
     expect(row('Game 1 vs Duke').querySelector('.pill.warn')!.textContent).toBe('2 unsaved');
-    expect(row('Game 1 vs Duke').querySelector('a')!.getAttribute('href')).toBe(`#/stats/${SID}`);
+    expect(row('Game 1 vs Duke').querySelector('a')!.getAttribute('href')).toBe(`#/tally?game=${SID}`);
     expect(row('Game 2').textContent).not.toContain('unsaved');
+    expect(row('Game 2').querySelector('a')!.getAttribute('href')).toBe('#/stats/s2');
   });
 });
 
@@ -248,6 +249,27 @@ describe('StatsPage live numbers (t318)', () => {
     expect(strip()!.textContent).toContain('Live · includes game 2, not verified yet');
     const help = within(strip()!).getByRole('button', { name: 'What unofficial and verified mean' });
     expect(help.nextElementSibling!.textContent).toContain('reopened for 1 hour.');
+  });
+
+  it('calls a finished, unverified game "Not verified", with no live dot', async () => {
+    withLive([verified, { ...live, finished_at: '2020-01-02T02:00:00Z' }], [lines[0]], [ashTap], [2]);
+    show();
+    await screen.findByRole('cell', { name: 'Ari' });
+    expect(strip()!.textContent).toContain('Not verified · includes game 2');
+    expect(strip()!.textContent).not.toContain('Live ·');
+    expect(strip()!.querySelector('.live')).toBeNull();
+    expect(strip()!.querySelector('.dot')).toBeNull();
+    expect(within(strip()!).getByRole('button', { name: 'What unofficial and verified mean' })).toBeTruthy();
+  });
+
+  it('names the live game as Live and the finished one as not verified when both are open', async () => {
+    const done = { ...game(2, 's2', '2020-01-02T00:00:00Z', null), finished_at: '2020-01-02T02:00:00Z' };
+    withLive([verified, done, game(3, 's3', '2020-01-03T00:00:00Z', null)], [lines[0]], [ashTap], [2, 3]);
+    show();
+    await screen.findByRole('cell', { name: 'Ari' });
+    expect(strip()!.textContent).toContain('Live · includes game 3, not verified yet');
+    expect(strip()!.textContent).toContain('Not verified · includes game 2');
+    expect(strip()!.querySelectorAll('.live .dot')).toHaveLength(1);
   });
 
   it('names several live games', async () => {

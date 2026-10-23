@@ -31,7 +31,8 @@ export function PlayerPage() {
     const row = (g: StatsGame, label: string, counts: Record<string, number>): StatRow => ({ key: g.id, label, counts, points: rawScore(counts, weights) });
     const verified = d.games.filter((g) => g.verified_at);
     const rows = d.games.flatMap((g) => (g.verified_at ? [row(g, g.label, statsOf(g, d.lines))]
-      : d.liveGames.includes(g.number) ? [row(g, `${g.label} · live, not counted yet`, statsOf(g, d.liveLines))] : []));
+      : d.liveGames.includes(g.number)
+        ? [row(g, `${g.label} · ${g.finished_at ? 'not verified yet' : 'live, not counted yet'}`, statsOf(g, d.liveLines))] : []));
     // Verified games only, one per game (zeros where no line), so a Total shows whenever a verified game does.
     const [total] = totals(verified.map((g) => ({ athlete_id: athleteId, stats: statsOf(g, d.lines) })), new Map([[athleteId, 'Total']]), weights);
     body = (

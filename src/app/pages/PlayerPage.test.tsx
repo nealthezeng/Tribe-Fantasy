@@ -79,6 +79,19 @@ describe('PlayerPage', () => {
     expect(screen.queryByText(/Game 4/)).toBeNull(); // not started
   });
 
+  it('calls a finished, unverified game "not verified yet", never live', async () => {
+    m.load.mockResolvedValue({
+      stages: [stage('S1')], stage: stage('S1'),
+      games: [{ ...game(2, 'Game 2', null), finished_at: 'f' }, game(3, 'Game 3', null)],
+      lines: [], names: new Map([['a', 'Ari']]),
+      liveLines: [{ session_id: 's2', athlete_id: 'a', stats: { goal: 1 } }, { session_id: 's3', athlete_id: 'a', stats: { assist: 1 } }],
+      liveGames: [2, 3],
+    });
+    show('#/player/a?t=S1');
+    await screen.findByRole('heading', { name: /Ari/ });
+    expect(rowTexts().map((r) => r[0])).toEqual(['Game 2 · not verified yet', 'Game 3 · live, not counted yet']);
+  });
+
   it('keeps the table and switcher when a later reload fails, with the error above them', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
