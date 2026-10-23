@@ -516,3 +516,24 @@ Supabase). Nothing changes in the database and the Supabase settings stay as the
 What admins can do: nothing new. Install, the bright tally board and the app's file cache are per phone, and a new
 deploy reaches an open installed app within two returns to the front (the first fetches it, the second reloads; at
 once on a fresh start), never while the tally board is on screen or the phone is offline.
+
+## M15 P9 Join a league names, Close buying now (after 0001-0028)
+
+`0029_p9.sql` is additive. `list_leagues` gains a `members` column (the first names of each league's live teams, oldest
+team first), so "Join a league" can show who is in each league. Any signed-in user now sees those first names: the
+user chose this. It also adds the admin RPC `close_share_buying`, which ends a tournament's share buying now (no
+reopening).
+
+1. Any time before pushing Round 1. Backup first (Admin -> Backup).
+2. SQL Editor: paste and run `supabase/migrations/0029_p9.sql`. If the editor offers "Run and enable RLS", choose
+   **Run without RLS** (no new table). The old site ignores the extra column, so it keeps working until the push.
+3. Push Round 1 (deploy).
+4. Anon probe (publishable key, no sign-in), **42501**:
+   `curl -X POST "$URL/rest/v1/rpc/close_share_buying" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_stage":null}'`
+5. Signed in: Join a league lists each league's members by first name.
+6. Rollback: revert the code and push, **then** SQL Editor: paste and run `supabase/rollback/0029_p9_down.sql` (drops
+   `close_share_buying`, re-creates the 0024 `list_leagues` with its grants). The old bundle ignores the extra column,
+   so 0029 can stay in place until then. No data is lost.
+
+What admins can do: everything as before, plus close a tournament's share buying early (the button comes in Round 2).
+Closing has no undo: `open_auction` refuses a closed stage.

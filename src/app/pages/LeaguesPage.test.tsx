@@ -17,7 +17,7 @@ vi.mock('../lib/rpc', () => ({ api: {
 } }));
 
 const league = (over: Partial<LeagueListing>): LeagueListing => ({
-  id: 'l1', name: 'Huck Yeah', teams: 2, max_teams: 6, has_password: false, is_member: false, is_creator: false, ...over,
+  id: 'l1', name: 'Huck Yeah', teams: 2, max_teams: 6, has_password: false, is_member: false, is_creator: false, members: [], ...over,
 });
 const LEAGUES = [
   league({ id: 'a', name: 'Alpha Dogs', has_password: true }),

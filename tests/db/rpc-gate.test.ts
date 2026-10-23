@@ -102,6 +102,8 @@ describe('RPC gate', () => {
       ['open_auction', admin, () => ({ p_stage: c.stage, p_close_at: new Date(Date.now() + 3_600_000).toISOString() })],
       ['place_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete, p_amount: 1 })],
       ['delete_bid', player, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete })],
+      // Closes buying now, so run_auction can settle the stage.
+      ['close_share_buying', admin, () => ({ p_stage: c.stage })],
       ['run_auction', admin, () => ({ p_stage: c.stage })],
       ['rename_athlete', admin, () => ({ p_athlete: c.athlete, p_name: 'Patricia' })],
       ['delete_athlete', admin, () => ({ p_athlete: c.spare })],
@@ -164,9 +166,6 @@ describe('RPC gate', () => {
       }
       if (name === 'join_open_league') {
         await as(db, keeper, (tx) => rpc(tx, 'set_display_name', { p_name: 'Kim' }));
-      }
-      if (name === 'run_auction') {
-        await db.query(`update public.stages set bid_close_at = now() - interval '1 second' where id = $1`, [c.stage]);
       }
       const result = await as(db, who, (tx) => rpc(tx, name, args()));
       keep?.(result);

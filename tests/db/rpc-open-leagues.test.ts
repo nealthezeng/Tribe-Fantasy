@@ -6,7 +6,10 @@ import { as, createUser, freshDb, makeAdmin, rpc } from './helpers';
 let db: PGlite;
 let admin: string, alice: string, bob: string, carol: string, season: string;
 
-interface Listed { id: string; name: string; teams: number; max_teams: number; has_password: boolean; is_member: boolean; is_creator: boolean }
+interface Listed {
+  id: string; name: string; teams: number; max_teams: number; has_password: boolean; is_member: boolean; is_creator: boolean;
+  members: string[];
+}
 
 const call = (who: string, fn: string, args: Record<string, unknown>) => as(db, who, (tx) => rpc(tx, fn, args));
 const create = (who: string, name: string, password: string | null = null, team = `${name} team`) =>
@@ -86,10 +89,28 @@ describe('list_leagues', () => {
     const locked = await create(bob, 'Alpha', 'secret1');
     await join(carol, open);
     expect(await list(carol)).toEqual([
-      { id: locked, name: 'Alpha', teams: 1, max_teams: 12, has_password: true, is_member: false, is_creator: false },
-      { id: open, name: 'Bravo', teams: 2, max_teams: 12, has_password: false, is_member: true, is_creator: false },
+      { id: locked, name: 'Alpha', teams: 1, max_teams: 12, has_password: true, is_member: false, is_creator: false, members: ['Bob'] },
+      { id: open, name: 'Bravo', teams: 2, max_teams: 12, has_password: false, is_member: true, is_creator: false,
+        members: ['Alice', 'Carol'] },
     ]);
     expect((await list(alice)).find((l) => l.id === open)).toMatchObject({ is_member: true, is_creator: true });
+  });
+
+  it("lists each league's members by first name, oldest team first, skipping removed accounts", async () => {
+    await call(alice, 'set_display_name', { p_name: 'Alice Ng' });
+    const a = await create(alice, 'League A');
+    await join(bob, a);
+    await join(carol, a, null, 'Carols');
+    await call(admin, 'admin_remove_user', { p_user: carol });
+    // Bob's league: Bob's team is older than Alice's, so he comes first.
+    const b = await create(bob, 'League B');
+    await join(alice, b);
+    // A team whose account has no profile has no name to show.
+    const dave = await user('dave@x.test', 'Dave');
+    const c = await create(dave, 'League C');
+    await db.query('delete from public.profiles where id = $1', [dave]);
+    const members = Object.fromEntries((await list(bob)).map((l) => [l.id, l.members]));
+    expect(members).toEqual({ [a]: ['Alice', 'Bob'], [b]: ['Bob', 'Alice'], [c]: [] });
   });
 
   it("uses the season's max_members and hides older seasons' leagues", async () => {

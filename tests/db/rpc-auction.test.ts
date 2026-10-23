@@ -60,6 +60,43 @@ describe('open_auction', () => {
   });
 });
 
+describe('close_share_buying', () => {
+  const close = (f: AuctionFixture, stage = f.stage) =>
+    as(f.db, f.admin, (tx) => rpc(tx, 'close_share_buying', { p_stage: stage }));
+
+  it('closes an open stage now: buying stops, the shares can be settled, and one audit row says when', async () => {
+    const f = await auctionFixture();
+    const [alice, am] = await member(f.db, 'alice');
+    await grant(f);
+    const closeAt = inAnHour();
+    await openAuction(f, closeAt);
+    await bid(f, alice, am, f.athletes[0], 10);
+    await close(f);
+    const st = await f.db.query<{ closed: boolean }>(
+      'select bid_close_at <= now() as closed from public.stages where id = $1', [f.stage]);
+    expect(st.rows[0].closed).toBe(true);
+    await expect(bid(f, alice, am, f.athletes[1], 10)).rejects.toThrow('BID_CLOSED');
+    await runAuction(f);
+    const log = await f.db.query<{ old: string; same: boolean }>(
+      `select a.details->>'old_close_at' as old, (a.details->>'close_at')::timestamptz = s.bid_close_at as same
+       from public.audit_log a join public.stages s on s.id::text = a.entity_id where a.action = 'close_share_buying'`);
+    expect(log.rows).toHaveLength(1);
+    expect(new Date(log.rows[0].old).toISOString()).toBe(closeAt);
+    expect(log.rows[0].same).toBe(true);
+  });
+
+  it('refuses a closed, never-opened, settled or unknown stage', async () => {
+    const f = await auctionFixture();
+    await expect(close(f)).rejects.toThrow('AUCTION_NOT_OPEN');
+    await openAuction(f);
+    await close(f);
+    await expect(close(f)).rejects.toThrow('BID_CLOSED');
+    await runAuction(f);
+    await expect(close(f)).rejects.toThrow('AUCTION_ALREADY_RUN');
+    await expect(close(f, '00000000-0000-0000-0000-000000000000')).rejects.toThrow('NOT_FOUND');
+  });
+});
+
 describe('place_bid and delete_bid', () => {
   async function ready() {
     const f = await auctionFixture();

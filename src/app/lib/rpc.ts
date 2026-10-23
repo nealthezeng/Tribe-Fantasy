@@ -24,6 +24,8 @@ export interface LeagueListing {
   has_password: boolean;
   is_member: boolean;
   is_creator: boolean;
+  /** First names of the league's live teams, oldest team first (0029). */
+  members: string[];
 }
 
 export type Role = 'admin' | 'stat_keeper' | 'treasurer';
@@ -124,6 +126,7 @@ export const api = {
   adjustCredits: (membershipId: string, amount: number, note: string) =>
     call<number>('adjust_credits', { p_membership: membershipId, p_amount: amount, p_note: note }),
   openAuction: (stageId: string, closeAt: string) => call<void>('open_auction', { p_stage: stageId, p_close_at: closeAt }),
+  closeShareBuying: (stageId: string) => call<void>('close_share_buying', { p_stage: stageId }),
   placeBid: (stageId: string, membershipId: string, athleteId: string, amount: number) =>
     call<void>('place_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId, p_amount: amount }),
   deleteBid: (stageId: string, membershipId: string, athleteId: string) =>
