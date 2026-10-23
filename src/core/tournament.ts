@@ -106,7 +106,11 @@ export interface TournamentSide {
   result: 'W' | 'L' | 'T' | null;
 }
 export interface GameMatchup { home: TournamentSide; away: TournamentSide | null }
-export interface GameOutcome { game: TournamentGame; status: GameStatus; matchups: GameMatchup[] }
+export interface GameOutcome {
+  game: TournamentGame; status: GameStatus; matchups: GameMatchup[];
+  /** The first live or pending game (in play order) that holds this verified game back to pending; null otherwise. */
+  heldBy: string | null;
+}
 export interface NextGame { stageId: string; number: number; sides: TournamentSide[] }
 export interface TournamentResult {
   games: GameOutcome[]; standings: YearStanding[]; next: NextGame | null;
@@ -207,7 +211,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     };
   };
 
-  let blocked = false;
+  let blocker: string | null = null;
   const outcomes: GameOutcome[] = games.map((g) => {
     const sessionGone = g.sessionId === null || !sessions.has(g.sessionId);
     let status: GameStatus =
@@ -216,8 +220,9 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
           : isVerified(g.sessionId!) || (opts.provisional && g.startedAt !== null) ? 'final'
             : g.finishedAt === null ? 'live' : 'pending';
     const ownFinal = status !== 'void' && g.sessionId !== null && isVerified(g.sessionId);
-    if (status === 'final' && blocked) status = 'pending';
-    if (status === 'live' || status === 'pending') blocked = true;
+    const heldBy = status === 'final' ? blocker : null;
+    if (heldBy !== null) status = 'pending';
+    if (status === 'live' || status === 'pending') blocker ??= g.id;
 
     const asOf = g.startedAt === null ? now : ms(g.startedAt);
     const pairings = input.pairings.filter((p) => p.gameId === g.id)
@@ -250,7 +255,7 @@ export function scoreTournaments(input: TournamentInput, opts: { provisional?: b
     }
 
     const matchups = pairings.map((p) => ({ home: sides.get(p.home)!, away: p.away === null ? null : sides.get(p.away)! }));
-    return { game: g, status, matchups };
+    return { game: g, status, matchups, heldBy };
   });
 
   let next: NextGame | null = null;

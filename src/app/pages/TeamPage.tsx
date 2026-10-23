@@ -2,10 +2,10 @@ import { Link, Navigate, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import { FactorHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
-import { gameLabel } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { loadLeagueTournament } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
+import { gameName } from '../lib/words';
 import { loadMyTeams } from './HomePage';
 import { Factor } from './TournamentCard';
 
@@ -57,7 +57,7 @@ export function TeamPage() {
       {!next ? <p className="muted">No tournament on. Players show once the next tournament's shares are settled.</p> : (
         <>
           <p className="muted">
-            {gameLabel(next.number, games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number)?.game.opponent)}
+            {gameName(next.number, games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number)?.game.opponent)}
             {' · '}{y.stage.get(next.stageId)}
             <FactorHelp settings={y.settings} />
           </p>

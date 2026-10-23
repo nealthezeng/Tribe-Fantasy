@@ -118,7 +118,7 @@ export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): L
   const open = result.games.filter((g) => g.status === 'live' || g.status === 'pending');
   const provisional = open.length ? new Map(scoreTournaments(input, { provisional: true }).games.map((g) => [g.game.id, g])) : null;
   const unofficial = new Map(open.map((g) => [g.game.id, {
-    game: g.game, status: g.status,
+    ...g,
     matchups: provisional!.get(g.game.id)!.matchups.map(({ home, away }) => ({
       home: { ...home, delta: null, result: null }, away: away && { ...away, delta: null, result: null },
     })),

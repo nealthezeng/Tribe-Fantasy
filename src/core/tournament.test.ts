@@ -219,6 +219,19 @@ describe('scoreTournaments', () => {
     expect(side(again, 'S1g3', 'm1').rest.a2).toBe(1); // a2's game-2 start was void, so it doesn't count
   });
 
+  it('marks a verified game held back by an earlier unverified one with heldBy', () => {
+    const a1 = game(1);
+    const b1 = game(1, 'S2'); // a later tournament, its stats verified
+    const held = base({ games: [a1, b1] });
+    held.sessions = held.sessions.map((x) => (x.id === a1.sessionId ? { ...x, verifiedAt: null } : x));
+    const r = scoreTournaments(held);
+    const of = (id: string) => r.games.find((g) => g.game.id === id)!;
+    expect(of(b1.id)).toMatchObject({ status: 'pending', heldBy: a1.id });
+    expect(of(a1.id)).toMatchObject({ status: 'pending', heldBy: null }); // finished, not verified: nothing holds it
+    expect(scoreTournaments(base({ games: [a1, b1] })).games.map((g) => [g.status, g.heldBy]))
+      .toEqual([['final', null], ['final', null]]);
+  });
+
   it('marks a not-started game upcoming and resolves its picks as of now', () => {
     const r = scoreTournaments(base({ games: [game(1), game(2), game(3), game(4, 'S1', { sessionId: null, startedAt: null, finishedAt: null })],
       pairings: [1, 2, 3, 4].map((n) => ({ gameId: `S1g${n}`, home: 'm1', away: 'm2' })) }));

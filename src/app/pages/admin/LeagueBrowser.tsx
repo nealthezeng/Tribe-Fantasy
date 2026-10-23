@@ -1,10 +1,11 @@
 import { Loading } from '../../components/Loading';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickPlayingStage, type AuctionStage } from '../../lib/auction';
-import { gameLabel, todayLocal } from '../../lib/stats';
+import { todayLocal } from '../../lib/stats';
 import { supabase } from '../../lib/supabase';
 import { fetchAll, fmt, loadLeagueTournament, record, rowsOf, type LeagueTournament } from '../../lib/tournament';
 import { useLoad } from '../../lib/useLoad';
 import { credits } from '../../lib/wallet';
+import { gameName } from '../../lib/words';
 import { liveRoster, TeamAdmin } from './TeamAdmin';
 
 /** Everything the admin sees inside a league, sealed information included. The team editor (M14 T4) reads this too. */
@@ -84,7 +85,7 @@ function Teams({ d, onChanged }: { d: LeagueAdminData; onChanged: () => void }) 
   const { y, stageId } = d;
   const athlete = (id: string) => y.athlete.get(id) ?? 'A player';
   const games = y.result.games.filter((g) => g.game.stageId === stageId);
-  const gameName = (n: number) => gameLabel(n, games.find((g) => g.game.number === n)?.game.opponent);
+  const nameOf = (n: number) => gameName(n, games.find((g) => g.game.number === n)?.game.opponent);
   const next = y.result.next;
   // A live or waiting game shows its unofficial score: "Zeal 6 – 3 Flow · Unofficial".
   const pairing = (g: (typeof games)[number]) => {
@@ -133,7 +134,7 @@ function Teams({ d, onChanged }: { d: LeagueAdminData; onChanged: () => void }) 
                 {liveRoster(d, s.membershipId).map((p) => <li key={p.id}>{athlete(p.id)} · {Math.round(p.share * 100)}%</li>)}
               </ul>
             ) : <TeamAdmin data={d} membershipId={s.membershipId} onChanged={onChanged} />}
-            {next && <p>{picked.length ? `Picks for ${gameName(next.number)}: ${picked.map(athlete).join(', ')}` : `No picks for ${gameName(next.number)}`}</p>}
+            {next && <p>{picked.length ? `Picks for ${nameOf(next.number)}: ${picked.map(athlete).join(', ')}` : `No picks for ${nameOf(next.number)}`}</p>}
           </article>
         );
       })}
@@ -141,7 +142,7 @@ function Teams({ d, onChanged }: { d: LeagueAdminData; onChanged: () => void }) 
         <section className="card" aria-label="Games">
           <h3>Games</h3>
           <ul className="list">
-            {games.map((g) => <li key={g.game.id}>{gameName(g.game.number)} · {pairing(g)}</li>)}
+            {games.map((g) => <li key={g.game.id}>{nameOf(g.game.number)} · {pairing(g)}</li>)}
           </ul>
         </section>
       )}

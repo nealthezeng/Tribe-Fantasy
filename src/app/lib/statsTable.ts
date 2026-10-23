@@ -3,9 +3,10 @@ import type { SeasonSettings } from '../../core/settings';
 import { liveStatLines } from '../../core/tournament';
 import { errorCode, rowToTap } from '../tally/queue';
 import { pickPlayingStage, type AuctionStage } from './auction';
-import { gameLabel, todayLocal } from './stats';
+import { todayLocal } from './stats';
 import { supabase } from './supabase';
 import { GAME_COLUMNS, fetchAll, loadLiveTaps, rowsOf, type GameRow } from './tournament';
+import { gameName } from './words';
 
 export interface StatRow { key: string; label: string; counts: Record<string, number>; points: number }
 export interface LineRow { session_id: string; athlete_id: string; stats: Record<string, number> }
@@ -81,6 +82,6 @@ export async function loadTournamentStats(seasonId: string, wanted: string | nul
     .map((l) => ({ session_id: l.sessionId, athlete_id: l.athleteId, stats: l.stats }));
   return {
     stages, stage, lines, liveLines, liveGames: open.map((g) => g.number), names: new Map(athletes.map((a) => [a.id, a.name])),
-    games: games.map((g) => ({ ...g, label: gameLabel(g.number, g.opponent), verified_at: (g.session_id && verified.get(g.session_id)) || null })),
+    games: games.map((g) => ({ ...g, label: gameName(g.number, g.opponent), verified_at: (g.session_id && verified.get(g.session_id)) || null })),
   };
 }

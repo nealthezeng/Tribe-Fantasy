@@ -4,6 +4,7 @@ import { api } from '../lib/rpc';
 import type { CurrentSeason } from '../lib/stats';
 import { describePairings, loadCurrentGame, seasonPairings } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
+import { gameName } from '../lib/words';
 
 type Preview = Awaited<ReturnType<typeof seasonPairings>>;
 
@@ -57,7 +58,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const live = game.started_at !== null && game.finished_at === null;
   const over = game.finished_at !== null; // loadCurrentGame returns the last game once every game is finished
   const isLast = n === count;
-  const title = game.opponent ? `Game ${n} vs ${game.opponent}` : `Game ${n}`;
+  const title = gameName(n, game.opponent);
   const waiting = game.session_id ? unsaved.get(game.session_id) ?? 0 : 0;
   if (sessionId !== undefined && !(live && game.session_id === sessionId)) return messages;
 

@@ -74,7 +74,7 @@ describe('TeamPage', () => {
   it('names the next game like the pick card, with the real opponent once a keeper sets it', async () => {
     db.y = tournament({ result: { games: [{ game: { stageId: 'S1', number: 2, opponent: 'Duke' } }], next: { stageId: 'S1', number: 2, sides: [side(ID2)] } } });
     visit(ID2);
-    expect(await screen.findByText('vs Duke · Fall beta')).toBeTruthy();
+    expect(await screen.findByText('Game 2 vs Duke · Fall beta')).toBeTruthy();
   });
 
   it('says no tournament on when there is no next game', async () => {

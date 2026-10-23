@@ -12,6 +12,7 @@ import { loadTournamentStats, totals, type StatsGame } from '../lib/statsTable';
 import { supabase } from '../lib/supabase';
 import { queuedSessions } from '../tally/queue';
 import { useLoad, usePoll } from '../lib/useLoad';
+import { gameName } from '../lib/words';
 import { StatTable, TournamentSwitch } from './StatTable';
 
 export const STATE_PILL = {
@@ -138,7 +139,7 @@ export function StatsPage() {
 const gamesList = (n: number[]) => (n.length === 1 ? `game ${n[0]}` : `games ${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`);
 
 function GameItem({ g, lockHours, keeper, unsaved }: { g: StatsGame; lockHours: number; keeper: boolean; unsaved: number }) {
-  const title = `Game ${g.number}${g.opponent ? ` vs ${g.opponent}` : ''}`;
+  const title = gameName(g.number, g.opponent);
   return (
     <li>
       <span className="meta">

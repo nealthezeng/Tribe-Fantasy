@@ -6,11 +6,12 @@ import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
-import { formatDay, gameLabel, statLabel } from '../lib/stats';
+import { formatDay, statLabel } from '../lib/stats';
 import type { Seen } from '../lib/seen';
 import { anyCounted, fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
+import { gameName } from '../lib/words';
 
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
 /** An athlete's name, or `none` when nobody plays. */
@@ -69,9 +70,9 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
   );
 }
 
-/** "vs Duke" once a keeper names game `number`'s real opponent, else "Game 3". */
+/** "Game 3 vs Duke" once a keeper names game `number`'s real opponent, else "Game 3". */
 const labelOf = (y: LeagueTournament, stageId: string, number: number) =>
-  gameLabel(number, y.result.games.find((g) => g.game.stageId === stageId && g.game.number === number)?.game.opponent);
+  gameName(number, y.result.games.find((g) => g.game.stageId === stageId && g.game.number === number)?.game.opponent);
 
 /** The game that matters now: the live one, else the next one, else the last one played. */
 function focusGame(y: LeagueTournament, membershipId: string) {
@@ -362,7 +363,7 @@ function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome;
               </>}
         </span>
         <span className="meta">
-          {gameLabel(g.game.number, g.game.opponent)} · {y.stage.get(g.game.stageId) ?? ''}
+          {gameName(g.game.number, g.game.opponent)} · {y.stage.get(g.game.stageId) ?? ''}
           <span className={cls}>{label}</span>
           {o !== g && <span className="pill warn">Unofficial</span>}
           {mine?.delta != null && <strong className="num">{mine.result === null ? 'Bye' : `${mine.result} ${signed(mine.delta)}`}</strong>}

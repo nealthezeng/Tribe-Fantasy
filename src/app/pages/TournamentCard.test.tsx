@@ -78,8 +78,8 @@ describe('TournamentCard', () => {
     const r = afterGame1();
     r.games = r.games.map((g) => (g.id === 'g1' ? { ...g, opponent: 'UNC' } : { ...g, opponent: 'Duke' }));
     await show(r);
-    expect(screen.getByRole('heading', { name: 'vs Duke · Fall beta' })).toBeTruthy();
-    expect(screen.getByText(/vs UNC · Fall beta/)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Game 2 vs Duke · Fall beta' })).toBeTruthy();
+    expect(screen.getByText(/Game 1 vs UNC · Fall beta/)).toBeTruthy();
   });
 
   it('links both teams in the matchup headline and the opponent on the pick card', async () => {
