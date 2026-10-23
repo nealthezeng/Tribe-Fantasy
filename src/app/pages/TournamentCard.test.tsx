@@ -78,7 +78,7 @@ describe('TournamentCard', () => {
     const r = afterGame1();
     r.games = r.games.map((g) => (g.id === 'g1' ? { ...g, opponent: 'UNC' } : { ...g, opponent: 'Duke' }));
     await show(r);
-    expect(screen.getByRole('heading', { name: 'Game 2 vs Duke · Fall beta' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Pick 2 for game 2 vs Duke' })).toBeTruthy();
     expect(screen.getByText(/Game 1 vs UNC · Fall beta/)).toBeTruthy();
   });
 
@@ -90,18 +90,22 @@ describe('TournamentCard', () => {
     expect(picks().getByRole('link', { name: 'Flow' }).getAttribute('href')).toBe('/team/m2');
   });
 
+  /** A player's row in the pick card: the whole row is the toggle button. */
+  const pickRow = (name: string) => picks().getByRole('button', { name: new RegExp(`^${name}\\b`) }) as HTMLButtonElement;
+
   it('pre-selects two players for game 1, then refuses a third until one is cleared', async () => {
     await show(base());
-    expect(screen.getByText('Opponent TBD.')).toBeTruthy();
-    expect(picks().getByText(/^Pick 2/).parentElement?.textContent).toBe('Pick 20 of 2');
-    fireEvent.click(picks().getByRole('button', { name: 'Pick Alex' }));
+    expect(picks().getByText('Picks lock when a keeper starts game 1.')).toBeTruthy(); // no game before it to wait on
+    expect(picks().getByRole('heading', { name: 'Pick 2 for game 1' }).parentElement?.querySelector('strong.num')?.textContent).toBe('0 of 2');
+    expect(picks().getAllByRole('button', { pressed: false }).map((b) => b.querySelector('b')?.textContent)).toEqual(['Alex', 'Arlo', 'Ash', 'Avery']); // A→Z
+    fireEvent.click(pickRow('Alex'));
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a3']));
     await waitFor(() => expect(picks().getByText('1 of 2')).toBeTruthy()); // reloaded with Alex picked
-    fireEvent.click(picks().getByRole('button', { name: 'Pick Ash' }));
+    fireEvent.click(pickRow('Ash'));
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a3', 'a1']));
     await waitFor(() => expect(picks().getAllByRole('button', { pressed: true })).toHaveLength(2));
     expect(picks().getByText('2 of 2')).toBeTruthy();
-    expect((picks().getByRole('button', { name: 'Pick Avery' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(pickRow('Avery').disabled).toBe(true);
     expect(picks().getByText('You have 2 picks. Clear one to change.')).toBeTruthy();
     // Clearing Alex (rows list by name) sends Ash alone.
     fireEvent.click(picks().getAllByRole('button', { pressed: true })[0]);
@@ -109,7 +113,77 @@ describe('TournamentCard', () => {
     expect(screen.queryByRole('button', { name: /^Bench / })).toBeNull(); // no bench any more (C3)
   });
 
-  it("shows each player's combined factor, with share, tiredness and earlier tournaments one tap away (decision 11)", async () => {
+  it('lets you pick game 2 while game 1 is live, before game 2 is paired (B1)', async () => {
+    const r = liveGame1();
+    await show({ ...r, pairings: r.pairings.filter((p) => p.game_id !== 'g2') });
+    const ash = picks().getByRole('button', { name: /^Ash\b/, pressed: false });
+    expect(picks().getByText("You'll see who you play once game 1 ends. Picks lock when a keeper starts game 2.")).toBeTruthy();
+    expect(picks().queryByText(/You start next game|joined after/)).toBeNull();
+    fireEvent.click(ash);
+    await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 2, ['a1']));
+  });
+
+  it('says a bye plainly', async () => {
+    const r = afterGame1();
+    // Three teams: Flow plays Huck in game 2, Zeal has the bye.
+    await show({
+      ...r,
+      members: [...r.members, { id: 'm3', team_name: 'Huck', created_at: '2026-10-01T00:00:00Z', removed_at: null }],
+      slots: [...r.slots, ...roster('m3', ['c1'])],
+      athletes: [...r.athletes, { id: 'c1', name: 'Cy' }],
+      pairings: [r.pairings[0], { game_id: 'g2', home: 'm1', away: null }, { game_id: 'g2', home: 'm2', away: 'm3' }],
+    });
+    expect(picks().getByText("Bye in game 2: no opponent, so your standings points don't change.")).toBeTruthy();
+    expect(picks().getAllByRole('button', { pressed: false })).toHaveLength(4); // a bye start still tires a player: you can pick
+  });
+
+  it('says a team with no players cannot score', async () => {
+    await show({ ...base(), slots: roster('m2', ['b1', 'b2', 'b3', 'b4']) });
+    expect(picks().getByText("You have no players this tournament, so you can't score.")).toBeTruthy();
+    expect(picks().queryByRole('button')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/forfeit/i);
+  });
+
+  it('says a team paired after it joined starts the game after', async () => {
+    const r = afterGame1();
+    await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g2' ? { ...p, home: 'm2', away: null } : p)) });
+    expect(picks().getByText('You joined after game 2 was paired, so you start the game after it.')).toBeTruthy();
+    expect(picks().queryByRole('button')).toBeNull();
+  });
+
+  it('shows each player as a row with your share and tiredness in words', async () => {
+    await show(afterGame1());
+    const ash = pickRow('Ash');
+    expect(ash.matches('button.pick-row[aria-pressed="false"]')).toBe(true);
+    expect([...ash.children].map((el) => el.className)).toEqual(['who', 'ring']);
+    expect(ash.querySelector('.who > small')?.textContent).toBe('Your 100% · played game 1: half points'); // base fixture shares are 1
+    expect(pickRow('Alex').textContent).toContain('Your 100% · rested'); // Avery was game 1's auto-pick, so tired too
+  });
+
+  it('toggles a pick by tapping the row, and keeps an Out pick clearable', async () => {
+    const r = afterGame1();
+    await show({
+      ...r,
+      picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a2' },
+        { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }],
+      outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null },
+        { stage_id: 'S1', athlete_id: 'a4', from_game: 2, until_game: null }],
+    });
+    // Avery: picked and Out, so still on (and clearable). Arlo: Out and not picked, so off.
+    expect(pickRow('Avery').getAttribute('aria-pressed')).toBe('true');
+    expect(pickRow('Avery').disabled).toBe(false);
+    expect(pickRow('Avery').textContent).toContain('Out');
+    expect(pickRow('Arlo').getAttribute('aria-pressed')).toBe('false');
+    expect(pickRow('Arlo').disabled).toBe(true);
+    expect(pickRow('Arlo').textContent).toContain('Out');
+    fireEvent.click(pickRow('Alex'));
+    await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 2, ['a2']));
+    await waitFor(() => expect(pickRow('Alex').getAttribute('aria-pressed')).toBe('false'));
+    fireEvent.click(pickRow('Avery'));
+    await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 2, []));
+  });
+
+  it("shows each player's share, tiredness and earlier tournaments in words (decision 11)", async () => {
     const r = afterGame1();
     // An earlier tournament where Zeal started Ash: with no grace, Ash carries x0.9 into this one.
     const S0 = { ...r.stages[0], id: 'S0', name: 'Opener', starts_on: '2026-10-03', ends_on: '2026-10-04' };
@@ -125,19 +199,17 @@ describe('TournamentCard', () => {
       picks: [{ stage_id: 'S0', game_number: 1, membership_id: 'm1', athlete_id: 'a1' }, ...r.picks],
       sessions: [{ id: 'p0', verified_at: '2026-10-03T16:00:00Z' }, ...r.sessions],
     });
-    const row = (name: string) => picks().getByText(name).closest('li')!;
+    const words = (name: string) => pickRow(name).querySelector('small')?.textContent;
     // Ash: half of him, started last game (x0.5), started in the opener (x0.9).
-    expect(row('Ash').querySelector('summary')?.textContent).toBe('×0.23');
-    expect(row('Ash').querySelector('.parts')?.textContent).toBe('50% share×0.5 tired×0.9 earlier tournaments');
-    expect(row('Arlo').querySelector('summary')?.textContent).toBe('×1');
-    expect(row('Arlo').querySelector('.parts')?.textContent).toBe('100% share×1 rested'); // x1 earlier tournaments is left out
-    expect(row('Alex').querySelector('summary')?.textContent).toBe('×0.4');
+    expect(words('Ash')).toBe('Your 50% · played game 1: half points · earlier tournaments: 90%');
+    expect(words('Arlo')).toBe('Your 100% · rested'); // x1 earlier tournaments is left out
+    expect(words('Alex')).toBe('Your 40% · rested');
   });
 
-  it("shows a combined factor of x0.25 for a half share of last game's starter", async () => {
+  it("words a half share of last game's starter as both parts", async () => {
     const r = afterGame1();
     await show({ ...r, slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 1, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])] });
-    expect(picks().getByText('Ash').closest('li')?.textContent).toContain('×0.25');
+    expect(pickRow('Ash').textContent).toContain('Your 50% · played game 1: half points');
   });
 
   it('names who plays for an Out pick, and says when an Out pick still plays', async () => {
@@ -148,8 +220,9 @@ describe('TournamentCard', () => {
         { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }],
       outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
     });
-    // Arlo is the most rested healthy player left (Ash started game 1).
-    expect(picks().getByText('Avery is out. Arlo plays.')).toBeTruthy();
+    // Arlo is the most rested healthy player left (Ash started game 1). Hint text, never a box in the card (ruling 7).
+    expect(picks().getByText('Avery is out. Arlo plays.').matches('p.hint')).toBe(true);
+    expect(screen.getByRole('article', { name: 'Next game' }).querySelector('.notice')).toBeNull();
     cleanup();
     // A one-player team: nobody else is free, so the Out pick plays anyway. Not a swap.
     await show({
@@ -177,17 +250,17 @@ describe('TournamentCard', () => {
     expect(picks().getByText('Ash is out. Alex plays.')).toBeTruthy();
   });
 
-  it('disables Pick for an Out player and shows the Out pill', async () => {
+  it('disables an Out player and shows the Out pill', async () => {
     const r = afterGame1();
     await show({ ...r, outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }] });
-    const row = picks().getByText('Avery').closest('li')!;
-    expect(row.textContent).toContain('Out');
+    const row = pickRow('Avery');
+    expect(row.querySelector('.pill.bad')?.textContent).toBe('Out');
     expect(row.textContent).not.toContain('Injured');
-    expect((within(row).getByRole('button', { name: 'Pick Avery' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((picks().getByRole('button', { name: 'Pick Alex' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(row.disabled).toBe(true);
+    expect(pickRow('Alex').disabled).toBe(false);
   });
 
-  it('keeps Clear on a saved pick who is now out, with the out notice', async () => {
+  it('keeps a saved pick who is now out clearable, with the out notice', async () => {
     const r = afterGame1();
     await show({
       ...r,
@@ -195,9 +268,8 @@ describe('TournamentCard', () => {
         { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }],
       outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
     });
-    const clear = picks().getByText('Avery').closest('li')!.querySelector('button') as HTMLButtonElement;
-    expect(clear.textContent).toContain('Clear');
-    expect(clear.disabled).toBe(false);
+    expect(pickRow('Avery').getAttribute('aria-pressed')).toBe('true');
+    expect(pickRow('Avery').disabled).toBe(false);
     expect(picks().getByText('Avery is out. Arlo plays.')).toBeTruthy();
     expect(screen.getByText('Your pick is out')).toBeTruthy();
   });
@@ -249,9 +321,10 @@ describe('TournamentCard', () => {
 
   it("shows the next opponent, the tiredness of last game's starter, and never the opponent's sealed pick", async () => {
     await show(afterGame1());
-    expect(screen.getByRole('heading', { name: 'Game 2 · Fall beta' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Pick 2 for game 2' })).toBeTruthy();
     expect(screen.getByText(/^You play/).textContent).toBe('You play Flow.');
-    expect(picks().getByText('Ash').closest('li')?.textContent).toContain('×0.5 tired');
+    expect(picks().getByText('Picks lock when a keeper starts game 2.')).toBeTruthy();
+    expect(pickRow('Ash').textContent).toContain('played game 1: half points');
     // The header leads with the next matchup; neither side's picks are set, and theirs read as hidden.
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
     expect(screen.getByText('No picks yet')).toBeTruthy();
@@ -269,7 +342,7 @@ describe('TournamentCard', () => {
     expect(screen.queryByRole('article', { name: 'Standings' })).toBeNull();
     expect(document.querySelector('.strip')?.textContent).toContain('No games yet');
     expect(screen.queryByRole('heading', { name: 'Games' })).toBeNull(); // nothing played: no empty section
-    expect(screen.queryByRole('button', { name: /^Pick / })).toBeNull();
+    expect(screen.queryByRole('article', { name: 'Next game' })).toBeNull();
   });
 
   describe('game cards (t93, t90)', () => {
@@ -338,7 +411,7 @@ describe('TournamentCard', () => {
     expect(screen.getByText('Void')).toBeTruthy();
     expect(screen.getByText("Doesn't count.")).toBeTruthy();
     // A void start doesn't tire anyone.
-    expect(picks().getByText('Ash').closest('li')?.textContent).not.toContain('tired');
+    expect(pickRow('Ash').textContent).toContain('Your 100% · rested');
   });
 
   describe('matchup header', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import type { GameOutcome } from '../../core/tournament';
 import type { LeagueTournament } from './tournament';
-import { gameName, heldNote, pctExact, restWords, rowStatus, statusWord, statWords } from './words';
+import { factorWords, gameName, heldNote, pctExact, restWords, rowStatus, statusWord, statWords } from './words';
 
 describe('words', () => {
   it('names a game by number, with the real opponent once set', () => {
@@ -29,6 +29,12 @@ describe('words', () => {
   it('leaves the game out when the rest could mean more than one game', () => {
     expect(restWords(0.5, 4, { ...DEFAULT_SETTINGS, tiredness_multipliers: [0.5, 0.5] })).toBe('half points');
     expect(restWords(0.5, 4, { ...DEFAULT_SETTINGS, tiredness_multipliers: [] })).toBe('half points');
+  });
+
+  it("says a player's share, rest and earlier tournaments for one game", () => {
+    const side = { share: { a: 0.2, b: 1 }, rest: { a: 0.75, b: 1 }, decay: { a: 0.9, b: 1 } };
+    expect(factorWords(side, 'a', 3, DEFAULT_SETTINGS)).toBe('20% · played game 1: ¾ points · earlier tournaments: 90%');
+    expect(factorWords(side, 'b', 3, DEFAULT_SETTINGS)).toBe('100% · rested'); // no cut, no words for it
   });
 
   it('gives an exact percent to 3 significant figures', () => {

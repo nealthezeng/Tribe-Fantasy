@@ -11,7 +11,7 @@ import type { Seen } from '../lib/seen';
 import { anyCounted, fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
-import { gameName } from '../lib/words';
+import { factorWords, gameName } from '../lib/words';
 
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
 /** An athlete's name, or `none` when nobody plays. */
@@ -238,19 +238,22 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const [error, setError] = useState<string | null>(null);
   const name = (id: string | null) => athleteName(y, id);
   const mine = next.sides.find((x) => x.membershipId === membershipId);
-  const title = `${labelOf(y, next.stageId, next.number)} · ${y.stage.get(next.stageId) ?? ''}`;
+  const game = y.result.games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number);
+  const title = gameName(next.number, game?.game.opponent);
   if (!mine) {
-    return <div className="stack"><h2>{title}</h2><p className="muted">No players: you forfeit.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">You have no players this tournament, so you can't score.</p></div>;
   }
-  const paired = y.result.games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number);
+  // A game with no matchups isn't paired yet (B1): it gets paired when the game before it finishes, so pick now.
+  const paired = game && game.matchups.length > 0 ? game : undefined;
   const them = paired ? opponentIn(paired, membershipId) : undefined;
   if (paired && them === undefined) {
-    return <div className="stack"><h2>{title}</h2><p className="muted">You start next game.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">You joined after game {next.number} was paired, so you start the game after it.</p></div>;
   }
   const n = y.settings.picks_per_game;
   const wanted = Math.min(n, mine.players.length);
   const full = mine.picked.length >= n;
   const byName = (a: string, b: string) => name(a).localeCompare(name(b));
+  const lock = `Picks lock when a keeper starts game ${next.number}.`;
 
   /** Saves the whole set: set_game_pick replaces the team's picks for this game. */
   async function save(athleteIds: string[]) {
@@ -267,33 +270,36 @@ function PickGame({ y, next, membershipId, onSaved }: {
 
   return (
     <div className="stack">
-      <div className="head"><h2>{title}</h2><FactorHelp settings={y.settings} /></div>
-      <p>
-        {them ? <>You play <strong><Link className="team-link" to={`/team/${them.membershipId}`}>{y.team.get(them.membershipId)}</Link></strong>.</>
-          : them === null ? 'You have a bye this game.'
-            : 'Opponent TBD.'}
-      </p>
+      <div className="head">
+        <h2>Pick {wanted} for game {next.number}{game?.game.opponent && ` vs ${game.game.opponent}`}</h2>
+        <FactorHelp settings={y.settings} />
+        <strong className="num">{mine.picked.length} of {wanted}</strong>
+      </div>
+      {them ? <>
+        <p>You play <strong><Link className="team-link" to={`/team/${them.membershipId}`}>{y.team.get(them.membershipId)}</Link></strong>.</p>
+        <p className="hint">{lock}</p>
+      </> : them === null ? <>
+        <p>Bye in game {next.number}: no opponent, so your standings points don't change.</p>
+        <p className="hint">{lock}</p>
+      </> : <p className="hint">{next.number > 1 && `You'll see who you play once game ${next.number - 1} ends. `}{lock}</p>}
+      {/* The row is the button (ruling 5). A tap mid-save is ignored rather than disabling every row, so nothing flickers. */}
+      <div aria-busy={busy}>
+        {[...mine.players].sort(byName).map((id) => {
+          const on = mine.picked.includes(id);
+          const out = y.out.has(id);
+          return (
+            <button key={id} className="pick-row" aria-pressed={on} disabled={!on && (full || out)}
+              onClick={() => { if (!busy) void save(on ? mine.picked.filter((a) => a !== id) : [...mine.picked, id]); }}>
+              <span className="who">
+                <b>{name(id)}{out && <> <span className="pill bad">Out</span></>}</b>{' '}
+                <small>Your {factorWords(mine, id, next.number, y.settings)}</small>
+              </span>
+              <span className="ring" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
       <Notice y={y} side={mine} />
-      <p className="count-line"><span>Pick {wanted}</span><strong>{mine.picked.length} of {wanted}</strong></p>
-      <ul className="list">
-        {[...mine.players].sort(byName).map((id) => (
-          <li key={id} className="pickrow">
-            <span className="who">
-              <span><span className="title">{name(id)}</span>{y.out.has(id) && <> <span className="pill bad">Out</span></>}</span>
-              <Factor side={mine} id={id} />
-            </span>
-            {mine.picked.includes(id) ? (
-              <button className="secondary picked" aria-pressed="true" disabled={busy}
-                onClick={() => void save(mine.picked.filter((a) => a !== id))}>
-                <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" /></svg>
-                Your pick <span className="clear">· Clear</span>
-              </button>
-            ) : (
-              <button aria-label={`Pick ${name(id)}`} disabled={busy || full || y.out.has(id)} onClick={() => void save([...mine.picked, id])}>Pick</button>
-            )}
-          </li>
-        ))}
-      </ul>
       {full && mine.players.length > mine.picked.length && <p className="hint">You have {n} picks. Clear one to change.</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
@@ -333,7 +339,7 @@ function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: 
     const who = fill.join(' and ');
     lines.push(played ? `${team ?? 'You'} didn't pick, so ${who} played.` : `If you don't pick, ${who} ${fill.length === 1 ? 'plays' : 'play'}.`);
   }
-  return <>{lines.map((t) => <p key={t} className="notice">{t}</p>)}</>;
+  return <>{lines.map((t) => <p key={t} className="hint">{t}</p>)}</>;
 }
 
 const STATUS: Record<GameOutcome['status'], [string, string]> = {

@@ -1,6 +1,7 @@
 import type { SeasonSettings } from '../../core/settings';
-import type { GameOutcome, GameStatus } from '../../core/tournament';
+import type { GameOutcome, GameStatus, TournamentSide } from '../../core/tournament';
 import type { LeagueTournament } from './tournament';
+import { pct } from './wallet';
 
 // Every player-facing game name, stat sentence, rest phrase and status word (P9 rulings 1–4, 10).
 
@@ -32,6 +33,14 @@ export function restWords(rest: number, number: number, s: SeasonSettings): stri
   const i = s.tiredness_multipliers.indexOf(rest);
   return i === -1 || i !== s.tiredness_multipliers.lastIndexOf(rest) ? points : `played game ${number - 1 - i}: ${points}`;
 }
+
+/**
+ * What one player counts for in game `number`, in words: "20% · played game 1: ¾ points", plus
+ * "· earlier tournaments: 90%" when earlier tournaments cut it. Callers add "Your" where it is the viewer's share.
+ */
+export const factorWords = (side: Pick<TournamentSide, 'share' | 'rest' | 'decay'>, athleteId: string, number: number, s: SeasonSettings): string =>
+  [pct(side.share[athleteId]), restWords(side.rest[athleteId], number, s),
+    side.decay[athleteId] < 1 && `earlier tournaments: ${pct(side.decay[athleteId])}`].filter(Boolean).join(' · ');
 
 export type StatusWord = 'Not started' | 'Live' | 'Finished · not verified' | 'Final' | "Doesn't count";
 

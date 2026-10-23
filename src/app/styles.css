@@ -90,7 +90,7 @@ button, .button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
 /* Button lettering (tokens --font-button etc.). Text links, menu items and tally tiles keep their own lettering. */
-:is(button, .button):not(.linklike, .account-button, .help, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
+:is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
   font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
   text-transform: var(--button-case); letter-spacing: var(--button-track);
 }
@@ -99,7 +99,7 @@ button:active:not(:disabled), .button:active { background: var(--gold-press); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). A pick mid-save keeps its
    green; the whole tally board and segmented buttons keep their own disabled look. */
-:is(button, .button):disabled:not(.picked, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
+:is(button, .button):disabled:not(.picked, .pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
 /* Secondary: a soft borderless fill, flat like the gold buttons (t111). */
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
 .secondary:hover:not(:disabled) { background: var(--line); }
@@ -272,8 +272,18 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .score-side .names { display: grid; gap: 2px; }
 .count-line { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--fs-sm); color: var(--muted); }
 .count-line strong { color: var(--fg); font-size: var(--fs-lg); }
-.list li.pickrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
-.pickrow .who { display: grid; gap: var(--s1); min-width: 0; }
+/* P9 ruling 5: on the pick card the whole row is the toggle, divided like .card .list rows, in body type, with a
+   drawn ring that fills green when picked. An Out player who isn't picked is off and greyed. */
+.pick-row { display: flex; width: 100%; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border: 0; border-radius: 0; color: var(--fg); font-weight: var(--fw-regular); text-align: left; }
+.pick-row, .pick-row:is(:hover, :active):not(:disabled) { background: none; }
+.pick-row + .pick-row { border-top: 1px solid var(--line); }
+.pick-row:disabled { opacity: 1; color: var(--muted); }
+.pick-row .who { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.pick-row .who b { font-weight: var(--fw-semi); }
+.pick-row[aria-pressed='true'] .who b { color: var(--ok); }
+.pick-row .ring { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--line-strong); border-radius: 50%; }
+.pick-row[aria-pressed='true'] .ring { border-color: var(--ok); }
+.pick-row[aria-pressed='true'] .ring::after { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--ok); }
 details.factor { justify-self: start; }
 details.factor > summary { display: inline-flex; gap: var(--s1); padding: 2px 10px; border-radius: var(--radius-pill); background: var(--chip-bg); font-variant-numeric: tabular-nums; font-size: var(--fs-sm); }
 details.factor > summary::before { display: none; }
@@ -435,13 +445,13 @@ details.factor[open] > summary::after { content: '▴'; }
      Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
      moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
      tokens.test.ts fails if a lift or squeeze rule forgets it. */
-  :is(button, .button):not(.linklike, .account-button, .help, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
+  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .account-button, .help, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .account-button, .help, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly, and nothing on the board fades (buttons, pills, links), the bright/dark switch
