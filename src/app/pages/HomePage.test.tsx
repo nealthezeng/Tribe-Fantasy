@@ -232,6 +232,22 @@ describe('League for a keeper (P9 ruling 11)', () => {
     await act(async () => {}); // let the load land
     expect(screen.queryByRole('link', { name: /Tally/ })).toBeNull();
   });
+
+  it('refreshes the live card while it shows, so a finished game drops it on the next poll', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(loadCurrentGame).mockResolvedValue(current(true));
+      show();
+      await screen.findByRole('link', { name: 'Tally game 2' });
+      const done = current(true) as unknown as { game: { finished_at: string | null } };
+      done.game.finished_at = '2026-10-22T15:00:00Z';
+      vi.mocked(loadCurrentGame).mockResolvedValue(done as never);
+      await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+      await waitFor(() => expect(screen.queryByRole('link', { name: 'Tally game 2' })).toBeNull());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('Landing (signed out)', () => {

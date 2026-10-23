@@ -11,7 +11,7 @@ import { api, type LeagueListing } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { inSeason, loadCurrentSeason } from '../lib/stats';
 import { loadCurrentGame, loadNeedsYou } from '../lib/tournament';
-import { useLoad } from '../lib/useLoad';
+import { useLoad, usePoll } from '../lib/useLoad';
 import { gameName } from '../lib/words';
 import { errorMessage } from '../lib/errors';
 import { LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
@@ -132,6 +132,7 @@ export function HomePage() {
   const { data, error, reload } = useLoad(() => loadMyTeams(uid), [uid]);
   // A keeper's live game to tally; a failed load shows no card (Stats still opens the game).
   const live = useLoad(() => (isKeeper ? loadLiveGame() : Promise.resolve(null)), [isKeeper]);
+  usePoll(live.reload, !!live.data); // while it shows, so it stops saying Live once the game ends
   // For League settings (its creator, or an admin: older leagues have no creator) and the create limit (t215).
   const listed = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
   const canCreate = isAdmin || !listed.data?.some((l) => l.is_creator);
