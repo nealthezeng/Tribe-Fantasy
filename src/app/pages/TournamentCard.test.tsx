@@ -45,6 +45,20 @@ const afterGame1 = (): TournamentRows => ({
   sessions: [{ id: 'p1', verified_at: null }],
 });
 
+/** Game 1 played and verified, so final: Ash (2 goals) beat Bea (1 goal); each 2nd starter was auto-picked. The stage is over. */
+const finalGame1 = (): TournamentRows => {
+  const r = afterGame1();
+  return {
+    ...r,
+    stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
+    games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, started_at: '2026-11-03T14:00:00Z', finished_at: '2026-11-03T15:00:00Z' })),
+    pairings: r.pairings.filter((p) => p.game_id === 'g1'),
+    sessions: [{ id: 'p1', verified_at: '2026-11-03T16:00:00Z' }],
+    lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 2 }, points_played: 0 },
+      { session_id: 'p1', athlete_id: 'b1', stats: { goal: 1 }, points_played: 0 }],
+  };
+};
+
 /** Game 1 live (started 14:00, not finished): Ash scored twice (6), Bea blocked once (5). */
 const tap = (id: string, athlete_id: string, stat: string, at: string) =>
   ({ id, session_id: 'p1', athlete_id, stat, keeper_id: 'k1', tapped_at: `2026-11-07T${at}:00Z`, undoes: null });
@@ -370,19 +384,6 @@ describe('TournamentCard', () => {
   });
 
   describe('game cards (t93, t90)', () => {
-    /** Game 1 played and verified, so final: Ash (2 goals) beat Bea (1 goal); each 2nd starter was auto-picked. The stage is over. */
-    const finalGame1 = (): TournamentRows => {
-      const r = afterGame1();
-      return {
-        ...r,
-        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
-        games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, started_at: '2026-11-03T14:00:00Z', finished_at: '2026-11-03T15:00:00Z' })),
-        pairings: r.pairings.filter((p) => p.game_id === 'g1'),
-        sessions: [{ id: 'p1', verified_at: '2026-11-03T16:00:00Z' }],
-        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 2 }, points_played: 0 },
-          { session_id: 'p1', athlete_id: 'b1', stats: { goal: 1 }, points_played: 0 }],
-      };
-    };
     const card = () => document.querySelector('.game')!;
 
     it('shows a final game as a small scoreboard with the caption below it', async () => {
@@ -404,7 +405,7 @@ describe('TournamentCard', () => {
       expect([...card().querySelectorAll('.by')].map((el) => el.textContent)).toEqual(['Zeal', 'Flow']);
       // 3 goals x 3 - 2 turnovers x 1 = 7, and Zeal owns half of Ash.
       const ash = [...card().querySelectorAll('li')].find((li) => li.textContent?.startsWith('Ash'))!;
-      expect(ash.querySelector('small')?.textContent).toBe('Ash · 3 Goal, 2 Turnover');
+      expect(ash.querySelector('small')?.textContent).toBe('Ash · 3 goals, 2 turnovers');
       expect(ash.querySelector('.calc')?.textContent).toBe('7 × 0.5 = 3.5');
       expect(card().textContent).toContain("You didn't pick, so");
       expect(card().textContent).toContain("Flow didn't pick, so"); // not "You": the viewer is Zeal
@@ -440,6 +441,35 @@ describe('TournamentCard', () => {
 
   describe('matchup header', () => {
     const scoreboard = () => document.querySelector('.score');
+    const strip = () => document.querySelector('.strip') as HTMLElement;
+    /** The strip's words, left to right, without the "?" and its popover text. */
+    const stripWords = () => [...strip().children].filter((e) => !e.matches('.help, .help-pop')).map((e) => e.textContent);
+
+    it('reads one line: game, status word and dot, "unofficial" and its ?', async () => {
+      await show(liveGame1());
+      expect(stripWords()).toEqual(['Game 1', 'Live', 'unofficial']);
+      expect(strip().querySelector('.live > .dot')).toBeTruthy();
+      expect(within(strip()).getByRole('button', { name: 'What unofficial and verified mean' })).toBeTruthy();
+      expect(strip().querySelector('.chip, .pill.warn')).toBeNull();
+      expect(strip().textContent).not.toContain('Fall beta');
+    });
+
+    it('says Final with Won and the points once verified', async () => {
+      await show(finalGame1());
+      expect(stripWords()).toEqual(['Game 1', 'Final', expect.stringMatching(/^Won \+\d/)]);
+      expect(scoreboard()?.querySelector(':scope > .vs')?.textContent).toBe('vs'); // never "to" (ruling 2)
+    });
+
+    it('says a verified game held back by an unverified one is Final, and when it counts', async () => {
+      const r = afterGame1(); // game 1 finished, not verified
+      await show({
+        ...r,
+        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
+        games: r.games.map((g) => (g.id === 'g2' ? { ...g, session_id: 'p2', started_at: '2026-11-07T15:10:00Z', finished_at: '2026-11-07T16:00:00Z' } : g)),
+        sessions: [...r.sessions, { id: 'p2', verified_at: '2026-11-07T16:10:00Z' }],
+      });
+      expect(stripWords()).toEqual(['Game 2', 'Final', 'counts once Fall beta game 1 is verified']);
+    });
 
     it('shows both players once a game is live, and says scores wait for the stats', async () => {
       const r = afterGame1();
@@ -503,18 +533,41 @@ describe('TournamentCard', () => {
   describe('live scores (t317)', () => {
     const starters = () => [...document.querySelectorAll('.starters li')].map((li) => li.textContent);
 
-    it("shows a live game's unofficial score and each starter's stat line", async () => {
+    it("shows a live game's unofficial score", async () => {
       await show(liveGame1());
       const strip = document.querySelector('.strip')!.textContent!;
       expect(strip).toContain('Live');
-      expect(strip).toContain('Unofficial');
+      expect(strip).toContain('unofficial');
       expect([...document.querySelectorAll('.score .pts')].map((e) => e.textContent)).toEqual(['6', '5']);
-      expect(starters()).toContain('Ash · 2 Goal6');
-      expect(starters()).toContain('Bea · 1 D5');
-      expect(starters().filter((t) => t?.includes('No stats'))).toHaveLength(2); // each side's auto-picked 2nd starter
     });
 
-    it('explains Unofficial beside the pill, with no DOM nesting warning', async () => {
+    /** A starter's line: the small words, then the points. */
+    const starter = (name: string) => {
+      const li = [...document.querySelectorAll('.starters li')].find((x) => x.textContent?.startsWith(name))!;
+      return [li.querySelector('small')?.textContent, li.querySelector('strong')?.textContent];
+    };
+
+    it('writes starter lines as stats in words and base × exact share', async () => {
+      await show(liveGame1());
+      expect(starter('Ash')).toEqual(['Ash · 2 goals · 6 × 100%', '6']);
+      expect(starter('Bea')).toEqual(['Bea · 1 block · 5 × 100%', '5']);
+    });
+
+    it('says no stats yet for a starter nobody has tapped', async () => {
+      await show(liveGame1());
+      // Each side's auto-picked 2nd starter: no taps, so nothing to multiply.
+      expect(starters().filter((t) => t?.includes('no stats yet'))).toHaveLength(2);
+      expect(starter('Avery')).toEqual(['Avery · no stats yet', '0']);
+    });
+
+    it('puts the auto-pick line under your starters, in the played wording', async () => {
+      await show(liveGame1());
+      const mine = document.querySelector('.starters > .stack')!;
+      expect(mine.lastElementChild?.matches('p.hint')).toBe(true);
+      expect(mine.lastElementChild?.textContent).toMatch(/^You didn't pick, so \w+ played\.$/);
+    });
+
+    it('explains unofficial beside the word, with no DOM nesting warning', async () => {
       const err = vi.spyOn(console, 'error');
       await show(liveGame1());
       const help = within(document.querySelector('.strip') as HTMLElement).getByRole('button', { name: 'What unofficial and verified mean' });
@@ -533,7 +586,7 @@ describe('TournamentCard', () => {
         sessions: [{ id: 'p1', verified_at: '2026-11-07T16:00:00Z' }],
         lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 0 }, { session_id: 'p1', athlete_id: 'b1', stats: { block: 1 }, points_played: 0 }],
       });
-      expect(document.querySelector('.strip')!.textContent).not.toContain('Unofficial');
+      expect(document.querySelector('.strip')!.textContent).not.toMatch(/unofficial/i);
       expect([...document.querySelectorAll('.score .pts')].map((e) => e.textContent)).toEqual(['3', '5']);
       expect(document.querySelector('.strip')!.textContent).toMatch(/Lost −1/);
       expect(document.querySelector('.score-side.lost')!.textContent).toContain('Ash');
@@ -549,7 +602,7 @@ describe('TournamentCard', () => {
       expect(card.querySelector('summary > .meta')!.textContent).not.toMatch(/W [+−]|L [+−]/);
       fireEvent.click(card.querySelector('summary')!);
       expect(card.textContent).toContain('Unofficial until a keeper verifies.');
-      expect(card.textContent).toContain('Ash · 2 Goal');
+      expect(card.textContent).toContain('Ash · 2 goals');
     });
 
     it('polls every 15 s while a game is live, not otherwise', async () => {

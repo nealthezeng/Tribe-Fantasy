@@ -6,12 +6,11 @@ import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
-import { formatDay, statLabel } from '../lib/stats';
 import type { Seen } from '../lib/seen';
 import { anyCounted, fmt, loadLeagueTournament, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
-import { factorWords, gameName } from '../lib/words';
+import { factorWords, gameName, heldNote, pctExact, statusWord, statWords } from '../lib/words';
 
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
 /** An athlete's name, or `none` when nobody plays. */
@@ -103,11 +102,12 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const status = g?.status ?? 'upcoming'; // labels keep the official status; only the numbers below are unofficial
   const final = status === 'final';
   const shown = g && (y.unofficial.get(g.game.id) ?? g);
-  const unofficial = shown !== g;
+  // A verified game held back by an earlier one has its own verified numbers: Final with a note, not unofficial.
+  const unofficial = shown !== g && !g?.heldBy;
+  const held = g && heldNote(y, g);
   const mine = shown ? sides(shown).find((x) => x?.membershipId === membershipId) ?? null
     : y.result.next?.sides.find((x) => x.membershipId === membershipId) ?? null;
   const them = shown ? opponentIn(shown, membershipId) : undefined; // undefined = not paired yet, null = bye
-  const dates = focus && y.stageDates.get(focus.stageId);
   const row = y.result.standings.find((r) => r.membershipId === membershipId);
   // Before any game counts, Place / Record / Points would read T1 / 0–0 / 0: say so in the strip instead (t228).
   const anyPlayed = anyCounted(y);
@@ -142,16 +142,16 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
           </> : teamName}
         </h2>
         <p className="strip">
+          {/* Rule 5: the game, then its status as a word (Live with the dot), no pill but the one that needs you. "Next up"
+              is the strip's own word for the game to come. */}
           {focus ? <>
-            <span>{y.stage.get(focus.stageId)}</span>
-            {dates && <span className="chip">{formatDay(dates.starts_on)} – {formatDay(dates.ends_on)}</span>}
             <span>{labelOf(y, focus.stageId, focus.number)}</span>
             {them === null ? <span>Bye</span> : <>
-              {status === 'live' && <span className="live"><span className="dot" aria-hidden="true" />Live</span>}
-              {status === 'upcoming' && <span>Next up</span>}
-              {status === 'pending' && <span>Waiting on stats</span>}
-              {unofficial && <><span className="pill warn">Unofficial</span><VerifiedHelp hours={y.settings.stat_lock_hours} /></>}
+              {status === 'live' ? <span className="live"><span className="dot" aria-hidden="true" />Live</span>
+                : <span>{upcoming || !g ? 'Next up' : statusWord(g)}</span>}
+              {held && <span>{held}</span>}
               {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
+              {unofficial && <><span>unofficial</span><VerifiedHelp hours={y.settings.stat_lock_hours} /></>}
             </>}
             {doomed && <span className="pill warn">Your pick is out</span>}
           </> : <>
@@ -166,16 +166,19 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
           <ScoreSide label={upcoming ? 'Your picks' : 'You played'} y={y} athleteIds={minePlayers}
             picked={upcoming && wanted > 0 && minePlayers.length >= wanted && !doomed}
             score={mine.score} from={now?.from.mine} empty={upcoming ? 'No picks yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
-          <span className="vs">{final ? 'to' : 'vs'}</span>
+          <span className="vs">vs</span>
           <ScoreSide label={upcoming ? 'Their picks' : 'They played'} y={y}
             athleteIds={upcoming ? [] : them.athleteIds} score={them.score} from={now?.from.them}
             empty={upcoming ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
         </div>
       )}
-      {mine && !upcoming && <Notice y={y} side={mine} played />}
+      {/* Who the app started for you sits under your starters; with a bye there are none to sit under. */}
+      {mine && !upcoming && them === null && <Notice y={y} side={mine} played />}
       {shown && them && mine && !upcoming && (
         <section className="card starters" aria-label="Starters">
-          <StarterSide y={y} g={shown} side={mine} name={teamName} since={now?.chips.mine} />
+          <StarterSide y={y} g={shown} side={mine} name={teamName} since={now?.chips.mine}>
+            <Notice y={y} side={mine} played />
+          </StarterSide>
           <StarterSide y={y} g={shown} side={them} name={y.team.get(them.membershipId) ?? 'A team'} since={now?.chips.them} />
         </section>
       )}
@@ -403,15 +406,22 @@ function GameSide({ y, side, lost }: { y: LeagueTournament; side: TournamentSide
   );
 }
 
-/** "2 Goal, 1 Assist", "No stats" (a starter nobody has tapped yet) or, in a verified game, "Didn't play". */
+/**
+ * "2 goals, 1 assist" (ruling 3). None: "no stats yet" until the game is verified, then "didn't play", or "no stats"
+ * when the verified stat line is all zeros (they played).
+ */
 function statsOf(y: LeagueTournament, g: GameOutcome, a: string) {
   const line = y.input.statLines.find((l) => l.sessionId === g.game.sessionId && l.athleteId === a);
-  return line || g.status !== 'final' ? Object.entries(line?.stats ?? {}).filter(([, n]) => n).map(([k, n]) => `${n} ${statLabel(k)}`).join(', ') || 'No stats'
-    : "Didn't play";
+  return statWords(line?.stats ?? {}) || (g.status !== 'final' && !g.heldBy ? 'no stats yet' : line ? 'no stats' : "didn't play");
 }
 
-/** The matchup's starters for one team: its name and score, then each starter's stat line and points. */
-function StarterSide({ y, g, side, name, since }: { y: LeagueTournament; g: GameOutcome; side: TournamentSide; name: string; since?: Record<string, number> }) {
+/**
+ * The matchup's starters for one team: its name and score, then each starter's line (ruling 10) "Finn · 1 goal ·
+ * 6 × 12.5%" and points, then `children`. A starter who scored 0 has nothing to multiply: the line ends at the stats.
+ */
+function StarterSide({ y, g, side, name, since, children }: {
+  y: LeagueTournament; g: GameOutcome; side: TournamentSide; name: string; since?: Record<string, number>; children?: ReactNode;
+}) {
   return (
     <div className="stack">
       <p className="head">
@@ -422,12 +432,13 @@ function StarterSide({ y, g, side, name, since }: { y: LeagueTournament; g: Game
         <ul className="list">
           {side.athleteIds.map((a) => (
             <li key={a}>
-              <small>{athleteName(y, a)} · {statsOf(y, g, a)}</small>
+              <small>{athleteName(y, a)} · {statsOf(y, g, a)}{side.athleteScores?.[a] ? ` · ${fmt(side.athleteScores[a])} × ${pctExact(side.factor[a])}` : ''}</small>
               {side.points && <strong className="num">{since?.[a] != null && <span className={since[a] > 0 ? 'since up' : 'since down'}>{signed(since[a])}<span className="sr-only"> since you last looked, now </span></span>}{fmt(side.points[a])}</strong>}
             </li>
           ))}
         </ul>
       )}
+      {children}
     </div>
   );
 }

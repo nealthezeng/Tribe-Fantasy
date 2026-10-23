@@ -246,13 +246,15 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .vs { font-family: var(--font-sans); font-weight: var(--fw-semi); font-size: var(--fs-sm); text-transform: lowercase; letter-spacing: normal; color: var(--muted); }
 .display .vs { vertical-align: 0.6em; padding-inline: var(--s1); }
 .display .side { display: inline-block; vertical-align: top; }
-/* A team name that links to its page reads as a name: same colour and weight, underlined only on hover or focus. */
+/* A team name that links to its page reads as a name: same colour and weight, underlined only on hover or focus. In the
+   matchup headline a quiet line shows the names open their teams; it goes solid on hover or focus. */
 .team-link { color: inherit; font-weight: inherit; text-decoration: none; }
 .team-link:is(:hover, :focus-visible) { text-decoration: underline; }
+.matchup .team-link { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.12em; text-decoration-color: var(--line-strong); }
+.matchup .team-link:is(:hover, :focus-visible) { text-decoration-color: currentColor; }
 .owner { display: block; font-family: var(--font-sans); font-weight: var(--fw-regular); font-size: var(--fs-sm); text-transform: none; letter-spacing: normal; line-height: 1.3; color: var(--muted); overflow-wrap: anywhere; }
 .strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); font-size: var(--fs-sm); color: var(--muted); }
 .strip strong { color: var(--fg); }
-.chip { border: 1px solid var(--line-strong); border-radius: var(--radius-xs); padding: 0 var(--s2); color: var(--fg); font-weight: var(--fw-semi); }
 .live { display: inline-flex; align-items: center; gap: var(--s2); color: var(--error); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: var(--track-label); }
 .dot { position: relative; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .dot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid currentColor; opacity: 0.35; transform: scale(1.8); }
