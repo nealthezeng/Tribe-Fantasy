@@ -10,13 +10,13 @@ import { useLoad } from '../lib/useLoad';
 export const passwordProblem = (password: string) =>
   password.trim().length < 4 ? errorMessage({ message: 'INVALID_PASSWORD' }) : null;
 
-/** /leagues (t215): the current season's leagues, searchable by name; tap Join for a team name (+ password). */
+/** /leagues (t215): the current season's leagues, each naming its members; tap a row for a team name (+ password).
+ *  Searchable by name once there are more than 6. */
 export function LeaguesPage() {
   const { session, loading } = useAuth();
   const uid = session?.user.id;
   const leagues = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState<string | null>(null);
 
   if (loading) return <Loading />;
   if (!session) return <Navigate to="/login" replace />;
@@ -27,15 +27,15 @@ export function LeaguesPage() {
     <section className="page">
       <h1>Join a league</h1>
       <div className="card">
-        <label>Search leagues<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" /></label>
+        {leagues.data && leagues.data.length > 6 && (
+          <label>Search leagues<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" /></label>
+        )}
         {leagues.error && <p className="error" role="alert">{leagues.error}</p>}
         {!leagues.data && !leagues.error && <Loading />}
         {leagues.data?.length === 0 && <p className="muted">No leagues yet. Create the first one.</p>}
         {!!leagues.data?.length && shown?.length === 0 && <p className="muted">No league matches "{query.trim()}".</p>}
         <ul className="list">
-          {shown?.map((l) => (
-            <LeagueRow key={l.id} league={l} open={open === l.id} onToggle={() => setOpen(open === l.id ? null : l.id)} />
-          ))}
+          {shown?.map((l) => <LeagueRow key={l.id} league={l} />)}
         </ul>
       </div>
       <p><Link to="/leagues/new" className="more">Create a league</Link></p>
@@ -43,7 +43,16 @@ export function LeaguesPage() {
   );
 }
 
-function LeagueRow({ league: l, open, onToggle }: { league: LeagueListing; open: boolean; onToggle: () => void }) {
+/** "Maya, Gabe, Rory and 1 more · 4 of 12": the first three members' first names, then the count. */
+const membersLine = (l: LeagueListing) => {
+  const names = l.members.slice(0, 3);
+  const more = l.teams - names.length;
+  return [names.join(', ') + (names.length && more > 0 ? ` and ${more} more` : ''), `${l.teams} of ${l.max_teams}`]
+    .filter(Boolean).join(' · ');
+};
+
+/** A league you can join is a row that opens its join form (rule 1); a joined or full one opens nothing, so no chevron. */
+function LeagueRow({ league: l }: { league: LeagueListing }) {
   const navigate = useNavigate();
   const [team, setTeam] = useState('');
   const [password, setPassword] = useState('');
@@ -64,28 +73,28 @@ function LeagueRow({ league: l, open, onToggle }: { league: LeagueListing; open:
     }
   }
 
+  const head = (
+    <>
+      <span className="who"><b>{l.name}</b><small className="num">{membersLine(l)}</small></span>
+      {l.has_password && <span className="pill">Password</span>}
+      {l.is_member ? <span className="pill ok">Joined</span> : full && <span className="pill">Full</span>}
+    </>
+  );
+  if (l.is_member || full) return <li><div className="row-link">{head}</div></li>;
   return (
     <li>
-      <span className="meta">
-        <span className="title">{l.name}</span>
-        {l.has_password && <span className="pill">Password</span>}
-      </span>
-      <span className="meta">
-        <span className="muted num">{l.teams} of {l.max_teams} teams</span>
-        {l.is_member ? <span className="pill ok">Joined</span>
-          : full ? <span className="pill">Full</span>
-          : <button className="secondary" aria-expanded={open} aria-label={`Join ${l.name}`} onClick={onToggle}>Join</button>}
-      </span>
-      {open && !l.is_member && !full && (
+      {/* One open at a time where the browser groups details by name. */}
+      <details name="join-league">
+        <summary className="row-link">{head}</summary>
         <form className="row" onSubmit={join}>
           <label>Your team name<input required maxLength={40} value={team} onChange={(e) => setTeam(e.target.value)} /></label>
           {l.has_password && (
             <label>Password<input type="password" required autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
           )}
-          <button disabled={busy}>{busy ? 'Joining…' : 'Join league'}</button>
+          <button disabled={busy}>{busy ? 'Joining…' : `Join ${l.name}`}</button>
           {error && <p className="error" role="alert">{error}</p>}
         </form>
-      )}
+      </details>
     </li>
   );
 }

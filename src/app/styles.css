@@ -172,8 +172,16 @@ details.bid-cta.loud:not([open]) > summary { background: var(--gold); color: var
 details.bid-cta.loud:not([open]) > summary:hover { background: var(--gold-hover); } /* rare admin of your league: a quiet fold at the page's end (t227) */
 details > summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; gap: var(--s2); font-weight: var(--fw-semi); list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
-details > summary::before { content: ''; flex: none; width: 8px; height: 8px; margin: 0 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
+details > summary::before, a.row-link::after { content: ''; flex: none; width: 8px; height: 8px; margin: 0 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
 details[open] > summary::before { transform: rotate(45deg); }
+/* P9 rule 1, the row is the button: a link or a summary that opens something is one whole 56px row: a .who (bold name
+   over small lines) first, pills after, and the drawn chevron at its end (a summary's own, turned down when open). On a
+   plain element the same row opens nothing, so it has no chevron. In a .list it fills its li. */
+.row-link { display: flex; align-items: center; gap: var(--s2) var(--s3); min-height: 56px; padding-block: var(--s2); color: var(--fg); font-weight: var(--fw-regular); text-decoration: none; }
+.row-link > .who { flex: 1 1 auto; display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.row-link > .who b { font-weight: var(--fw-semi); }
+.list li:has(> .row-link, > details > .row-link) { padding-block: 0; }
+.list li > :is(.row-link, details) { flex: 1 1 100%; min-width: 0; }
 
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
@@ -464,8 +472,8 @@ details.factor[open] > summary::after { content: '▴'; }
 .game-group { display: grid; overflow-wrap: anywhere; }
 .game-group > * + * { border-top: 1px solid var(--line); }
 .game-group > :is(p, h3) { padding-bottom: var(--s2); font-weight: var(--fw-bold); }
-.game-group > details > summary::before { order: 1; margin-left: auto; }
-.game-group > details[open] { padding-bottom: var(--s3); }
+.game-group > details > summary::before, summary.row-link::before, a.row-link::after { order: 1; margin-left: auto; }
+.game-group > details[open], .list li > details[open] { padding-bottom: var(--s3); }
 .game-line { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto 16px; align-items: center; gap: var(--s3); min-height: 56px; padding-block: var(--s2); font-weight: var(--fw-regular); }
 .game-line > .n { font-family: var(--font-display); font-weight: var(--fw-display); font-size: var(--fs-lg); color: var(--muted); font-variant-numeric: tabular-nums; }
 .game-line > .teams { display: grid; gap: 2px; min-width: 0; }

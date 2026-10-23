@@ -19,12 +19,14 @@ export function GuideSteps({ picks }: { picks: number }) {
 const key = (uid: string) => `tribe.guide.${uid}`;
 const seen = (uid: string) => { try { return localStorage.getItem(key(uid)) === '1'; } catch { return false; } };
 
-/** Shown on League until "Got it", once per account and device; a blocked storage shows it again next visit. */
+/** Shown on League until "Got it", once per account and device; a blocked storage shows it again next visit. Got it
+ *  moves focus to the page's h1, which needs tabIndex -1. */
 export function Guide({ uid }: { uid: string }) {
   const [hidden, setHidden] = useState(() => seen(uid));
   const season = useLoad(() => loadCurrentSeason().catch(() => null), []); // no season: the default count
   if (hidden) return null;
   const done = () => {
+    document.querySelector<HTMLElement>('h1')?.focus(); // the button is going: focus stays on the page, not <body>
     setHidden(true);
     try { localStorage.setItem(key(uid), '1'); } catch { /* hidden for this visit only */ }
   };

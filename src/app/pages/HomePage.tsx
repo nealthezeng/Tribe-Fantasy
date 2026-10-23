@@ -10,8 +10,9 @@ import { TournamentCard } from './TournamentCard';
 import { api, type LeagueListing } from '../lib/rpc';
 import { supabase } from '../lib/supabase';
 import { inSeason, loadCurrentSeason } from '../lib/stats';
-import { loadNeedsYou } from '../lib/tournament';
+import { loadCurrentGame, loadNeedsYou } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
+import { gameName } from '../lib/words';
 import { errorMessage } from '../lib/errors';
 import { LEDGER_COLUMNS, type LedgerEntry } from '../lib/wallet';
 import type { Donate } from './Credits';
@@ -126,9 +127,11 @@ export function donateFor(m: MembershipRow): Donate | null {
 }
 
 export function HomePage() {
-  const { session, loading, isAdmin } = useAuth();
+  const { session, loading, isAdmin, isKeeper } = useAuth();
   const uid = session?.user.id;
   const { data, error, reload } = useLoad(() => loadMyTeams(uid), [uid]);
+  // A keeper's live game to tally; a failed load shows no card (Stats still opens the game).
+  const live = useLoad(() => (isKeeper ? loadLiveGame() : Promise.resolve(null)), [isKeeper]);
   // For League settings (its creator, or an admin: older leagues have no creator) and the create limit (t215).
   const listed = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
   const canCreate = isAdmin || !listed.data?.some((l) => l.is_creator);
@@ -144,7 +147,7 @@ export function HomePage() {
           <figcaption>Thank you to the families, friends and alumni who came out to cheer us on and squeezed into this photo.</figcaption>
         </figure>
         <h1>Tribe Fantasy</h1>
-        <p>A fantasy league for our team. Every dollar goes to the team fund.</p>
+        <p>A fantasy league for our team. Free to play. Donations go to the team fund.</p>
         <div className="row">
           <Link to="/login" className="button">Sign in</Link>
           <Link to="/rules" className="button secondary">How it works</Link>
@@ -156,12 +159,21 @@ export function HomePage() {
 
   return (
     <section className="page">
-      {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. */}
-      <h1 className={data?.length ? 'sr-only' : undefined}>Your teams</h1>
+      {/* With a team, its matchup headline is the loud thing; the page title stays for screen readers. The guide's
+          Got it moves focus here. */}
+      <h1 className={data?.length ? 'sr-only' : undefined} tabIndex={-1}>Your teams</h1>
       <Guide uid={uid!} />
       {error && <p className="error" role="alert">{error}</p>}
+      {live.data && <LiveGame current={live.data} gold={data?.length === 0} />}
       {!data && !error && <Loading />}
-      {data && data.length === 0 && (
+      {/* A keeper with no team is here to tally: a quiet line, so Tally stays the one gold button. */}
+      {data && data.length === 0 && isKeeper && (
+        <>
+          <p className="muted">You don't have a team this season.</p>
+          <p><Link to="/leagues" className="more">Join a league</Link></p>
+        </>
+      )}
+      {data && data.length === 0 && !isKeeper && (
         <div className="card">
           <h2>Get started</h2>
           <div className="row">
@@ -180,6 +192,28 @@ export function HomePage() {
       )}
       {m && <LeagueSettings key={`settings-${m.id}`} m={m} isAdmin={isAdmin} listed={listed.data} onChanged={() => { reload(); listed.reload(); }} />}
     </section>
+  );
+}
+
+type CurrentGame = NonNullable<Awaited<ReturnType<typeof loadCurrentGame>>>;
+
+/** The current season's live game, for a keeper (P9 ruling 11); null while none is started and unfinished. */
+async function loadLiveGame(): Promise<CurrentGame | null> {
+  const season = await loadCurrentSeason();
+  const current = season && await loadCurrentGame(season.id);
+  return current?.game.session_id && current.game.started_at && !current.game.finished_at ? current : null;
+}
+
+/** "CCCs · Game 2 vs UNC", Live, and Tally: gold for a keeper with no team, else a quiet link (one gold button). */
+function LiveGame({ current: { stage, game }, gold }: { current: CurrentGame; gold: boolean }) {
+  return (
+    <article className="card">
+      <p className="strip">
+        <strong>{stage.name} · {gameName(game.number, game.opponent)}</strong>
+        <span className="live"><span className="dot" aria-hidden="true" />Live</span>
+      </p>
+      <p><Link to={`/tally?game=${game.session_id}`} className={gold ? 'button' : 'more'}>Tally game {game.number}</Link></p>
+    </article>
   );
 }
 

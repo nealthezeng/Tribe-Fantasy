@@ -44,6 +44,13 @@ describe('first-visit guide (t320)', () => {
     expect(screen.queryByRole('complementary', { name: 'How it works' })).toBeNull();
   });
 
+  it('moves focus to the page heading after Got it', async () => {
+    render(<MemoryRouter><h1 tabIndex={-1}>Your teams</h1><Guide uid="u1" /></MemoryRouter>);
+    await guide();
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'Your teams' }));
+  });
+
   it('links to the rules', async () => {
     show();
     await guide();

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, type LeagueListing } from '../lib/rpc';
@@ -39,18 +39,40 @@ const at = (path: string) => render(
 beforeEach(() => { vi.mocked(api.listLeagues).mockResolvedValue(LEAGUES); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
+/** The row for a league: a summary (it opens a join form) or a plain row. */
+const row = (name: string) => screen.getByText(name).closest<HTMLElement>('.row-link')!;
+/** Opens a league's row; its join form, inside the row's details. */
+const openRow = async (name: string) => {
+  fireEvent.click((await screen.findByText(name)).closest('summary')!);
+  const details = row(name).closest('details')!;
+  expect(details.open).toBe(true);
+  return within(details);
+};
+
 describe('LeaguesPage (t215)', () => {
-  it('shows N of M teams, Password, Full and Joined, and offers Join only where you can join', async () => {
+  it('shows Password, Full and Joined, and only joinable leagues open a join form', async () => {
     at('/leagues');
-    expect(await screen.findByText('4 of 6 teams')).toBeTruthy();
-    expect(screen.getByText('Password')).toBeTruthy();
-    expect(screen.getByText('Full')).toBeTruthy();
-    expect(screen.getByText('Joined')).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: /^Join / }).map((b) => b.getAttribute('aria-label')))
-      .toEqual(['Join Alpha Dogs', 'Join Zip Zap']);
+    expect(await screen.findByText('4 of 6')).toBeTruthy();
+    expect(within(row('Alpha Dogs')).getByText('Password')).toBeTruthy();
+    expect(within(row('Bravo')).getByText('Full')).toBeTruthy();
+    expect(within(row('Huck Yeah')).getByText('Joined')).toBeTruthy();
+    expect([...document.querySelectorAll('summary.row-link b')].map((b) => b.textContent)).toEqual(['Alpha Dogs', 'Zip Zap']);
   });
 
-  it('filters by name, ignoring case and spaces, and says when nothing matches', async () => {
+  it("names each league's members and opens a join form from the row", async () => {
+    vi.mocked(api.listLeagues).mockResolvedValue([league({ id: 'a', name: 'League A', teams: 4, max_teams: 12, members: ['Maya', 'Gabe', 'Rory', 'Jules'] })]);
+    at('/leagues');
+    expect(await screen.findByText('Maya, Gabe, Rory and 1 more · 4 of 12')).toBeTruthy();
+    expect(row('League A').tagName).toBe('SUMMARY'); // the whole row opens it
+    const form = await openRow('League A');
+    expect(form.getByLabelText('Your team name')).toBeTruthy();
+    expect(form.getByRole('button', { name: 'Join League A' })).toBeTruthy();
+    // Up to 6 leagues: no search box.
+    expect(screen.queryByLabelText('Search leagues')).toBeNull();
+  });
+
+  it('filters by name with more than 6 leagues, ignoring case and spaces, and says when nothing matches', async () => {
+    vi.mocked(api.listLeagues).mockResolvedValue([...LEAGUES, ...['Echo', 'Foxtrot', 'Golf'].map((name) => league({ id: name, name }))]);
     at('/leagues');
     const search = await screen.findByLabelText('Search leagues');
     fireEvent.change(search, { target: { value: '  ZIP ' } });
@@ -62,10 +84,10 @@ describe('LeaguesPage (t215)', () => {
 
   it('asks a locked league for its password and goes Home after joining', async () => {
     at('/leagues');
-    fireEvent.click(await screen.findByRole('button', { name: 'Join Alpha Dogs' }));
-    fireEvent.change(screen.getByLabelText('Your team name'), { target: { value: 'Zips' } });
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret1' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Join league' }));
+    const form = await openRow('Alpha Dogs');
+    fireEvent.change(form.getByLabelText('Your team name'), { target: { value: 'Zips' } });
+    fireEvent.change(form.getByLabelText('Password'), { target: { value: 'secret1' } });
+    fireEvent.click(form.getByRole('button', { name: 'Join Alpha Dogs' }));
     await waitFor(() => expect(api.joinOpenLeague).toHaveBeenCalledWith('a', 'secret1', 'Zips'));
     expect(await screen.findByText('home')).toBeTruthy();
   });
@@ -73,11 +95,11 @@ describe('LeaguesPage (t215)', () => {
   it('sends no password to a public league and shows a refusal in place', async () => {
     vi.mocked(api.joinOpenLeague).mockRejectedValueOnce({ message: 'TEAM_NAME_TAKEN' });
     at('/leagues');
-    fireEvent.click(await screen.findByRole('button', { name: 'Join Zip Zap' }));
-    expect(screen.queryByLabelText('Password')).toBeNull();
-    fireEvent.change(screen.getByLabelText('Your team name'), { target: { value: 'Zips' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Join league' }));
-    expect((await screen.findByRole('alert')).textContent).toMatch(/already has that name/);
+    const form = await openRow('Zip Zap');
+    expect(form.queryByLabelText('Password')).toBeNull();
+    fireEvent.change(form.getByLabelText('Your team name'), { target: { value: 'Zips' } });
+    fireEvent.click(form.getByRole('button', { name: 'Join Zip Zap' }));
+    expect((await form.findByRole('alert')).textContent).toMatch(/already has that name/);
     expect(api.joinOpenLeague).toHaveBeenCalledWith('d', null, 'Zips');
   });
 

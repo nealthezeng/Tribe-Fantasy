@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { HashRouter, MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreditsPage } from './Credits';
 import { api } from '../lib/rpc';
+import { loadCurrentGame } from '../lib/tournament';
 import { HomePage } from './HomePage';
 
+const auth = vi.hoisted(() => ({ signedIn: true, isKeeper: false }));
 vi.mock('../auth/AuthProvider', () => ({
-  useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false, isAdmin: false }),
+  useAuth: () => ({ session: auth.signedIn ? { user: { id: 'u1' } } : null, loading: false, isAdmin: false, isKeeper: auth.isKeeper }),
 }));
 const season = vi.hoisted(() => ({ settings: {} as Record<string, unknown>, loaded: {} as Record<string, unknown> }));
 const team = vi.hoisted(() => (id: string, team_name: string, season_id: string) => ({
@@ -26,6 +28,7 @@ vi.mock('../lib/stats', async (orig) => ({
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
   loadNeedsYou: (id: string) => Promise.resolve(id === 'b'),
+  loadCurrentGame: vi.fn(() => Promise.resolve(null)),
 }));
 vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), donationLeaderboard: () => Promise.resolve([]),
   myDonateAnonymously: () => Promise.resolve(false), renameMyTeam: vi.fn() } }));
@@ -33,8 +36,17 @@ vi.mock('../lib/rpc', () => ({ api: { listLeagues: () => Promise.resolve([]), do
 vi.mock('./TournamentCard', () => ({ TournamentCard: ({ teamName }: { teamName: string }) => <h2>{teamName}</h2> }));
 
 beforeEach(() => localStorage.setItem('tribe.guide.u1', '1')); // the guide has its own tests below
-afterEach(() => { cleanup(); localStorage.clear(); season.settings = {}; season.loaded = {}; });
+afterEach(() => {
+  cleanup(); localStorage.clear(); season.settings = {}; season.loaded = {}; vi.restoreAllMocks();
+  auth.signedIn = true; auth.isKeeper = false; vi.mocked(loadCurrentGame).mockClear().mockResolvedValue(null);
+});
 const show = () => render(<MemoryRouter><HomePage /></MemoryRouter>);
+/** This user has no team this season (restored after each test). */
+const noTeams = async () => {
+  const { supabase } = await import('../lib/supabase');
+  const q = { select: () => q, eq: () => q, order: () => Promise.resolve({ data: [], error: null }) };
+  vi.spyOn(supabase!, 'from').mockReturnValue(q as never);
+};
 const switcher = () => within(screen.getByRole('group', { name: 'League' }));
 
 describe('HomePage with several teams (t229, t240)', () => {
@@ -164,20 +176,68 @@ describe('CreditsPage with several teams', () => {
 
 describe('First-visit guide on League (t320)', () => {
   beforeEach(() => localStorage.clear());
-  it('shows the guide above the Get started card for a new user', async () => {
-    const { supabase } = await import('../lib/supabase');
-    const q = { select: () => q, eq: () => q, order: () => Promise.resolve({ data: [], error: null }) };
-    const from = vi.spyOn(supabase!, 'from').mockReturnValue(q as never);
+  it('shows the guide above the Get started card for a new user, and Got it lands on the page heading', async () => {
+    await noTeams();
     show();
     const guide = await screen.findByRole('complementary', { name: 'How it works' });
     const started = await screen.findByRole('heading', { name: 'Get started' });
     expect(guide.compareDocumentPosition(started) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    from.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'Your teams' }));
   });
 
   it('uses the season pick count', async () => {
     season.loaded = { picks_per_game: 3 };
     show();
     await screen.findByText(/Pick 3 each game/);
+  });
+});
+
+describe('League for a keeper (P9 ruling 11)', () => {
+  const current = (started: boolean) => ({
+    stage: { id: 'S1', name: 'CCCs' }, games: [], count: 3,
+    game: { id: 'g2', stage_id: 'S1', number: 2, opponent: 'UNC', session_id: started ? 's2' : null,
+      started_at: started ? '2026-10-22T14:00:00Z' : null, finished_at: null },
+  }) as never;
+  beforeEach(() => { auth.isKeeper = true; });
+
+  it('shows a keeper the live game with a gold Tally button when they have no team', async () => {
+    vi.mocked(loadCurrentGame).mockResolvedValue(current(true));
+    await noTeams();
+    render(<HashRouter><HomePage /></HashRouter>);
+    const tally = await screen.findByRole('link', { name: 'Tally game 2' });
+    expect(tally.className).toBe('button');
+    expect(tally.getAttribute('href')).toBe('#/tally?game=s2');
+    expect(screen.getByText('CCCs · Game 2 vs UNC')).toBeTruthy();
+    expect(screen.getByText('Live')).toBeTruthy();
+    expect(loadCurrentGame).toHaveBeenCalledWith('spring'); // the current season
+    // No team: a quiet line instead of the Get started card, so Tally stays the one gold button.
+    expect(await screen.findByText("You don't have a team this season.")).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Join a league' }).className).toBe('more');
+    expect(screen.queryByRole('heading', { name: 'Get started' })).toBeNull();
+  });
+
+  it('gives a keeper with a team a quiet Tally link', async () => {
+    vi.mocked(loadCurrentGame).mockResolvedValue(current(true));
+    show();
+    expect((await screen.findByRole('link', { name: 'Tally game 2' })).className).toBe('more');
+    expect(screen.queryByText("You don't have a team this season.")).toBeNull();
+  });
+
+  it('shows no game card while the game has not started', async () => {
+    vi.mocked(loadCurrentGame).mockResolvedValue(current(false));
+    show();
+    await screen.findByRole('heading', { name: 'Zeal' });
+    await waitFor(() => expect(loadCurrentGame).toHaveBeenCalled());
+    await act(async () => {}); // let the load land
+    expect(screen.queryByRole('link', { name: /Tally/ })).toBeNull();
+  });
+});
+
+describe('Landing (signed out)', () => {
+  it('says playing is free on the landing', () => {
+    auth.signedIn = false;
+    show();
+    expect(screen.getByText(/Free to play\. Donations go to the team fund\./)).toBeTruthy();
   });
 });
