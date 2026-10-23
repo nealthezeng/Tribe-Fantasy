@@ -71,6 +71,7 @@ function Admin() {
     if (tab === 'season') return <SeasonsPanel seasons={seasons.data} selected={season?.id ?? null} onSelect={setPicked} reload={seasons.reload} />;
     if (!season) return <p className="notice">Create a season in <Link to="?tab=season">More › Season</Link>.</p>;
     const Panel = { stages: StagesPanel, leagues: LeaguesPanel, wallets: WalletsPanel, athletes: AthletesPanel, settings: SettingsEditor, backup: BackupPanel }[tab];
+    // Keyed by season: switching seasons remounts the panel, so SettingsEditor never saves one season's settings onto another.
     return <Panel key={season.id} seasonId={season.id} />;
   }
 
