@@ -32,7 +32,7 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .tabs a { display: flex; align-items: center; justify-content: center; min-height: var(--tap-lg); padding: 0 var(--s3); color: var(--bar-muted); font-weight: var(--fw-semi); text-decoration: none; }
 .tabs a:hover { color: var(--bar-fg); }
 .tabs a[aria-current='page'] { color: var(--bar-fg); }
-/* One marker that glides to the current tab (useInk sets --ink-x / --ink-w). In the subnav it's the dark pill. */
+/* One marker that glides to the current tab (useInk sets --ink-x / --ink-w). */
 .ink { position: absolute; left: 0; pointer-events: none; width: var(--ink-w, 0); transform: translateX(var(--ink-x, 0)); }
 .tabs .ink { bottom: 0; height: 3px; background: var(--gold); }
 .signin { grid-area: account; display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--s1); color: var(--bar-fg); font-weight: var(--fw-semi); text-decoration: none; }
@@ -91,7 +91,7 @@ button, .button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
 /* Button lettering (tokens --font-button etc.). Text links, menu items and tally tiles keep their own lettering. */
-:is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
+:is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
   font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
   text-transform: var(--button-case); letter-spacing: var(--button-track);
 }
@@ -99,8 +99,8 @@ button:hover:not(:disabled), .button:hover { background: var(--gold-hover); }
 button:active:not(:disabled), .button:active { background: var(--gold-press); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). Pick rows, the whole tally
-   board and segmented buttons keep their own disabled look. */
-:is(button, .button):disabled:not(.pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
+   board, segmented buttons and red danger links (half-faded red words) keep their own disabled look. */
+:is(button, .button):disabled:not(.pick-row, .danger-link, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
 /* Secondary: a soft borderless fill, flat like the gold buttons (t111). */
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
 .secondary:hover:not(:disabled) { background: var(--line); }
@@ -109,6 +109,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   background: none; border: 0; color: var(--link); padding: 0 var(--s1); font-weight: var(--fw-semi); text-decoration: underline; text-underline-offset: 3px;
 }
 .linklike:hover:not(:disabled) { text-decoration-thickness: 2px; }
+/* P9: a destructive action (Delete, Remove, Undo game) is red words at the end of its sheet, never a filled button. */
+.danger-link, .danger-link:hover:not(:disabled), .danger-link:active:not(:disabled) {
+  background: none; border: 0; color: var(--error); min-height: var(--tap); padding: 0 var(--s1); font-weight: var(--fw-semi); text-decoration: underline; text-underline-offset: 3px;
+}
 label.check { display: flex; gap: var(--s3); align-items: center; font-weight: var(--fw-medium); min-height: var(--tap); }
 label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(--check); }
 .row { display: flex; gap: var(--s2) var(--s3); flex-wrap: wrap; align-items: end; }
@@ -141,6 +145,7 @@ label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(
 .pill.warn { background: var(--warn-soft); color: var(--warn); }
 .pill.bad { background: var(--error-soft); color: var(--error); }
 .notice { background: var(--notice-bg); color: var(--blue-ink); border: 1px solid var(--pane-border); box-shadow: var(--pane-highlight), var(--pane-shadow); border-radius: var(--radius-sm); padding: var(--s3) 14px; }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
 .notice a, .notice .linklike { color: inherit; }
 .error { color: var(--error); font-weight: var(--fw-medium); }
 ul.error { margin: 0; padding-left: 20px; }
@@ -178,7 +183,7 @@ details[open] > summary::before { transform: rotate(45deg); }
 .row-link > .who { flex: 1 1 auto; display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .row-link > .who b { font-weight: var(--fw-semi); }
 .list li:has(> .row-link, > details > .row-link) { padding-block: 0; }
-.list li > :is(.row-link, details) { flex: 1 1 100%; min-width: 0; }
+.list li > :is(.row-link, details:has(> .row-link)) { flex: 1 1 100%; min-width: 0; }
 
 .table-wrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
@@ -371,17 +376,18 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .ranks li[aria-current] .who strong { font-weight: var(--fw-bold); }
 .ranks li.gap { grid-template-columns: auto; justify-content: center; min-height: 0; color: var(--muted); }
 
-/* Admin: one section at a time, picked from a sticky row of tabs. Phones swipe the row sideways; from 640px the chips
-   wrap onto a second row instead (a mouse can't reach chips scrolled off a hidden-scrollbar edge), and the pill
-   follows the current chip to its row (useInk sets --ink-y / --ink-h). */
-.subnav { position: sticky; top: 0; z-index: 1; display: flex; gap: var(--s2); overflow-x: auto; margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--sticky-bg); border-bottom: 1px solid var(--pane-border); scrollbar-width: none; }
-.subnav button, .subnav button:hover:not(:disabled) { position: relative; z-index: 1; flex: none; background: var(--chip-bg); color: var(--fg); border-color: transparent; border-radius: var(--radius-pill); padding: var(--s2) 14px; font-size: var(--fs-sm); }
+/* Admin (P9 ruling 17): one sticky block of four group chips (the pressed one filled like a .segmented button) and, for
+   a group of more than one section, its text tabs with the gold underline on the current one. Both rows wrap rather
+   than scroll, so nothing hides past an edge (t126); at 375px each fits on one line. */
+.subnav { position: sticky; top: 0; z-index: 1; display: grid; margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter) 0; background: var(--sticky-bg); border-bottom: 1px solid var(--pane-border); }
+.subnav > nav { display: flex; flex-wrap: wrap; gap: var(--s2); padding-bottom: var(--s2); }
+.subnav > nav + nav { gap: 0 var(--s3); padding-bottom: 0; }
+.subnav button, .subnav button:hover:not(:disabled) { flex: 1 1 auto; background: var(--chip-bg); color: var(--fg); border-color: transparent; border-radius: var(--radius-pill); padding: var(--s2) var(--s3); font-size: var(--fs-sm); }
 .subnav button:hover:not(:disabled) { background: var(--line); }
-.subnav button[aria-pressed='true'], .subnav button[aria-pressed='true']:hover:not(:disabled) { background: transparent; color: var(--bg); border-color: transparent; }
-.subnav .ink { top: 0; height: var(--ink-h, 0); transform: translate(var(--ink-x, 0), var(--ink-y, 0)); border-radius: var(--radius-pill); background: var(--fg); }
-@media (min-width: 640px) {
-  .subnav { flex-wrap: wrap; overflow-x: visible; }
-}
+.subnav button[aria-pressed='true'], .subnav button[aria-pressed='true']:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
+.subnav a { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--s1); border-bottom: 3px solid transparent; color: var(--muted); font-weight: var(--fw-semi); text-decoration: none; }
+.subnav a:hover, .subnav a[aria-current='page'] { color: var(--fg); }
+.subnav a[aria-current='page'] { border-bottom-color: var(--gold); }
 
 /* A row of equal-width buttons that never wraps unevenly. */
 .actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
@@ -452,13 +458,13 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
      Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
      moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
      tokens.test.ts fails if a lift or squeeze rule forgets it. */
-  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .danger-link, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly, and nothing on the board fades (buttons, pills, links), the bright/dark switch
@@ -473,7 +479,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .game-group > * + * { border-top: 1px solid var(--line); }
 .game-group > :is(p, h3) { padding-bottom: var(--s2); font-weight: var(--fw-bold); }
 .game-group > details > summary::before, summary.row-link::before, a.row-link::after { order: 1; margin-left: auto; }
-.game-group > details[open], .list li > details[open] { padding-bottom: var(--s3); }
+.game-group > details[open], .list li > details[open]:has(> .row-link) { padding-bottom: var(--s3); }
 .game-line { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto 16px; align-items: center; gap: var(--s3); min-height: 56px; padding-block: var(--s2); font-weight: var(--fw-regular); }
 .game-line > .n { font-family: var(--font-display); font-weight: var(--fw-display); font-size: var(--fs-lg); color: var(--muted); font-variant-numeric: tabular-nums; }
 .game-line > .teams { display: grid; gap: 2px; min-width: 0; }

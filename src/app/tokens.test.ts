@@ -37,8 +37,9 @@ describe('the phone dock and the page fade stay off the tally board (t92, t99)',
 });
 
 describe('nothing hides off the edge on a desktop', () => {
-  it('admin tab chips wrap to a new row from 640px instead of scrolling out of reach (t126)', () => {
-    expect(styles).toMatch(/@media \(min-width: 640px\) \{\s*\.subnav \{ flex-wrap: wrap; overflow-x: visible; \}/);
+  it('admin chips and tabs wrap to a new row instead of scrolling out of reach (t126, P9)', () => {
+    expect(styles).toMatch(/\.subnav > nav \{ display: flex; flex-wrap: wrap;/);
+    expect(styles).not.toMatch(/\.subnav[^{]*\{[^}]*overflow-x: auto/);
   });
 });
 

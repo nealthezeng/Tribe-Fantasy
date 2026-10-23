@@ -1,30 +1,20 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Loading } from '../../components/Loading';
+import { useState, type FormEvent } from 'react';
 import { DEFAULT_SETTINGS } from '../../../core/settings';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
-import { supabase } from '../../lib/supabase';
-import { useLoad } from '../../lib/useLoad';
 
-interface SeasonRow { id: string; name: string; status: string }
+export interface SeasonRow { id: string; name: string; status: string }
 
-export function SeasonsPanel({ selected, onSelect }: { selected: string | null; onSelect: (id: string | null) => void }) {
+/**
+ * More › Season: pick the season Admin manages, rename or delete it, or create one. `seasons` is newest first; Admin
+ * loads it (it manages the newest without this panel), and `reload` settles once fresh rows land.
+ */
+export function SeasonsPanel({ seasons, selected, onSelect, reload }: {
+  seasons: SeasonRow[]; selected: string | null; onSelect: (id: string) => void; reload: () => Promise<boolean>;
+}) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const seasons = useLoad(async () => {
-    const { data, error } = await supabase!.from('seasons').select('id, name, status').order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data ?? []) as SeasonRow[];
-  }, []);
-
-  // A deleted season stays out of the list while the reload is in flight, so it can't be auto-selected again.
-  const [gone, setGone] = useState<string>();
-  const list = seasons.data?.filter((s) => s.id !== gone);
-
-  // Open on the newest season: nearly every visit manages the current one.
-  const newest = list?.[0]?.id;
-  const current = list?.find((s) => s.id === selected);
-  useEffect(() => { if (!selected && newest) onSelect(newest); }, [selected, newest, onSelect]);
+  const current = seasons.find((s) => s.id === selected);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -32,8 +22,8 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
     try {
       const id = await api.createSeason(name, DEFAULT_SETTINGS);
       setName('');
-      seasons.reload();
       onSelect(id);
+      void reload();
     } catch (err) {
       setError(errorMessage(err));
     }
@@ -42,10 +32,9 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
   return (
     <div className="card">
       <h2>Seasons</h2>
-      {!seasons.data && !seasons.error && <Loading />}
-      {list?.length === 0 && <p className="muted">None yet.</p>}
+      {seasons.length === 0 && <p className="muted">None yet.</p>}
       <ul className="list">
-        {list?.map((s) => (
+        {seasons.map((s) => (
           <li key={s.id}>
             <span className="meta"><span className="title">{s.name}</span><span className="pill">{s.status}</span></span>
             {selected === s.id
@@ -54,25 +43,25 @@ export function SeasonsPanel({ selected, onSelect }: { selected: string | null; 
           </li>
         ))}
       </ul>
-      {current && list && (
-        <SeasonEdit key={current.id} season={current} seasons={list} onRenamed={seasons.reload}
-          onDeleted={() => { setGone(current.id); onSelect(null); seasons.reload(); }} />
-      )}
-      <details className="section" open={list?.length === 0}>
+      {current && <SeasonEdit key={current.id} season={current} seasons={seasons} onChanged={reload} />}
+      <details className="section" open={seasons.length === 0}>
         <summary>New season</summary>
         <form onSubmit={create} className="row">
           <label>Name<input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spring 2027" /></label>
           <button>Create season</button>
         </form>
       </details>
-      {(error || seasons.error) && <p className="error" role="alert">{error ?? seasons.error}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
     </div>
   );
 }
 
-/** Rename the managed season, or delete it with everything in it (t213). Delete unlocks once its name is typed. */
-function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
-  season: SeasonRow; seasons: SeasonRow[]; onRenamed: () => void; onDeleted: () => void;
+/**
+ * Rename the managed season, or delete it with everything in it (t213). Delete unlocks once its name is typed, and stays
+ * busy until the list without it lands, when Admin falls back to the newest season.
+ */
+function SeasonEdit({ season, seasons, onChanged }: {
+  season: SeasonRow; seasons: SeasonRow[]; onChanged: () => Promise<boolean>;
 }) {
   const [name, setName] = useState(season.name);
   const [typed, setTyped] = useState('');
@@ -97,14 +86,14 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
       <form className="row" onSubmit={(e) => { e.preventDefault(); void act(async () => {
         await api.renameSeason(season.id, name);
         setMsg('Renamed.');
-        onRenamed();
+        void onChanged();
       }); }}>
         <label>Name<input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>
         <button className="secondary" disabled={busy || name.trim() === season.name}>Rename season</button>
       </form>
       <form onSubmit={(e) => { e.preventDefault(); void act(async () => {
         await api.deleteSeason(season.id);
-        onDeleted();
+        await onChanged();
       }); }}>
         <p className="muted">
           Deleting removes every tournament, league, team, athlete, stat, share and credit in {season.name}. It can't be
@@ -112,7 +101,7 @@ function SeasonEdit({ season, seasons, onRenamed, onDeleted }: {
         </p>
         <div className="row">
           <label>Type {season.name} to confirm<input value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" /></label>
-          <button className="secondary" disabled={busy || typed !== season.name}>Delete season</button>
+          <button className="danger-link" disabled={busy || typed !== season.name}>Delete season</button>
         </div>
       </form>
       {msg && <p className="success" role="status">{msg}</p>}
