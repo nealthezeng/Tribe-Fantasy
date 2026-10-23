@@ -92,6 +92,8 @@ describe('TournamentCard', () => {
 
   /** A player's row in the pick card: the whole row is the toggle button. */
   const pickRow = (name: string) => picks().getByRole('button', { name: new RegExp(`^${name}\\b`) }) as HTMLButtonElement;
+  /** "true" from a tap until the reload after its save lands: taps meanwhile are held. */
+  const rowsBusy = () => screen.getByRole('article', { name: 'Next game' }).querySelector('[aria-busy]')?.getAttribute('aria-busy');
 
   it('pre-selects two players for game 1, then refuses a third until one is cleared', async () => {
     await show(base());
@@ -100,10 +102,12 @@ describe('TournamentCard', () => {
     expect(picks().getAllByRole('button', { pressed: false }).map((b) => b.querySelector('b')?.textContent)).toEqual(['Alex', 'Arlo', 'Ash', 'Avery']); // A→Z
     fireEvent.click(pickRow('Alex'));
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a3']));
-    await waitFor(() => expect(picks().getByText('1 of 2')).toBeTruthy()); // reloaded with Alex picked
+    await waitFor(() => expect(rowsBusy()).toBe('false')); // reloaded
+    expect(picks().getByText('1 of 2')).toBeTruthy();
     fireEvent.click(pickRow('Ash'));
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a3', 'a1']));
-    await waitFor(() => expect(picks().getAllByRole('button', { pressed: true })).toHaveLength(2));
+    await waitFor(() => expect(rowsBusy()).toBe('false'));
+    expect(picks().getAllByRole('button', { pressed: true })).toHaveLength(2);
     expect(picks().getByText('2 of 2')).toBeTruthy();
     expect(pickRow('Avery').disabled).toBe(true);
     expect(picks().getByText('You have 2 picks. Clear one to change.')).toBeTruthy();
@@ -178,9 +182,29 @@ describe('TournamentCard', () => {
     expect(pickRow('Arlo').textContent).toContain('Out');
     fireEvent.click(pickRow('Alex'));
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 2, ['a2']));
-    await waitFor(() => expect(pickRow('Alex').getAttribute('aria-pressed')).toBe('false'));
+    await waitFor(() => expect(rowsBusy()).toBe('false'));
+    expect(pickRow('Alex').getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(pickRow('Avery'));
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 2, []));
+  });
+
+  it('shows a tap at once and holds a second tap until the reload lands, so the first pick is never lost', async () => {
+    await show(base());
+    let land = () => {};
+    vi.mocked(loadLeagueTournament).mockImplementationOnce(() => new Promise((ok) => {
+      land = () => ok(buildLeagueTournament(rows.current, Date.parse('2026-11-07T16:30:00Z')));
+    }));
+    fireEvent.click(pickRow('Alex'));
+    await waitFor(() => expect(loadLeagueTournament).toHaveBeenCalledTimes(2)); // saved; the reload is in flight
+    expect(pickRow('Alex').getAttribute('aria-pressed')).toBe('true'); // the ring fills on the tap, not on the reload
+    expect(picks().getByText('1 of 2')).toBeTruthy();
+    fireEvent.click(pickRow('Ash')); // the old picks are still loaded: this tap must not send them
+    expect(rowsBusy()).toBe('true');
+    land();
+    await waitFor(() => expect(rowsBusy()).toBe('false'));
+    fireEvent.click(pickRow('Ash'));
+    await waitFor(() => expect(api.setGamePick).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.setGamePick).mock.calls.map((c) => c[3])).toEqual([['a3'], ['a3', 'a1']]);
   });
 
   it("shows each player's share, tiredness and earlier tournaments in words (decision 11)", async () => {

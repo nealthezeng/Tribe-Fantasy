@@ -278,6 +278,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .pick-row, .pick-row:is(:hover, :active):not(:disabled) { background: none; }
 .pick-row + .pick-row { border-top: 1px solid var(--line); }
 .pick-row:disabled { opacity: 1; color: var(--muted); }
+[aria-busy='true'] > .pick-row { cursor: progress; } /* a save is reloading: taps are held until it lands */
 .pick-row .who { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .pick-row .who b { font-weight: var(--fw-semi); }
 .pick-row[aria-pressed='true'] .who b { color: var(--ok); }

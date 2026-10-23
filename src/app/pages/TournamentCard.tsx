@@ -232,9 +232,11 @@ function ScoreSide({ label, y, athleteIds, score, from, empty, lost = false, pic
 }
 
 function PickGame({ y, next, membershipId, onSaved }: {
-  y: LeagueTournament; next: NextGame; membershipId: string; onSaved: () => void;
+  y: LeagueTournament; next: NextGame; membershipId: string; onSaved: () => Promise<void>;
 }) {
-  const [busy, setBusy] = useState(false);
+  // The set being saved: shown as picked from the tap until the reload after the save lands. The loaded picks are
+  // stale until then, so taps meanwhile are held: a set built from them would drop this one.
+  const [saving, setSaving] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const name = (id: string | null) => athleteName(y, id);
   const mine = next.sides.find((x) => x.membershipId === membershipId);
@@ -251,21 +253,22 @@ function PickGame({ y, next, membershipId, onSaved }: {
   }
   const n = y.settings.picks_per_game;
   const wanted = Math.min(n, mine.players.length);
-  const full = mine.picked.length >= n;
+  const picked = saving ?? mine.picked;
+  const full = picked.length >= n;
   const byName = (a: string, b: string) => name(a).localeCompare(name(b));
   const lock = `Picks lock when a keeper starts game ${next.number}.`;
 
   /** Saves the whole set: set_game_pick replaces the team's picks for this game. */
   async function save(athleteIds: string[]) {
-    setBusy(true);
+    setSaving(athleteIds);
     setError(null);
     try {
       await api.setGamePick(membershipId, next.stageId, next.number, athleteIds);
     } catch (err) {
       setError(errorMessage(err, String(n)));
     }
-    setBusy(false);
-    onSaved(); // a refused pick usually means the game just started: show it
+    await onSaved(); // a refused pick usually means the game just started: show it
+    setSaving(null);
   }
 
   return (
@@ -273,7 +276,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
       <div className="head">
         <h2>Pick {wanted} for game {next.number}{game?.game.opponent && ` vs ${game.game.opponent}`}</h2>
         <FactorHelp settings={y.settings} />
-        <strong className="num">{mine.picked.length} of {wanted}</strong>
+        <strong className="num">{picked.length} of {wanted}</strong>
       </div>
       {them ? <>
         <p>You play <strong><Link className="team-link" to={`/team/${them.membershipId}`}>{y.team.get(them.membershipId)}</Link></strong>.</p>
@@ -282,14 +285,14 @@ function PickGame({ y, next, membershipId, onSaved }: {
         <p>Bye in game {next.number}: no opponent, so your standings points don't change.</p>
         <p className="hint">{lock}</p>
       </> : <p className="hint">{next.number > 1 && `You'll see who you play once game ${next.number - 1} ends. `}{lock}</p>}
-      {/* The row is the button (ruling 5). A tap mid-save is ignored rather than disabling every row, so nothing flickers. */}
-      <div aria-busy={busy}>
+      {/* The row is the button (ruling 5). Taps during a save and its reload are held, not disabled, so nothing flickers. */}
+      <div aria-busy={saving !== null}>
         {[...mine.players].sort(byName).map((id) => {
-          const on = mine.picked.includes(id);
+          const on = picked.includes(id);
           const out = y.out.has(id);
           return (
             <button key={id} className="pick-row" aria-pressed={on} disabled={!on && (full || out)}
-              onClick={() => { if (!busy) void save(on ? mine.picked.filter((a) => a !== id) : [...mine.picked, id]); }}>
+              onClick={() => { if (!saving) void save(on ? picked.filter((a) => a !== id) : [...picked, id]); }}>
               <span className="who">
                 <b>{name(id)}{out && <> <span className="pill bad">Out</span></>}</b>{' '}
                 <small>Your {factorWords(mine, id, next.number, y.settings)}</small>
@@ -300,7 +303,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
         })}
       </div>
       <Notice y={y} side={mine} />
-      {full && mine.players.length > mine.picked.length && <p className="hint">You have {n} picks. Clear one to change.</p>}
+      {full && mine.players.length > picked.length && <p className="hint">You have {n} picks. Clear one to change.</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );
