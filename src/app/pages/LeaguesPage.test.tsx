@@ -71,6 +71,14 @@ describe('LeaguesPage (t215)', () => {
     expect(screen.queryByLabelText('Search leagues')).toBeNull();
   });
 
+  it('still lists a league whose listing has no members (a server without 0029), instead of crashing the app', async () => {
+    const { members: _, ...old } = league({ id: 'a', name: 'League A', teams: 4, max_teams: 12 });
+    vi.mocked(api.listLeagues).mockResolvedValue([old as LeagueListing]);
+    at('/leagues');
+    expect(await screen.findByText('4 of 12')).toBeTruthy();
+    expect(row('League A').tagName).toBe('SUMMARY');
+  });
+
   it('filters by name with more than 6 leagues, ignoring case and spaces, and says when nothing matches', async () => {
     vi.mocked(api.listLeagues).mockResolvedValue([...LEAGUES, ...['Echo', 'Foxtrot', 'Golf'].map((name) => league({ id: name, name }))]);
     at('/leagues');

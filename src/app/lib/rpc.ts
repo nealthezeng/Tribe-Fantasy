@@ -24,8 +24,8 @@ export interface LeagueListing {
   has_password: boolean;
   is_member: boolean;
   is_creator: boolean;
-  /** First names of the league's live teams, oldest team first (0029). */
-  members: string[];
+  /** First names of the league's live teams, oldest team first (0029; missing from a server without it). */
+  members?: string[];
 }
 
 export type Role = 'admin' | 'stat_keeper' | 'treasurer';

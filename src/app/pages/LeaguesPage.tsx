@@ -45,7 +45,7 @@ export function LeaguesPage() {
 
 /** "Maya, Gabe, Rory and 1 more · 4 of 12": the first three members' first names, then the count. */
 const membersLine = (l: LeagueListing) => {
-  const names = l.members.slice(0, 3);
+  const names = (l.members ?? []).slice(0, 3);
   const more = l.teams - names.length;
   return [names.join(', ') + (names.length && more > 0 ? ` and ${more} more` : ''), `${l.teams} of ${l.max_teams}`]
     .filter(Boolean).join(' · ');
