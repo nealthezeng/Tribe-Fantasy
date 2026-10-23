@@ -232,6 +232,16 @@ describe('scoreTournaments', () => {
       .toEqual([['final', null], ['final', null]]);
   });
 
+  it('names the first unverified game as heldBy for every verified game behind it', () => {
+    const a1 = game(1);
+    const b1 = game(1, 'S2');
+    const b2 = game(2, 'S2'); // b1 is pending by then, but a1 is what holds it back
+    const held = base({ games: [a1, b1, b2] });
+    held.sessions = held.sessions.map((x) => (x.id === a1.sessionId ? { ...x, verifiedAt: null } : x));
+    expect(scoreTournaments(held).games.map((g) => [g.game.id, g.status, g.heldBy]))
+      .toEqual([[a1.id, 'pending', null], [b1.id, 'pending', a1.id], [b2.id, 'pending', a1.id]]);
+  });
+
   it('marks a not-started game upcoming and resolves its picks as of now', () => {
     const r = scoreTournaments(base({ games: [game(1), game(2), game(3), game(4, 'S1', { sessionId: null, startedAt: null, finishedAt: null })],
       pairings: [1, 2, 3, 4].map((n) => ({ gameId: `S1g${n}`, home: 'm1', away: 'm2' })) }));

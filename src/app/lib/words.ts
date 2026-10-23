@@ -23,12 +23,14 @@ const FRACTION: Record<number, string> = { 0.5: 'half', 0.75: '¾', 0.25: '¼' }
 
 /**
  * A player's rest before game `number`: "rested", or "played game 2: half points". `tiredness_multipliers[i]` is the
- * rest of a player who started i + 1 games before.
+ * rest of a player who started i + 1 games before. When the list holds `rest` twice (or not at all) the game is
+ * unknown, so the words give the points alone: "half points".
  */
 export function restWords(rest: number, number: number, s: SeasonSettings): string {
   if (rest === 1) return 'rested';
+  const points = `${FRACTION[rest] ?? pctExact(rest)} points`;
   const i = s.tiredness_multipliers.indexOf(rest);
-  return `played game ${number - 1 - i}: ${FRACTION[rest] ?? pctExact(rest)} points`;
+  return i === -1 || i !== s.tiredness_multipliers.lastIndexOf(rest) ? points : `played game ${number - 1 - i}: ${points}`;
 }
 
 export type StatusWord = 'Not started' | 'Live' | 'Finished · not verified' | 'Final' | "Doesn't count";

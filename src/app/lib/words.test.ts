@@ -26,6 +26,11 @@ describe('words', () => {
     expect(restWords(0.6, 4, { ...s, tiredness_multipliers: [0.25, 0.6] })).toBe('played game 2: 60% points');
   });
 
+  it('leaves the game out when the rest could mean more than one game', () => {
+    expect(restWords(0.5, 4, { ...DEFAULT_SETTINGS, tiredness_multipliers: [0.5, 0.5] })).toBe('half points');
+    expect(restWords(0.5, 4, { ...DEFAULT_SETTINGS, tiredness_multipliers: [] })).toBe('half points');
+  });
+
   it('gives an exact percent to 3 significant figures', () => {
     expect(pctExact(0.125)).toBe('12.5%');
     expect(pctExact(0.2)).toBe('20%');
