@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import type { GameOutcome } from '../../core/tournament';
 import { useAuth } from '../auth/AuthProvider';
@@ -56,7 +55,10 @@ export function TeamPage() {
   const side = next?.sides.find((s) => s.membershipId === membershipId);
   const name = (id: string) => y.athlete.get(id) ?? 'A player';
   const owner = [y.owner.get(membershipId), leagues.name].filter(Boolean).join(' · ');
+  // The game that matters now: the team's live game, else its next (which may have no game row yet), else none.
   const live = games.find((g) => g.status === 'live' && g.matchups.some((m) => m.home.membershipId === membershipId || m.away?.membershipId === membershipId));
+  const focus = live ?? games.find((g) => g.game.stageId === next?.stageId && g.game.number === next?.number);
+  const number = live?.game.number ?? next?.number;
   return (
     <section className="page">
       <div className="head">
@@ -64,22 +66,14 @@ export function TeamPage() {
         {back}
       </div>
       <small className="owner">{owner}</small>
-      {(live || next) && (
-        <ul className="list">
-          <li>
-            {live ? <GameRow y={y} membershipId={membershipId} number={live.game.number} g={live} /> : next && (
-              <GameRow y={y} membershipId={membershipId} number={next.number}
-                g={games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number)}>
-                <FactorHelp settings={y.settings} />
-              </GameRow>
-            )}
-          </li>
-        </ul>
-      )}
+      {number !== undefined && <ul className="list"><li><GameRow y={y} membershipId={membershipId} number={number} g={focus} /></li></ul>}
       {!next ? <p className="muted">No tournament on. Players show once the next tournament's shares are settled.</p>
         : !side ? <p className="muted">{team.removed_at ? 'No players.' : 'No players this tournament.'}</p> : (
           <>
-            <h2>Players</h2>
+            <div className="head">
+              <h2>Players</h2>
+              <FactorHelp settings={y.settings} />
+            </div>
             <ul className="list">
               {[...side.players].sort((a, b) => name(a).localeCompare(name(b))).map((id) => (
                 <li key={id}>
@@ -96,26 +90,23 @@ export function TeamPage() {
 
 /**
  * The team's game on one row (rule 4), read like the League strip: "Game 2 vs Gimp Zeal", the scores "0.45 vs 1.35"
- * (live ones say unofficial), the real opponent once a keeper names it, then the status word. It opens nothing: no chevron.
+ * (live ones say unofficial), the real opponent once a keeper names it, then the status word. A started game (it has
+ * a session) opens its game page (rule 1, with the chevron); one not started opens nothing.
  */
-function GameRow({ y, membershipId, number, g, children }: {
-  y: LeagueTournament; membershipId: string; number: number; g?: GameOutcome; children?: ReactNode;
-}) {
+function GameRow({ y, membershipId, number, g }: { y: LeagueTournament; membershipId: string; number: number; g?: GameOutcome }) {
   const o = g && (y.unofficial.get(g.game.id) ?? g); // the numbers; the status word stays official
   const m = o?.matchups.find((x) => x.home.membershipId === membershipId || x.away?.membershipId === membershipId);
   const home = m?.home.membershipId === membershipId;
   const mine = m && (home ? m.home : m.away);
   const them = m && (home ? m.away : m.home); // null = bye
-  return (
-    <div className="row-link">
-      <span className="who">
-        <b>{gameName(number, them && y.team.get(them.membershipId))}</b>
-        {mine?.score != null && them?.score != null && <small>{fmt(mine.score)} vs {fmt(them.score)}{o !== g && ' · unofficial'}</small>}
-        {them === null && <small>Bye</small>}
-        {g?.game.opponent && <small>vs {g.game.opponent}</small>}
-      </span>
-      {children}
-      <Status word={g ? statusWord(g) : 'Not started'} />
-    </div>
-  );
+  const body = <>
+    <span className="who">
+      <b>{gameName(number, them && y.team.get(them.membershipId))}</b>
+      {mine?.score != null && them?.score != null && <small>{fmt(mine.score)} vs {fmt(them.score)}{o !== g && ' · unofficial'}</small>}
+      {them === null && <small>Bye</small>}
+      {g?.game.opponent && <small>vs {g.game.opponent}</small>}
+    </span>
+    <Status word={g ? statusWord(g) : 'Not started'} />
+  </>;
+  return g?.game.sessionId ? <Link className="row-link" to={`/stats/${g.game.sessionId}`}>{body}</Link> : <div className="row-link">{body}</div>;
 }

@@ -31,9 +31,9 @@ const side = (membershipId: string, over: Record<string, unknown> = {}) => ({
   membershipId, players: ['b', 'a'], share: { a: 0.15, b: 0.1 }, rest: { a: 0.5, b: 1 }, decay: { a: 1, b: 0.9 }, factor: { a: 0.075, b: 0.09 },
   score: null, ...over,
 });
-/** Game `number` of Fall beta, Flow against Gimp Zeal. */
+/** Game `number` of Fall beta, Flow against Gimp Zeal; a started game has its session `p{number}`. */
 const game = (number: number, status: string, over: Record<string, unknown> = {}) => ({
-  game: { id: `g${number}`, stageId: 'S1', number, opponent: null }, status, heldBy: null,
+  game: { id: `g${number}`, stageId: 'S1', number, opponent: null, sessionId: status === 'upcoming' ? null : `p${number}` }, status, heldBy: null,
   matchups: [{ home: side(ID2), away: side(ID3) }], ...over,
 });
 const tournament = (over: Record<string, unknown> = {}) => ({
@@ -85,18 +85,22 @@ describe('TeamPage', () => {
     const focus = (await screen.findByText('Game 2 vs Gimp Zeal')).closest('.row-link')!;
     expect(within(focus as HTMLElement).getByText('0.45 vs 1.35 · unofficial')).toBeTruthy();
     expect(focus.querySelector('.live')?.textContent).toBe('Live');
+    expect(focus.getAttribute('href')).toBe('/stats/p2'); // the row opens the game's page
     expect(screen.queryByText(/^Game [13]/)).toBeNull(); // one row: the live game, not the next
     expect(db.loadArgs[2]).toEqual({ live: true }); // live numbers need the live taps
+    expect(screen.getByRole('heading', { name: 'Players' }).nextElementSibling?.matches('button.help')).toBe(true); // help while live too
   });
 
   it('shows the next game as the row when nothing is live, with the real opponent once a keeper sets it', async () => {
-    db.y = tournament({ result: { games: [game(2, 'upcoming', { game: { id: 'g2', stageId: 'S1', number: 2, opponent: 'Duke' } })],
+    db.y = tournament({ result: { games: [game(2, 'upcoming', { game: { id: 'g2', stageId: 'S1', number: 2, opponent: 'Duke', sessionId: null } })],
       next: { stageId: 'S1', number: 2, sides: [side(ID2)] } } });
     visit(ID2);
     const row = (await screen.findByText('Game 2 vs Gimp Zeal')).closest('.row-link') as HTMLElement;
     expect(within(row).getByText('vs Duke')).toBeTruthy();
     expect(within(row).getByText('Not started')).toBeTruthy();
-    expect(row.querySelector('button.help')).toBeTruthy(); // FactorHelp beside the next-game row
+    expect(row.tagName).toBe('DIV'); // not started: nothing to open
+    expect(screen.queryByRole('link', { name: /Game 2/ })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Players' }).nextElementSibling?.matches('button.help')).toBe(true); // FactorHelp beside Players
   });
 
   it('says Bye on the row when the team has no opponent', async () => {
