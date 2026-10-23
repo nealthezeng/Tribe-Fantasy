@@ -85,6 +85,8 @@ function SessionPicker({ season, keeperId, onPick }: {
 interface AthleteRow { id: string; name: string }
 
 const BRIGHT_KEY = 'tribe.tally.bright';
+/** The longest the board's first load waits for the picked group; field signal is weak and keepers tap at once. */
+export const STARTERS_WAIT_MS = 1500;
 
 function TallyBoard({ season, sessionId, keeperId, onBack }: {
   season: CurrentSeason; sessionId: string; keeperId: string; onBack: () => void;
@@ -109,8 +111,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     return () => { delete document.documentElement.dataset.tally; };
   }, [bright]);
   const queueRef = useRef(queue);
-  // Loaded once with the board's first load: starters don't change once a game starts, and a list that regroups
-  // under a keeper's thumb mis-taps. Null when they fail: one A→Z list (ruling 15).
+  // Settled once, with the board's first load: starters don't change once a game starts, and a list that regroups
+  // under a keeper's thumb mis-taps. Null when they fail or miss STARTERS_WAIT_MS: one A→Z list for this visit (ruling 15).
   const starters = useRef<Promise<Set<string> | null>>(undefined);
   const sending = useRef(false);
   const inFlight = useRef<Set<string>>(new Set());
@@ -123,7 +125,10 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     // The board's tournament game (none for a non-game session): Out marks belong to its stage.
     const game = await supabase!.from('games').select('stage_id, number').eq('session_id', sessionId).maybeSingle();
     if (game.error) throw game.error;
-    starters.current ??= game.data ? loadStarters(seasonId, game.data.stage_id, game.data.number).catch(() => null) : Promise.resolve(null);
+    starters.current ??= game.data ? Promise.race([
+      loadStarters(seasonId, game.data.stage_id, game.data.number).catch(() => null),
+      new Promise<null>((late) => setTimeout(() => late(null), STARTERS_WAIT_MS)),
+    ]) : Promise.resolve(null);
     const [athletes, taps, outs, started, owned, titles, picked] = await Promise.all([
       supabase!.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name'),
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),

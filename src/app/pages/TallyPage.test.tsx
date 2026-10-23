@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseSettings } from '../../core/settings';
 import { api } from '../lib/rpc';
 import { storeQueue, type QueuedTap } from '../tally/queue';
-import { TallyPage } from './TallyPage';
+import { STARTERS_WAIT_MS, TallyPage } from './TallyPage';
 
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ session: { user: { id: 'k1' } }, isAdmin: false, isKeeper: true, loading: false }),
@@ -25,11 +25,12 @@ const gone = vi.hoisted(() => ({
   on: false, outs: [] as { athlete_id: string; from_game: number }[], owned: false, games: null as unknown[] | null,
   sessions: null as unknown[] | null, current: null as unknown, // current = the hub's tournament (loadCurrentGame)
   athletes: null as { id: string; name: string }[] | null, starters: [] as string[] | null, // null = the starters fail to load
+  late: null as Promise<Set<string>> | null, // starters that land when the test says
 }));
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
   loadCurrentGame: () => Promise.resolve(gone.current),
-  loadStarters: () => (gone.starters ? Promise.resolve(new Set(gone.starters)) : Promise.reject(new Error('offline'))),
+  loadStarters: () => gone.late ?? (gone.starters ? Promise.resolve(new Set(gone.starters)) : Promise.reject(new Error('offline'))),
 }));
 const DRILL = '00000000-0000-4000-8000-00000000d111';
 const session = (id: string, kind: string) => ({
@@ -67,6 +68,7 @@ afterEach(() => {
   gone.current = null;
   gone.athletes = null;
   gone.starters = [];
+  gone.late = null;
   cleanup();
   localStorage.clear();
   delete document.documentElement.dataset.tally;
@@ -172,6 +174,30 @@ describe('TallyPage board', () => {
     gone.starters = null;
     const { container } = await board();
     expect(order(container)).toEqual(['A0', 'A1']);
+  });
+
+  it('keeps one A→Z list for the visit when the starters land after the wait', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      let land: (s: Set<string>) => void = () => {};
+      gone.late = new Promise((r) => { land = r; });
+      gone.athletes = [{ id: 'a0', name: 'A0' }, { id: 'a1', name: 'A1' }];
+      const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+      const { container } = render(<MemoryRouter initialEntries={['/tally?game=game']}><TallyPage /></MemoryRouter>);
+      for (let i = 0; i < 20 && vi.getTimerCount() === 0; i++) await tick(0); // until the board's first load starts the wait
+      await tick(STARTERS_WAIT_MS - 1);
+      expect(screen.queryByText('A0')).toBeNull(); // still waiting
+      await tick(1);
+      expect(order(container)).toEqual(['A0', 'A1']);
+      land(new Set(['a1']));
+      gone.outs = [{ athlete_id: 'a1', from_game: 3 }]; // shows when the reload after Mark out lands
+      fireEvent.click(screen.getByRole('button', { name: 'Mark A0 out from the next game' }));
+      for (let i = 0; i < 20 && !screen.queryByText('Out from game 3'); i++) await tick(0);
+      expect(screen.getByText('Out from game 3')).toBeTruthy();
+      expect(order(container)).toEqual(['A0', 'A1']); // never regroups under a keeper's thumb
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('folds an Out player to one line with Clear out and no stat buttons', async () => {
