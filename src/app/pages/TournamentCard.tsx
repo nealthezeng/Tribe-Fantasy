@@ -155,11 +155,11 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
         <div className="score">
           <ScoreSide label={upcoming ? 'Your picks' : 'You played'} y={y} athleteIds={minePlayers}
             picked={upcoming && wanted > 0 && minePlayers.length >= wanted && !doomed}
-            score={mine.score} from={now?.from.mine} empty={upcoming ? 'No picks yet' : 'Forfeit'} lost={final && mine.result === 'L'} />
+            score={mine.score} from={now?.from.mine} empty={upcoming ? 'No picks yet' : noStarters(mine)} lost={final && mine.result === 'L'} />
           <span className="vs">vs</span>
           <ScoreSide label={upcoming ? 'Their picks' : 'They played'} y={y}
             athleteIds={upcoming ? [] : them.athleteIds} score={them.score} from={now?.from.them}
-            empty={upcoming ? 'Hidden' : 'Forfeit'} lost={final && mine.result === 'W'} />
+            empty={upcoming ? 'Hidden' : noStarters(them)} lost={final && mine.result === 'W'} />
         </div>
       )}
       {/* Who the app started for you sits under your starters; with a bye there are none to sit under. */}
@@ -423,6 +423,9 @@ function GameLine({ y, g, membershipId, pick = 0 }: { y: LeagueTournament; g: Ga
   );
 }
 
+/** A played side with nobody starting: never "Forfeit", as the core has no such rule (it scores 0 and can tie or win). */
+const noStarters = (s: TournamentSide) => (s.players.length ? 'No starters' : 'No players');
+
 /**
  * An opened game (ruling 9): your matchup's two sides first, then "Other matchups", each a line that opens to its
  * sides. `o` carries the numbers (unofficial while the game isn't verified).
@@ -433,10 +436,10 @@ function GameDetail({ y, g, o, mine, them, membershipId, unofficial }: {
 }) {
   const others = mine ? o.matchups.filter((m) => m.home !== mine && m.away !== mine) : o.matchups;
   const named = (s: TournamentSide) => `${y.team.get(s.membershipId) ?? 'A team'}${s.score === null ? '' : ` ${fmt(s.score)}`}`;
-  // A bye side with nobody to start has no players, not a forfeit (Review Focus 2).
+  // A bye side with nobody to start has no players (Review Focus 2).
   const pair = (a: TournamentSide, b: TournamentSide | null) => <>
-    <SideDetail y={y} g={g} side={a} membershipId={membershipId} empty={b ? 'Forfeit' : 'No players'} />
-    {b ? <SideDetail y={y} g={g} side={b} membershipId={membershipId} empty="Forfeit" /> : <p className="muted">Bye</p>}
+    <SideDetail y={y} g={g} side={a} membershipId={membershipId} empty={b ? noStarters(a) : 'No players'} />
+    {b ? <SideDetail y={y} g={g} side={b} membershipId={membershipId} empty={noStarters(b)} /> : <p className="muted">Bye</p>}
   </>;
   return (
     <div className="stack">
@@ -479,7 +482,7 @@ function StarterSide({ y, g, side, name, since, children }: {
         <span className="by">{name}</span>
         {side.score !== null && <span className="num">{fmt(side.score)}</span>}
       </p>
-      {side.athleteIds.length === 0 ? <p className="muted">Forfeit</p> : (
+      {side.athleteIds.length === 0 ? <p className="muted">{noStarters(side)}</p> : (
         <ul className="list">
           {side.athleteIds.map((a) => (
             <li key={a}>

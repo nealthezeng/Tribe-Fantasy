@@ -558,6 +558,24 @@ describe('TournamentCard', () => {
       expect(document.body.textContent).not.toMatch(/forfeit/i);
     });
 
+    it('reads No starters for a side whose players all sat out, never Forfeit (it can still tie or win)', async () => {
+      const r = finalGame1();
+      // Zeal made no pick and the season starts nobody for a missed pick.
+      await show({ ...r, settings: { default_pick: 'forfeit' }, picks: r.picks.filter((p) => p.membership_id === 'm2') });
+      const opened = body(lines()[0]);
+      expect(opened.querySelector('.stack > .stack')!.textContent).toContain('No starters');
+      expect(screen.getByText('You played').parentElement!.textContent).toContain('No starters'); // the scoreboard
+      expect(screen.getByRole('region', { name: 'Starters' }).textContent).toContain('No starters');
+      expect(document.body.textContent).not.toMatch(/forfeit|No players/i);
+    });
+
+    it('reads No players for a paired side with no roster this tournament', async () => {
+      const r = finalGame1();
+      await show({ ...r, slots: roster('m2', ['b1', 'b2', 'b3', 'b4']), picks: r.picks.filter((p) => p.membership_id === 'm2') });
+      expect(body(lines()[0]).querySelector('.stack > .stack')!.textContent).toContain('No players');
+      expect(document.body.textContent).not.toMatch(/forfeit|No starters/i);
+    });
+
     it("says Not playing when the team wasn't paired in that game", async () => {
       const r = afterGame1();
       await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g1' ? { ...p, home: 'm2', away: null } : p)) });
