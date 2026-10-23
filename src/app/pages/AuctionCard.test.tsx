@@ -88,6 +88,8 @@ const athlete = (id: string, name: string) => ({ id, name, user_id: null, opted_
 /** The team's free credits for the open stage. */
 const allowance: Row = { amount: 115, kind: 'allowance', stage_id: 's1', created_at: '2026-10-01T00:00:00Z' };
 const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
+/** An admin's credits by hand (Wallets › adjust credits): no stage. */
+const adjustment = (amount: number, days: number): Row => ({ amount, kind: 'adjustment', stage_id: null, created_at: daysAgo(days) });
 
 function renderCard() {
   return render(
@@ -359,9 +361,24 @@ describe('AuctionCard', () => {
     expect(screen.queryByText(/You joined after/)).toBeNull();
   });
 
+  it('drops the late-joiner notice once an admin adds credits by hand, for good', async () => {
+    db.stages = [{ ...openStage, name: 'CCCs' } as unknown as Row];
+    db.credit_ledger = [adjustment(115, 1)]; // no CCCs allowance: the admin fixed it from Wallets
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.getByText('An admin added 115 credits.')).toBeTruthy();
+    expect(screen.queryByText(/You joined after/)).toBeNull();
+
+    db.credit_ledger = [adjustment(115, 8)]; // the success line's week is over
+    cleanup();
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.queryByText(/An admin added/)).toBeNull();
+    expect(screen.queryByText(/You joined after/)).toBeNull();
+  });
+
   it('says when an admin added credits this week', async () => {
     db.stages = [openStage as unknown as Row];
-    const adjustment = (amount: number, days: number): Row => ({ amount, kind: 'adjustment', stage_id: null, created_at: daysAgo(days) });
     db.credit_ledger = [allowance, adjustment(115, 1)];
     renderCard();
     await screen.findByText(/^Closes in/);

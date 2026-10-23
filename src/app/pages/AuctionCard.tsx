@@ -98,8 +98,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
   if (phase !== 'open') return null;
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);
-  // Joined after this tournament's credits went out (no allowance row for it); an admin's grant fixes it.
-  const late = !ledger.some((r) => r.kind === 'allowance' && r.stage_id === stage.id);
+  // Joined after this tournament's credits went out: no allowance row for it, and no admin top-up since joining (a
+  // Wallets adjustment writes no allowance). Every ledger row postdates its team, so any positive adjustment counts.
+  const late = !ledger.some((r) => (r.kind === 'allowance' && r.stage_id === stage.id) || (r.kind === 'adjustment' && r.amount > 0));
   const newest = ledger.at(-1);
   const added = newest?.kind === 'adjustment' && newest.amount > 0 && now - Date.parse(newest.created_at) < WEEK ? newest.amount : 0;
 
