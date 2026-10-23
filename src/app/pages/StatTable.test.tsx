@@ -30,6 +30,15 @@ describe('StatTable', () => {
     expect(screen.getByRole('columnheader', { name: 'Turnover' }).getAttribute('title')).toBe('Turnover');
   });
 
+  it('orders stat columns G A D C T, like the legend, whatever order the settings keys come in', () => {
+    // jsonb hands stat_weights back as goal, block, assist, callahan, turnover (G D A C T).
+    const weights = { goal: 3, block: 5, assist: 2, callahan: 8, turnover: -1 };
+    render(<MemoryRouter><StatTable stats={Object.keys(weights)} rows={[{ ...ari6, counts: { goal: 1, block: 2, assist: 3 } }]} /></MemoryRouter>);
+    const heads = within(screen.getByRole('table')).getAllByRole('columnheader').map((h) => h.textContent);
+    expect(heads).toEqual(['Player', 'G', 'A', 'D', 'C', 'T', 'Pts']);
+    expect([...screen.getAllByRole('row')[1].children].map((c) => c.textContent)).toEqual(['Ari', '1', '3', '2', '0', '0', '6']);
+  });
+
   it('sorts the player column A to Z first', () => {
     render(<MemoryRouter><StatTable stats={['goal']} rows={[bo9, ari6]} /></MemoryRouter>);
     fireEvent.click(screen.getByRole('button', { name: 'Player' }));

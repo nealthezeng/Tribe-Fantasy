@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { sortRows, type SortKey, type StatRow, type StatsStage } from '../lib/statsTable';
 import { statLabel } from '../lib/stats';
-import { STAT_LEGEND, type StatusWord } from '../lib/words';
+import { inStatOrder, STAT_LEGEND, type StatusWord } from '../lib/words';
 
 // Short column heads keep a five-stat table inside a phone; the full name stays the accessible one.
 const SHORT: Record<string, string> = { goal: 'G', assist: 'A', block: 'D', callahan: 'C', turnover: 'T' };
@@ -11,7 +11,7 @@ const SHORT: Record<string, string> = { goal: 'G', assist: 'A', block: 'D', call
  * Totals table, best first; tap a header to sort by it, tap again to flip. With `href` the whole row opens it (rule 1).
  * `total` is a last row outside the sort; the legend spells out the letter heads (ruling 3).
  */
-export function StatTable({ stats, rows, first = 'Player', href, sortable = true, legend = true, total }: {
+export function StatTable({ stats: keys, rows, first = 'Player', href, sortable = true, legend = true, total }: {
   stats: string[]; rows: StatRow[]; first?: string; href?: (row: StatRow) => string; sortable?: boolean;
   legend?: boolean; total?: StatRow;
 }) {
@@ -21,6 +21,7 @@ export function StatTable({ stats, rows, first = 'Player', href, sortable = true
   const navigate = useNavigate();
   if (rows.length === 0) return <p className="muted">No stats recorded.</p>;
   const shown = sortable ? sortRows(rows, sort.key, sort.desc) : rows;
+  const stats = inStatOrder(keys); // G A D C T, as the legend reads, whatever order the settings keys come in
   const head = (key: SortKey, text: string, full = text) => (
     <th key={key} title={full} aria-label={full} aria-sort={sortable && sort.key === key ? (sort.desc ? 'descending' : 'ascending') : undefined}>
       {sortable
