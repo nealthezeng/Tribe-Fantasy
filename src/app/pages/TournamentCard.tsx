@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { FactorHelp, VerifiedHelp } from '../components/Help';
@@ -233,11 +233,17 @@ function ScoreSide({ label, y, athleteIds, score, from, empty, lost = false, pic
 }
 
 function PickGame({ y, next, membershipId, onSaved }: {
-  y: LeagueTournament; next: NextGame; membershipId: string; onSaved: () => Promise<void>;
+  /** Reloads; true when fresh data landed. */
+  y: LeagueTournament; next: NextGame; membershipId: string; onSaved: () => Promise<boolean>;
 }) {
   // The set being saved: shown as picked from the tap until the reload after the save lands. The loaded picks are
   // stale until then, so taps meanwhile are held: a set built from them would drop this one.
   const [saving, setSaving] = useState<string[] | null>(null);
+  // A set the server saved whose reload failed (weak signal), with the data it was saved over: it stays the shown and
+  // working set until a load brings fresh data (a new `y`), so the next tap never builds on the stale loaded picks.
+  const [held, setHeld] = useState<{ ids: string[]; over: LeagueTournament } | null>(null);
+  const shown = useRef(y);
+  useEffect(() => { shown.current = y; });
   const [error, setError] = useState<string | null>(null);
   const name = (id: string | null) => athleteName(y, id);
   const mine = next.sides.find((x) => x.membershipId === membershipId);
@@ -254,7 +260,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
   }
   const n = y.settings.picks_per_game;
   const wanted = Math.min(n, mine.players.length);
-  const picked = saving ?? mine.picked;
+  const picked = saving ?? (held?.over === y ? held.ids : mine.picked);
   const full = picked.length >= n;
   const byName = (a: string, b: string) => name(a).localeCompare(name(b));
   const lock = `Picks lock when a keeper starts game ${next.number}.`;
@@ -263,12 +269,15 @@ function PickGame({ y, next, membershipId, onSaved }: {
   async function save(athleteIds: string[]) {
     setSaving(athleteIds);
     setError(null);
+    let sent = false;
     try {
       await api.setGamePick(membershipId, next.stageId, next.number, athleteIds);
+      sent = true;
     } catch (err) {
       setError(errorMessage(err, String(n)));
     }
-    await onSaved(); // a refused pick usually means the game just started: show it
+    const fresh = await onSaved(); // a refused pick usually means the game just started: show it
+    if (sent) setHeld(fresh ? null : { ids: athleteIds, over: shown.current });
     setSaving(null);
   }
 

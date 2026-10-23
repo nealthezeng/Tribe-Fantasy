@@ -9,16 +9,19 @@ describe('useLoad', () => {
   it('settles reload() only when a load it asked for lands: a replaced load never answers it, a failed one does', async () => {
     const loads: { ok: (n: number) => void; fail: (e: Error) => void }[] = [];
     const { result } = renderHook(() => useLoad(() => new Promise<number>((ok, fail) => { loads.push({ ok, fail }); }), []));
-    const settled = [false, false];
-    act(() => { void result.current.reload().then(() => { settled[0] = true; }); });
-    act(() => { void result.current.reload().then(() => { settled[1] = true; }); });
+    const settled: (boolean | null)[] = [null, null, null]; // null = not settled; else whether fresh data came
+    act(() => { void result.current.reload().then((fresh) => { settled[0] = fresh; }); });
+    act(() => { void result.current.reload().then((fresh) => { settled[1] = fresh; }); });
     expect(loads).toHaveLength(3); // the first load, then one per reload
     await act(async () => { loads[0].ok(0); loads[1].ok(1); }); // both replaced by the last reload's load
-    expect(settled).toEqual([false, false]);
+    expect(settled).toEqual([null, null, null]);
     expect(result.current.data).toBeUndefined();
     await act(async () => { loads[2].fail(new Error('offline')); });
-    expect(settled).toEqual([true, true]);
+    expect(settled).toEqual([false, false, null]); // answered, but no fresh data
     expect(result.current.error).not.toBeNull();
+    act(() => { void result.current.reload().then((fresh) => { settled[2] = fresh; }); });
+    await act(async () => { loads[3].ok(3); });
+    expect(settled[2]).toBe(true);
   });
 });
 

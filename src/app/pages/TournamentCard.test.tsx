@@ -222,6 +222,21 @@ describe('TournamentCard', () => {
     expect(vi.mocked(api.setGamePick).mock.calls.map((c) => c[3])).toEqual([['a3'], ['a3', 'a1']]);
   });
 
+  it('keeps a saved pick when the reload after it fails, so the next tap builds on it (weak signal)', async () => {
+    await show(base());
+    vi.mocked(loadLeagueTournament).mockRejectedValueOnce(new Error('Failed to fetch'));
+    fireEvent.click(pickRow('Alex'));
+    await waitFor(() => expect(rowsBusy()).toBe('false')); // saved; the reload failed
+    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(pickRow('Alex').getAttribute('aria-pressed')).toBe('true'); // the saved set, not the stale loaded one
+    expect(picks().getByText('1 of 2')).toBeTruthy();
+    fireEvent.click(pickRow('Ash'));
+    await waitFor(() => expect(api.setGamePick).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.setGamePick).mock.calls.map((c) => c[3])).toEqual([['a3'], ['a3', 'a1']]);
+    await waitFor(() => expect(rowsBusy()).toBe('false')); // this reload lands: fresh data replaces the held set
+    expect(picks().getAllByRole('button', { pressed: true }).map((b) => b.querySelector('b')?.textContent)).toEqual(['Alex', 'Ash']);
+  });
+
   it("shows each player's share, tiredness and earlier tournaments in words (decision 11)", async () => {
     const r = afterGame1();
     // An earlier tournament where Zeal started Ash: with no grace, Ash carries x0.9 into this one.
