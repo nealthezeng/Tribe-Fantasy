@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import type { TournamentResult } from '../../core/tournament';
-import { anyCounted, buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, shortRows, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { anyCounted, buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, shortRows, startersOf, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -238,6 +238,20 @@ describe('mergeRanks', () => {
       r([game('g1', 'S1', 'pending'), game('g4', 'S1', 'upcoming'), game('g5', 'S1', 'final')]),
     ], 'S2');
     expect(out).toEqual({ ranks: { m1: 2 }, unsettled: 1 });
+  });
+});
+
+describe('startersOf', () => {
+  const side = (athleteIds: string[]) => ({ athleteIds });
+  const game = (stageId: string, number: number, matchups: unknown[]) => ({ game: { id: `${stageId}-${number}`, stageId, number }, status: 'live', matchups });
+  const r = (games: unknown[]) => ({ games }) as unknown as TournamentResult;
+  it("collects both sides' starters of the game across leagues and ignores other games", () => {
+    const out = startersOf([
+      r([game('S1', 2, [{ home: side(['a1', 'a2']), away: side(['a3']) }, { home: side(['a4']), away: null }]),
+        game('S1', 1, [{ home: side(['x1']), away: side(['x2']) }])]),
+      r([game('S1', 2, [{ home: side(['a2', 'a5']), away: side([]) }]), game('S2', 2, [{ home: side(['x3']), away: null }])]),
+    ], 'S1', 2);
+    expect([...out].sort()).toEqual(['a1', 'a2', 'a3', 'a4', 'a5']);
   });
 });
 

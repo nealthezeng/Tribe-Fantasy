@@ -420,6 +420,14 @@ export function lastTournamentForm(y: LeagueTournament, excludeStageId: string):
   return { stageId, name: y.stage.get(stageId) ?? '', perGame: new Map([...totals].map(([a, t]) => [a, t / games.length])) };
 }
 
+/** Every athlete any team starts in game `number` of `stageId`, in every league: the tally board's "Picked this game" (ruling 15). */
+export const startersOf = (results: TournamentResult[], stageId: string, number: number): Set<string> => new Set(results.flatMap((r) => r.games
+  .filter((g) => g.game.stageId === stageId && g.game.number === number)
+  .flatMap((g) => g.matchups.flatMap(({ home, away }) => [...home.athleteIds, ...(away?.athleteIds ?? [])]))));
+
+export const loadStarters = async (seasonId: string, stageId: string, number: number): Promise<Set<string>> => startersOf(
+  await Promise.all((await leaguesOf(seasonId)).map(async (l) => (await loadLeagueTournament(seasonId, l.id)).result)), stageId, number);
+
 export const countLeagues = async (seasonId: string) => (await leaguesOf(seasonId)).length;
 
 /** The all-leagues leaderboard of a season. `own` is a league already loaded on the page: not fetched again. */

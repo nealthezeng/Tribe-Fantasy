@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { mergeTaps } from '../../core/taps';
 import { useAuth } from '../auth/AuthProvider';
+import { Loading } from '../components/Loading';
 import { loadOwnedAthletes } from '../lib/auction';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
@@ -11,7 +12,7 @@ import {
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
-import { loadCurrentGame, loadOpenOuts } from '../lib/tournament';
+import { loadCurrentGame, loadOpenOuts, loadStarters } from '../lib/tournament';
 import { GameControls } from './GameControls';
 import { OutList } from './OutList';
 import {
@@ -25,13 +26,13 @@ export function TallyPage() {
   const [params, setParams] = useSearchParams(); // ?game= deep-links straight to a board
   const sessionId = params.get('game');
   const season = useLoad(loadCurrentSeason, []);
-  if (loading) return <p className="muted" role="status">Loading…</p>;
+  if (loading) return <Loading />;
   if (!session || !isKeeper) return <Navigate to="/" replace />;
   if (season.error) return <p className="error" role="alert">{season.error}</p>;
   if (season.data === null) return <p>No season yet.</p>;
-  if (!season.data) return <p className="muted" role="status">Loading…</p>;
+  if (!season.data) return <Loading />;
   return sessionId ? (
-    <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setParams({}, { replace: true })} />
+    <TallyBoard key={sessionId} season={season.data} sessionId={sessionId} keeperId={session.user.id} onBack={() => setParams({})} />
   ) : (
     <SessionPicker season={season.data} keeperId={session.user.id} onPick={(id) => setParams({ game: id })} />
   );
@@ -108,6 +109,9 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     return () => { delete document.documentElement.dataset.tally; };
   }, [bright]);
   const queueRef = useRef(queue);
+  // Loaded once with the board's first load: starters don't change once a game starts, and a list that regroups
+  // under a keeper's thumb mis-taps. Null when they fail: one A→Z list (ruling 15).
+  const starters = useRef<Promise<Set<string> | null>>(undefined);
   const sending = useRef(false);
   const inFlight = useRef<Set<string>>(new Set());
 
@@ -119,7 +123,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
     // The board's tournament game (none for a non-game session): Out marks belong to its stage.
     const game = await supabase!.from('games').select('stage_id, number').eq('session_id', sessionId).maybeSingle();
     if (game.error) throw game.error;
-    const [athletes, taps, outs, started, owned] = await Promise.all([
+    starters.current ??= game.data ? loadStarters(seasonId, game.data.stage_id, game.data.number).catch(() => null) : Promise.resolve(null);
+    const [athletes, taps, outs, started, owned, titles, picked] = await Promise.all([
       supabase!.from('athletes').select('id, name').eq('season_id', seasonId).eq('opted_in', true).order('name'),
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', sessionId),
       game.data ? loadOpenOuts(game.data.stage_id as string) : new Map<string, number>(),
@@ -127,6 +132,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       game.data ? supabase!.from('games').select('number').eq('stage_id', game.data.stage_id).not('started_at', 'is', null) : { data: [], error: null },
       // The server refuses a keeper's taps on their own players (OWNS_ATHLETE); admins may tally anyone (t120).
       isAdmin ? new Set<string>() : loadOwnedAthletes(keeperId, seasonId).catch(() => new Set<string>()),
+      gameTitles([sessionId]),
+      starters.current,
     ]);
     for (const r of [athletes, taps, started]) if (r.error) throw r.error;
     return {
@@ -137,6 +144,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       outs,
       lastStarted: Math.max(0, ...((started.data ?? []) as { number: number }[]).map((g) => g.number)),
       owned,
+      title: titles.get(sessionId) ?? sessionTitle(sess.data as SessionRow),
+      picked,
     };
   }, [sessionId, keeperId, isAdmin]);
   const reload = data.reload;
@@ -228,15 +237,19 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       </section>
     );
   }
-  if (!data.data) return <p className="muted" role="status">Loading…</p>;
-  const { session, athletes, game, outs, lastStarted, owned } = data.data;
+  if (!data.data) return <Loading />;
+  const { session, athletes, game, outs, lastStarted, owned, title, picked } = data.data;
   // The current season's stat buttons may not match an old season's stats, so an old-season session is read-only:
   // taps already queued on the phone still upload, but new taps and undo are disabled.
   const oldSeason = session.season_id !== season.id;
   const verified = sessionState(session, season.settings.stat_lock_hours) !== 'open';
   const closed = oldSeason || verified;
   const stats = Object.keys(season.settings.stat_weights);
-  const shown = athletes.filter((a) => a.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const query = search.trim().toLowerCase();
+  const shown = athletes.filter((a) => a.name.toLowerCase().includes(query));
+  // Ruling 15: whoever any team starts this game, then everyone else, both A→Z; headings only when not searching.
+  const groups = [['Picked this game', shown.filter((a) => picked?.has(a.id))], ['Everyone else', shown.filter((a) => !picked?.has(a.id))]] as const;
+  const headed = !query && groups[0][1].length > 0;
 
   const add = (athleteId: string, stat: string) =>
     setQueue((q) => [...q, { id: crypto.randomUUID(), athlete_id: athleteId, stat, tapped_at: new Date().toISOString(), undoes: null }]);
@@ -270,12 +283,38 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   }
 
   const weight = (stat: string) => season.settings.stat_weights[stat] ?? 0;
+  const card = (a: AthleteRow) => {
+    const from = outs.get(a.id); // the open Out's first game
+    const mine = owned.has(a.id); // another keeper tallies players on your own fantasy team
+    // Out of this game: one line, nothing to tap; a keeper clears the Out first. Out from a later game: he still plays this one.
+    const out = from !== undefined && game !== null && from <= game.number;
+    return (
+      <li key={a.id} className="tally-card">
+        <div className="tally-head">
+          <strong>{a.name}</strong>
+          {mine && <span className="pill">On your team</span>}
+          {from !== undefined && <span className="pill bad">{game && from > lastStarted ? `Out from game ${from}` : 'Out'}</span>}
+          {game && !closed && (from === undefined
+            ? <button className="secondary" aria-label={`Mark ${a.name} out from the next game`} onClick={() => void run(() => api.setOut(game.stage_id, a.id))}>Mark out</button>
+            : <button className="secondary" aria-label={`Clear ${a.name}'s Out`} onClick={() => void run(() => api.clearOut(game.stage_id, a.id))}>Clear out</button>)}
+        </div>
+        {!out && (
+          <div className="tally-buttons">
+            {stats.map((stat) => (
+              <StatButton key={stat} athlete={a.name} stat={stat} count={counts[a.id]?.[stat] ?? 0} weight={weight(stat)}
+                disabled={closed || mine} onAdd={() => add(a.id, stat)} onSubtract={() => subtract(a.id, stat)} />
+            ))}
+          </div>
+        )}
+      </li>
+    );
+  };
   return (
     <section className="page">
       <div className="tally-bar">
         <div className="head">
           <button className="linklike" onClick={onBack}>← Games</button>
-          <strong>{sessionTitle(session)}</strong>
+          <strong>{title}</strong>
         </div>
         <div className="head">
           <span role="status">
@@ -283,12 +322,14 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
             {queue.length > 0 && online && <span className="pill info">Saving · {queue.length} unsaved</span>}
             {queue.length > 0 && !online && <span className="pill warn">Offline · {queue.length} unsaved</span>}
           </span>
-          <button type="button" className="secondary" onClick={() => {
-            try { localStorage.setItem(BRIGHT_KEY, bright ? '0' : '1'); } catch { /* storage blocked: lasts until you leave the board */ }
-            setBright(!bright);
-          }}>{bright ? 'Normal board' : 'Bright board'}</button>
+          <label className="check">
+            <input type="checkbox" checked={bright} onChange={(e) => {
+              try { localStorage.setItem(BRIGHT_KEY, e.target.checked ? '1' : '0'); } catch { /* storage blocked: lasts until you leave the board */ }
+              setBright(e.target.checked);
+            }} />
+            Bright board
+          </label>
         </div>
-        <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length]])} />
       </div>
       {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {closed && !verified && <p className="notice">Earlier season: tallying closed.</p>}
@@ -297,32 +338,15 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       {error && <p className="error" role="alert">{error}</p>}
       {data.error && <p className="error" role="alert">Couldn't refresh: {data.error}</p>}
       <input type="search" aria-label="Find a player" placeholder="Find a player" value={search} onChange={(e) => setSearch(e.target.value)} />
-      <p className="muted">Hold a button to undo a tap.</p>
+      <p className="muted">Hold a stat to take one off.</p>
       {hint && <p className="notice" role="status">{hint} <button className="linklike" onClick={() => setHint(null)}>Dismiss</button></p>}
-      <ul className="list">
-        {shown.map((a) => {
-          const from = outs.get(a.id); // the open Out's first game
-          const mine = owned.has(a.id); // another keeper tallies players on your own fantasy team
-          return (
-            <li key={a.id} className="tally-card">
-              <div className="tally-head">
-                <strong>{a.name}</strong>
-                {mine && <span className="pill">On your team</span>}
-                {from !== undefined && <span className="pill bad">{game && from > lastStarted ? `Out from game ${from}` : 'Out'}</span>}
-                {game && !closed && (from === undefined
-                  ? <button className="secondary" aria-label={`Mark ${a.name} out from the next game`} onClick={() => void run(() => api.setOut(game.stage_id, a.id))}>Mark out</button>
-                  : <button className="secondary" aria-label={`Clear ${a.name}'s Out`} onClick={() => void run(() => api.clearOut(game.stage_id, a.id))}>Clear out</button>)}
-              </div>
-              <div className="tally-buttons">
-                {stats.map((stat) => (
-                  <StatButton key={stat} athlete={a.name} stat={stat} count={counts[a.id]?.[stat] ?? 0} weight={weight(stat)}
-                    disabled={closed || mine} onAdd={() => add(a.id, stat)} onSubtract={() => subtract(a.id, stat)} />
-                ))}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {groups.map(([heading, list]) => list.length > 0 && (
+        <Fragment key={heading}>
+          {headed && <h2>{heading}</h2>}
+          <ul className="list">{list.map(card)}</ul>
+        </Fragment>
+      ))}
+      <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length]])} />
     </section>
   );
 }

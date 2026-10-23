@@ -84,6 +84,21 @@ describe('GameControls', () => {
     expect(confirm).not.toHaveBeenCalled();
   });
 
+  it('asks "Finish game 1 vs Pitt? Game 2 gets paired; an admin can undo it." with the pairings in a fold', async () => {
+    state.games = [game(1, { session_id: 'p1', started_at: '2026-11-07T16:00:00Z', opponent: 'Pitt' }), game(2), game(3)];
+    view(<GameControls season={season} sessionId="p1" />);
+    const finish = await screen.findByRole('button', { name: 'Finish game 1' });
+    expect(finish.className).toBe('secondary'); // a quiet button at the end of the board
+    fireEvent.click(finish);
+    const panel = await screen.findByRole('group', { name: 'Finish game 1' });
+    expect(panel.querySelector('p')!.textContent).toBe('Finish game 1 vs Pitt? Game 2 gets paired; an admin can undo it.');
+    const fold = panel.querySelector('details')!;
+    expect(fold.open).toBe(false);
+    expect(fold.querySelector('summary')!.textContent).toBe('Game 2 pairings');
+    expect(fold.textContent).toContain('Zeal vs Flow · Money has a bye');
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
+  });
+
   it('finishing the last game confirms and sends no pairings', async () => {
     state.games = [game(1, { started_at: '2026-11-07T15:00:00Z', finished_at: '2026-11-07T16:00:00Z' }), game(2, { session_id: 'p2', started_at: '2026-11-07T16:00:00Z' })];
     view(<GameControls season={season} sessionId="p2" />);

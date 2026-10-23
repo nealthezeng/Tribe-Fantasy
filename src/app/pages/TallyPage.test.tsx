@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useNavigate } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseSettings } from '../../core/settings';
 import { api } from '../lib/rpc';
@@ -14,17 +14,22 @@ vi.mock('../lib/stats', async (orig) => ({
   ...(await orig<typeof import('../lib/stats')>()),
   loadCurrentSeason: () => Promise.resolve({ id: 'se', name: 'Fall', settings: parseSettings({}) }),
 }));
-vi.mock('./GameControls', () => ({ GameControls: () => null }));
+// On a board it stands for the live game's Finish section.
+vi.mock('./GameControls', () => ({
+  GameControls: ({ sessionId }: { sessionId?: string }) => (sessionId ? <button className="secondary">Finish game 2</button> : null),
+}));
 vi.mock('./OutList', () => ({ OutList: () => <p>Out list</p> }));
 vi.mock('../lib/rpc', () => ({ api: { setOut: vi.fn(), clearOut: vi.fn() } }));
 
 const gone = vi.hoisted(() => ({
   on: false, outs: [] as { athlete_id: string; from_game: number }[], owned: false, games: null as unknown[] | null,
   sessions: null as unknown[] | null, current: null as unknown, // current = the hub's tournament (loadCurrentGame)
+  athletes: null as { id: string; name: string }[] | null, starters: [] as string[] | null, // null = the starters fail to load
 }));
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
   loadCurrentGame: () => Promise.resolve(gone.current),
+  loadStarters: () => (gone.starters ? Promise.resolve(new Set(gone.starters)) : Promise.reject(new Error('offline'))),
 }));
 const DRILL = '00000000-0000-4000-8000-00000000d111';
 const session = (id: string, kind: string) => ({
@@ -35,7 +40,7 @@ vi.mock('../lib/supabase', () => ({
     from: (table: string) => {
       const rows = table === 'sessions' ? gone.sessions ?? [session('game', 'tournament'), session(DRILL, 'practice')]
         : table === 'games' ? gone.games ?? [{ session_id: 'game', stage_id: 's1', number: 2 }]
-        : table === 'athletes' ? [{ id: 'a0', name: 'A0' }, { id: 'a1', name: 'A1' }]
+        : table === 'athletes' ? gone.athletes ?? [{ id: 'a0', name: 'A0' }, { id: 'a1', name: 'A1' }]
         : table === 'outs' ? gone.outs : table === 'roster_slots' ? (gone.owned ? [{ athlete_id: 'a0' }] : [])
         : table === 'stages' ? [{ id: 's1', starts_on: '2000-01-01', ends_on: '2099-01-01' }] : [];
       const builder = {
@@ -60,6 +65,8 @@ afterEach(() => {
   gone.games = null;
   gone.sessions = null;
   gone.current = null;
+  gone.athletes = null;
+  gone.starters = [];
   cleanup();
   localStorage.clear();
   delete document.documentElement.dataset.tally;
@@ -115,12 +122,80 @@ describe('TallyPage deep link', () => {
     expect(await screen.findByRole('button', { name: '← Games' })).toBeTruthy();
   });
 
+  it('pushes the games list on ← Games so Back returns to the board (B3)', async () => {
+    const Back = () => { const navigate = useNavigate(); return <button onClick={() => void navigate(-1)}>Back</button>; };
+    render(<MemoryRouter initialEntries={['/tally?game=game']}><TallyPage /><Back /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: '← Games' }));
+    await screen.findByText('Out list');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByRole('button', { name: '← Games' })).toBeTruthy();
+    expect(await screen.findByText('A0')).toBeTruthy();
+  });
+
   it('keeps a way back to the games when ?game= is bad or stale', async () => {
     gone.on = true;
     render(<MemoryRouter initialEntries={['/tally?game=nope']}><TallyPage /></MemoryRouter>);
     expect((await screen.findByRole('alert')).textContent).toContain('Row not found');
     fireEvent.click(screen.getByRole('button', { name: '← Games' }));
     expect(await screen.findByText('Open games')).toBeTruthy();
+  });
+});
+
+describe('TallyPage board', () => {
+  const board = async () => {
+    const view = render(<MemoryRouter initialEntries={['/tally?game=game']}><TallyPage /></MemoryRouter>);
+    await screen.findByText('A0');
+    return view;
+  };
+  /** The board's headings and player names in page order. */
+  const order = (c: HTMLElement) => [...c.querySelectorAll('h2, .tally-card strong')].map((e) => e.textContent);
+
+  it('titles the bar with the game, "Game 2 vs UNC"', async () => {
+    gone.games = [{ session_id: 'game', stage_id: 's1', number: 2, opponent: 'UNC', stages: { name: 'CCCs' } }];
+    const { container } = await board();
+    expect(container.querySelector('.tally-bar strong')!.textContent).toBe('Game 2 vs UNC · CCCs');
+  });
+
+  it('lists picked players first, then everyone else', async () => {
+    gone.athletes = [{ id: 'a0', name: 'A0' }, { id: 'a1', name: 'A1' }, { id: 'a2', name: 'A2' }, { id: 'a3', name: 'A3' }];
+    gone.starters = ['a3', 'a1'];
+    const { container } = await board();
+    expect(order(container)).toEqual(['Picked this game', 'A1', 'A3', 'Everyone else', 'A0', 'A2']);
+    const find = screen.getByRole('searchbox', { name: 'Find a player' });
+    fireEvent.change(find, { target: { value: 'a' } });
+    expect(order(container)).toEqual(['A1', 'A3', 'A0', 'A2']); // no headings while searching
+    fireEvent.change(find, { target: { value: 'A2' } });
+    expect(order(container)).toEqual(['A2']);
+  });
+
+  it("shows one A→Z list when the starters don't load", async () => {
+    gone.starters = null;
+    const { container } = await board();
+    expect(order(container)).toEqual(['A0', 'A1']);
+  });
+
+  it('folds an Out player to one line with Clear out and no stat buttons', async () => {
+    gone.outs = [{ athlete_id: 'a0', from_game: 2 }]; // Out of this board's game, game 2
+    await board();
+    const card = screen.getByText('A0').closest('li')!;
+    expect(card.querySelector('.pill.bad')!.textContent).toBe('Out');
+    expect(card.querySelector('.tally-buttons')).toBeNull();
+    expect([...card.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Clear out']);
+    expect(screen.getByText('A1').closest('li')!.querySelector('.tally-buttons')).toBeTruthy();
+  });
+
+  it('puts Finish game at the end of the board, not in the bar', async () => {
+    const { container } = await board();
+    const finish = screen.getByRole('button', { name: 'Finish game 2' });
+    expect(finish.closest('.tally-bar')).toBeNull();
+    const lists = container.querySelectorAll('ul.list');
+    expect(lists.length).toBeGreaterThan(0);
+    expect(lists[lists.length - 1].compareDocumentPosition(finish) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('says "Hold a stat to take one off."', async () => {
+    await board();
+    expect(screen.getByText('Hold a stat to take one off.')).toBeTruthy();
   });
 });
 
@@ -137,6 +212,7 @@ describe('TallyPage Out toggle', () => {
     await waitFor(() => expect(api.setOut).toHaveBeenCalledWith('s1', 'a0'));
     expect((await screen.findByText('Out from game 3')).className).toContain('pill');
     expect(screen.getByRole('button', { name: "Clear A0's Out" })).toBeTruthy();
+    expect(screen.getByText('A0').closest('li')!.querySelector('.tally-buttons')).toBeTruthy(); // he still plays this game
   });
 
   it('clears an Out from the board', async () => {
@@ -178,22 +254,28 @@ describe('TallyPage bright board (t330)', () => {
     await screen.findByText('A0');
   };
 
-  it('opens the board bright by default', async () => {
+  const bright = () => screen.getByRole('checkbox', { name: 'Bright board' }) as HTMLInputElement;
+
+  it('switches the bright board with a checkbox', async () => {
     await open();
     expect(tally()).toBe('bright');
-    expect(screen.getByRole('button', { name: 'Normal board' })).toBeTruthy();
+    expect(bright().checked).toBe(true); // bright by default
+    expect(bright().closest('.tally-bar')).toBeTruthy();
+    fireEvent.click(bright());
+    expect(tally()).toBeUndefined();
+    expect(bright().checked).toBe(false);
   });
 
   it('remembers a keeper turning it off on this device', async () => {
     await open();
-    fireEvent.click(screen.getByRole('button', { name: 'Normal board' }));
+    fireEvent.click(bright());
     expect(tally()).toBeUndefined();
-    expect(screen.getByRole('button', { name: 'Bright board' })).toBeTruthy();
     expect(localStorage.getItem('tribe.tally.bright')).toBe('0');
     cleanup();
     await open();
     expect(tally()).toBeUndefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Bright board' }));
+    expect(bright().checked).toBe(false);
+    fireEvent.click(bright());
     expect(tally()).toBe('bright');
     expect(localStorage.getItem('tribe.tally.bright')).toBe('1');
   });
@@ -220,9 +302,9 @@ describe('TallyPage bright board (t330)', () => {
     try {
       await open();
       expect(tally()).toBe('bright');
-      fireEvent.click(screen.getByRole('button', { name: 'Normal board' }));
+      fireEvent.click(bright());
       expect(tally()).toBeUndefined();
-      expect(screen.getByRole('button', { name: 'Bright board' })).toBeTruthy();
+      expect(bright().checked).toBe(false);
     } finally {
       spies.forEach((spy) => spy.mockRestore());
     }

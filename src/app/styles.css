@@ -212,7 +212,9 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 /* Tally board: big neutral buttons with big counts, readable in sunlight. Attendance and injury sit apart. */
 .tally-bar { position: sticky; top: 0; z-index: 1; display: grid; gap: var(--s1); margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter); background: var(--bg); border-bottom: 1px solid var(--line); }
 .tally-bar .head { gap: var(--s2); }
+.tally-bar .pill { font-size: var(--fs-sm); }
 .list li.tally-card { display: grid; justify-content: stretch; align-items: stretch; gap: var(--s3); padding: var(--s3); background: var(--surface); box-shadow: none; } /* plain and fast */
+:root[data-tally='bright'] .list li.tally-card { background: var(--surface-2); } /* the bright page and its cards are both white */
 .tally-head { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
 .tally-head strong { flex: 1 1 auto; font-size: var(--fs-lead); }
 .tally-head button { padding: 6px var(--s3); font-size: var(--fs-sm); }
@@ -465,13 +467,13 @@ details.factor[open] > summary::after { content: '▴'; }
      Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
      moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
      tokens.test.ts fails if a lift or squeeze rule forgets it. */
-  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
+  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly, and nothing on the board fades (buttons, pills, links), the bright/dark switch
@@ -510,8 +512,8 @@ details.factor[open] > summary::after { content: '▴'; }
 @keyframes rest { 50% { opacity: 0.55; } }
 @keyframes since-in { from { opacity: 0; transform: scale(0.6); } }
 @media (prefers-reduced-motion: no-preference) {
-  /* t98: the account menu and an opened section drop in; closing is instant. */
-  .account-menu:popover-open, details[open] > :not(summary) { animation: drop-in var(--dur-menu) var(--ease); }
+  /* t98: the account menu and an opened section drop in; closing is instant. Never on the tally board (its Finish fold). */
+  .account-menu:popover-open, details[open]:not(:where(.page:has(.tally-bar)) *) > :not(summary) { animation: drop-in var(--dur-menu) var(--ease); }
   /* t99: page content fades in as it arrives (never on the tally board). */
   .page:not(:has(.tally-bar)) > * { animation: fade-in var(--dur-fade) var(--ease); }
   .skeleton > [aria-hidden] { animation: rest var(--dur-rest) ease-in-out infinite; }

@@ -48,8 +48,16 @@ describe('the tally board never moves', () => {
     const moving = [...styles.matchAll(/([^{}]+)\{[^}]*transform:\s*(?:translateY\(-1px\)|scale\(0\.95\))/g)].map((m) => m[1].trim());
     expect(moving.length).toBeGreaterThan(0);
     for (const selector of moving.filter((sel) => /button/.test(sel))) {
-      expect(selector).toMatch(/\.tally-buttons, \.tally-head, \.tally-bar/);
+      // The bar, the cards, and the rest of the board page (Finish game sits at its end, P9 T12).
+      expect(selector).toMatch(/\.tally-buttons, \.tally-head, \.tally-bar, \.page:has\(\.tally-bar\)\) \*/);
     }
+  });
+
+  it('a fold opened on the board does not drop in (the Finish pairings, P9 T12)', () => {
+    const drops = [...styles.matchAll(/([^{}]+)\{[^{}]*animation: drop-in/g)].flatMap((m) => m[1].split(',').map((s) => s.trim()));
+    const folds = drops.filter((sel) => sel.startsWith('details'));
+    expect(folds.length).toBeGreaterThan(0);
+    for (const selector of folds) expect(selector).toContain(':not(:where(.page:has(.tally-bar)) *)');
   });
 
   it('nothing on the board fades, pills and links included, the bright/dark switch too (t330)', () => {
