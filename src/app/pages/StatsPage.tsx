@@ -117,7 +117,12 @@ export function StatsPage() {
           {loaded.lines.length + loaded.liveLines.length === 0
             ? <p className="muted">No stats yet for {stage.name}.</p>
             : <StatTable stats={Object.keys(weights)} rows={totals([...loaded.lines, ...loaded.liveLines], loaded.names, weights)} href={(r) => `/player/${r.key}?t=${stage.id}`} />}
-          <h2>Games</h2>
+          <div className="head">
+            <h2>Games</h2>
+            {/* The live strip explains these itself; without it, say what "not verified" means here. */}
+            {loaded.liveGames.length === 0 && loaded.games.some((g) => rowStatus(g) === 'Finished · not verified')
+              && <VerifiedHelp hours={season!.settings.stat_lock_hours} />}
+          </div>
           {loaded.games.length === 0
             ? <p className="muted">No games yet.</p>
             : <ul className="list">{loaded.games.map((g) => <GameItem key={g.id} g={g} unsaved={g.session_id ? unsaved.get(g.session_id) ?? 0 : 0} />)}</ul>}

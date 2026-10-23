@@ -46,9 +46,9 @@ export function SessionPage() {
     for (const r of [season, athletes, lines, taps, profiles, game]) if (r.error) throw r.error;
     const g = game.data as GameInfo | null; // none for an old practice session
     const settings = parseSettings(season.data!.settings);
-    // Members can't read stat_taps: a started, unverified game's unofficial lines come through live_game_taps. An
-    // athlete-only account can't read those either (FORBIDDEN), so it sees no live lines.
-    const live = !s.verified_at && g?.started_at
+    // Members can't read stat_taps: a started, unverified game's unofficial lines come through live_game_taps (keepers
+    // verify from their own taps instead). An athlete-only account can't read those either (FORBIDDEN): no live lines.
+    const live = !isKeeper && !s.verified_at && g?.started_at
       ? await loadLiveTaps([{ id: g.id, session_id: id }]).then(
         (t) => liveStatLines(id, t.map(rowToTap), settings).map((l): LineRow => ({ athlete_id: l.athleteId, stats: l.stats })),
         (e) => { if (errorCode(e) !== 'FORBIDDEN') throw e; return null; })
@@ -67,7 +67,7 @@ export function SessionPage() {
       taps: ((taps.data ?? []) as StatTapRow[]).map(rowToTap),
       people: new Map((profiles.data ?? []).map((p: { id: string; display_name: string }) => [p.id, p.display_name])),
     };
-  }, [id]);
+  }, [id, isKeeper]);
 
   const merge = useMemo(
     () => (data.data ? mergeTaps(data.data.taps, data.data.settings.tap_merge_seconds) : null),
@@ -76,8 +76,8 @@ export function SessionPage() {
   const showLive = !isKeeper && !!data.data?.live; // keepers verify from their own taps below
   usePoll(data.reload, showLive); // live numbers move
 
-  if (data.error) return <p className="error" role="alert">{data.error}</p>;
-  if (data.data === undefined) return <Loading />;
+  // Only a first load that failed has nothing to show; a failed reload (a poll, say) keeps the page under the error.
+  if (data.data === undefined) return data.error ? <p className="error" role="alert">{data.error}</p> : <Loading />;
   if (data.data === null) return <p>That game's stats aren't here any more. <Link to="/stats">Stats</Link></p>;
   const { session, stageId, gameTitle, stage, status, live, settings, names, lines, taps, people } = data.data;
   const title = stage ? `${gameTitle} · ${stage}` : gameTitle;
@@ -132,6 +132,7 @@ export function SessionPage() {
         </p>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
+      {data.error && <p className="error" role="alert">{data.error}</p>}
 
       {showLive && (
         <div className="card">

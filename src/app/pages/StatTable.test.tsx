@@ -53,7 +53,14 @@ describe('StatTable', () => {
     const row = screen.getByRole('cell', { name: 'Ari' }).closest('tr')!;
     expect(row.classList.contains('row-target')).toBe(true);
     expect(within(row).getByRole('link', { name: 'Ari' })).toBeTruthy();
-    fireEvent.click(within(row).getAllByRole('cell')[1]); // a number, not the name: the sticky name cell stops the link's stretch
+    const number = within(row).getAllByRole('cell')[1]; // not the name: the sticky name cell stops the link's stretch
+    fireEvent.click(number, { ctrlKey: true }); // a new-tab click is the browser's, not ours
+    fireEvent.click(number, { button: 1 });
+    window.getSelection()!.selectAllChildren(number); // selecting text isn't a tap
+    fireEvent.click(number);
+    expect(screen.getByRole('status').textContent).toBe('/');
+    window.getSelection()!.removeAllRanges();
+    fireEvent.click(number);
     expect(screen.getByRole('status').textContent).toBe('/player/a');
   });
 

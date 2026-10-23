@@ -102,6 +102,34 @@ describe('SessionPage', () => {
     expect(screen.queryByText('Totals to verify')).toBeNull();
   });
 
+  it('keeps the page when a later reload fails, with the error above it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      auth.isKeeper = false;
+      session.verified_at = null;
+      game.finished_at = null;
+      vi.mocked(api.liveGameTaps)
+        .mockResolvedValueOnce([{ id: 't1', athlete_id: 'a1', stat: 'goal', keeper: 1, tapped_at: '2026-11-16T10:05:00Z', undoes: null }])
+        .mockRejectedValue(new Error('Failed to fetch'));
+      renderPage();
+      expect(await screen.findByRole('link', { name: 'Sam' })).toBeTruthy();
+      await vi.advanceTimersByTimeAsync(15_000); // the poll's reload fails
+      expect(await screen.findByRole('alert')).toBeTruthy();
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Game 1 vs Duke');
+      expect(screen.getByRole('link', { name: '← Stats' })).toBeTruthy();
+      expect(screen.getByRole('link', { name: 'Sam' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never reads live taps for a keeper (they verify from their own taps)', async () => {
+    session.verified_at = null;
+    renderPage();
+    await screen.findByRole('heading', { name: 'Totals to verify' });
+    expect(api.liveGameTaps).not.toHaveBeenCalled();
+  });
+
   it('shows the loading placeholder while the game loads', () => {
     renderPage();
     expect(screen.getByRole('status').className).toBe('skeleton'); // the shared Loading, not a bare "Loading…"

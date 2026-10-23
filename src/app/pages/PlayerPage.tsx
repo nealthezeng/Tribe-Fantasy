@@ -19,9 +19,9 @@ export function PlayerPage() {
   usePoll(data.reload, !!d?.liveGames.length); // live numbers move
   const back = <Link to={d?.stage ? `/stats?t=${d.stage.id}` : '/stats'}>← Stats</Link>;
 
+  // Nothing to show yet: the error, else loading. A failed reload (a poll, say) keeps the page under the error.
   let body;
-  if (data.error) body = <p className="error" role="alert">{data.error}</p>;
-  else if (d === undefined) body = <Loading />;
+  if (d === undefined) body = data.error ? <p className="error" role="alert">{data.error}</p> : <Loading />;
   else if (d === null) body = <p>No season yet.</p>;
   else if (!d.stage) body = <p className="muted">No tournaments yet.</p>;
   else if (!d.names.has(athleteId)) body = <p className="muted">That player isn't in this season.</p>;
@@ -47,6 +47,7 @@ export function PlayerPage() {
         <h1>{d?.names.get(athleteId) ?? 'Player'}</h1>
         {back}
       </div>
+      {d !== undefined && data.error && <p className="error" role="alert">{data.error}</p>}
       {body}
     </section>
   );

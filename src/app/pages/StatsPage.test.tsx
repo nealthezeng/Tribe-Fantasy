@@ -170,6 +170,23 @@ describe('StatsPage games list (t306, t307)', () => {
     expect(screen.queryByRole('link', { name: /^Tally Game/ })).toBeNull(); // the row is the button (rule 1)
   });
 
+  it('explains "Finished · not verified" beside Games when no live strip does', async () => {
+    withGames([games[0], { ...game(2, 's2', 'UNC', null), finished_at: 'b' }]);
+    show();
+    const heading = await screen.findByRole('heading', { name: 'Games' });
+    expect(screen.getByRole('link', { name: /^Game 2 vs UNC/ }).textContent).toContain('Finished · not verified');
+    expect(within(heading.parentElement!).getByRole('button', { name: 'What unofficial and verified mean' })).toBeTruthy();
+  });
+
+  it('leaves the Games heading bare while the live strip explains', async () => {
+    m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games: [games[0], { ...game(2, 's2', 'UNC', null), finished_at: 'b' }],
+      lines, names, liveLines: [], liveGames: [2] });
+    show();
+    await screen.findByRole('heading', { name: 'Games' });
+    expect(screen.getAllByRole('button', { name: 'What unofficial and verified mean' })).toHaveLength(1); // the strip's
+    expect(document.querySelector('.strip')).toBeTruthy();
+  });
+
   it('puts Download CSV under the games list for admins', async () => {
     m.isAdmin = true;
     withGames();

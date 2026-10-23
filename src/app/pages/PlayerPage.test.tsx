@@ -79,6 +79,25 @@ describe('PlayerPage', () => {
     expect(screen.queryByText(/Game 4/)).toBeNull(); // not started
   });
 
+  it('keeps the table and switcher when a later reload fails, with the error above them', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      m.load.mockResolvedValueOnce({
+        stages: [stage('S2'), stage('S1')], stage: stage('S1'), games: [game(1, 'Game 1', 'v'), game(2, 'Game 2', null)],
+        lines: [{ session_id: 's1', athlete_id: 'a', stats: { goal: 2 } }], names: new Map([['a', 'Ari']]),
+        liveLines: [], liveGames: [2],
+      }).mockRejectedValue(new Error('Failed to fetch'));
+      show('#/player/a?t=S1');
+      await screen.findByRole('table');
+      await vi.advanceTimersByTimeAsync(15_000); // the poll's reload fails
+      expect(await screen.findByRole('alert')).toBeTruthy();
+      expect(screen.getByRole('table')).toBeTruthy();
+      expect(screen.getByRole('combobox', { name: 'Tournament' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("says the player is not in this season for an unknown id", async () => {
     show('#/player/zzz');
     expect(await screen.findByText(/isn't in this season/)).toBeTruthy();

@@ -38,8 +38,12 @@ export function StatTable({ stats, rows, first = 'Player', href, sortable = true
           </thead>
           <tbody>
             {shown.map((r) => (href ? (
-              // The name cell is sticky, so its link's stretched ::after stops at that cell: a tap elsewhere follows it.
-              <tr key={r.key} className="row-target" onClick={(e) => { if (!(e.target as Element).closest('a')) navigate(href(r)); }}>
+              // The name cell is sticky, so its link's stretch stops at that cell: a plain tap elsewhere follows it
+              // (not a new-tab click, another button, or the end of a text selection).
+              <tr key={r.key} className="row-target" onClick={(e) => {
+                if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || window.getSelection()?.toString() || (e.target as Element).closest('a')) return;
+                navigate(href(r));
+              }}>
                 <td><Link to={href(r)}>{r.label}</Link></td>{cells(r)}
               </tr>
             ) : (
