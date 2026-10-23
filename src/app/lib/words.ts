@@ -22,6 +22,9 @@ export const pctExact = (x: number): string => `${Number((x * 100).toPrecision(3
 
 const FRACTION: Record<number, string> = { 0.5: 'half', 0.75: '¾', 0.25: '¼' };
 
+/** A tired step the way people say it: 0.5 → "half", 0.75 → "¾", 0.25 → "¼", else "60%". */
+export const fraction = (x: number): string => FRACTION[x] ?? pctExact(x);
+
 /**
  * A player's rest before game `number`: "rested", or "played game 2: half points". `tiredness_multipliers[i]` is the
  * rest of a player who started i + 1 games before. When the list holds `rest` twice (or not at all) the game is
@@ -29,7 +32,7 @@ const FRACTION: Record<number, string> = { 0.5: 'half', 0.75: '¾', 0.25: '¼' }
  */
 export function restWords(rest: number, number: number, s: SeasonSettings): string {
   if (rest === 1) return 'rested';
-  const points = `${FRACTION[rest] ?? pctExact(rest)} points`;
+  const points = `${fraction(rest)} points`;
   const i = s.tiredness_multipliers.indexOf(rest);
   return i === -1 || i !== s.tiredness_multipliers.lastIndexOf(rest) ? points : `played game ${number - 1 - i}: ${points}`;
 }

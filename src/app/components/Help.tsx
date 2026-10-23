@@ -1,5 +1,8 @@
 import { useId, type ReactNode } from 'react';
+import { stageMultiplier } from '../../core/decay';
 import type { SeasonSettings } from '../../core/settings';
+import { pct } from '../lib/wallet';
+import { fraction } from '../lib/words';
 
 /** Rounded as the Rules page does. */
 export const n = (x: number) => +x.toFixed(2);
@@ -28,14 +31,20 @@ export function SharesHelp({ settings: S }: { settings: SeasonSettings }) {
   );
 }
 
+// tiredness_multipliers holds at most 10 steps (settings.ts).
+const GAMES_BEFORE = ['the game', 'two games', 'three games', 'four games', 'five games', 'six games', 'seven games',
+  'eight games', 'nine games', 'ten games'];
+
+/** Beside the pick card and a team's players: share, tired steps and earlier tournaments, in words (rulings 3–4). */
 export function FactorHelp({ settings: S }: { settings: SeasonSettings }) {
-  const tired = S.tiredness_multipliers.length
-    ? S.tiredness_multipliers.map((m, i) => `×${n(m)} if ${i ? `${i + 1} games` : 'they started the game'} before`).join(', ')
-    : 'never';
+  const tired = S.tiredness_multipliers
+    .map((m, i) => (i ? `${GAMES_BEFORE[i]} before, ${fraction(m)}` : `If he started the game before, they count ${fraction(m)}`))
+    .join('; ');
+  const decay = S.decay_mode !== 'none' && `Each earlier tournament you started him in lowers them a little more `
+    + `(${pct(stageMultiplier(1, S))}, then ${pct(stageMultiplier(2, S))}, …), never below ${pct(S.decay_floor)}.`;
   return (
-    <Help label="What the × means">
-      The × by a player is what their points count for you this game: your share × tired × earlier tournaments. Tired: {tired}.
-      Earlier tournaments: a little less for each one you started them in, never below ×{n(S.decay_floor)}. Tap a × to see its parts.
+    <Help label="How a player's points count">
+      {["You score your share of a player's points.", tired && `${tired}.`, decay].filter(Boolean).join(' ')}
     </Help>
   );
 }
@@ -43,8 +52,8 @@ export function FactorHelp({ settings: S }: { settings: SeasonSettings }) {
 export function VerifiedHelp({ hours }: { hours: number }) {
   return (
     <Help label="What unofficial and verified mean">
-      Keepers tap stats during the game, then a keeper checks and verifies them. Until then scores are unofficial and can change.
-      Verified stats count; they can be reopened for {hours} {hours === 1 ? 'hour' : 'hours'}, then they're locked.
+      Keepers tap stats live, so scores move during the game. After it, a second keeper checks them: then they're final.
+      A final game can be reopened for {hours} {hours === 1 ? 'hour' : 'hours'}.
     </Help>
   );
 }

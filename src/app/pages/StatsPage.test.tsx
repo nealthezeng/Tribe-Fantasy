@@ -247,7 +247,7 @@ describe('StatsPage live numbers (t318)', () => {
     expect(strip()!.querySelector('.live .dot')).toBeTruthy();
     expect(strip()!.textContent).toContain('Live · includes game 2, not verified yet');
     const help = within(strip()!).getByRole('button', { name: 'What unofficial and verified mean' });
-    expect(help.nextElementSibling!.textContent).toContain('reopened for 1 hour,');
+    expect(help.nextElementSibling!.textContent).toContain('reopened for 1 hour.');
   });
 
   it('names several live games', async () => {

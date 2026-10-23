@@ -20,6 +20,13 @@ async function sendCode() {
   return (await screen.findByText(/Code sent to/)).textContent;
 }
 
+it('asks for an email to send a code to, in code words (the email carries a code, not only a link)', () => {
+  render(<LoginPage />);
+  expect(screen.getByRole('button', { name: 'Email me a code' })).toBeTruthy();
+  expect(screen.getByText("We'll email you a 6-digit code.")).toBeTruthy();
+  expect(document.body.textContent).not.toMatch(/sign-in link/i);
+});
+
 it('tells someone in the installed app to type the code', async () => {
   vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(display-mode: standalone)' }));
   expect(await sendCode()).toBe('Code sent to pat@x.test. Type the code from the email here: its link opens your browser, not this app.');

@@ -45,6 +45,11 @@ describe('Layout', () => {
     'lights the right tab on %s', (path, tab) => { expect(current(path)).toEqual([tab]); });
   it('lights no tab on Me', () => { expect(current('/me')).toEqual([]); });
 
+  it('calls the credits page My credits in the account menu', () => {
+    renderLayout();
+    expect(screen.getByRole('link', { name: 'My credits', hidden: true }).getAttribute('href')).toBe('/credits');
+  });
+
   it('shows no Admin link to a non-admin', () => {
     auth.isAdmin = false;
     renderLayout();
@@ -109,22 +114,22 @@ describe('Install app (t328)', () => {
     const item = installItem()!;
     expect(menu().contains(item)).toBe(true);
     expect([...menu().querySelectorAll('a, button')].map((el) => el.textContent).slice(0, 5))
-      .toEqual(['Me', 'Credits', 'Rules', 'Admin', 'Install app']); // then the theme item
+      .toEqual(['Me', 'My credits', 'Rules', 'Admin', 'Install app']); // then the theme item
     fireEvent.click(item);
     expect(hide).toHaveBeenCalled();
     expect(e.prompt).toHaveBeenCalledTimes(1);
     expect(installItem()).toBeNull(); // single use
   });
 
-  it('tells iPhone users how to add it to the home screen', () => {
+  it('tells iPhone users how to add it to the home screen, in any iPhone browser (not only Safari)', () => {
     userAgent(IPHONE);
     renderLayout();
     fireEvent.click(installItem()!);
-    const hint = within(menu()).getByText('In Safari, tap Share, then Add to Home Screen.');
+    const hint = within(menu()).getByText('Tap Share, then Add to Home Screen.');
     expect(hint.className).toBe('account-hint');
     expect(document.activeElement).toBe(hint); // focus moves to it, so it is read out
     expect(hint.getAttribute('role')).toBeNull(); // no status role too: it would be read out twice
-    expect(hint.textContent).toBe('In Safari, tap Share, then Add to Home Screen.');
+    expect(hint.textContent).toBe('Tap Share, then Add to Home Screen.');
     expect(installItem()).toBeNull();
   });
 

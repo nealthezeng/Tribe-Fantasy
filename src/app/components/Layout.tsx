@@ -18,7 +18,7 @@ function DiscMark() {
   );
 }
 
-/** Avatar button that opens Me, Credits, Rules, Admin, Install app and Sign out. A native popover handles Esc, tap-outside and focus. */
+/** Avatar button that opens Me, My credits, Rules, Admin, Install app and Sign out. A native popover handles Esc, tap-outside and focus. */
 function AccountMenu({ name, email, isAdmin }: { name: string | null; email: string | undefined; isAdmin: boolean }) {
   const menu = useRef<HTMLDivElement>(null);
   const path = useLocation().pathname;
@@ -54,11 +54,11 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
           <small>{email}</small>
         </p>
         <NavLink to="/me" onClick={close}>Me</NavLink>
-        <NavLink to="/credits" onClick={close}>Credits</NavLink>
+        <NavLink to="/credits" onClick={close}>My credits</NavLink>
         <NavLink to="/rules" onClick={close}>Rules</NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
         {hint
-          ? <p className="account-hint" tabIndex={-1} ref={hintRef}>In Safari, tap Share, then Add to Home Screen.</p>
+          ? <p className="account-hint" tabIndex={-1} ref={hintRef}>Tap Share, then Add to Home Screen.</p>
           : !isStandalone() && (canPrompt || isIos()) && <button type="button" onClick={install}>Install app</button>}
         <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
@@ -67,33 +67,38 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
   );
 }
 
-/** First sign-in: a name before anything else, so staff can find (and make keepers of) people outside any league. */
-function NameForm() {
+/**
+ * The "Your name" field. First sign-in asks for a name before anything else, so staff can find (and make keepers of)
+ * people outside any league; the Me page changes it.
+ */
+export function NameForm({ current = '' }: { current?: string }) {
   const { refresh } = useAuth();
-  const [name, setName] = useState('');
+  const [name, setName] = useState(current);
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setSaved(false);
     setError(null);
     try {
       await api.setDisplayName(name);
       await refresh();
+      setSaved(true);
     } catch (err) {
       setError(errorMessage(err));
-      setBusy(false);
     }
+    setBusy(false);
   }
   return (
-    <section className="card">
-      <h1>What's your name?</h1>
-      <form onSubmit={submit}>
-        <label>Your name<input required maxLength={60} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} /></label>
-        <button disabled={busy}>{busy ? 'Saving…' : 'Save name'}</button>
-      </form>
+    <form onSubmit={submit}>
+      <label>Your name<input required maxLength={60} autoComplete="name" value={name}
+        onChange={(e) => { setName(e.target.value); setSaved(false); }} /></label>
+      <button disabled={busy}>{busy ? 'Saving…' : 'Save name'}</button>
+      {saved && <small className="success" role="status">Saved.</small>}
       {error && <p className="error" role="alert">{error}</p>}
-    </section>
+    </form>
   );
 }
 
@@ -131,7 +136,9 @@ export function Layout() {
             <button type="button" className="linklike" onClick={clearAuthError}>Dismiss</button>
           </p>
         )}
-        {!loading && session && displayName === null ? <NameForm /> : <Outlet />}
+        {!loading && session && displayName === null
+          ? <section className="card"><h1>What's your name?</h1><NameForm /></section>
+          : <Outlet />}
       </main>
     </>
   );

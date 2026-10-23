@@ -22,6 +22,12 @@ describe('the phone dock and the page fade stay off the tally board (t92, t99)',
     expect(styles).toMatch(/body:has\(\.tally-bar\) \.tabs \{ display: none; \}/);
   });
 
+  it('keeps the top bar on screen on phones, but not over the tally board (P9)', () => {
+    const phone = styles.slice(styles.indexOf('@media (max-width: 639px)'));
+    expect(phone).toMatch(/\.topbar \{ position: sticky; top: 0; z-index: 2; \}/);
+    expect(phone).toMatch(/body:has\(\.tally-bar\) \.topbar \{ position: static; \}/);
+  });
+
   it('every fade-in rule skips the tally board', () => {
     // [^{}] keeps the match inside one rule, not from an @media header down into its first rule.
     const fades = [...styles.matchAll(/([^{}]+)\{[^{}]*animation: fade-in/g)].map((m) => m[1].trim());

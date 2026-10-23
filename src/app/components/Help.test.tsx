@@ -25,9 +25,11 @@ describe('Help', () => {
     expect(text('How buying shares works')).toBe('Your credits buy a slice of a player. Each player is 100 shares: a credit '
       + 'buys a share. If teams put more than 100 credits on one player, every slice shrinks to fit. Free credits arrive '
       + 'before each tournament; unspent ones carry over.');
-    expect(text('What the × means')).toContain('Tired: ×0.6 if they started the game before.');
-    expect(text('What the × means')).toContain('never below ×0.5');
-    expect(text('What unofficial and verified mean')).toContain('reopened for 24 hours');
+    expect(text("How a player's points count")).toBe("You score your share of a player's points. If he started the game "
+      + 'before, they count 60%. Each earlier tournament you started him in lowers them a little more (90%, then 81%, …), '
+      + 'never below 50%.');
+    expect(text('What unofficial and verified mean')).toBe('Keepers tap stats live, so scores move during the game. After '
+      + "it, a second keeper checks them: then they're final. A final game can be reopened for 24 hours.");
   });
 
   it('gives the 40-credit example at the default 200 shares', () => {
@@ -39,14 +41,24 @@ describe('Help', () => {
 
   it('says 1 hour, not 1 hours', () => {
     render(<VerifiedHelp hours={1} />);
-    expect(text('What unofficial and verified mean')).toContain('reopened for 1 hour,');
+    expect(text('What unofficial and verified mean')).toContain('reopened for 1 hour.');
   });
 
-  it('reads the default tired steps, and never for none', () => {
-    const { unmount } = render(<FactorHelp settings={DEFAULT_SETTINGS} />);
-    expect(text('What the × means')).toContain('×0.5 if they started the game before, ×0.75 if 2 games before');
-    unmount();
-    render(<FactorHelp settings={{ ...DEFAULT_SETTINGS, tiredness_multipliers: [] }} />);
-    expect(text('What the × means')).toContain('Tired: never.');
+  it('says how points count in words at the default settings, with no × to tap', () => {
+    render(<FactorHelp settings={DEFAULT_SETTINGS} />);
+    expect(text("How a player's points count")).toBe("You score your share of a player's points. If he started the game "
+      + 'before, they count half; two games before, ¾. Each earlier tournament you started him in lowers them a little '
+      + 'more (90%, then 81%, …), never below 60%.');
+    expect(text("How a player's points count")).not.toContain('×');
+  });
+
+  it('drops the tired sentence with no tired steps, and the tournament one with no decay', () => {
+    render(<FactorHelp settings={{ ...DEFAULT_SETTINGS, tiredness_multipliers: [], decay_mode: 'none' }} />);
+    expect(text("How a player's points count")).toBe("You score your share of a player's points.");
+  });
+
+  it('steps a linear decay down by the same amount each tournament, never past the floor', () => {
+    render(<FactorHelp settings={{ ...DEFAULT_SETTINGS, decay_mode: 'linear', decay_rate: 0.75, decay_floor: 0.6 }} />);
+    expect(text("How a player's points count")).toContain('(75%, then 60%, …), never below 60%.');
   });
 });

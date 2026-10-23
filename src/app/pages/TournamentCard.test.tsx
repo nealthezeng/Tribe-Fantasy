@@ -673,10 +673,10 @@ describe('TournamentCard', () => {
     });
   });
 
-  it('explains the × on the pick card', async () => {
+  it('explains how points count on the pick card', async () => {
     await show(afterGame1());
-    const help = picks().getByRole('button', { name: 'What the × means' });
-    expect(help.nextElementSibling!.textContent).toContain('Tired: ×0.5 if they started the game before');
+    const help = picks().getByRole('button', { name: "How a player's points count" });
+    expect(help.nextElementSibling!.textContent).toContain('If he started the game before, they count half');
   });
 
   describe('live scores (t317)', () => {

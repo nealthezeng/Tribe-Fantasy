@@ -6,9 +6,9 @@ import { GuideSteps } from '../components/Guide';
 import { n } from '../components/Help';
 import { loadCurrentSeason, statLabel } from '../lib/stats';
 import { useLoad } from '../lib/useLoad';
+import { statWords } from '../lib/words';
 
 const signed = (x: number) => (x > 0 ? `+${n(x)}` : `${n(x)}`);
-const line = (stats: Record<string, number>) => Object.entries(stats).map(([k, c]) => `${c} ${statLabel(k)}`).join(', ');
 
 // The worked example: one player's stats in one game, and how much of him you own.
 const game = { goal: 2 };
@@ -126,7 +126,7 @@ export function RulesPage() {
               <thead><tr><th>Stat</th><th>Points</th></tr></thead>
               <tbody>
                 {Object.entries(S.stat_weights).map(([k, w]) => (
-                  <tr key={k}><td>{statLabel(k)}</td><td>{signed(w)}</td></tr>
+                  <tr key={k}><td>{k === 'block' ? 'Block (D)' : statLabel(k)}</td><td>{signed(w)}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -137,7 +137,7 @@ export function RulesPage() {
               (above) and <strong>earlier tournaments</strong> (below). A player's card shows the combined factor, and its parts are one
               tap away. Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
               matchup.</p>
-            <p>{line(game)} by a player you own half of, started the game before: {n(gameScore)} × {owned * 100}% ×{' '}
+            <p>{statWords(game)} by a player you own half of, started the game before: {n(gameScore)} × {owned * 100}% ×{' '}
               {n(tired)} = <strong>{n(gameScore * owned * tired)}</strong>.</p>
           </div>
           <div className="section">

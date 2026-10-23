@@ -19,12 +19,12 @@ describe('RulesPage', () => {
     const text = document.body.textContent ?? '';
     // Allowance: 100 for first, 130 for last. Example: 2 goals = 6, a half share, started the game before (×0.5).
     expect(text).toContain('100 for the team in first, up to 130 for the team in last');
-    expect(text).toContain('2 Goal by a player you own half of, started the game before: 6 × 50% × 0.5 = 1.5');
+    expect(text).toContain('2 goals by a player you own half of, started the game before: 6 × 50% × 0.5 = 1.5');
     // Split example under the 200-share floor: 100 + 50 credits leave a quarter of the player unowned.
     expect(text).toContain('he has 200 shares: you own 50%, they own 25%, and the other 25% scores for nobody.');
-    // Stat points are the weights as stored: a goal is +3, a D +5, a turnover −1.
+    // Stat points are the weights as stored: a goal is +3, a block (D) +5, a turnover −1.
     expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+3');
-    expect(screen.getByText('D').parentElement?.textContent).toBe('D+5');
+    expect(screen.getByText('Block (D)').parentElement?.textContent).toBe('Block (D)+5');
     expect(screen.getByText('Turnover').parentElement?.textContent).toBe('Turnover-1');
     expect(text).not.toMatch(/practice/i);
     expect(text).toContain('Picks lock when a stat keeper starts the game');
@@ -102,8 +102,8 @@ describe('RulesPage', () => {
     current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ stat_weights: { goal: 3, block: 5, turnover: -1 } }) };
     render(<RulesPage />);
     expect(await screen.findByText(/Spring 2027's settings/)).toBeTruthy();
-    // D: +5. Example: 2 goals × 3 = 6.
-    expect(screen.getByText('D').parentElement?.textContent).toBe('D+5');
+    // Block (D): +5. Example: 2 goals × 3 = 6.
+    expect(screen.getByText('Block (D)').parentElement?.textContent).toBe('Block (D)+5');
     expect(document.body.textContent).toContain('6 × 50% × 0.5 = 1.5');
   });
 
@@ -162,6 +162,6 @@ describe('RulesPage', () => {
     expect(text).toContain('never drops below ×0.5');
     expect(text).toContain('reopened for 24 hours');
     expect(text).toContain('In a 8-team league');
-    expect(text).toContain('2 Goal by a player you own half of, started the game before: 8 × 50% × 0.6 = 2.4');
+    expect(text).toContain('2 goals by a player you own half of, started the game before: 8 × 50% × 0.6 = 2.4');
   });
 });

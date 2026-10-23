@@ -320,6 +320,8 @@ details.factor[open] > summary::after { content: '▴'; }
 .help, .help:hover:not(:disabled), .help:active:not(:disabled) { background: none; color: var(--fg); min-width: var(--tap); padding: 0; display: inline-grid; place-items: center; justify-self: start; }
 .help > span { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); font-size: var(--fs-xs); font-weight: var(--fw-semi); line-height: 1; }
 .help:hover > span { background: var(--line); }
+/* On a pale page the pale circle all but vanishes: a hairline ring in light mode. */
+:root[data-theme='light'] .help > span { box-shadow: inset 0 0 0 1px var(--line-strong); }
 .head > .help { margin-right: auto; }
 .help-pop { padding: var(--s3); background: var(--card-solid); color: var(--fg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); box-shadow: var(--pane-highlight), var(--pane-shadow); font-size: var(--fs-sm); max-width: min(20rem, calc(100vw - 2 * var(--gutter))); }
 /* Past tournaments: dates and the waiting pill drop under a long name instead of squeezing it. */
@@ -426,8 +428,8 @@ details.factor[open] > summary::after { content: '▴'; }
   .list li.league-row > form > button { flex: 0 0 auto; }
 }
 
-/* League tab while bidding is open: the header stays on screen while you scroll the bid list (the top bar isn't
-   sticky, so top: 0). Negative margins let it cover the card's padding edge to edge. */
+/* League tab while bidding is open: the header stays on screen while you scroll the bid list (top: 0, or under the
+   sticky top bar on phones). Negative margins let it cover the card's padding edge to edge. */
 .bid-header {
   position: sticky; top: 0; z-index: 2; display: grid; gap: var(--s2);
   margin: calc(-1 * var(--s4)) calc(-1 * var(--s4)) 0; padding: var(--s3) var(--s4);
@@ -533,6 +535,14 @@ details.factor[open] > summary::after { content: '▴'; }
   /* A focused input scrolls clear of the dock, also when the phone keyboard lifts the dock over the page. */
   html:has(.tabs) { scroll-padding-bottom: var(--dock-height); }
   body:has(.tally-bar) .tabs { display: none; }
+  /* P9: the top bar (and the avatar menu) stays in reach on long pages, except over the tally board, which never
+     moves. The other sticky rows stop under it (the bar is --bar-height plus its 1px line), focus scrolls clear of it,
+     and the menu, a top-layer popover, is fixed so it opens under the bar, not at the top of the page. */
+  .topbar { position: sticky; top: 0; z-index: 2; }
+  body:has(.tally-bar) .topbar { position: static; }
+  .subnav, .bid-header { top: calc(var(--bar-height) + 1px); }
+  html:not(:has(.tally-bar)) { scroll-padding-top: calc(var(--bar-height) + 1px); }
+  .account-menu { position: fixed; }
 }
 
 /* Phones: every box floats as a rounded glass pane inside the gutter, like the scoreboard (M9 polish), with a little

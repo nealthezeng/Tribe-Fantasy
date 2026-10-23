@@ -65,10 +65,10 @@ describe('TeamPage', () => {
     expect(document.body.textContent).not.toMatch(/credit/i);
   });
 
-  it('explains the × on the team page', async () => {
+  it('explains how points count on the team page', async () => {
     visit(ID2);
-    const help = await screen.findByRole('button', { name: 'What the × means' });
-    expect(help.nextElementSibling!.textContent).toContain('never below ×0.6');
+    const help = await screen.findByRole('button', { name: "How a player's points count" });
+    expect(help.nextElementSibling!.textContent).toContain('never below 60%');
   });
 
   it('names the next game like the pick card, with the real opponent once a keeper sets it', async () => {
