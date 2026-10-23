@@ -35,7 +35,7 @@ export function Guide({ uid }: { uid: string }) {
       <h2>How it works</h2>
       <GuideSteps picks={season.data?.settings.picks_per_game ?? DEFAULT_SETTINGS.picks_per_game} />
       <div className="row">
-        <button type="button" onClick={done}>Got it</button>
+        <button type="button" className="secondary" onClick={done}>Got it</button>
         <Link to="/rules" className="more">All the rules</Link>
       </div>
     </aside>

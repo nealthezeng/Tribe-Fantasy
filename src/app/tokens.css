@@ -115,7 +115,7 @@
   --dur-flash: 400ms;   /* the over-budget flash on the bid header, x3 */
   --dur-pulse: 1.6s;    /* the ring around the Live dot, looping */
   --dur-release: 340ms; /* a pressed button springs back */
-  --dur-pop: 420ms;     /* a pick turning green */
+  --dur-pop: 420ms;     /* a "since you last looked" chip popping in */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoots a little, then settles */
   --dur-menu: 200ms;    /* the account menu and opened sections drop in */
   --dur-fade: 300ms;    /* loaded content fades in where the skeleton stood */

@@ -482,9 +482,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .game-line .t.lost { color: var(--muted); }
 .game-line > .state { display: grid; justify-items: end; max-width: 6rem; text-align: right; font-size: var(--fs-xs); font-weight: var(--fw-semi); color: var(--muted); }
 .game-line > .state.go { color: var(--gold-text); }
-/* "Christopher Mao by (T) Test Zeal" (t90): who played, for whose team. */
 .by { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); min-width: 0; overflow-wrap: anywhere; }
-.avatar.sm { width: 22px; height: 22px; font-size: var(--fs-xs); }
 
 /* Loading (t99): a resting card-shaped skeleton; it breathes slowly unless motion is reduced. */
 .skeleton { display: grid; gap: var(--s3); padding: var(--s4); border: 1px solid var(--pane-border); border-radius: var(--radius); background: var(--pane-bg); }

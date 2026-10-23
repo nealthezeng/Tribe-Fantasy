@@ -51,6 +51,7 @@ describe('OutList', () => {
     const select = (await screen.findByRole('combobox', { name: 'Player' })) as HTMLSelectElement;
     expect([...select.options].map((o) => o.textContent)).toEqual(['Choose a player', 'A2']);
     fireEvent.change(select, { target: { value: 'a2' } });
+    expect(screen.getByRole('button', { name: 'Mark out' }).className).toBe('secondary'); // rule 2: never gold
     fireEvent.click(screen.getByRole('button', { name: 'Mark out' }));
     await waitFor(() => expect(api.setOut).toHaveBeenCalledWith('s1', 'a2'));
   });

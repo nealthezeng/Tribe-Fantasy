@@ -64,7 +64,7 @@ export function OutList({ season }: { season: CurrentSeason }) {
           <option value="">Choose a player</option>
           {free.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-        <button disabled={busy || !pick}>Mark out</button>
+        <button className="secondary" disabled={busy || !pick}>Mark out</button>
       </form>
       {(error || out.error) && <p className="error" role="alert">{error ?? out.error}</p>}
     </div>

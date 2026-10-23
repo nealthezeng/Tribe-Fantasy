@@ -336,7 +336,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
           </label>
         </div>
       </div>
-      {verified && <p className="notice">This session is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
+      {verified && <p className="notice">This game is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {closed && !verified && <p className="notice">Earlier season: tallying closed.</p>}
       {!stored && <p className="error" role="alert">This phone won't store taps. Keep this page open until it says Saved.</p>}
       {rejected && <p className="error" role="alert">{rejected.count} {rejected.count === 1 ? 'tap' : 'taps'} not saved: {rejected.message} <button className="linklike" onClick={() => setRejected(null)}>Dismiss</button></p>}

@@ -21,6 +21,7 @@ describe('first-visit guide (t320)', () => {
   it('shows once, then stays hidden after Got it', async () => {
     const first = show();
     await guide();
+    expect(screen.getByRole('button', { name: 'Got it' }).className).toBe('secondary'); // rule 2: never gold
     fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
     expect(screen.queryByRole('complementary', { name: 'How it works' })).toBeNull();
     expect(localStorage.getItem('tribe.guide.u1')).toBe('1');

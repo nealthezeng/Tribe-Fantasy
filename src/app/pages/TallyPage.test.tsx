@@ -141,6 +141,12 @@ describe('TallyPage deep link', () => {
     fireEvent.click(screen.getByRole('button', { name: '← Games' }));
     expect(await screen.findByText('Open games')).toBeTruthy();
   });
+
+  it('says a verified game, not a session, is closed to tallying', async () => {
+    gone.sessions = [{ ...session('game', 'tournament'), verified_by: 'k2', verified_at: '2000-01-01T00:00:00Z' }];
+    render(<MemoryRouter initialEntries={['/tally?game=game']}><TallyPage /></MemoryRouter>);
+    expect(await screen.findByText(/^This game is verified, so tallying is closed\./)).toBeTruthy();
+  });
 });
 
 describe('TallyPage board', () => {
