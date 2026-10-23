@@ -72,8 +72,9 @@ describe('LeaguesPage (t215)', () => {
   });
 
   it('still lists a league whose listing has no members (a server without 0029), instead of crashing the app', async () => {
-    const { members: _, ...old } = league({ id: 'a', name: 'League A', teams: 4, max_teams: 12 });
-    vi.mocked(api.listLeagues).mockResolvedValue([old as LeagueListing]);
+    const old = league({ id: 'a', name: 'League A', teams: 4, max_teams: 12 });
+    delete old.members;
+    vi.mocked(api.listLeagues).mockResolvedValue([old]);
     at('/leagues');
     expect(await screen.findByText('4 of 12')).toBeTruthy();
     expect(row('League A').tagName).toBe('SUMMARY');
