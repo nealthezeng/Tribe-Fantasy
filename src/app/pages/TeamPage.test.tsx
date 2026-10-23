@@ -8,7 +8,7 @@ import { TeamPage } from './TeamPage';
 
 const db = vi.hoisted(() => ({
   queried: [] as string[], row: null as unknown, y: null as unknown, mine: [] as unknown[], isAdmin: false, isKeeper: false,
-  loadArgs: [] as unknown[],
+  loadArgs: [] as unknown[], fail: false,
 }));
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false, isAdmin: db.isAdmin, isKeeper: db.isKeeper }),
@@ -19,7 +19,7 @@ vi.mock('../lib/supabase', () => {
 });
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
-  loadLeagueTournament: (...args: unknown[]) => { db.loadArgs = args; return Promise.resolve(db.y); },
+  loadLeagueTournament: (...args: unknown[]) => { db.loadArgs = args; return db.fail ? Promise.reject(new Error('offline')) : Promise.resolve(db.y); },
 }));
 vi.mock('./HomePage', () => ({ loadMyTeams: () => Promise.resolve(db.mine) }));
 
@@ -53,7 +53,7 @@ const visit = (id: string) => render(
 );
 
 beforeEach(() => {
-  db.queried = []; db.row = row(); db.y = tournament(); db.mine = [member('L1')]; db.isAdmin = false; db.isKeeper = false; db.loadArgs = [];
+  db.queried = []; db.row = row(); db.y = tournament(); db.mine = [member('L1')]; db.isAdmin = false; db.isKeeper = false; db.loadArgs = []; db.fail = false;
 });
 afterEach(cleanup);
 
@@ -109,6 +109,17 @@ describe('TeamPage', () => {
     visit(ID2);
     const focus = within((await screen.findByText('Game 2')).closest('.row-link') as HTMLElement);
     expect(focus.getByText('Bye')).toBeTruthy();
+  });
+
+  it('keeps the page under the error when a live refresh fails', async () => {
+    db.y = tournament({ result: { games: [game(2, 'live')], next: { stageId: 'S1', number: 3, sides: [side(ID2)] } } });
+    visit(ID2);
+    await screen.findByText('Finn Garza');
+    db.fail = true;
+    document.dispatchEvent(new Event('visibilitychange')); // the poll reloads at once when the tab shows again
+    expect((await screen.findByRole('alert')).textContent).toContain('offline');
+    expect(screen.getByText('Finn Garza')).toBeTruthy();
+    expect(screen.getByText('Game 2 vs Gimp Zeal')).toBeTruthy();
   });
 
   it('goes back where you came from', async () => {

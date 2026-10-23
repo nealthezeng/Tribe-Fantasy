@@ -44,8 +44,8 @@ export function TeamPage() {
   // Opened from another page (League, Leaderboards, the pick card): Back returns there. Opened directly: Leaderboards.
   const back = key === 'default' ? <Link to="/leaderboards">← Leaderboards</Link>
     : <button type="button" className="linklike" onClick={() => navigate(-1)}>← Back</button>;
-  if (error) return <section className="page"><p className="error" role="alert">{error}</p>{back}</section>;
-  if (data === undefined) return <section className="page"><Loading /></section>;
+  // Nothing to show yet: the error, else loading. A failed reload (a poll, say) keeps the page under the error.
+  if (data === undefined) return <section className="page">{error ? <><p className="error" role="alert">{error}</p>{back}</> : <Loading />}</section>;
   if (data === null) {
     return <section className="page"><p>You can only see teams in your league.</p><Link to="/leaderboards">Leaderboards</Link></section>;
   }
@@ -66,6 +66,7 @@ export function TeamPage() {
         {back}
       </div>
       <small className="owner">{owner}</small>
+      {error && <p className="error" role="alert">{error}</p>}
       {number !== undefined && <ul className="list"><li><GameRow y={y} membershipId={membershipId} number={number} g={focus} /></li></ul>}
       {!next ? <p className="muted">No tournament on. Players show once the next tournament's shares are settled.</p>
         : !side ? <p className="muted">{team.removed_at ? 'No players.' : 'No players this tournament.'}</p> : (
