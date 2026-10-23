@@ -8,13 +8,14 @@ const db = vi.hoisted(() => ({ stages: [] as Row[], leagues: [] as Row[], credit
 vi.mock('./supabase', () => ({
   supabase: {
     from: (table: string) => {
-      const filters: [string, unknown][] = [];
+      const filters: [string, unknown[]][] = [];
       const builder = {
         select: () => builder,
-        eq: (c: string, v: unknown) => { filters.push([c, v]); return builder; },
+        eq: (c: string, v: unknown) => { filters.push([c, [v]]); return builder; },
+        in: (c: string, v: unknown[]) => { filters.push([c, v]); return builder; },
         order: () => builder,
         then: (resolve: (v: { data: Row[]; error: null }) => void) => resolve({
-          data: ((db as Record<string, Row[]>)[table] ?? []).filter((r) => filters.every(([c, v]) => r[c] === undefined || r[c] === v)),
+          data: ((db as Record<string, Row[]>)[table] ?? []).filter((r) => filters.every(([c, v]) => r[c] === undefined || v.includes(r[c]))),
           error: null,
         }),
       };
@@ -99,7 +100,22 @@ describe('loadLateJoiners', () => {
     });
   });
 
-  it('is null once every tournament is settled', async () => {
+  it("keeps the open tournament's late joiners once a newer one exists with no credits yet (ruling 62)", async () => {
+    db.stages = [{ ...stage('fe', '2026-10-08', null), bid_close_at: '2999-01-01T00:00:00Z' }, stage('cc', '2026-11-07', null)]; // fe open
+    db.leagues = [{ name: 'League A', season_id: 'se1', memberships: [
+      { id: 'm1', team_name: 'Huck Finn', removed_at: null },
+      { id: 'm2', team_name: 'Layout Legends', removed_at: null },
+    ] }];
+    db.credit_ledger = [{ membership_id: 'm1', stage_id: 'fe', kind: 'allowance' }];
+    expect(await loadLateJoiners('se1')).toEqual({
+      stage: { id: 'fe', name: 'Feasterns' }, teams: [{ id: 'm2', team: 'Layout Legends', league: 'League A' }],
+    });
+  });
+
+  it('is null once every tournament is settled, or before any unsettled one has credits', async () => {
+    db.stages = [stage('fe', '2026-10-08', '2026-10-07T00:00:00Z'), stage('cc', '2026-11-07', null)];
+    db.credit_ledger = [{ membership_id: 'm1', stage_id: 'fe', kind: 'allowance' }];
+    expect(await loadLateJoiners('se1')).toBeNull();
     db.stages = [stage('fe', '2026-10-08', '2026-10-07T00:00:00Z')];
     expect(await loadLateJoiners('se1')).toBeNull();
   });
