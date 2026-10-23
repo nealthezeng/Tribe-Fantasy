@@ -8,7 +8,7 @@ import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
 import type { Seen } from '../lib/seen';
-import { anyCounted, fmt, loadLeagueTournament, mergeStandings, type LeagueTournament } from '../lib/tournament';
+import { anyCounted, fmt, loadLeagueTournament, mergeStandings, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { pct } from '../lib/wallet';
 import { factorWords, gameName, heldNote, pctExact, statusWord, statWords } from '../lib/words';
@@ -27,7 +27,7 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
 
 /**
  * One team on the League tab, in the order a manager needs it: the matchup headline, what to do now (the next pick,
- * then `children`: the auction), the league's short table, then the games played as cards.
+ * then `children`: the auction), the league's short table, then the games, one line each, by tournament.
  */
 export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, leagueName, children }: {
   membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string; leagueName: string;
@@ -45,8 +45,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
       </>
     );
   }
-  const { games, next } = data.result;
-  const played = [...games].reverse().filter((g) => g.status === 'pending' || g.status === 'final' || g.status === 'void');
+  const { next } = data.result;
 
   return (
     <>
@@ -59,14 +58,7 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
       )}
       {children}
       <LeagueTable y={data} membershipId={membershipId} leagueName={leagueName} />
-      {played.length > 0 && (
-        <section className="stack" aria-label={`${teamName} games`}>
-          <h2>Games</h2>
-          <div className="games">
-            {played.map((g) => <GameCard key={g.game.id} y={data} g={g} membershipId={membershipId} />)}
-          </div>
-        </section>
-      )}
+      <GameList y={data} membershipId={membershipId} teamName={teamName} />
     </>
   );
 }
@@ -357,61 +349,128 @@ function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: 
   return <>{lines.map((t) => <p key={t} className="hint">{t}</p>)}</>;
 }
 
-const STATUS: Record<GameOutcome['status'], [string, string]> = {
-  upcoming: ['Next', 'pill info'],
-  live: ['Playing', 'pill ok'],
-  pending: ['Waiting on stats', 'pill warn'],
-  final: ['Final', 'pill'],
-  void: ['Void', 'pill'],
-};
+const byNumber = (a: GameOutcome, b: GameOutcome) => a.game.number - b.game.number;
 
-/** A played game as a card: your matchup as a small scoreboard with the caption below it; opens to every matchup. */
-function GameCard({ y, g, membershipId }: { y: LeagueTournament; g: GameOutcome; membershipId: string }) {
-  const o = y.unofficial.get(g.game.id) ?? g; // sides' numbers; labels keep the official status
-  const mine = sides(o).find((x) => x?.membershipId === membershipId);
-  const them = opponentIn(o, membershipId); // undefined = not in this game, null = bye
-  const [label, cls] = STATUS[g.status];
+/**
+ * The games (ruling 9): the current tournament (the one `next` is in, else the newest with a started game) with every
+ * game on one line, then each earlier tournament this team played in, folded to one row. Nothing before any game.
+ */
+function GameList({ y, membershipId, teamName }: { y: LeagueTournament; membershipId: string; teamName: string }) {
+  const { games, next } = y.result;
+  const day = (stageId: string) => y.stageDates.get(stageId)?.starts_on ?? '';
+  const started = games.filter((g) => g.status !== 'upcoming');
+  const stages = [...new Set(started.map((g) => g.game.stageId))].sort((a, b) => day(b).localeCompare(day(a)));
+  const current = next?.stageId ?? stages[0];
+  const lines = games.filter((g) => g.game.stageId === current).sort(byNumber);
+  const earlier = stages.filter((s) => s !== current)
+    .map((s) => started.filter((g) => g.game.stageId === s).sort(byNumber))
+    .filter((t) => t.some((g) => opponentIn(g, membershipId) !== undefined));
+  if (lines.length === 0 && earlier.length === 0) return null;
+
+  // The next game shows the picks still to make, in gold, until they're in (rule 2); none if this team can't pick it.
+  const side = next?.sides.find((x) => x.membershipId === membershipId);
+  const left = side ? Math.min(y.settings.picks_per_game, side.players.length) - side.picked.length : 0;
+  const pickOf = (g: GameOutcome) => (g.game.stageId === next?.stageId && g.game.number === next.number
+    && (g.matchups.length === 0 || opponentIn(g, membershipId) !== undefined) ? left : 0);
+  const recordOf = (t: GameOutcome[]) => {
+    const mine = t.flatMap((g) => (g.status === 'final' ? sides(g) : [])).filter((x) => x?.membershipId === membershipId);
+    const n = (r: TournamentSide['result']) => mine.filter((x) => x?.result === r).length;
+    return record({ wins: n('W'), losses: n('L'), ties: n('T') });
+  };
   return (
-    <details className="game">
-      <summary>
-        <span className="game-score">
-          {!mine || them === undefined ? <span className="game-team">Not playing</span>
-            : them === null ? <span className="game-team">Bye</span>
-              : <>
-                <GameSide y={y} side={mine} lost={mine.result === 'L'} />
-                <span className="vs">{g.status === 'final' ? 'to' : 'vs'}</span>
-                <GameSide y={y} side={them} lost={mine.result === 'W'} />
-              </>}
-        </span>
-        <span className="meta">
-          {gameName(g.game.number, g.game.opponent)} · {y.stage.get(g.game.stageId) ?? ''}
-          <span className={cls}>{label}</span>
-          {o !== g && <span className="pill warn">Unofficial</span>}
-          {mine?.delta != null && <strong className="num">{mine.result === null ? 'Bye' : `${mine.result} ${signed(mine.delta)}`}</strong>}
-        </span>
-      </summary>
-      <div className="card">
-        {g.status === 'void' && <p className="muted">Doesn't count.</p>}
-        {g.status !== 'void' && o.matchups.map((m) => (
-          <div key={m.home.membershipId} className="stack">
-            <SideDetail y={y} g={g} side={m.home} membershipId={membershipId} />
-            {m.away ? <SideDetail y={y} g={g} side={m.away} membershipId={membershipId} /> : <p className="muted">Bye</p>}
-          </div>
-        ))}
-        {g.status === 'final' && <p className="hint">× is share × tired × earlier tournaments.</p>}
-        {o !== g && <p className="hint">Unofficial until a keeper verifies.</p>}
-      </div>
+    <section className="card" aria-label={`${teamName} games`}>
+      <h2>Games</h2>
+      {lines.length > 0 && (
+        <div className="game-group">
+          <p>{y.stage.get(current ?? '')}</p>
+          {lines.map((g) => <GameLine key={g.game.id} y={y} g={g} membershipId={membershipId} pick={pickOf(g)} />)}
+        </div>
+      )}
+      {earlier.length > 0 && (
+        <div className="game-group">
+          <p>Earlier</p>
+          {earlier.map((t) => (
+            <details key={t[0].game.stageId}>
+              <summary><span>{`${y.stage.get(t[0].game.stageId) ?? ''} · ${t.length} ${t.length === 1 ? 'game' : 'games'} · ${recordOf(t)}`}</span></summary>
+              <div className="game-group">{t.map((g) => <GameLine key={g.game.id} y={y} g={g} membershipId={membershipId} />)}</div>
+            </details>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * One game on one line (rule 4): its number, both teams with scores (yours first), its state as a word ("Live" with
+ * the dot), or "Pick {k}" for the next game. A started game opens to its matchups; one not started or void doesn't.
+ */
+function GameLine({ y, g, membershipId, pick = 0 }: { y: LeagueTournament; g: GameOutcome; membershipId: string; pick?: number }) {
+  const o = y.unofficial.get(g.game.id) ?? g; // sides' numbers; the words keep the official status
+  const unofficial = o !== g && !g.heldBy; // a held game's numbers are verified (controller ruling 15)
+  const mine = sides(o).find((x) => x?.membershipId === membershipId);
+  const them = opponentIn(o, membershipId); // null = bye
+  const note = [g.game.opponent && `vs ${g.game.opponent}`, heldNote(y, g)].filter(Boolean).join(' · ');
+  const team = (s: TournamentSide, lost: boolean) => (
+    <span className={lost ? 't lost' : 't'}><span>{y.team.get(s.membershipId) ?? 'A team'}</span>{s.score !== null && <b>{fmt(s.score)}</b>}</span>
+  );
+  const word = (text: string) => <span className="t muted"><span>{text}</span></span>;
+  const line = <>
+    <span className="n"><span className="sr-only">Game </span>{g.game.number}</span>
+    <span className="teams">
+      {o.matchups.length === 0 ? word('Not paired yet') : !mine ? word('Not playing') : <>
+        {team(mine, mine.result === 'L')}
+        {them ? team(them, mine.result === 'W') : word('Bye')}
+      </>}
+      {note && <small>{note}</small>}
+    </span>
+    <span className={pick > 0 ? 'state go' : 'state'}>
+      {pick > 0 ? <span>Pick {pick}</span>
+        : g.status === 'live' ? <span className="live"><span className="dot" aria-hidden="true" />Live</span>
+          : <span>{statusWord(g)}</span>}
+      {unofficial && <span>unofficial</span>}
+    </span>
+  </>;
+  if (g.status === 'upcoming' || g.status === 'void') return <div className="game-line">{line}</div>; // nothing to open: no chevron
+  return (
+    <details>
+      <summary className="game-line">{line}</summary>
+      <GameDetail y={y} g={g} o={o} mine={mine ?? null} them={them ?? null} membershipId={membershipId} unofficial={unofficial} />
     </details>
   );
 }
 
-/** One team on a game card's scoreboard: its name, and its score once the game is final. */
-function GameSide({ y, side, lost }: { y: LeagueTournament; side: TournamentSide; lost: boolean }) {
+/**
+ * An opened game (ruling 9): your matchup's two sides first, then "Other matchups", each a line that opens to its
+ * sides. `o` carries the numbers (unofficial while the game isn't verified).
+ */
+function GameDetail({ y, g, o, mine, them, membershipId, unofficial }: {
+  y: LeagueTournament; g: GameOutcome; o: GameOutcome; mine: TournamentSide | null; them: TournamentSide | null;
+  membershipId: string; unofficial: boolean;
+}) {
+  const others = mine ? o.matchups.filter((m) => m.home !== mine && m.away !== mine) : o.matchups;
+  const named = (s: TournamentSide) => `${y.team.get(s.membershipId) ?? 'A team'}${s.score === null ? '' : ` ${fmt(s.score)}`}`;
+  // A bye side with nobody to start has no players, not a forfeit (Review Focus 2).
+  const pair = (a: TournamentSide, b: TournamentSide | null) => <>
+    <SideDetail y={y} g={g} side={a} membershipId={membershipId} empty={b ? 'Forfeit' : 'No players'} />
+    {b ? <SideDetail y={y} g={g} side={b} membershipId={membershipId} empty="Forfeit" /> : <p className="muted">Bye</p>}
+  </>;
   return (
-    <span className={lost ? 'game-side lost' : 'game-side'}>
-      <span className="game-team">{y.team.get(side.membershipId)}</span>
-      {side.score !== null && <span className="pts">{fmt(side.score)}</span>}
-    </span>
+    <div className="stack">
+      {mine && pair(mine, them)}
+      {others.length > 0 && (
+        <div className="game-group">
+          <h3>Other matchups</h3>
+          {others.map((m) => (
+            <details key={m.home.membershipId}>
+              <summary><span>{named(m.home)} · {m.away ? named(m.away) : 'Bye'}</span></summary>
+              <div className="stack">{pair(m.home, m.away)}</div>
+            </details>
+          ))}
+        </div>
+      )}
+      {unofficial && <p className="hint">Unofficial until a keeper verifies.</p>}
+    </div>
   );
 }
 
@@ -452,22 +511,32 @@ function StarterSide({ y, g, side, name, since, children }: {
   );
 }
 
-/** One team's side of an opened game: each starter as "name · stats" and, once final, "game score × factor = points". */
-function SideDetail({ y, g, side, membershipId }: { y: LeagueTournament; g: GameOutcome; side: TournamentSide; membershipId: string }) {
+/**
+ * One team's side of an opened game: its score, who the app started for it, then each starter "name · stats" and
+ * "base × exact % = points" (ruling 10). A starter with a base of 0 has nothing to multiply: just the 0.
+ */
+function SideDetail({ y, g, side, membershipId, empty }: {
+  y: LeagueTournament; g: GameOutcome; side: TournamentSide; membershipId: string;
+  /** What a side with no starters reads. */
+  empty: string;
+}) {
+  const name = y.team.get(side.membershipId) ?? 'A team';
   return (
     <div className="stack">
       <p className="head">
-        <span className="by">{y.team.get(side.membershipId) ?? 'A team'}</span>
-        {side.score !== null && <span className="num">{fmt(side.score)} {side.delta !== null && <>({signed(side.delta)})</>}</span>}
+        <span className="by">{name}</span>
+        {side.score !== null && <span className="num">{fmt(side.score)}</span>}
       </p>
-      <Notice y={y} side={side} played team={side.membershipId === membershipId ? undefined : y.team.get(side.membershipId) ?? 'A team'} />
-      {side.athleteIds.length === 0 ? <p className="muted">Forfeit</p> : (
+      <Notice y={y} side={side} played team={side.membershipId === membershipId ? undefined : name} />
+      {side.athleteIds.length === 0 ? <p className="muted">{empty}</p> : (
         <ul className="list">
           {side.athleteIds.map((a) => (
             <li key={a}>
-              <small>{athleteName(y, a)}{side.points && ` · ${statsOf(y, g, a)}`}</small>
-              {side.points && side.athleteScores && (
-                <strong className="num calc">{fmt(side.athleteScores[a])} × {sig(side.factor[a])} = {fmt(side.points[a])}</strong>
+              <small>{athleteName(y, a)} · {statsOf(y, g, a)}</small>
+              {side.points && (
+                <strong className="num calc">
+                  {side.athleteScores?.[a] ? `${fmt(side.athleteScores[a])} × ${pctExact(side.factor[a])} = ` : ''}{fmt(side.points[a])}
+                </strong>
               )}
             </li>
           ))}

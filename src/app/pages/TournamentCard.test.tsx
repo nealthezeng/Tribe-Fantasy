@@ -93,7 +93,8 @@ describe('TournamentCard', () => {
     r.games = r.games.map((g) => (g.id === 'g1' ? { ...g, opponent: 'UNC' } : { ...g, opponent: 'Duke' }));
     await show(r);
     expect(screen.getByRole('heading', { name: 'Pick 2 for game 2 vs Duke' })).toBeTruthy();
-    expect(screen.getByText(/Game 1 vs UNC · Fall beta/)).toBeTruthy();
+    // The game lines: the number big, the opponent in small text.
+    expect([...document.querySelectorAll('.game-line .teams > small')].map((e) => e.textContent)).toEqual(['vs UNC', 'vs Duke']);
   });
 
   it('links both teams in the matchup headline and the opponent on the pick card', async () => {
@@ -323,7 +324,7 @@ describe('TournamentCard', () => {
         { stage_id: 'S1', game_number: 2, membership_id: 'm2', athlete_id: 'b2' }],
       outs: [{ stage_id: 'S1', athlete_id: 'a2', from_game: 2, until_game: null }],
     });
-    expect(screen.getByText('Avery was out, so Arlo played.')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: 'Starters' })).getByText('Avery was out, so Arlo played.')).toBeTruthy();
   });
 
   it('says who plays if you leave a pick empty', async () => {
@@ -370,7 +371,7 @@ describe('TournamentCard', () => {
     // Blake and Bryn (rested) are who the scorer would auto-pick for Flow: shown nowhere until game 2 starts.
     expect(document.body.textContent).not.toContain('Blake');
     expect(document.body.textContent).not.toContain('Bryn');
-    expect(screen.getByText(/Waiting on stats/)).toBeTruthy(); // game 1, finished but not verified
+    expect(screen.getByText('Finished · not verified')).toBeTruthy(); // game 1's line
   });
 
   it('has nothing to pick between tournaments (T4)', async () => {
@@ -418,58 +419,171 @@ describe('TournamentCard', () => {
     });
   });
 
-  describe('game cards (t93, t90)', () => {
-    const card = () => document.querySelector('.game')!;
+  describe('games list', () => {
+    const lines = () => [...document.querySelectorAll('.game-line')];
+    /** A game line as [number, each team row's [name, score], the state's words]. */
+    const words = (el: Element) => [
+      el.querySelector('.n')?.textContent,
+      [...el.querySelectorAll('.t')].map((t) => [...t.children].map((c) => c.textContent)),
+      [...el.querySelector('.state')!.children].map((c) => c.textContent),
+    ];
+    const region = () => within(screen.getByRole('region', { name: 'Zeal games' })); // named after the team (t130)
+    /** What a row opens to: its details' body, after the summary. */
+    const body = (el: Element) => el.closest('details')!.querySelector(':scope > :not(summary)')!;
+    const stage = (id: string, name: string, day: string) =>
+      ({ ...base().stages[0], id, name, starts_on: `2026-10-${day}`, ends_on: `2026-10-${day}` });
+    const played = (id: string, stage_id: string, day: string, session_id: string) =>
+      ({ id, stage_id, number: 1, session_id, started_at: `2026-10-${day}T14:00:00Z`, finished_at: `2026-10-${day}T15:00:00Z`, opponent: null });
 
-    it('shows a final game as a small scoreboard with the caption below it', async () => {
-      await show(finalGame1());
+    it('lists every game of the current tournament on one line each, yours first', async () => {
+      const r = finalGame1();
+      const g3 = { id: 'g3', stage_id: 'S1', number: 3, session_id: null, started_at: null, finished_at: null, opponent: null };
+      const three: TournamentRows = {
+        ...r,
+        stages: base().stages, // still on: game 3 is next
+        games: [...r.games, { ...g3, id: 'g2', number: 2, session_id: 'p2', started_at: '2026-11-07T16:00:00Z' }, g3],
+        // Flow is home in game 1: your team still comes first.
+        pairings: [{ game_id: 'g1', home: 'm2', away: 'm1' }, { game_id: 'g2', home: 'm1', away: 'm2' }],
+        sessions: [...r.sessions, { id: 'p2', verified_at: null }],
+      };
+      await show(three);
       expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy();
-      expect(card().querySelector('.game-score')?.textContent).toMatch(/^Zeal[\d.]+toFlow[\d.]+$/);
-      expect(card().querySelector('.game-side.lost')?.textContent).toContain('Flow');
-      expect(card().querySelector('summary > .meta')?.textContent).toMatch(/^Game 1 · Fall beta\s*Final\s*W \+/);
+      expect(region().getByText('Fall beta').matches('.game-group > p')).toBe(true);
+      expect(lines().map(words)).toEqual([
+        ['Game 1', [['Zeal', '6'], ['Flow', '3']], ['Final']],
+        ['Game 2', [['Zeal', '0'], ['Flow', '0']], ['Live', 'unofficial']],
+        ['Game 3', [['Not paired yet']], ['Pick 2']],
+      ]);
+      expect(lines()[0].querySelector('.t.lost')?.textContent).toBe('Flow3');
+      expect(lines()[1].querySelector('.state .live > .dot')).toBeTruthy();
+      expect(lines()[2].querySelector('.state')?.matches('.go')).toBe(true); // gold: the one thing to do
+      // Played games open (the row is the button); a game not started has nothing to open.
+      expect(lines().map((l) => l.tagName)).toEqual(['SUMMARY', 'SUMMARY', 'DIV']);
+      cleanup();
+      // One pick made: one to go. Both made: the step is done, so it becomes the status word.
+      const pick = (athlete_id: string) => ({ stage_id: 'S1', game_number: 3, membership_id: 'm1', athlete_id });
+      await show({ ...three, picks: [...three.picks, pick('a2')] });
+      expect(words(lines()[2])[2]).toEqual(['Pick 1']);
+      cleanup();
+      await show({ ...three, picks: [...three.picks, pick('a2'), pick('a3')] });
+      expect(words(lines()[2])[2]).toEqual(['Not started']);
+      expect(lines()[2].querySelector('.state')?.matches('.go')).toBe(false);
     });
 
-    it('lists each starter inside an opened game as game score × factor = points', async () => {
+    it('folds earlier tournaments you played into one row and leaves out ones you did not', async () => {
+      const r = afterGame1();
+      await show({
+        ...r,
+        // Opener: Zeal beat Flow. Warmup: only Flow, with a bye.
+        stages: [stage('S0', 'Opener', '03'), stage('S9', 'Warmup', '10'), ...r.stages],
+        games: [played('g0', 'S0', '03', 'p0'), played('g9', 'S9', '10', 'p9'), ...r.games],
+        pairings: [{ game_id: 'g0', home: 'm1', away: 'm2' }, { game_id: 'g9', home: 'm2', away: null }, ...r.pairings],
+        slots: [...r.slots, ...[['m1', 'a1'], ['m2', 'b1']].map(([membership_id, athlete_id]) =>
+          ({ stage_id: 'S0', membership_id, athlete_id, price: 10, share: 1, from_game: 1, until_game: null }))],
+        sessions: [{ id: 'p0', verified_at: '2026-10-03T16:00:00Z' }, { id: 'p9', verified_at: '2026-10-10T16:00:00Z' }, ...r.sessions],
+        lines: [{ session_id: 'p0', athlete_id: 'a1', stats: { goal: 2 }, points_played: 0 }],
+      });
+      expect([...document.querySelectorAll('.game-group > p')].map((p) => p.textContent)).toEqual(['Fall beta', 'Earlier']);
+      const opener = region().getByText('Opener · 1 game · 1–0');
+      expect(opener.closest('summary')).toBeTruthy(); // the whole row opens it
+      expect(screen.getByRole('region', { name: 'Zeal games' }).textContent).not.toContain('Warmup');
+      // Opened, it lists that tournament's games, one line each.
+      expect(words(body(opener).querySelector('.game-line')!)).toEqual(['Game 1', [['Zeal', '6'], ['Flow', '0']], ['Final']]);
+    });
+
+    it('notes a final game held back by an earlier unverified game', async () => {
       const r = finalGame1();
       await show({
         ...r,
-        slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 1, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])],
-        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 3, turnover: 2 }, points_played: 0 }, ...r.lines.slice(1)],
+        stages: [stage('S0', 'Warmup', '03'), ...r.stages],
+        games: [played('g0', 'S0', '03', 'p0'), ...r.games],
+        pairings: [{ game_id: 'g0', home: 'm1', away: 'm2' }, ...r.pairings],
+        sessions: [{ id: 'p0', verified_at: null }, ...r.sessions], // Warmup's game was never verified
       });
-      fireEvent.click(screen.getByText(/Game 1 · Fall beta/));
-      expect([...card().querySelectorAll('.by')].map((el) => el.textContent)).toEqual(['Zeal', 'Flow']);
-      // 3 goals x 3 - 2 turnovers x 1 = 7, and Zeal owns half of Ash.
-      const ash = [...card().querySelectorAll('li')].find((li) => li.textContent?.startsWith('Ash'))!;
-      expect(ash.querySelector('small')?.textContent).toBe('Ash · 3 goals, 2 turnovers');
-      expect(ash.querySelector('.calc')?.textContent).toBe('7 × 0.5 = 3.5');
-      expect(card().textContent).toContain("You didn't pick, so");
-      expect(card().textContent).toContain("Flow didn't pick, so"); // not "You": the viewer is Zeal
+      const line = region().getByText('Fall beta').parentElement!.querySelector('.game-line')!;
+      // Its stats are verified, so Final (not unofficial), with when it counts.
+      expect(words(line)).toEqual(['Game 1', [['Zeal', '6'], ['Flow', '3']], ['Final']]);
+      expect(line.querySelector('.teams > small')?.textContent).toBe('counts once Warmup game 1 is verified');
+      const opened = body(line);
+      expect(opened.querySelector('li small')?.textContent).toBe('Ash · 2 goals');
+      expect(opened.textContent).not.toMatch(/no stats yet|nofficial/);
     });
 
-    it('says Bye on the card when the team sat out', async () => {
-      const r = afterGame1();
-      await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g1' ? { ...p, away: null } : p)) });
-      expect(card().querySelector('.game-score')?.textContent).toBe('Bye');
+    it('opens a game to your matchup first, then other matchups one line each', async () => {
+      const r = finalGame1();
+      const team = (id: string, team_name: string) => ({ id, team_name, created_at: '2026-10-01T00:00:00Z', removed_at: null });
+      await show({
+        ...r,
+        members: [...r.members, team('m3', 'Huck Finn'), team('m4', 'Layout Legends')],
+        // Zeal owns half of Ash.
+        slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 1, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4']), ...roster('m3', ['c1']), ...roster('m4', ['d1'])],
+        athletes: [...r.athletes, { id: 'c1', name: 'Cy' }, { id: 'd1', name: 'Dee' }],
+        pairings: [{ game_id: 'g1', home: 'm2', away: 'm1' }, { game_id: 'g1', home: 'm3', away: 'm4' }],
+        lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 3, turnover: 2 }, points_played: 0 }, ...r.lines.slice(1),
+          { session_id: 'p1', athlete_id: 'c1', stats: { assist: 1 }, points_played: 0 }, { session_id: 'p1', athlete_id: 'd1', stats: { block: 1 }, points_played: 0 }],
+      });
+      const opened = body(lines()[0]);
+      // Yours first, though Flow was home; then the other matchup as one line that opens to its two sides.
+      expect([...opened.querySelectorAll(':scope > .stack .by')].map((el) => el.textContent)).toEqual(['Zeal', 'Flow']);
+      const other = within(opened as HTMLElement).getByRole('heading', { name: 'Other matchups' }).parentElement!;
+      expect([...other.querySelectorAll(':scope > details > summary')].map((s) => s.textContent)).toEqual(['Huck Finn 3 · Layout Legends 5']);
+      expect([...other.querySelectorAll('details .by')].map((el) => el.textContent)).toEqual(['Huck Finn', 'Layout Legends']);
+      // 3 goals x 3 - 2 turnovers x 1 = 7, at half of Ash.
+      const li = (name: string) => [...opened.querySelectorAll(':scope > .stack li')].find((x) => x.textContent?.startsWith(name))!;
+      expect(li('Ash').querySelector('small')?.textContent).toBe('Ash · 3 goals, 2 turnovers');
+      expect(li('Ash').querySelector('strong.calc')?.textContent).toBe('7 × 50% = 3.5');
+      // Zeal's auto-picked starter has no stat line: nothing to multiply (controller rulings 13, 14).
+      const auto = [...opened.querySelectorAll(':scope > .stack:first-child li')].find((x) => !x.textContent?.startsWith('Ash'))!;
+      expect(auto.querySelector('small')?.textContent).toMatch(/^\w+ · didn't play$/);
+      expect(auto.querySelector('strong')?.textContent).toBe('0');
+      expect(opened.textContent).toContain("You didn't pick, so");
+      expect(opened.textContent).toContain("Flow didn't pick, so"); // not "You": the viewer is Zeal
     });
 
-    it('names the Games section after the team, so several teams never share a region name (t130)', async () => {
-      await show(finalGame1());
-      expect(screen.getByRole('region', { name: 'Zeal games' })).toBeTruthy();
+    it("reads Bye and Doesn't count", async () => {
+      const r = finalGame1();
+      await show({
+        ...r,
+        slots: roster('m2', ['b1', 'b2', 'b3', 'b4']), // Zeal bought nothing (Review Focus 2)
+        // Game 1: Zeal's bye. Game 2: its tally was deleted.
+        games: [...r.games, { ...r.games[0], id: 'g2', number: 2, session_id: null, started_at: '2026-11-04T14:00:00Z', finished_at: '2026-11-04T15:00:00Z' }],
+        pairings: [{ game_id: 'g1', home: 'm1', away: null }, { game_id: 'g2', home: 'm1', away: 'm2' }],
+      });
+      expect(lines().map(words)).toEqual([
+        ['Game 1', [['Zeal', '0'], ['Bye']], ['Final']],
+        ['Game 2', [['Zeal'], ['Flow']], ["Doesn't count"]],
+      ]);
+      expect(lines()[1].tagName).toBe('DIV'); // a void game has nothing to open
+      expect(body(lines()[0]).textContent).toBe('Zeal0No playersBye'); // a bye still scores its starters: none
+      expect(document.body.textContent).not.toMatch(/forfeit/i);
     });
 
-    it("says Not playing on the card when the team wasn't paired in that game", async () => {
+    it("says Not playing when the team wasn't paired in that game", async () => {
       const r = afterGame1();
       await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g1' ? { ...p, home: 'm2', away: null } : p)) });
-      expect(card().querySelector('.game-score')?.textContent).toBe('Not playing');
+      expect(words(lines()[0])[1]).toEqual([['Not playing']]);
+      // Opened, every matchup is another team's, a bye included.
+      expect([...body(lines()[0]).querySelectorAll('summary')].map((s) => s.textContent)).toEqual(['Flow 0 · Bye']);
+    });
+
+    it('keeps a long team name and an emoji name on the line with both scores', async () => {
+      const r = finalGame1();
+      await show({ ...r, members: [{ ...r.members[0], team_name: 'Selling Zeal Stock' }, { ...r.members[1], team_name: 'Money 🤑' }] });
+      expect(words(lines()[0])).toEqual(['Game 1', [['Selling Zeal Stock', '6'], ['Money 🤑', '3']], ['Final']]);
+    });
+
+    it('lists nothing before the tournament opens and no earlier tournament was played', async () => {
+      await show(base()); // the tournament's games aren't made yet
+      expect(screen.queryByRole('heading', { name: 'Games' })).toBeNull();
+      expect(screen.queryByRole('region', { name: 'Zeal games' })).toBeNull();
+      expect(document.querySelector('.game-line')).toBeNull();
     });
   });
 
   it('marks a game whose tally was deleted as void', async () => {
     const r = afterGame1();
     await show({ ...r, games: r.games.map((g) => (g.id === 'g1' ? { ...g, session_id: null } : g)), sessions: [] });
-    fireEvent.click(screen.getByText(/Game 1 · Fall beta/));
-    expect(screen.getByText('Void')).toBeTruthy();
-    expect(screen.getByText("Doesn't count.")).toBeTruthy();
+    expect(document.querySelector('.game-line .state')?.textContent).toBe("Doesn't count");
     // A void start doesn't tire anyone.
     expect(pickRow('Ash').textContent).toContain('Your 100% · rested');
   });
@@ -516,7 +630,7 @@ describe('TournamentCard', () => {
           { stage_id: 'S1', game_number: 2, membership_id: 'm2', athlete_id: 'b2' }],
       });
       expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
-      expect(screen.getByText('Live')).toBeTruthy();
+      expect(within(strip()).getByText('Live')).toBeTruthy(); // the game's line says it too
       expect(scoreboard()?.textContent).toContain('Avery');
       expect(scoreboard()?.textContent).toContain('Quinn'); // revealed: the game has started
       expect(scoreboard()?.textContent).toContain('They played');
@@ -627,17 +741,16 @@ describe('TournamentCard', () => {
       expect(document.querySelector('.score-side.lost')!.textContent).toContain('Ash');
     });
 
-    it('shows unofficial scores on a game card waiting on stats, without W/L', async () => {
+    it('shows unofficial scores on a game line waiting on stats, with neither side greyed', async () => {
       const r = afterGame1();
       await show({ ...r, taps: TAPS.map((t) => ({ ...t })) });
-      const card = document.querySelector('.game')!;
-      expect(card.querySelector('.game-score')!.textContent).toBe('Zeal6vsFlow5');
-      expect(card.querySelector('summary > .meta')!.textContent).toContain('Waiting on stats');
-      expect(card.querySelector('summary > .meta')!.textContent).toContain('Unofficial'); // labelled while closed too
-      expect(card.querySelector('summary > .meta')!.textContent).not.toMatch(/W [+−]|L [+−]/);
-      fireEvent.click(card.querySelector('summary')!);
-      expect(card.textContent).toContain('Unofficial until a keeper verifies.');
-      expect(card.textContent).toContain('Ash · 2 goals');
+      const line = document.querySelector('summary.game-line')!;
+      expect([...line.querySelectorAll('.t')].map((t) => t.textContent)).toEqual(['Zeal6', 'Flow5']);
+      expect(line.querySelector('.t.lost')).toBeNull(); // no result until it's verified
+      expect([...line.querySelector('.state')!.children].map((e) => e.textContent)).toEqual(['Finished · not verified', 'unofficial']);
+      const opened = line.closest('details')!;
+      expect(opened.textContent).toContain('Unofficial until a keeper verifies.');
+      expect(opened.textContent).toContain('Ash · 2 goals');
     });
 
     it('polls every 15 s while a game is live, not otherwise', async () => {
