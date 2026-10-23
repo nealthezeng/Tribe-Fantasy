@@ -134,8 +134,8 @@ export function RulesPage() {
           <div className="section">
             <h3>Example</h3>
             <p>A starter earns his game score × three factors: the <strong>share</strong> you own, <strong>tired</strong>{' '}
-              (above) and <strong>earlier tournaments</strong> (below). A player's card shows the combined factor, and its parts are one
-              tap away. Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
+              (above) and <strong>earlier tournaments</strong> (below). The pick card shows each player's share and tiredness in
+              words, e.g. "Your 20% · played game 1: ¾ points". Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
               matchup.</p>
             <p>{statWords(game)} by a player you own half of, started the game before: {n(gameScore)} × {owned * 100}% ×{' '}
               {n(tired)} = <strong>{n(gameScore * owned * tired)}</strong>.</p>

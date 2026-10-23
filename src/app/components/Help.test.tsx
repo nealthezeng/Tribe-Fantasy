@@ -57,6 +57,29 @@ describe('Help', () => {
     expect(text("How a player's points count")).toBe("You score your share of a player's points.");
   });
 
+  it('samples the decay after the free tournaments, and says how many are free', () => {
+    render(<>
+      <FactorHelp settings={{ ...DEFAULT_SETTINGS, decay_grace_stages: 1 }} />
+      <FactorHelp settings={{ ...DEFAULT_SETTINGS, decay_grace_stages: 2 }} />
+    </>);
+    const [one, two] = screen.getAllByRole('button', { name: "How a player's points count" }).map((b) => b.nextElementSibling!.textContent);
+    expect(one).toContain('The first earlier tournament you started him in is free; each one after lowers them a little more '
+      + '(90%, then 81%, …), never below 60%.');
+    expect(two).toContain('The first 2 earlier tournaments you started him in are free; each one after lowers them a little '
+      + 'more (90%, then 81%, …), never below 60%.');
+  });
+
+  it('drops the tournament sentence when earlier tournaments take nothing off', () => {
+    render(<FactorHelp settings={{ ...DEFAULT_SETTINGS, decay_rate: 1 }} />);
+    expect(text("How a player's points count")).not.toContain('earlier tournament');
+  });
+
+  it('says nothing about reopening when a final game can never be reopened', () => {
+    render(<VerifiedHelp hours={0} />);
+    expect(text('What unofficial and verified mean')).toBe('Keepers tap stats live, so scores move during the game. After '
+      + "it, a second keeper checks them: then they're final.");
+  });
+
   it('steps a linear decay down by the same amount each tournament, never past the floor', () => {
     render(<FactorHelp settings={{ ...DEFAULT_SETTINGS, decay_mode: 'linear', decay_rate: 0.75, decay_floor: 0.6 }} />);
     expect(text("How a player's points count")).toContain('(75%, then 60%, …), never below 60%.');

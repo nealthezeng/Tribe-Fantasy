@@ -37,6 +37,9 @@ describe('RulesPage', () => {
     expect(text).not.toMatch(/\b(bench|bids?|bidding|auction)\b/i);
     expect(text).toContain('Resting a player for 2 games between starts never does.');
     expect(text).toContain('and earlier tournaments (below)');
+    // What ships: the pick card says the factors in words; there is no combined factor to tap open.
+    expect(text).toContain('The pick card shows each player\'s share and tiredness in words, e.g. "Your 20% · played game 1: ¾ points".');
+    expect(text).not.toContain('combined factor');
     expect(text).not.toMatch(/repeat|Rotating/);
     expect(text).toContain("Other teams can't see your picks until the game starts");
     expect(screen.getByText('2 games before').parentElement?.textContent).toBe('2 games before×0.75');

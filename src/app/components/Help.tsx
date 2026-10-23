@@ -40,8 +40,13 @@ export function FactorHelp({ settings: S }: { settings: SeasonSettings }) {
   const tired = S.tiredness_multipliers
     .map((m, i) => (i ? `${GAMES_BEFORE[i]} before, ${fraction(m)}` : `If he started the game before, they count ${fraction(m)}`))
     .join('; ');
-  const decay = S.decay_mode !== 'none' && `Each earlier tournament you started him in lowers them a little more `
-    + `(${pct(stageMultiplier(1, S))}, then ${pct(stageMultiplier(2, S))}, …), never below ${pct(S.decay_floor)}.`;
+  // The cut starts after the free (grace) tournaments; no cut at all (no decay, a rate of 1) needs no sentence.
+  const g = S.decay_grace_stages;
+  const free = g === 0 ? 'Each earlier tournament you started him in'
+    : g === 1 ? 'The first earlier tournament you started him in is free; each one after'
+    : `The first ${g} earlier tournaments you started him in are free; each one after`;
+  const decay = stageMultiplier(g + 1, S) < 1 && `${free} lowers them a little more `
+    + `(${pct(stageMultiplier(g + 1, S))}, then ${pct(stageMultiplier(g + 2, S))}, …), never below ${pct(S.decay_floor)}.`;
   return (
     <Help label="How a player's points count">
       {["You score your share of a player's points.", tired && `${tired}.`, decay].filter(Boolean).join(' ')}
@@ -53,7 +58,7 @@ export function VerifiedHelp({ hours }: { hours: number }) {
   return (
     <Help label="What unofficial and verified mean">
       Keepers tap stats live, so scores move during the game. After it, a second keeper checks them: then they're final.
-      A final game can be reopened for {hours} {hours === 1 ? 'hour' : 'hours'}.
+      {hours > 0 && ` A final game can be reopened for ${hours} ${hours === 1 ? 'hour' : 'hours'}.`}
     </Help>
   );
 }
