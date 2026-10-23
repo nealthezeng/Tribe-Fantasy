@@ -68,9 +68,6 @@ export async function gameTitles(sessionIds: string[]): Promise<Map<string, stri
   return new Map(rows.map((g) => [g.session_id, `${gameName(g.number, g.opponent)} · ${g.stages?.name ?? 'Tournament'}`]));
 }
 
-/** A session's title: the game it was, else its date and kind (older practice sessions). */
-export const titleOf = (s: Pick<SessionRow, 'id' | 'held_on' | 'kind'>, games: Map<string, string>) => games.get(s.id) ?? sessionTitle(s);
-
 /** Today in the phone's time zone, as YYYY-MM-DD for <input type="date">. */
 export function todayLocal(now = new Date()): string {
   const off = now.getTimezoneOffset() * 60_000;

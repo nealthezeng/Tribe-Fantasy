@@ -192,6 +192,16 @@ tbody tr:last-child td { border-bottom: 0; }
 /* Wide stat tables scroll sideways inside .table-wrap; the player column stays put. Sticky cells need an opaque fill: --bg on the page, --card-solid (the card's glass, flattened) inside a card. */
 .stat-table :is(th, td):first-child { position: sticky; left: 0; background: var(--bg); padding-right: var(--s2); }
 .card .stat-table :is(th, td):first-child { background: var(--card-solid); }
+/* Papercut 1: until the table scrolls under it, the sticky column shows the glow behind it, not a flat block. */
+.stat-table:not(.scrolled) :is(th, td):first-child { background: transparent; }
+tfoot td { border-top: 1px solid var(--line-strong); border-bottom: 0; font-weight: var(--fw-semi); }
+/* Rule 1 for a table or list row: its link's ::after stretches over the row (a sticky cell stops it at that cell, so
+   StatTable also follows a tap anywhere in the row). The focus ring sits inset on the stretch, so a scroll box never clips it. */
+.row-target { position: relative; cursor: pointer; }
+.row-target a::after { content: ''; position: absolute; inset: 0; }
+.row-target a:focus-visible { outline: none; }
+.row-target a:focus-visible::after { outline: 3px solid var(--focus); outline-offset: -3px; }
+tr.row-target > td { height: var(--tap); }
 /* Header sort buttons keep their look on hover/press (the global .linklike hover would out-rank a plain th rule, and sticks on touch). */
 th .linklike, th .linklike:is(:hover, :active):not(:disabled) { padding: 0; color: inherit; font: inherit; text-decoration: none; }
 th[aria-sort] .linklike, th[aria-sort] .linklike:is(:hover, :active):not(:disabled) { color: var(--fg); }

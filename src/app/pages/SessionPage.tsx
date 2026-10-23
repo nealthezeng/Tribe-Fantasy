@@ -2,18 +2,25 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { parseSettings } from '../../core/settings';
 import { mergeTaps } from '../../core/taps';
+import { liveStatLines } from '../../core/tournament';
 import { useAuth } from '../auth/AuthProvider';
+import { Loading } from '../components/Loading';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
-import { gameTitles, SESSION_COLUMNS, sessionState, statLabel, titleOf, type SessionRow } from '../lib/stats';
+import { SESSION_COLUMNS, sessionState, sessionTitle, statLabel, type SessionRow } from '../lib/stats';
 import { supabase } from '../lib/supabase';
-import { useLoad } from '../lib/useLoad';
-import { rowToTap, type StatTapRow } from '../tally/queue';
+import { loadLiveTaps } from '../lib/tournament';
+import { useLoad, usePoll } from '../lib/useLoad';
+import { gameName, rowStatus } from '../lib/words';
+import { errorCode, rowToTap, type StatTapRow } from '../tally/queue';
 import { totals } from '../lib/statsTable';
-import { STATE_PILL } from './StatsPage';
-import { StatTable } from './StatTable';
+import { Status, StatTable } from './StatTable';
 
 interface LineRow { athlete_id: string; stats: Record<string, number> }
+interface GameInfo {
+  id: string; stage_id: string; number: number; opponent: string | null; started_at: string | null; finished_at: string | null;
+  stages: { name: string } | null;
+}
 
 export function SessionPage() {
   const { id = '' } = useParams();
@@ -34,14 +41,27 @@ export function SessionPage() {
       // Keepers only (RLS returns nothing to members), so these two are harmless for everyone else.
       supabase!.from('stat_taps').select('id, athlete_id, stat, keeper_id, tapped_at, undoes').eq('session_id', id),
       supabase!.from('profiles').select('id, display_name'),
-      supabase!.from('games').select('stage_id').eq('session_id', id).maybeSingle(), // for ← Stats
+      supabase!.from('games').select('id, stage_id, number, opponent, started_at, finished_at, stages(name)').eq('session_id', id).maybeSingle(),
     ]);
     for (const r of [season, athletes, lines, taps, profiles, game]) if (r.error) throw r.error;
+    const g = game.data as GameInfo | null; // none for an old practice session
+    const settings = parseSettings(season.data!.settings);
+    // Members can't read stat_taps: a started, unverified game's unofficial lines come through live_game_taps. An
+    // athlete-only account can't read those either (FORBIDDEN), so it sees no live lines.
+    const live = !s.verified_at && g?.started_at
+      ? await loadLiveTaps([{ id: g.id, session_id: id }]).then(
+        (t) => liveStatLines(id, t.map(rowToTap), settings).map((l): LineRow => ({ athlete_id: l.athleteId, stats: l.stats })),
+        (e) => { if (errorCode(e) !== 'FORBIDDEN') throw e; return null; })
+      : null;
     return {
       session: s,
-      stageId: (game.data as { stage_id: string } | null)?.stage_id ?? null,
-      title: titleOf(s, await gameTitles([s.id])),
-      settings: parseSettings(season.data!.settings),
+      stageId: g?.stage_id ?? null,
+      gameTitle: g ? gameName(g.number, g.opponent) : sessionTitle(s),
+      stage: g?.stages?.name ?? null,
+      // An old practice session has no game: it was held and finished on its day.
+      status: rowStatus({ started_at: g ? g.started_at : s.held_on, finished_at: g ? g.finished_at : s.held_on, session_id: id, verified_at: s.verified_at }),
+      live,
+      settings,
       names: new Map((athletes.data ?? []).map((a: { id: string; name: string }) => [a.id, a.name])),
       lines: (lines.data ?? []) as LineRow[],
       taps: ((taps.data ?? []) as StatTapRow[]).map(rowToTap),
@@ -53,11 +73,15 @@ export function SessionPage() {
     () => (data.data ? mergeTaps(data.data.taps, data.data.settings.tap_merge_seconds) : null),
     [data.data],
   );
+  const showLive = !isKeeper && !!data.data?.live; // keepers verify from their own taps below
+  usePoll(data.reload, showLive); // live numbers move
 
   if (data.error) return <p className="error" role="alert">{data.error}</p>;
-  if (data.data === undefined) return <p className="muted" role="status">Loading…</p>;
+  if (data.data === undefined) return <Loading />;
   if (data.data === null) return <p>That game's stats aren't here any more. <Link to="/stats">Stats</Link></p>;
-  const { session, stageId, title, settings, names, lines, taps, people } = data.data;
+  const { session, stageId, gameTitle, stage, status, live, settings, names, lines, taps, people } = data.data;
+  const title = stage ? `${gameTitle} · ${stage}` : gameTitle;
+  const toPlayer = (r: { key: string }) => `/player/${r.key}${stageId ? `?t=${stageId}` : ''}`;
   const state = sessionState(session, settings.stat_lock_hours);
   const stats = Object.keys(settings.stat_weights);
   const ofCounts = (counts: Record<string, Record<string, number>>) =>
@@ -101,18 +125,25 @@ export function SessionPage() {
     <section className="page">
       <p><Link to={stageId ? `/stats?t=${stageId}` : '/stats'}>← Stats</Link></p>
       <div className="stack">
-        <h1>{title}</h1>
+        <h1>{gameTitle}{stage && <> <small>{stage}</small></>}</h1>
         <p className="meta">
-          {STATE_PILL[state]}
+          <Status word={status} />
           {!session.counts && <span className="pill">Not counted</span>}
         </p>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
 
+      {showLive && (
+        <div className="card">
+          <h2>Stats <small>unofficial</small></h2>
+          <StatTable stats={stats} rows={totals(live!, names, settings.stat_weights)} href={toPlayer} />
+        </div>
+      )}
+
       {state !== 'open' && (
         <div className="card">
           <h2>Stats</h2>
-          <StatTable stats={stats} rows={totals(lines, names, settings.stat_weights)} />
+          <StatTable stats={stats} rows={totals(lines, names, settings.stat_weights)} href={toPlayer} />
           {isKeeper && state === 'verified' && (
             <button className="secondary" disabled={busy} onClick={() => void run(() => api.reopenSession(id))}>Reopen tally</button>
           )}
@@ -125,7 +156,7 @@ export function SessionPage() {
       {isKeeper && state === 'open' && merge && (
         <div className="card">
           <h2>Totals to verify</h2>
-          <StatTable stats={stats} rows={ofCounts(merge.counts)} />
+          <StatTable stats={stats} rows={ofCounts(merge.counts)} href={toPlayer} />
           {merge.merged.length > 0 && (
             <>
               <h3>Counted once ({merge.merged.length})</h3>
@@ -139,7 +170,7 @@ export function SessionPage() {
           {keepers.map((k) => (
             <details key={k}>
               <summary>Tallied by {people.get(k) ?? 'a keeper'}</summary>
-              <StatTable stats={stats} rows={ofCounts(mergeTaps(taps.filter((t) => t.keeperId === k), 0).counts)} />
+              <StatTable stats={stats} rows={ofCounts(mergeTaps(taps.filter((t) => t.keeperId === k), 0).counts)} legend={false} />
             </details>
           ))}
           {iTapped ? (

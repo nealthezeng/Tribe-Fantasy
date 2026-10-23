@@ -5,16 +5,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
 import { SessionPage } from './SessionPage';
 
-const auth = vi.hoisted(() => ({ isAdmin: true }));
+const auth = vi.hoisted(() => ({ isAdmin: true, isKeeper: true }));
 vi.mock('../auth/AuthProvider', () => ({
-  useAuth: () => ({ session: { user: { id: 'u1' } }, isAdmin: auth.isAdmin, isKeeper: true }),
+  useAuth: () => ({ session: { user: { id: 'u1' } }, isAdmin: auth.isAdmin, isKeeper: auth.isKeeper }),
 }));
 
-// A verified session, long past its lock.
+// A verified session, long past its lock (tests flip it to live).
 const session = {
-  id: 's1', season_id: 'se1', kind: 'practice', held_on: '2026-11-16', counts: true,
-  created_by: 'k1', verified_by: 'k2', verified_at: '2026-01-01T00:00:00Z',
+  id: 's1', season_id: 'se1', kind: 'tournament', held_on: '2026-11-16', counts: true,
+  created_by: 'k1', verified_by: 'k2', verified_at: '2026-01-01T00:00:00Z' as string | null,
 };
+const game = { id: 'g1', stage_id: 'S9', number: 1, opponent: 'Duke', started_at: '2026-11-16T10:00:00Z', finished_at: '2026-11-16T11:00:00Z' as string | null, stages: { name: 'CCCs' } };
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
@@ -24,7 +25,7 @@ vi.mock('../lib/supabase', () => ({
         select: () => builder,
         eq: () => builder,
         in: () => builder,
-        maybeSingle: () => Promise.resolve({ data: table === 'games' ? { stage_id: 'S9' } : session, error: null }),
+        maybeSingle: () => Promise.resolve({ data: table === 'games' ? game : session, error: null }),
         single: () => Promise.resolve({ data: { settings: {} }, error: null }),
         then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: rows, error: null }),
       };
@@ -33,11 +34,15 @@ vi.mock('../lib/supabase', () => ({
   },
 }));
 
-vi.mock('../lib/rpc', () => ({ api: { deleteSession: vi.fn() } }));
+vi.mock('../lib/rpc', () => ({ api: { deleteSession: vi.fn(), liveGameTaps: vi.fn() } }));
 
 const confirm = vi.fn();
 afterEach(cleanup);
 beforeEach(() => {
+  auth.isKeeper = true;
+  session.verified_at = '2026-01-01T00:00:00Z';
+  game.finished_at = '2026-11-16T11:00:00Z';
+  vi.mocked(api.liveGameTaps).mockReset().mockResolvedValue([]);
   vi.mocked(api.deleteSession).mockReset();
   confirm.mockReset();
   window.confirm = confirm;
@@ -64,6 +69,42 @@ describe('SessionPage', () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Stats' });
     expect(screen.queryByText('Attendance')).toBeNull();
+  });
+
+  it('titles the page Game 1 vs Duke with the tournament as small text', async () => {
+    renderPage();
+    const h1 = await screen.findByRole('heading', { level: 1 });
+    expect(h1.firstChild!.textContent).toBe('Game 1 vs Duke');
+    expect(h1.querySelector('small')!.textContent).toBe('CCCs');
+    expect(screen.getByText('Final')).toBeTruthy(); // the status word, not a pill
+    expect(document.querySelector('.pill')).toBeNull();
+  });
+
+  it('links player names to their pages', async () => {
+    renderPage();
+    expect((await screen.findByRole('link', { name: 'Sam' })).getAttribute('href')).toBe('/player/a1?t=S9');
+  });
+
+  it('shows a member the live lines as unofficial', async () => {
+    auth.isKeeper = false;
+    session.verified_at = null;
+    game.finished_at = null;
+    vi.mocked(api.liveGameTaps).mockResolvedValue([
+      { id: 't1', athlete_id: 'a1', stat: 'goal', keeper: 1, tapped_at: '2026-11-16T10:05:00Z', undoes: null },
+      { id: 't2', athlete_id: 'a1', stat: 'goal', keeper: 1, tapped_at: '2026-11-16T10:30:00Z', undoes: null },
+    ]);
+    renderPage();
+    const heading = await screen.findByRole('heading', { name: /Stats/ });
+    expect(heading.textContent).toContain('unofficial');
+    expect(api.liveGameTaps).toHaveBeenCalledWith('g1');
+    expect(screen.getByRole('link', { name: 'Sam' }).closest('tr')!.textContent).toContain('2');
+    expect(document.querySelector('.live')!.textContent).toBe('Live');
+    expect(screen.queryByText('Totals to verify')).toBeNull();
+  });
+
+  it('shows the loading placeholder while the game loads', () => {
+    renderPage();
+    expect(screen.getByRole('status').className).toBe('skeleton'); // the shared Loading, not a bare "Loading…"
   });
 });
 

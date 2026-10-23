@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { HashRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { storeQueue, type QueuedTap } from '../tally/queue';
+import { gameName } from '../lib/words';
 import { StatsPage } from './StatsPage';
 
 const m = vi.hoisted(() => ({
@@ -77,13 +78,17 @@ describe('StatsPage', () => {
     await waitFor(() => expect(m.load).toHaveBeenLastCalledWith('se', 'S1', { live: m.season!.settings }));
   });
 
-  it('shows the loading state, not the old table, while the picked tournament loads', async () => {
+  it('keeps the tournament switcher on screen and focused while the next one loads', async () => {
     show();
-    const pick = await screen.findByRole('combobox', { name: 'Tournament' });
+    const pick = await screen.findByRole('combobox', { name: 'Tournament' }) as HTMLSelectElement;
+    pick.focus();
     m.load.mockImplementation(() => new Promise(() => {})); // the next tournament never arrives
     fireEvent.change(pick, { target: { value: 'S1' } });
+    expect(await screen.findByRole('status')).toBeTruthy(); // Loading, not the old table
     expect(screen.queryByRole('table')).toBeNull();
-    expect(screen.queryByRole('combobox', { name: 'Tournament' })).toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Tournament' })).toBe(pick);
+    expect(document.activeElement).toBe(pick);
+    expect(pick.value).toBe('S1');
   });
 
   it('says there are no stats yet for a tournament without lines', async () => {
@@ -136,74 +141,66 @@ describe('StatsPage Tally link (t308)', () => {
   });
 });
 
-describe('StatsPage All stats fold (t306, t307)', () => {
+describe('StatsPage games list (t306, t307)', () => {
   const game = (number: number, session_id: string | null, opponent: string | null, verified_at: string | null) => ({
-    id: `g${number}`, stage_id: 'S2', number, session_id, started_at: null, finished_at: null, opponent,
-    label: opponent ? `vs ${opponent}` : `Game ${number}`, verified_at,
+    id: `g${number}`, stage_id: 'S2', number, session_id, started_at: session_id && 'a', finished_at: verified_at && 'b', opponent,
+    label: gameName(number, opponent), verified_at,
   });
-  const games = [game(1, 's1', 'Duke', '2020-01-01T00:00:00Z'), game(2, 's2', null, null), game(3, null, null, null)];
+  const games = [game(1, 's1', 'Duke', '2020-01-01T00:00:00Z'), game(2, 's2', 'UNC', null), game(3, null, null, null)];
   const withGames = (g = games, l = lines) =>
     m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games: g, lines: l, names, liveLines: [], liveGames: [] });
-  const fold = () => screen.getByText('All stats').closest('details')!;
+  const row = (text: string) => screen.getByText(text).closest('li')!;
 
-  it('lists the tournament games under All stats, each opening its game page', async () => {
+  it("lists the tournament's games as rows with status words under the table", async () => {
     withGames();
     show();
-    expect((await screen.findByRole('link', { name: 'Game 1 vs Duke' })).getAttribute('href')).toBe('#/stats/s1');
-    expect(screen.getByRole('link', { name: 'Game 2' }).getAttribute('href')).toBe('#/stats/s2');
-    expect(screen.getByText('Game 3').closest('li')!.textContent).toContain('Not started');
-    expect(screen.getByText('Game 1 vs Duke').closest('li')!.textContent).toContain('Locked');
+    const first = await screen.findByRole('link', { name: /^Game 1 vs Duke/ });
+    expect(first.getAttribute('href')).toBe('#/stats/s1');
+    expect(first.className).toBe('row-link');
+    expect(first.textContent).toContain('Final');
+    const second = screen.getByRole('link', { name: /^Game 2 vs UNC/ });
+    expect(second.getAttribute('href')).toBe('#/stats/s2');
+    expect(second.querySelector('.live .dot')).toBeTruthy();
+    expect(second.querySelector('.live')!.textContent).toBe('Live');
+    expect(screen.getByText('Game 3').closest('a')).toBeNull(); // not started: nothing to open
+    expect(row('Game 3').textContent).toContain('Not started');
+    const heading = screen.getByRole('heading', { name: 'Games' });
+    expect(screen.getByRole('table').compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('All stats')).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Tally Game/ })).toBeNull(); // the row is the button (rule 1)
   });
 
-  it('gives keepers a Tally button on open games only, with the fold open', async () => {
-    withGames();
-    show();
-    expect((await screen.findByRole('link', { name: 'Tally Game 2' })).getAttribute('href')).toBe('#/tally?game=s2');
-    expect(screen.queryByRole('link', { name: 'Tally Game 1 vs Duke' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Tally Game 3' })).toBeNull();
-    expect(fold().open).toBe(true);
-  });
-
-  it('leaves the fold closed when nothing is open to tally', async () => {
-    withGames([games[0], games[2]]);
-    show();
-    await screen.findByText('All stats');
-    expect(fold().open).toBe(false);
-  });
-
-  it('shows a manager no Tally buttons, and the fold closed', async () => {
-    m.isKeeper = false;
-    withGames();
-    show();
-    await screen.findByText('All stats');
-    expect(screen.queryByRole('link', { name: /^Tally/ })).toBeNull();
-    expect(fold().open).toBe(false);
-  });
-
-  it('keeps Download CSV for admins inside All stats', async () => {
+  it('puts Download CSV under the games list for admins', async () => {
     m.isAdmin = true;
     withGames();
     show();
     const csv = await screen.findByRole('button', { name: 'Download CSV' });
-    expect(fold().contains(csv)).toBe(true);
+    expect(screen.getByText('Game 3').closest('ul')!.compareDocumentPosition(csv) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('says no stats yet while the only game is live, and still offers Tally', async () => {
+  it('gives a manager no Download CSV', async () => {
+    withGames();
+    show();
+    await screen.findByText('Game 3');
+    expect(screen.queryByRole('button', { name: 'Download CSV' })).toBeNull();
+  });
+
+  it('says no stats yet while the only game is live, and still lists it', async () => {
     withGames([games[1]], []);
     show();
     expect(await screen.findByText('No stats yet for Tourney S2.')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Tally Game 2' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /^Game 2 vs UNC/ }).getAttribute('href')).toBe('#/stats/s2');
   });
 
-  it('shows a keeper unsaved taps on a verified game, with a way to open it', async () => {
+  it('shows a keeper unsaved taps on a verified game, its row opening the game', async () => {
     const SID = '00000000-0000-4000-8000-0000000000a1';
     storeQueue('k1', SID, [{} as QueuedTap, {} as QueuedTap]);
     withGames([game(1, SID, 'Duke', '2020-01-01T00:00:00Z'), game(2, 's2', null, null)]);
     show();
-    const row = (await screen.findByText('Game 1 vs Duke')).closest('li')!;
-    expect(row.textContent).toContain('2 unsaved');
-    expect(screen.getByRole('link', { name: 'Open Game 1 vs Duke' }).getAttribute('href')).toBe(`#/tally?game=${SID}`);
-    expect(screen.getByText('Game 2').closest('li')!.textContent).not.toContain('unsaved');
+    await screen.findByText('Game 1 vs Duke');
+    expect(row('Game 1 vs Duke').querySelector('.pill.warn')!.textContent).toBe('2 unsaved');
+    expect(row('Game 1 vs Duke').querySelector('a')!.getAttribute('href')).toBe(`#/stats/${SID}`);
+    expect(row('Game 2').textContent).not.toContain('unsaved');
   });
 });
 
@@ -217,35 +214,37 @@ describe('StatsPage live numbers (t318)', () => {
     m.load.mockResolvedValue({ stages: [stage('S2')], stage: stage('S2'), games, lines: l, names, liveLines, liveGames });
   const ashTap = { session_id: 's2', athlete_id: 'a', stats: { goal: 1 } };
 
-  it('adds the live game to the table, marked unofficial', async () => {
+  const strip = () => document.querySelector<HTMLElement>('.strip');
+
+  it('adds the live game to the table', async () => {
     withLive([verified, live], [lines[0]], [ashTap], [2]);
     show();
     const cell = await screen.findByRole('cell', { name: 'Ari' });
     expect(cell.closest('tr')!.textContent).toContain('6'); // goal 1 + 1 live = 2 goals x 3
-    expect(screen.getByText('Unofficial: includes game 2').closest('p')!.textContent).toContain('Live');
   });
 
-  it('explains the game states in All stats and beside the live strip', async () => {
+  it('reads the live strip as Live · includes game 2, not verified yet', async () => {
     withLive([verified, live], [lines[0]], [ashTap], [2]);
     show();
     await screen.findByRole('cell', { name: 'Ari' });
-    const label = { name: 'What unofficial and verified mean' };
-    const fold = document.querySelector('details.card') as HTMLElement;
-    expect(within(fold).getByRole('button', label).nextElementSibling!.textContent).toContain('reopened for 1 hour,');
-    expect(within(document.querySelector('.strip') as HTMLElement).getByRole('button', label)).toBeTruthy();
+    expect(strip()!.querySelector('.live .dot')).toBeTruthy();
+    expect(strip()!.textContent).toContain('Live · includes game 2, not verified yet');
+    const help = within(strip()!).getByRole('button', { name: 'What unofficial and verified mean' });
+    expect(help.nextElementSibling!.textContent).toContain('reopened for 1 hour,');
   });
 
   it('names several live games', async () => {
     withLive([verified, live], lines, [ashTap], [3, 4]);
     show();
-    expect(await screen.findByText('Unofficial: includes games 3 and 4')).toBeTruthy();
+    await screen.findByRole('cell', { name: 'Ari' });
+    expect(strip()!.textContent).toContain('Live · includes games 3 and 4, not verified yet');
   });
 
   it('says nothing about live numbers when no game is live', async () => {
     withLive([verified]);
     show();
     await screen.findByRole('cell', { name: 'Bo' });
-    expect(screen.queryByText(/Unofficial/)).toBeNull();
+    expect(strip()).toBeNull();
   });
 
   it('shows "No stats yet" only when there are neither verified nor live lines', async () => {
@@ -262,7 +261,7 @@ describe('StatsPage live numbers (t318)', () => {
     expect(screen.getByRole('link', { name: 'Join a league' }).getAttribute('href')).toBe('#/leagues');
     expect(screen.queryByText('Not verified')).toBeNull();
     expect(screen.queryByText(/No stats yet/)).toBeNull();
-    expect(screen.queryByText('All stats')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Games' })).toBeNull();
   });
 
   it('never asks can_read_league_data when signed out', async () => {
@@ -325,7 +324,7 @@ describe('StatsPage live numbers (t318)', () => {
       show();
       expect(await screen.findByRole('cell', { name: 'Bo' })).toBeTruthy();
       expect(m.rpc).toHaveBeenCalled();
-      expect(screen.queryByText(/Unofficial/)).toBeNull();
+      expect(document.querySelector('.strip')).toBeNull();
       expect(screen.queryByRole('alert')).toBeNull();
     } finally {
       m.tables = {};
