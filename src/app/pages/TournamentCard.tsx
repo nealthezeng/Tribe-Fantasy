@@ -10,14 +10,11 @@ import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
 import type { Seen } from '../lib/seen';
 import { anyCounted, fmt, loadLeagueTournament, mergeStandings, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
-import { pct } from '../lib/wallet';
 import { factorWords, gameName, heldNote, pctExact, statusWord, statWords } from '../lib/words';
 
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
 /** An athlete's name, or `none` when nobody plays. */
 const athleteName = (y: LeagueTournament, id: string | null, none = 'nobody') => (id ? y.athlete.get(id) ?? 'A player' : none);
-/** Two significant figures, so a sliver of a share never reads 0: 0.45, 0.0033. */
-const sig = (n: number) => Number(n.toPrecision(2));
 const sides = (g: GameOutcome) => g.matchups.flatMap((m) => [m.home, m.away]);
 const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null | undefined => {
   const m = g.matchups.find((x) => x.home.membershipId === membershipId || x.away?.membershipId === membershipId);
@@ -310,20 +307,6 @@ function PickGame({ y, next, membershipId, onSaved }: {
       {full && mine.players.length > picked.length && <p className="hint">You have {n} picks. Clear one to change.</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
-  );
-}
-
-/** What a player's points count for this game (decision 11): one number, its parts one tap away. The core multiplies. */
-export function Factor({ side, id }: { side: TournamentSide; id: string }) {
-  return (
-    <details className="factor">
-      <summary aria-label={`Counts ×${sig(side.factor[id])}`}>×{sig(side.factor[id])}</summary>
-      <p className="parts">
-        <span><b>{pct(side.share[id])}</b> share</span>
-        {side.rest[id] < 1 ? <span><b>×{sig(side.rest[id])}</b> tired</span> : <span><b>×1</b> rested</span>}
-        {side.decay[id] !== 1 && <span><b>×{sig(side.decay[id])}</b> earlier tournaments</span>}
-      </p>
-    </details>
   );
 }
 

@@ -98,16 +98,13 @@ button, .button {
 button:hover:not(:disabled), .button:hover { background: var(--gold-hover); }
 button:active:not(:disabled), .button:active { background: var(--gold-press); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
-/* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). A pick mid-save keeps its
-   green; the whole tally board and segmented buttons keep their own disabled look. */
-:is(button, .button):disabled:not(.picked, .pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
+/* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). Pick rows, the whole tally
+   board and segmented buttons keep their own disabled look. */
+:is(button, .button):disabled:not(.pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
 /* Secondary: a soft borderless fill, flat like the gold buttons (t111). */
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
 .secondary:hover:not(:disabled) { background: var(--line); }
 .secondary:active:not(:disabled) { background: var(--line); }
-.secondary.picked, .secondary.picked:is(:hover, :active):not(:disabled) { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
-.picked svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.picked .clear { font-weight: var(--fw-regular); }
 .linklike, .linklike:hover:not(:disabled), .linklike:active:not(:disabled) {
   background: none; border: 0; color: var(--link); padding: 0 var(--s1); font-weight: var(--fw-semi); text-decoration: underline; text-underline-offset: 3px;
 }
@@ -291,11 +288,8 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .pts, .pts-name { font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); line-height: 0.95; }
 .pts { font-size: var(--fs-score); font-variant-numeric: tabular-nums; }
 .pts-name { font-size: var(--fs-xl); }
-/* M13 2v2: two names a side on the scoreboard; on the pick card each player's combined factor, its parts one tap away
-   (decision 11). */
+/* M13 2v2: two names a side on the scoreboard. */
 .score-side .names { display: grid; gap: 2px; }
-.count-line { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--fs-sm); color: var(--muted); }
-.count-line strong { color: var(--fg); font-size: var(--fs-lg); }
 /* P9 ruling 5: on the pick card the whole row is the toggle, divided like .card .list rows, in body type, with a
    drawn ring that fills green when picked. An Out player who isn't picked is off and greyed. */
 .pick-row { display: flex; width: 100%; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border: 0; border-radius: 0; color: var(--fg); font-weight: var(--fw-regular); text-align: left; }
@@ -309,13 +303,6 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .pick-row .ring { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--line-strong); border-radius: 50%; }
 .pick-row[aria-pressed='true'] .ring { border-color: var(--ok); }
 .pick-row[aria-pressed='true'] .ring::after { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--ok); }
-details.factor { justify-self: start; }
-details.factor > summary { display: inline-flex; gap: var(--s1); padding: 2px 10px; border-radius: var(--radius-pill); background: var(--chip-bg); font-variant-numeric: tabular-nums; font-size: var(--fs-sm); }
-details.factor > summary::before { display: none; }
-details.factor > summary::after { content: '▾'; font-size: var(--fs-2xs); color: var(--muted); }
-details.factor[open] > summary::after { content: '▴'; }
-.parts { display: flex; flex-wrap: wrap; gap: var(--s1) 10px; margin: 6px 0 0; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
-.parts b { color: var(--fg); font-weight: var(--fw-semi); }
 .calc { white-space: nowrap; }
 .hint { font-size: var(--fs-sm); color: var(--muted); }
 /* t321: a "?" help. A 44 px target around a 22 px circle; its text is a native popover (the browser centres it; Esc and tap-outside close it). */
@@ -444,7 +431,6 @@ details.factor[open] > summary::after { content: '▴'; }
 .bid-sums p { display: flex; align-items: baseline; gap: var(--s2); }
 .bid-sums span { color: var(--muted); }
 .flash-bad { color: var(--error); } /* reduced motion: just red while .over lasts */
-@keyframes pick-pop { from { transform: scale(0.92); box-shadow: 0 0 0 0 var(--pick-ring); } to { transform: scale(1); box-shadow: 0 0 0 10px transparent; } }
 @keyframes live-pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.6); opacity: 0; } }
 @keyframes flash-bad { 50% { transform: scale(1.15); } }
 
@@ -457,7 +443,6 @@ details.factor[open] > summary::after { content: '▴'; }
   }
   /* Press fast, release with a small spring past rest. */
   :is(button, .button):active:not(:disabled) { transition-duration: var(--dur-press); transition-timing-function: var(--ease); }
-  .secondary.picked { animation: pick-pop var(--dur-pop) var(--ease-spring); }
   .dot::after { animation: live-pulse var(--dur-pulse) var(--ease-glide) infinite; }
   .more::after { transition: transform var(--dur) var(--ease); }
   .more:hover::after { transform: translateX(3px) rotate(45deg); }

@@ -9,7 +9,7 @@ import { fmt, record, shortRows, type OverallStanding } from '../lib/tournament'
  */
 export function RankList({ rows, membershipId, showLeague, linkable, short = false }: {
   rows: OverallStanding[]; membershipId: string; showLeague: boolean;
-  /** Membership ids whose names link to their team page (your own league's; other leagues' teams stay plain text). */
+  /** Membership ids whose rows open their team page, the name's link stretched over the row (rule 1): your own league's; other leagues' teams stay plain text. */
   linkable?: Set<string>;
   short?: boolean;
 }) {
@@ -26,12 +26,13 @@ export function RankList({ rows, membershipId, showLeague, linkable, short = fal
         {shown.map((r, i) => {
           if ('gap' in r) return <li key={`gap${i}`} className="gap">{r.gap} more {r.gap === 1 ? 'team' : 'teams'}</li>;
           const me = r.membershipId === membershipId;
+          const link = linkable?.has(r.membershipId);
           return (
-            <li key={r.membershipId} aria-current={me ? 'true' : undefined}>
+            <li key={r.membershipId} className={link ? 'row-target' : undefined} aria-current={me ? 'true' : undefined}>
               <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
               <span className="who">
                 <strong>
-                  {linkable?.has(r.membershipId) ? <Link className="team-link" to={`/team/${r.membershipId}`}>{r.team}{me && ' (you)'}</Link> : <>{r.team}{me && ' (you)'}</>}
+                  {link ? <Link className="team-link" to={`/team/${r.membershipId}`}>{r.team}{me && ' (you)'}</Link> : <>{r.team}{me && ' (you)'}</>}
                 </strong>
                 <small>{[showLeague && r.league, r.owner, record(r)].filter(Boolean).join(' · ')}</small>
               </span>

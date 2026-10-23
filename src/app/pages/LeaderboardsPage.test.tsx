@@ -143,6 +143,21 @@ describe('team links', () => {
     expect(screen.queryByRole('link', { name: 'Team a' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Flow' }).getAttribute('href')).toBe('#/team/m2');
   });
+
+  it('makes the whole standings row open the team', async () => {
+    render(<HashRouter><LeaderboardsPage /></HashRouter>);
+    expect((await screen.findByRole('link', { name: 'Flow' })).closest('li')!.classList.contains('row-target')).toBe(true);
+    expect(screen.getByRole('link', { name: 'Zeal (you)' }).closest('li')!.classList.contains('row-target')).toBe(true);
+    overall.leagues = 2;
+    overall.current = [
+      { membershipId: 'm2', team: 'Flow', owner: '', league: 'League A', points: 5, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 1, tied: false },
+      { membershipId: 'b1', team: 'Team a', owner: '', league: 'League B', points: 4, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 2, tied: false },
+    ];
+    cleanup();
+    render(<HashRouter><LeaderboardsPage /></HashRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
+    expect((await screen.findByText('Team a')).closest('li')!.classList.contains('row-target')).toBe(false); // opens nothing
+  });
 });
 
 describe('past tournaments', () => {
