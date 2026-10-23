@@ -22,6 +22,9 @@ vi.mock('../../lib/supabase', () => ({
             audit_log: DB.audit.filter((r) => !action || r.action === action).slice(from, to + 1),
             profiles: [{ id: 'u9', display_name: 'Ava Admin' }], memberships: [{ id: 'm1', team_name: 'Gimp Zeal' }],
             athletes: [{ id: 'a1', name: 'Sam Grossberg' }],
+            games: [{ id: 'g1', session_id: 'se1', number: 2, opponent: 'UNC', stages: { name: 'CCCs' } },
+              { id: 'g2', session_id: null, number: 3, opponent: null, stages: { name: 'CCCs' } }],
+            stages: [{ id: 'st1', name: 'CCCs' }],
           };
           const done = () => resolve({ data: data[table] ?? [], error: null });
           // A held Load more stays in flight until the test releases it.
@@ -111,6 +114,20 @@ describe('HistoryPanel', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(screen.queryByText('Delete stage', { selector: 'li span' })).toBeNull();
+  });
+
+  it('names games by number, opponent and tournament, and tournaments by name', async () => {
+    DB.audit = [
+      { ...mk(4, 'u9', 'save_taps'), entity: 'session', entity_id: 'se1' },
+      { ...mk(3, 'u9', 'start_game'), entity: 'game', entity_id: 'g2' },
+      { ...mk(2, 'u9', 'close_share_buying'), entity: 'stage', entity_id: 'st1' },
+      { ...mk(1, 'u9', 'verify_session'), entity: 'session', entity_id: 'gone' },
+    ];
+    render(<HistoryPanel />);
+    const items = await screen.findAllByRole('listitem');
+    expect(items.map((li) => li.querySelector('span')!.firstChild!.textContent)).toEqual([
+      'Tallied Game 2 vs UNC (CCCs)', 'Started Game 3 (CCCs)', 'Closed share buying for CCCs', 'Verify session',
+    ]);
   });
 
   it('never says bid or auction in the filter or a fallback row', async () => {

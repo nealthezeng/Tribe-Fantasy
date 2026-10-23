@@ -7,7 +7,7 @@ export interface AuditRow {
 export const AUDIT_ACTIONS = [
   'admin_set_share', 'admin_rename_team', 'rename_my_team', 'admin_set_display_name', 'admin_remove_user', 'grant_role', 'revoke_role',
   'adjust_credits', 'record_donation', 'open_auction', 'run_auction', 'open_tournament', 'set_game_count', 'reset_game', 'delete_stage',
-  'delete_league', 'delete_athlete', 'delete_season', 'set_out', 'clear_out',
+  'delete_league', 'delete_athlete', 'delete_season', 'set_out', 'clear_out', 'close_share_buying',
 ];
 
 /** Names for actions whose code name says "bid" or "auction", and the M14 ones, so the filter matches the rows. */
@@ -25,7 +25,14 @@ export function humaniseAction(action: string): string {
   return s[0].toUpperCase() + s.slice(1);
 }
 
-/** One plain-words line for an audit row. `names` maps athlete, membership and profile ids to names. */
+/** Rows about one game (entity_id = its game or session id) or one tournament (its stage id): verb + its name. */
+const NAMED: Record<string, string> = {
+  save_taps: 'Tallied', verify_session: 'Verified', start_game: 'Started', finish_game: 'Finished', reset_game: 'Undid',
+  reopen_session: 'Reopened', set_game_opponent: 'Named the opponent of', close_share_buying: 'Closed share buying for',
+};
+
+/** One plain-words line for an audit row. `names` maps athlete, membership, profile and stage ids to names, and game
+ *  and session ids to "Game 2 vs UNC (CCCs)". */
 export function describeAudit(r: AuditRow, names: Map<string, string>): string {
   const d = r.details;
   const str = (k: string) => (typeof d[k] === 'string' ? (d[k] as string) : null);
@@ -45,6 +52,9 @@ export function describeAudit(r: AuditRow, names: Map<string, string>): string {
     case 'set_out': return `Marked ${name('athlete', 'a player')} out from game ${Number(d.from_game) || 1}`;
     case 'clear_out': return `Cleared ${name('athlete', 'a player')}'s Out`;
     case 'set_game_count': return `Games: ${Number(d.from) || 0} → ${Number(d.to) || 0}`;
-    default: return humaniseAction(r.action);
+    default: {
+      const what = NAMED[r.action] && names.get(r.entity_id);
+      return what ? `${NAMED[r.action]} ${what}` : humaniseAction(r.action); // a game or tournament since deleted
+    }
   }
 }

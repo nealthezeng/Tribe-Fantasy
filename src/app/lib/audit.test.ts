@@ -39,3 +39,31 @@ describe('describeAudit', () => {
   });
 });
 
+
+describe('describeAudit game and tournament names', () => {
+  const game = 'Game 2 vs UNC (CCCs)';
+  const named = new Map([...names, ['g1', game], ['se1', game], ['st1', 'CCCs']]);
+  const at = (action: string, entity: string, entity_id: string) => describeAudit({ ...row(action, {}), entity, entity_id }, named);
+
+  it('names the game of a tally, verify, start, finish, undo, reopen and opponent row', () => {
+    expect(at('save_taps', 'session', 'se1')).toBe('Tallied Game 2 vs UNC (CCCs)');
+    expect(at('verify_session', 'session', 'se1')).toBe('Verified Game 2 vs UNC (CCCs)');
+    expect(at('reopen_session', 'session', 'se1')).toBe('Reopened Game 2 vs UNC (CCCs)');
+    expect(at('start_game', 'game', 'g1')).toBe('Started Game 2 vs UNC (CCCs)');
+    expect(at('finish_game', 'game', 'g1')).toBe('Finished Game 2 vs UNC (CCCs)');
+    expect(at('reset_game', 'game', 'g1')).toBe('Undid Game 2 vs UNC (CCCs)');
+    expect(at('set_game_opponent', 'game', 'g1')).toBe('Named the opponent of Game 2 vs UNC (CCCs)');
+  });
+  it('names the tournament whose share buying closed, and lists it in the filter', () => {
+    expect(at('close_share_buying', 'stage', 'st1')).toBe('Closed share buying for CCCs');
+    expect(AUDIT_ACTIONS).toContain('close_share_buying');
+  });
+  it("keeps today's words when the game or tournament is gone, never undefined", () => {
+    expect(at('save_taps', 'session', 'gone')).toBe('Save taps');
+    expect(at('reset_game', 'game', 'gone')).toBe('Reset game');
+    expect(at('close_share_buying', 'stage', 'gone')).toBe('Close share buying');
+    for (const a of ['verify_session', 'reopen_session', 'start_game', 'finish_game', 'set_game_opponent']) {
+      expect(at(a, 'game', 'gone')).toBe(humaniseAction(a));
+    }
+  });
+});

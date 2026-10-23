@@ -4,6 +4,7 @@ import { AUDIT_ACTIONS, describeAudit, humaniseAction, type AuditRow } from '../
 import { errorMessage } from '../../lib/errors';
 import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
+import { gameName } from '../../lib/words';
 
 const PAGE = 50;
 
@@ -16,15 +17,25 @@ async function page(action: string, from: number): Promise<AuditRow[]> {
   return (data ?? []) as AuditRow[];
 }
 
-/** Names come from the live tables (every season), so a removed team still shows its name. */
+type GameRow = { id: string; session_id: string | null; number: number; opponent: string | null; stages: { name: string } | null };
+
+/** Names come from the live tables (every season), so a removed team still shows its name. A game is named under its
+ *  game id and its session id ("Game 2 vs UNC (CCCs)"), as game and tally rows log one or the other. */
 async function loadNames(): Promise<Map<string, string>> {
   const sb = supabase!;
-  const [p, m, a] = await Promise.all([
+  const [p, m, a, g, s] = await Promise.all([
     sb.from('profiles').select('id, display_name'), sb.from('memberships').select('id, team_name'),
-    sb.from('athletes').select('id, name'),
+    sb.from('athletes').select('id, name'), sb.from('games').select('id, session_id, number, opponent, stages(name)'),
+    sb.from('stages').select('id, name'),
   ]);
-  for (const r of [p, m, a]) if (r.error) throw r.error;
+  for (const r of [p, m, a, g, s]) if (r.error) throw r.error;
+  const games = ((g.data ?? []) as unknown as GameRow[]).flatMap((x): [string, string][] => {
+    const n = x.stages ? `${gameName(x.number, x.opponent)} (${x.stages.name})` : gameName(x.number, x.opponent);
+    return x.session_id ? [[x.id, n], [x.session_id, n]] : [[x.id, n]];
+  });
   return new Map<string, string>([
+    ...games,
+    ...((s.data ?? []) as { id: string; name: string }[]).map((x): [string, string] => [x.id, x.name]),
     ...((p.data ?? []) as { id: string; display_name: string }[]).map((x): [string, string] => [x.id, x.display_name]),
     ...((m.data ?? []) as { id: string; team_name: string }[]).map((x): [string, string] => [x.id, x.team_name]),
     ...((a.data ?? []) as { id: string; name: string }[]).map((x): [string, string] => [x.id, x.name]),
