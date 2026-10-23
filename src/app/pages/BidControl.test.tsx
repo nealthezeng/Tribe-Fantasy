@@ -25,6 +25,14 @@ describe('BidControl', () => {
     expect(screen.getByText('Up to 6 players. Remove one first.')).toBeTruthy();
   });
 
+  it('shows the saved line it is given, in green words under the row', () => {
+    render(<BidControl athlete={athlete} bid={40} minBid={1} available={50} saved="Saved: 40 credits on Sam."
+      onOverBudget={vi.fn()} onSave={async () => {}} onRemove={async () => {}} />);
+    const line = screen.getByText('Saved: 40 credits on Sam.');
+    expect(line.tagName).toBe('SMALL');
+    expect(line.className).toBe('success');
+  });
+
   it('refuses a buy over what you have left: no save, flash, and a message', () => {
     const { onSave, onOverBudget, input } = setup(15);
     fireEvent.change(input, { target: { value: '16' } });

@@ -17,7 +17,7 @@ const db = vi.hoisted(() => ({
   athletes: [] as Row[],
   outs: [] as Row[],
   bids: [] as Row[],
-  credit_ledger: [{ amount: 115 }] as Row[],
+  credit_ledger: [] as Row[],
 }));
 /** Tables whose rows the card has read, in the order it read them. */
 const served = vi.hoisted(() => [] as string[]);
@@ -74,7 +74,7 @@ beforeEach(() => {
   db.athletes = [];
   db.outs = [];
   db.bids = [];
-  db.credit_ledger = [{ amount: 115 }];
+  db.credit_ledger = [allowance];
   vi.mocked(loadLeagueTournament).mockReset().mockResolvedValue(tournament());
   vi.mocked(api.placeBid).mockClear();
   vi.mocked(api.deleteBid).mockClear();
@@ -85,6 +85,9 @@ const openStage: AuctionStage = {
   auction_seed: null, auction_run_at: null,
 };
 const athlete = (id: string, name: string) => ({ id, name, user_id: null, opted_in: true });
+/** The team's free credits for the open stage. */
+const allowance: Row = { amount: 115, kind: 'allowance', stage_id: 's1', created_at: '2026-10-01T00:00:00Z' };
+const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
 
 function renderCard() {
   return render(
@@ -130,7 +133,9 @@ describe('AuctionCard', () => {
     renderCard();
     const help = await screen.findByRole('button', { name: 'How buying shares works' });
     expect(help.closest('.head')).toBeTruthy();
-    expect(help.nextElementSibling!.textContent).toContain('A player has 200 shares');
+    expect(help.nextElementSibling!.textContent).toBe('Your credits buy a slice of a player. Each player is 200 shares: '
+      + '40 credits buys 40 of them, so you own 20% and score 20% of his points. If teams put more than 200 credits on one '
+      + 'player, every slice shrinks to fit. Free credits arrive before each tournament; unspent ones carry over.');
   });
 
   it('shows the combined header with nothing bought yet, list open, no separate team card', async () => {
@@ -191,7 +196,7 @@ describe('AuctionCard', () => {
     await screen.findByText(/^Closes in/);
     const row = (n: string) => within(screen.getByText(n).closest('li')!);
     // The repeat data loads apart from the buy list: wait for it.
-    expect((await row('Ari Banks').findByText('×0.9')).getAttribute('aria-label')).toContain('Repeat factor ×0.9');
+    expect((await row('Ari Banks').findByText('×0.9')).getAttribute('aria-label')).toBe('started in an earlier tournament: 90%');
     expect(row('Bo Castellanos').queryByText(/^×/)).toBeNull();
   });
 
@@ -338,6 +343,68 @@ describe('AuctionCard', () => {
     expect(screen.getByLabelText('Credits for shares in Gone')).toBeTruthy();
     expect(screen.getByText('Opted out')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Remove Gone' })).toBeTruthy();
+  });
+
+  it("tells a team without this tournament's credits to ask an admin", async () => {
+    db.stages = [{ ...openStage, name: 'CCCs' } as unknown as Row];
+    db.credit_ledger = [{ ...allowance, stage_id: 's0' }]; // an earlier tournament's credits only
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.getByText('You joined after CCCs credits went out. Ask an admin to add yours.').className).toBe('notice');
+
+    db.credit_ledger = [allowance];
+    cleanup();
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.queryByText(/You joined after/)).toBeNull();
+  });
+
+  it('says when an admin added credits this week', async () => {
+    db.stages = [openStage as unknown as Row];
+    const adjustment = (amount: number, days: number): Row => ({ amount, kind: 'adjustment', stage_id: null, created_at: daysAgo(days) });
+    db.credit_ledger = [allowance, adjustment(115, 1)];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.getByText('An admin added 115 credits.').className).toBe('success');
+
+    for (const ledger of [[allowance, adjustment(115, 8)], [allowance, adjustment(-20, 1)]]) {
+      db.credit_ledger = ledger;
+      cleanup();
+      renderCard();
+      await screen.findByText(/^Closes in/);
+      expect(screen.queryByText(/An admin added/)).toBeNull();
+    }
+  });
+
+  it('confirms a saved buy on its row', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Ari Banks') as unknown as Row, athlete('b', 'Bo Castellanos') as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    fireEvent.change(screen.getByLabelText('Credits for shares in Ari Banks'), { target: { value: '40' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Buy' })[0]);
+    const saved = await screen.findByText('Saved: 40 credits on Ari Banks.');
+    expect(saved.tagName).toBe('SMALL');
+    expect(saved.className).toBe('success');
+    expect(saved.closest('li')!.textContent).toContain('Ari Banks');
+
+    // Until the next save anywhere.
+    fireEvent.change(screen.getByLabelText('Credits for shares in Bo Castellanos'), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Buy' }));
+    expect((await screen.findByText('Saved: 1 credit on Bo Castellanos.')).closest('li')!.textContent).toContain('Bo Castellanos');
+    expect(screen.queryByText('Saved: 40 credits on Ari Banks.')).toBeNull();
+  });
+
+  it('keeps a number typed in one row while another row saves', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [athlete('a', 'Alice') as unknown as Row, athlete('b', 'Bob') as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    fireEvent.change(screen.getByLabelText('Credits for shares in Alice'), { target: { value: '20' } });
+    fireEvent.change(screen.getByLabelText('Credits for shares in Bob'), { target: { value: '10' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Buy' })[1]);
+    await waitFor(() => expect(document.body.textContent).toContain('105 credits left of 115'));
+    expect((screen.getByLabelText('Credits for shares in Alice') as HTMLInputElement).value).toBe('20');
   });
 
   it('has no player-facing bid or auction wording while open', async () => {

@@ -12,9 +12,12 @@ import { api } from '../lib/rpc';
 import { fmt, lastTournamentForm, loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
-import { balance as sumLedger, credits } from '../lib/wallet';
+import { balance as sumLedger, credits, pct, type LedgerEntry } from '../lib/wallet';
 
 interface Athlete { id: string; name: string; user_id: string | null; opted_in: boolean }
+type LedgerRow = Pick<LedgerEntry, 'amount' | 'kind' | 'created_at'> & { stage_id: string | null };
+
+const WEEK = 7 * 86_400_000;
 
 /**
  * Share buying for one team, in the stage pickAuctionStage chooses: a card with a sticky header (players, credits
@@ -28,6 +31,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
 }) {
   // A refused buy's message shows on that player's row.
   const [error, setError] = useState<{ athleteId: string; text: string } | null>(null);
+  // A saved buy's confirmation shows on that player's row until the next save anywhere.
+  const [saved, setSaved] = useState<{ athleteId: string; text: string } | null>(null);
   const { data, error: loadError, reload } = useLoad(async () => {
     const st = await supabase!.from('stages').select(AUCTION_STAGE_COLUMNS).eq('season_id', seasonId);
     if (st.error) throw st.error;
@@ -42,7 +47,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
         .order('amount', { ascending: false }),
       // Fetched fresh (not passed as a prop) so a donation credited while the tab is open doesn't leave the client
       // refusing buys with a stale balance.
-      supabase!.from('credit_ledger').select('amount').eq('membership_id', membershipId),
+      supabase!.from('credit_ledger').select('amount, kind, stage_id, created_at').eq('membership_id', membershipId).order('created_at'),
     ]);
     for (const r of [season, athletes, bids, ledger]) if (r.error) throw r.error;
     const settings = parseSettings(season.data!.settings);
@@ -54,7 +59,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
       athletes: (athletes.data ?? []) as Athlete[],
       out: new Set(outs.keys()),
       bids: (bids.data ?? []) as BidRow[],
-      balance: sumLedger((ledger.data ?? []) as { amount: number }[]),
+      ledger: (ledger.data ?? []) as LedgerRow[],
     };
   }, [seasonId, leagueId, membershipId]);
 
@@ -86,17 +91,24 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
 
   if (loadError) return <p className="error" role="alert">{loadError}</p>;
   if (!data) return null; // loading, or no stage yet
-  const { stage, settings, minBid, rosterSize, athletes, out, bids, balance } = data;
+  const { stage, settings, minBid, rosterSize, athletes, out, bids, ledger } = data;
+  const balance = sumLedger(ledger);
   const phase = auctionPhase(stage, now);
   if (phase === 'closed') return <p className="notice">Buying closed for {stage.name}. Your players show here once the shares are settled.</p>;
   if (phase !== 'open') return null;
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);
+  // Joined after this tournament's credits went out (no allowance row for it); an admin's grant fixes it.
+  const late = !ledger.some((r) => r.kind === 'allowance' && r.stage_id === stage.id);
+  const newest = ledger.at(-1);
+  const added = newest?.kind === 'adjustment' && newest.amount > 0 && now - Date.parse(newest.created_at) < WEEK ? newest.amount : 0;
 
-  async function act(athleteId: string, action: () => Promise<void>) {
+  async function act(athleteId: string, action: () => Promise<void>, done?: string) {
     setError(null);
+    setSaved(null);
     try {
       await action();
+      if (done) setSaved({ athleteId, text: done });
     } catch (err) {
       if ((err as { message?: string } | null)?.message === 'INSUFFICIENT_CREDITS') overBudget();
       setError({ athleteId, text: errorMessage(err, String(rosterSize)) });
@@ -126,6 +138,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
           )}
         </div>
       </div>
+      {late && <p className="notice">You joined after {stage.name} credits went out. Ask an admin to add yours.</p>}
+      {added > 0 && <p className="success">An admin added {credits(added)}.</p>}
       {total > balance && (
         <p className="notice" role="alert">
           Buys are {credits(total - balance)} over your balance.
@@ -153,7 +167,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
                   <span className="meta">
                     {form ? <Link className="title" to={`/player/${a.id}?t=${form.stageId}`}>{a.name}</Link> : <span className="title">{a.name}</span>}
                     {factor < 1 && (
-                      <span className="pill warn" aria-label={`Repeat factor ×${factor}: you started them in an earlier tournament`}>×{factor}</span>
+                      <span className="pill warn" aria-label={`started in an earlier tournament: ${pct(factor)}`}>×{factor}</span>
                     )}
                     {out.has(a.id) && <span className="pill bad">Out</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}
@@ -164,7 +178,9 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
                       cap={bid === null && mine.length >= rosterSize ? rosterSize : undefined}
                       available={balance - total + (bid ?? 0)} onOverBudget={overBudget}
                       error={error?.athleteId === a.id ? error.text : null}
-                      onSave={(amount) => act(a.id, () => api.placeBid(stage.id, membershipId, a.id, amount))}
+                      saved={saved?.athleteId === a.id ? saved.text : null}
+                      onSave={(amount) => act(a.id, () => api.placeBid(stage.id, membershipId, a.id, amount),
+                        `Saved: ${credits(amount)} on ${a.name}.`)}
                       onRemove={() => act(a.id, () => api.deleteBid(stage.id, membershipId, a.id))} />
                   )}
                 </li>
@@ -202,7 +218,7 @@ function BidList({ open, loud, summary, children }: { open: boolean; loud: boole
   );
 }
 
-export function BidControl({ athlete, bid, minBid, available, cap, error = null, onOverBudget, onSave, onRemove }: {
+export function BidControl({ athlete, bid, minBid, available, cap, error = null, saved = null, onOverBudget, onSave, onRemove }: {
   athlete: Athlete; bid: number | null; minBid: number;
   /** Most this buy may be: your balance minus your other buys. */
   available: number;
@@ -210,6 +226,8 @@ export function BidControl({ athlete, bid, minBid, available, cap, error = null,
   cap?: number;
   /** The server's refusal of this row's last save or remove. */
   error?: string | null;
+  /** "Saved: 40 credits on Ari Banks." after this row's last save. */
+  saved?: string | null;
   onOverBudget: () => void; onSave: (amount: number) => Promise<void>; onRemove: () => Promise<void>;
 }) {
   const [value, setValue] = useState(bid === null ? '' : String(bid));
@@ -253,6 +271,7 @@ export function BidControl({ athlete, bid, minBid, available, cap, error = null,
         </small>
       )}
       {error && !over && <small className="error" role="alert">{error}</small>}
+      {saved && <small className="success" role="status">{saved}</small>}
     </form>
   );
 }

@@ -17,11 +17,13 @@ export function Help({ label, children }: { label: string; children: ReactNode }
 }
 
 export function SharesHelp({ settings: S }: { settings: SeasonSettings }) {
+  const m = S.min_shares;
+  // The worked example only holds at the default 200 shares.
+  const example = m === 200 ? '40 credits buys 40 of them, so you own 20% and score 20% of his points' : 'a credit buys a share';
   return (
     <Help label="How buying shares works">
-      Put credits on players to buy shares in them. A player has {S.min_shares} shares, or one per credit if the league puts more on them.
-      You own your credits' worth and score that part of their points. Every team gets free credits before each tournament,
-      and unspent ones carry over. A × by a name means you started them in an earlier tournament, so their points count less for you.
+      {`Your credits buy a slice of a player. Each player is ${m} shares: ${example}. If teams put more than ${m} credits `
+        + 'on one player, every slice shrinks to fit. Free credits arrive before each tournament; unspent ones carry over.'}
     </Help>
   );
 }
