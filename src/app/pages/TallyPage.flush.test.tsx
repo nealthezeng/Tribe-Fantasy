@@ -62,7 +62,7 @@ afterEach(() => {
 
 async function openBoard() {
   render(<MemoryRouter><TallyPage /></MemoryRouter>);
-  fireEvent.click(await screen.findByRole('button', { name: 'Tally' }));
+  fireEvent.click(await screen.findByRole('link', { name: /^Game 2 · / })); // its Open games row
   await screen.findByText('Alice');
 }
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseSettings } from '../../core/settings';
@@ -18,7 +18,14 @@ vi.mock('./GameControls', () => ({ GameControls: () => null }));
 vi.mock('./OutList', () => ({ OutList: () => <p>Out list</p> }));
 vi.mock('../lib/rpc', () => ({ api: { setOut: vi.fn(), clearOut: vi.fn() } }));
 
-const gone = vi.hoisted(() => ({ on: false, outs: [] as { athlete_id: string; from_game: number }[], owned: false, games: null as unknown[] | null }));
+const gone = vi.hoisted(() => ({
+  on: false, outs: [] as { athlete_id: string; from_game: number }[], owned: false, games: null as unknown[] | null,
+  sessions: null as unknown[] | null, current: null as unknown, // current = the hub's tournament (loadCurrentGame)
+}));
+vi.mock('../lib/tournament', async (orig) => ({
+  ...(await orig<typeof import('../lib/tournament')>()),
+  loadCurrentGame: () => Promise.resolve(gone.current),
+}));
 const DRILL = '00000000-0000-4000-8000-00000000d111';
 const session = (id: string, kind: string) => ({
   id, season_id: 'se', kind, held_on: '2026-11-07', counts: true, created_by: 'k1', verified_by: null, verified_at: null,
@@ -26,7 +33,7 @@ const session = (id: string, kind: string) => ({
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
-      const rows = table === 'sessions' ? [session('game', 'tournament'), session(DRILL, 'practice')]
+      const rows = table === 'sessions' ? gone.sessions ?? [session('game', 'tournament'), session(DRILL, 'practice')]
         : table === 'games' ? gone.games ?? [{ session_id: 'game', stage_id: 's1', number: 2 }]
         : table === 'athletes' ? [{ id: 'a0', name: 'A0' }, { id: 'a1', name: 'A1' }]
         : table === 'outs' ? gone.outs : table === 'roster_slots' ? (gone.owned ? [{ athlete_id: 'a0' }] : [])
@@ -51,6 +58,8 @@ afterEach(() => {
   gone.outs = [];
   gone.owned = false;
   gone.games = null;
+  gone.sessions = null;
+  gone.current = null;
   cleanup();
   localStorage.clear();
   delete document.documentElement.dataset.tally;
@@ -65,6 +74,31 @@ describe('TallyPage session list', () => {
     expect(screen.queryByText('New session')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
     expect(screen.getByText('Out list')).toBeTruthy(); // the Players out card sits on the list
+  });
+
+  it("lists only other tournaments' open games under Open games, titled with gameTitles, as rows", async () => {
+    const live = '00000000-0000-4000-8000-00000000a222'; // the current tournament's live game
+    gone.sessions = [session(live, 'tournament'), session('old', 'tournament')];
+    gone.games = [
+      { session_id: live, stage_id: 's1', number: 2, opponent: 'UNC', stages: { name: 'CCCs' } },
+      { session_id: 'old', stage_id: 's0', number: 4, opponent: 'Duke', stages: { name: 'Warmup' } },
+    ];
+    gone.current = { stage: { id: 's1', name: 'CCCs' }, games: [{ id: 'g2', session_id: live }, { id: 'g3', session_id: null }] };
+    storeQueue('k1', live, [{} as QueuedTap]); // its unsaved pill sits on its own row there too
+    render(<MemoryRouter><TallyPage /></MemoryRouter>);
+    const card = (await screen.findByText('Open games')).closest('.card')!;
+    const rows = [...card.querySelectorAll('.row-link')];
+    expect(rows.map((r) => r.textContent)).toEqual(['Game 4 vs Duke · Warmup']); // CCCs' games are on its own card
+    expect(rows[0].getAttribute('href')).toBe('/tally?game=old');
+  });
+
+  it('hides Open games when no other tournament has one', async () => {
+    gone.current = { stage: { id: 's1', name: 'CCCs' }, games: [{ id: 'g2', session_id: 'game' }] };
+    render(<MemoryRouter><TallyPage /></MemoryRouter>);
+    await screen.findByText('Out list');
+    await act(() => new Promise((r) => setTimeout(r, 0))); // the list's load lands
+    expect(screen.queryByText('Open games')).toBeNull();
+    expect(screen.queryByText('No open games.')).toBeNull();
   });
 
   it('still lists a practice session this phone holds unsaved taps for, so they can upload', async () => {

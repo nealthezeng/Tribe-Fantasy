@@ -1,19 +1,25 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import type { CurrentSeason } from '../lib/stats';
-import { describePairings, loadCurrentGame, seasonPairings } from '../lib/tournament';
+import { supabase } from '../lib/supabase';
+import { describePairings, loadCurrentGame, rowsOf, seasonPairings } from '../lib/tournament';
 import { useLoad } from '../lib/useLoad';
-import { gameName } from '../lib/words';
+import { gameName, rowStatus, type StatusWord } from '../lib/words';
 
 type Preview = Awaited<ReturnType<typeof seasonPairings>>;
 
+/** A status word; Live gets the red dot (P9 rule 5). */
+const said = (w: StatusWord) => (w === 'Live' ? <span className="live"><span className="dot" aria-hidden="true" />Live</span> : <span>{w}</span>);
+
 /**
- * Tournament controls on the tally screen (spec §2): Start game N on the session list, Finish game N on the live
- * game's board (and on the list, so a game whose session was deleted can still be finished). Finish shows the next
- * game's pairings first: they're frozen once confirmed. The games exist from the start (the admin sets the count), so
- * Finish on a non-last game pairs the next one that already exists; Finish on the last game just confirms and ends the
- * tournament. The list also holds the opponents list: one name field per game (t313).
+ * Tournament controls on the tally screen (spec §2). On the games list (the hub): the stage card with the current game,
+ * its status and the one gold action (Start game N, or Tally game N while it's live), a row per game of the stage, and
+ * the Opponents fold (one form for every game, t313). On the live game's board: Finish game N only. Finish shows the
+ * next game's pairings first: they're frozen once confirmed. The games exist from the start (the admin sets the count),
+ * so Finish on a non-last game pairs the next one that already exists; Finish on the last game just confirms and ends
+ * the tournament. A live game whose session was deleted has no board, so the list keeps its Finish.
  */
 export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }: {
   season: CurrentSeason;
@@ -21,10 +27,17 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   sessionId?: string;
   /** Unsaved taps per session: Finish waits until taps on this phone for the game's session are saved. */
   unsaved?: Map<string, number>;
-  /** On the session list: open a session's board. */
+  /** On the games list: open the board of the game Start just started. */
   onOpen?: (sessionId: string) => void;
 }) {
-  const current = useLoad(() => loadCurrentGame(season.id), [season.id]);
+  const current = useLoad(async () => {
+    const c = await loadCurrentGame(season.id);
+    // The list's status words need each game session's verified_at; the board needs none.
+    const ids = c && sessionId === undefined ? c.games.flatMap((g) => (g.session_id ? [g.session_id] : [])) : [];
+    const sessions = await rowsOf<{ id: string; verified_at: string | null }>(
+      ids.length ? supabase!.from('sessions').select('id, verified_at').in('id', ids) : null);
+    return c && { ...c, verified: new Map(sessions.map((s) => [s.id, s.verified_at])) };
+  }, [season.id, sessionId]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -53,17 +66,17 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   );
   const c = current.data;
   if (!c) return messages;
-  const { game, stage, games, count } = c;
+  const { game, stage, games, count, verified } = c;
   const n = game.number;
   const live = game.started_at !== null && game.finished_at === null;
   const over = game.finished_at !== null; // loadCurrentGame returns the last game once every game is finished
   const isLast = n === count;
   const title = gameName(n, game.opponent);
   const waiting = game.session_id ? unsaved.get(game.session_id) ?? 0 : 0;
-  if (sessionId !== undefined && !(live && game.session_id === sessionId)) return messages;
+  const word = (g: typeof game) => rowStatus({ ...g, verified_at: g.session_id ? verified.get(g.session_id) ?? null : null });
 
   const start = () => {
-    if (!window.confirm(`Start game ${n}? Every team's pick locks now.`)) return;
+    if (!window.confirm(`Start ${title.replace(/^Game/, 'game')}? Every team's picks for it lock now.`)) return;
     void run(async () => {
       const sid = await api.startGame(game.id);
       onOpen?.(sid);
@@ -86,66 +99,73 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
     done(next);
   });
 
-  const nameOpponent = (id: string) => (e: FormEvent) => {
+  const finishing = preview ? (
+    <div className="stack" role="group" aria-label={`Finish game ${n}`}>
+      <p><strong>Game {n + 1} pairings</strong></p>
+      {[...preview.league].map(([leagueId, leagueName]) => (
+        <p key={leagueId}>
+          {preview.league.size > 1 && <><small className="muted">{leagueName}</small><br /></>}
+          {describePairings(preview.pairings.filter((p) => p.league_id === leagueId), preview.team)}
+        </p>
+      ))}
+      <div className="row">
+        <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>Finish game {n}</button>
+        <button className="secondary" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
+      </div>
+    </div>
+  ) : <button disabled={busy || waiting > 0} onClick={finish}>Finish game {n}</button>;
+
+  if (sessionId !== undefined) {
+    return live && game.session_id === sessionId ? <div className="stack">{finishing}{messages}</div> : messages;
+  }
+
+  const changed = games.filter((g) => drafts[g.id] !== undefined && drafts[g.id] !== (g.opponent ?? ''));
+  const saveOpponents = (e: FormEvent) => {
     e.preventDefault();
     void run(async () => {
-      await api.setGameOpponent(id, drafts[id]);
-      setDrafts((d) => Object.fromEntries(Object.entries(d).filter(([k]) => k !== id)));
+      for (const g of changed) await api.setGameOpponent(g.id, drafts[g.id]);
+      setDrafts({});
     });
   };
 
   return (
-    <div className={sessionId === undefined ? 'card' : 'stack'} aria-label="Tournament game">
-      {sessionId === undefined && <h2>{stage.name} tournament</h2>}
-      {over && sessionId === undefined && !preview && <p>{stage.name} is over after game {n}.</p>}
-      {!live && !over && sessionId === undefined && (
-        <div className="head">
-          <span>{title} is next. Starting it locks every team's pick.</span>
-          <button disabled={busy} onClick={start}>Start game {n}</button>
-        </div>
-      )}
-      {live && !preview && (
-        <div className="head">
-          <span>
-            {game.session_id ? <>{title} is live.</> : <>{title}: its tally was deleted, so it won't count. Finish it to pair the next game.</>}
-          </span>
-          <span className="meta">
-            {sessionId === undefined && game.session_id && (
-              <button className="secondary" onClick={() => onOpen?.(game.session_id!)}>Tally game {n}</button>
-            )}
-            <button disabled={busy || waiting > 0} onClick={finish}>Finish game {n}</button>
-          </span>
-        </div>
-      )}
-      {sessionId === undefined && !preview && (
+    <>
+      <article className="card">
+        <p className="strip"><strong>{stage.name} · {title}</strong>{said(word(game))}</p>
+        {over && <p>{stage.name} is over after game {n}.</p>}
+        {!live && !over && <button disabled={busy} onClick={start}>Start game {n}</button>}
+        {live && game.session_id && <Link className="button" to={`/tally?game=${game.session_id}`}>Tally game {n}</Link>}
+        {live && !game.session_id && <><p>Its tally was deleted, so it won't count. Finish it to pair the next game.</p>{finishing}</>}
         <ul className="list">
-          {games.map((g) => (
-            <li key={g.id}>
-              <form className="row" onSubmit={nameOpponent(g.id)}>
-                <label>Game {g.number}<input maxLength={40} placeholder="e.g. Duke" value={drafts[g.id] ?? g.opponent ?? ''}
-                  onChange={(e) => setDrafts({ ...drafts, [g.id]: e.target.value })} /></label>
-                <button className="secondary" disabled={busy || drafts[g.id] === undefined}>Save</button>
-              </form>
-            </li>
-          ))}
+          {games.map((g) => {
+            const w = word(g);
+            const who = <span className="who"><b>{gameName(g.number, g.opponent)}</b><small>{said(w)}</small></span>;
+            // Not started, or its tally deleted: nothing to open, so no link and no chevron (rule 1).
+            if (!g.session_id || w === 'Not started') return <li key={g.id}><div className="row-link">{who}</div></li>;
+            const left = unsaved.get(g.session_id) ?? 0; // taps still on this phone: the board uploads them
+            return (
+              <li key={g.id}>
+                <Link className="row-link" to={w === 'Live' || left ? `/tally?game=${g.session_id}` : `/stats/${g.session_id}`}>
+                  {who}
+                  {left ? <span className="pill warn">{left} unsaved</span>
+                    : w === 'Finished · not verified' && <span className="pill warn">To verify</span>}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
-      )}
-      {preview && (
-        <div className="stack" role="group" aria-label={`Finish game ${n}`}>
-          <p><strong>Game {n + 1} pairings</strong></p>
-          {[...preview.league].map(([leagueId, leagueName]) => (
-            <p key={leagueId}>
-              {preview.league.size > 1 && <><small className="muted">{leagueName}</small><br /></>}
-              {describePairings(preview.pairings.filter((p) => p.league_id === leagueId), preview.team)}
-            </p>
+        {messages}
+      </article>
+      <details className="card">
+        <summary><h2>Opponents</h2></summary>
+        <form onSubmit={saveOpponents}>
+          {games.map((g) => (
+            <label key={g.id}>Game {g.number}<input maxLength={40} placeholder="Opponent" value={drafts[g.id] ?? g.opponent ?? ''}
+              onChange={(e) => setDrafts({ ...drafts, [g.id]: e.target.value })} /></label>
           ))}
-          <div className="row">
-            <button disabled={busy || waiting > 0} onClick={() => confirm(preview)}>Finish game {n}</button>
-            <button className="secondary" disabled={busy} onClick={() => setPreview(null)}>Cancel</button>
-          </div>
-        </div>
-      )}
-      {messages}
-    </div>
+          <button className="secondary" disabled={busy || changed.length === 0}>Save opponents</button>
+        </form>
+      </details>
+    </>
   );
 }

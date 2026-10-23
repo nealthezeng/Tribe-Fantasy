@@ -11,7 +11,7 @@ import {
 } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad } from '../lib/useLoad';
-import { loadOpenOuts } from '../lib/tournament';
+import { loadCurrentGame, loadOpenOuts } from '../lib/tournament';
 import { GameControls } from './GameControls';
 import { OutList } from './OutList';
 import {
@@ -43,6 +43,7 @@ function SessionPicker({ season, keeperId, onPick }: {
   // Taps still on this phone, so they're never stranded: their sessions are listed even once verified.
   const [unsaved] = useState(() => new Map(queuedSessions(keeperId).map((q) => [q.sessionId, q.count])));
   // Tournament games only (T4): practice tallying is retired. A non-game session shows up only to drain this phone's taps.
+  // The current tournament's games (unsaved taps too) are rows on GameControls' card: this card holds everything else.
   const sessions = useLoad(async () => {
     const open = `and(season_id.eq.${season.id},verified_at.is.null)`;
     const { data, error } = await supabase!.from('sessions').select(SESSION_COLUMNS)
@@ -50,8 +51,9 @@ function SessionPicker({ season, keeperId, onPick }: {
       .order('held_on', { ascending: false });
     if (error) throw error;
     const rows = (data ?? []) as SessionRow[];
-    const game = await gameTitles(rows.map((s) => s.id));
-    return rows.filter((s) => game.has(s.id) || unsaved.has(s.id)).map((s) => ({ ...s, game: game.get(s.id) ?? null }));
+    const [game, current] = await Promise.all([gameTitles(rows.map((s) => s.id)), loadCurrentGame(season.id)]);
+    const hub = new Set(current?.games.map((g) => g.session_id));
+    return rows.filter((s) => !hub.has(s.id) && (game.has(s.id) || unsaved.has(s.id))).map((s) => ({ ...s, game: game.get(s.id) ?? null }));
   }, [season.id, unsaved]);
 
   return (
@@ -59,23 +61,22 @@ function SessionPicker({ season, keeperId, onPick }: {
       <h1>Tally</h1>
       <GameControls season={season} onOpen={onPick} unsaved={unsaved} />
       <OutList season={season} />
-      <div className="card">
-        <h2>Open games</h2>
-        {!sessions.data && !sessions.error && <p className="muted" role="status">Loading…</p>}
-        {sessions.data?.length === 0 && <p className="muted">No open games.</p>}
-        <ul className="list">
-          {sessions.data?.map((s) => (
-            <li key={s.id}>
-              <span className="meta">
-                <span className="title">{s.game ?? sessionTitle(s)}</span>
-                {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
-              </span>
-              <button className={s.verified_at ? 'secondary' : ''} onClick={() => onPick(s.id)}>{s.verified_at ? 'Open' : 'Tally'}</button>
-            </li>
-          ))}
-        </ul>
-        {sessions.error && <p className="error" role="alert">{sessions.error}</p>}
-      </div>
+      {(sessions.error || !!sessions.data?.length) && (
+        <div className="card">
+          <h2>Open games</h2>
+          <ul className="list">
+            {sessions.data?.map((s) => (
+              <li key={s.id}>
+                <Link className="row-link" to={`/tally?game=${s.id}`}>
+                  <span className="who"><b>{s.game ?? sessionTitle(s)}</b></span>
+                  {unsaved.has(s.id) && <span className="pill warn">{unsaved.get(s.id)} unsaved</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {sessions.error && <p className="error" role="alert">{sessions.error}</p>}
+        </div>
+      )}
     </section>
   );
 }
