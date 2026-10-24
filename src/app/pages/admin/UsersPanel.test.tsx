@@ -101,17 +101,64 @@ describe('UsersPanel (M15 P9 T17)', () => {
   it('toggling a role checkbox grants or revokes it', async () => {
     render(<UsersPanel />);
     const alex = await open('Alex Kim');
-    fireEvent.click(alex.getByLabelText('Stat keeper'));
+    /** Taps a box once the row's last toggle has settled (boxes are disabled while one is in flight). */
+    const tap = async (label: string) => {
+      const box = alex.getByLabelText(label) as HTMLInputElement;
+      await waitFor(() => expect(box.disabled).toBe(false));
+      fireEvent.click(box);
+    };
+    await tap('Stat keeper');
     await waitFor(() => expect(api.revokeRole).toHaveBeenCalledWith('u1', 'stat_keeper'));
-    fireEvent.click(alex.getByLabelText('Treasurer'));
+    await tap('Treasurer');
     await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith('u1', 'treasurer'));
-    fireEvent.click(alex.getByLabelText('Admin'));
+    await tap('Admin');
     await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith('u1', 'admin'));
-    fireEvent.click((await open('Me Admin')).getByLabelText('Admin'));
+  });
+
+  it('confirms only before you untick your own admin box, and Cancel leaves it', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    render(<UsersPanel />);
+    const me = await open('Me Admin');
+    const box = me.getByLabelText('Admin') as HTMLInputElement;
+    fireEvent.click(box);
+    expect(confirm).toHaveBeenCalledWith("Remove your own admin role? You lose Admin right away and can't give it back yourself; another admin has to.");
+    expect(api.revokeRole).not.toHaveBeenCalled();
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
     await waitFor(() => expect(api.revokeRole).toHaveBeenCalledWith('me', 'admin'));
+    expect(confirm).toHaveBeenCalledTimes(2);
+  });
+
+  it("ticking your own boxes, and unticking someone else's admin, asks nothing", async () => {
+    vi.mocked(api.listUsers).mockResolvedValueOnce([{ ...ALEX, roles: ['admin'] }, ME]);
+    const confirm = vi.spyOn(window, 'confirm');
+    render(<UsersPanel />);
+    fireEvent.click((await open('Alex Kim')).getByLabelText('Admin'));
+    await waitFor(() => expect(api.revokeRole).toHaveBeenCalledWith('u1', 'admin'));
+    fireEvent.click((await open('Me Admin')).getByLabelText('Treasurer'));
+    await waitFor(() => expect(api.grantRole).toHaveBeenCalledWith('me', 'treasurer'));
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it("disables the row's role boxes while a toggle is in flight, so a second tap sends nothing", async () => {
+    let done!: () => void;
+    vi.mocked(api.grantRole).mockImplementationOnce(() => new Promise<void>((resolve) => { done = resolve; }));
+    render(<UsersPanel />);
+    const alex = await open('Alex Kim');
+    fireEvent.click(alex.getByLabelText('Treasurer'));
+    const boxes = alex.getAllByRole('checkbox') as HTMLInputElement[];
+    await waitFor(() => expect(boxes.every((b) => b.disabled)).toBe(true));
+    fireEvent.click(alex.getByLabelText('Treasurer'));
+    fireEvent.click(alex.getByLabelText('Stat keeper'));
+    expect(api.grantRole).toHaveBeenCalledTimes(1);
+    expect(api.revokeRole).not.toHaveBeenCalled();
+    done();
+    await waitFor(() => expect(boxes.every((b) => !b.disabled)).toBe(true));
+    expect(api.listUsers).toHaveBeenCalledTimes(2); // enabled again only once the reload landed
   });
 
   it('shows the sentence when the last admin cannot be revoked, in the opened row', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.mocked(api.revokeRole).mockRejectedValueOnce({ message: 'LAST_ADMIN' });
     render(<UsersPanel />);
     const me = await open('Me Admin');

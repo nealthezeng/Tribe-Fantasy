@@ -54,20 +54,33 @@ export function UsersPanel() {
   );
 }
 
-function Person({ u, reload }: { u: UserRow; reload: () => void }) {
+function Person({ u, reload }: { u: UserRow; reload: () => Promise<unknown> }) {
   const { session } = useAuth();
   const [name, setName] = useState(u.display_name ?? '');
   const [error, setError] = useState<string | null>(null);
+  // An action in flight, until its reload lands: the role boxes wait, so a box that snaps back isn't tapped twice.
+  const [busy, setBusy] = useState(false);
   const line = u.roles.length > 0 ? u.roles.map(roleWord).join(', ') : u.teams.map((m) => `${m.team} · ${m.league}`).join(', ');
 
   async function run(action: () => Promise<unknown>) {
     setError(null);
+    setBusy(true);
     try {
       await action();
-      reload();
+      await reload();
     } catch (err) {
       setError(errorMessage(err));
+    } finally {
+      setBusy(false);
     }
+  }
+
+  function toggle(role: Role, has: boolean) {
+    if (busy) return; // the disabled box already stops a tap; this stops a click a test (or a script) sends anyway
+    // Unticking your own admin has no undo: once you aren't an admin you can't give it back.
+    if (has && role === 'admin' && u.id === session?.user.id
+      && !window.confirm("Remove your own admin role? You lose Admin right away and can't give it back yourself; another admin has to.")) return;
+    void run(() => (has ? api.revokeRole(u.id, role) : api.grantRole(u.id, role)));
   }
 
   function rename(e: FormEvent) {
@@ -90,8 +103,7 @@ function Person({ u, reload }: { u: UserRow; reload: () => void }) {
               const has = u.roles.includes(role);
               return (
                 <label key={role} className="check">
-                  <input type="checkbox" checked={has}
-                    onChange={() => void run(() => (has ? api.revokeRole(u.id, role) : api.grantRole(u.id, role)))} />
+                  <input type="checkbox" checked={has} disabled={busy} onChange={() => toggle(role, has)} />
                   {roleWord(role)}
                 </label>
               );
