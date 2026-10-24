@@ -58,7 +58,7 @@ describe('usePoll', () => {
     expect(reload).toHaveBeenCalledTimes(2);
   });
 
-  it('never polls when off, and stops on unmount', () => {
+  it('never polls on a timer when off, and stops on unmount', () => {
     const reload = vi.fn();
     const off = render(<Poller reload={reload} on={false} />);
     act(() => { vi.advanceTimersByTime(45_000); });
@@ -68,5 +68,20 @@ describe('usePoll', () => {
     on.unmount();
     act(() => { vi.advanceTimersByTime(45_000); });
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('reloads when the tab shows again, polling or not', () => {
+    const reload = vi.fn();
+    const off = render(<Poller reload={reload} on={false} />);
+    setVisibility('hidden');
+    expect(reload).not.toHaveBeenCalled();
+    setVisibility('visible');
+    expect(reload).toHaveBeenCalledTimes(1);
+    act(() => { vi.advanceTimersByTime(45_000); });
+    expect(reload).toHaveBeenCalledTimes(1); // still no timer
+    off.unmount();
+    setVisibility('hidden');
+    setVisibility('visible');
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

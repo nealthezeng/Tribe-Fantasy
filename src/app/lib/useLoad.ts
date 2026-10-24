@@ -26,10 +26,28 @@ export function useLoad<T>(load: () => Promise<T>, deps: DependencyList) {
   return { data, error, reload };
 }
 
-/** `reload()` every `ms` while `on` and the tab is visible; at once when it becomes visible again; never otherwise. */
+/**
+ * `reload()` whenever the tab becomes visible again: a home-screen app back from another app (Messages, say) shows
+ * fresh data without a tab change (X11).
+ */
+export function useReloadOnShow(reload: () => void): void {
+  const latest = useRef(reload);
+  useEffect(() => { latest.current = reload; });
+  useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState === 'visible') latest.current(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+}
+
+/**
+ * `reload()` every `ms` while `on` and the tab is visible, and at once whenever the tab becomes visible again, polling
+ * or not (useReloadOnShow). No timer while `on` is false.
+ */
 export function usePoll(reload: () => void, on: boolean, ms = 15_000): void {
   const latest = useRef(reload);
   useEffect(() => { latest.current = reload; });
+  useReloadOnShow(reload);
   useEffect(() => {
     if (!on) return;
     let timer: ReturnType<typeof setInterval> | undefined;
@@ -37,9 +55,8 @@ export function usePoll(reload: () => void, on: boolean, ms = 15_000): void {
       clearInterval(timer);
       timer = document.visibilityState === 'visible' ? setInterval(() => latest.current(), ms) : undefined;
     };
-    const onVisibility = () => { if (document.visibilityState === 'visible') latest.current(); arm(); };
     arm();
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisibility); };
+    document.addEventListener('visibilitychange', arm);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', arm); };
   }, [on, ms]);
 }

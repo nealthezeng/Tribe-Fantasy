@@ -10,9 +10,11 @@ import { SharesHelp } from '../components/Help';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { fmt, lastTournamentForm, loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
+import { formatDay, todayLocal } from '../lib/stats';
 import { supabase } from '../lib/supabase';
-import { useLoad } from '../lib/useLoad';
+import { useLoad, useReloadOnShow } from '../lib/useLoad';
 import { balance as sumLedger, credits, pct, type LedgerEntry } from '../lib/wallet';
+import { fraction } from '../lib/words';
 
 interface Athlete { id: string; name: string; user_id: string | null; opted_in: boolean }
 type LedgerRow = Pick<LedgerEntry, 'amount'>;
@@ -60,6 +62,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
       ledger: (ledger.data ?? []) as LedgerRow[],
     };
   }, [seasonId, leagueId, membershipId]);
+  useReloadOnShow(reload); // no poll here: back from another app, a credited donation or a close shows (X11)
 
   // Re-render while buying is open so the countdown moves and the card flips to "closed" on time.
   const [now, setNow] = useState(Date.now);
@@ -92,10 +95,20 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
   const { stage, settings, minBid, rosterSize, athletes, out, bids, ledger } = data;
   const balance = sumLedger(ledger);
   const phase = auctionPhase(stage, now);
-  if (phase === 'closed') return <p className="notice">Buying closed for {stage.name}. Your players show here once the shares are settled.</p>;
+  const starts = stage.starts_on >= todayLocal() ? `${stage.name} starts ${formatDay(stage.starts_on)}.` : null;
+  if (phase === 'closed') {
+    return (
+      <p className="notice">
+        {`Buying closed for ${stage.name}. Once shares are settled, your players and game 1 picks show here.${starts ? ` ${starts}` : ''}`}
+      </p>
+    );
+  }
   if (phase !== 'open') return null;
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);
+  // Back-to-back picks score less (X4): the reason to buy a full roster, until you have one. No list = no tiredness.
+  const tired = settings.tiredness_multipliers[0] ?? 1;
+  const picks = settings.picks_per_game;
 
   async function act(athleteId: string, action: () => Promise<void>, done?: string) {
     setError(null);
@@ -132,6 +145,13 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
           )}
         </div>
       </div>
+      <p className="hint">{`${starts ? `${starts} ` : ''}Picks for game 1 open here once shares are settled.`}</p>
+      {tired < 1 && mine.length < rosterSize && (
+        <p className="hint">
+          {`You pick ${picks} player${picks === 1 ? '' : 's'} a game, and a player you picked for the game before scores `
+            + `${fraction(tired)}. Buying ${rosterSize} lets you rotate them.`}
+        </p>
+      )}
       {total > balance && (
         <p className="notice" role="alert">
           Buys are {credits(total - balance)} over your balance.
@@ -164,6 +184,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
                     {out.has(a.id) && <span className="pill bad">Out</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}
                     {perGame !== undefined && <small>{fmt(perGame)} a game</small>}
+                    {/* "up to": you see only your own buys, and more than min_shares on him shrinks every slice (X4). */}
+                    {bid !== null && <small>You own up to {pct(Math.min(1, bid / settings.min_shares))}</small>}
                   </span>
                   {a.user_id === userId ? <span className="muted">That's you</span> : (
                     <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}

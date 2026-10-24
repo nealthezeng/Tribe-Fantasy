@@ -118,7 +118,7 @@ describe('AuctionCard', () => {
     db.stages = [closedStage];
     const { container } = renderCard();
     await loaded();
-    expect(await screen.findByText('Buying closed for Fall. Your players show here once the shares are settled.')).toBeTruthy();
+    expect(await screen.findByText('Buying closed for Fall. Once shares are settled, your players and game 1 picks show here.')).toBeTruthy();
     expect(container.textContent!.match(/Buying closed/g)).toHaveLength(1);
     expect(loadLeagueTournament).not.toHaveBeenCalled();
   });
@@ -389,6 +389,76 @@ describe('AuctionCard', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Buy' })[1]);
     await waitFor(() => expect(document.body.textContent).toContain('105 credits left of 115'));
     expect((screen.getByLabelText('Credits for shares in Alice') as HTMLInputElement).value).toBe('20');
+  });
+
+  const TIRED = 'You pick 2 players a game, and a player you picked for the game before scores half. Buying 6 lets you rotate them.';
+
+  it('says why to buy a full roster while you have fewer than 6', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [1, 2, 3, 4, 5, 6, 7].map((i) => player(i));
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.getByText(TIRED).className).toBe('hint');
+
+    db.bids = [1, 2, 3, 4, 5, 6].map((i) => buy(i));
+    cleanup();
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.queryByText(TIRED)).toBeNull();
+
+    db.bids = [];
+    db.seasons = [{ settings: { tiredness_multipliers: [] } }];
+    cleanup();
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.queryByText(/a player you picked/)).toBeNull();
+  });
+
+  it('shows the most of a player each buy can own', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [player(1), player(2), player(3)];
+    db.bids = [buy(1, 40), buy(2, 250)];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    const row = (n: string) => screen.getByText(n).closest('li')!;
+    expect(within(row('P1')).getByText('You own up to 20%').tagName).toBe('SMALL');
+    expect(within(row('P2')).getByText('You own up to 100%')).toBeTruthy();
+    expect(row('P3').textContent).not.toContain('You own');
+  });
+
+  it('says when the tournament starts and when picks open while buying is open', async () => {
+    db.stages = [{ ...openStage, starts_on: '2099-10-24' } as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.getByText('Fall starts Sat, Oct 24. Picks for game 1 open here once shares are settled.').className).toBe('hint');
+
+    db.stages = [openStage as unknown as Row]; // started 2026-10-18, before today
+    cleanup();
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.getByText('Picks for game 1 open here once shares are settled.')).toBeTruthy();
+    expect(screen.queryByText(/Fall starts/)).toBeNull();
+  });
+
+  it('says what comes after buying closes', async () => {
+    db.stages = [{ ...closedStage, starts_on: '2099-10-24' }];
+    renderCard();
+    await loaded();
+    expect(await screen.findByText('Buying closed for Fall. Once shares are settled, your players and game 1 picks show here. '
+      + 'Fall starts Sat, Oct 24.')).toBeTruthy();
+  });
+
+  it('reloads when the app comes back on screen', async () => {
+    db.stages = [openStage as unknown as Row];
+    db.credit_ledger = [];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(document.body.textContent).toContain('credits left of 0');
+
+    db.credit_ledger = [allowance]; // credited while the phone was in another app
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await waitFor(() => expect(document.body.textContent).toContain('credits left of 115'));
   });
 
   it('has no player-facing bid or auction wording while open', async () => {
