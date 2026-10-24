@@ -154,11 +154,11 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
       </div>
       {g && them && mine && (
         <div className="score">
-          <ScoreSide label={upcoming ? 'Your picks' : 'You played'} y={y} athleteIds={minePlayers}
+          <ScoreSide label={upcoming ? 'Your picks' : 'Your starters'} y={y} athleteIds={minePlayers}
             picked={upcoming && wanted > 0 && minePlayers.length >= wanted && !doomed}
             score={mine.score} from={now?.from.mine} empty={upcoming ? 'No picks yet' : noStarters(mine)} lost={final && mine.result === 'L'} />
           <span className="vs">vs</span>
-          <ScoreSide label={upcoming ? 'Their picks' : 'They played'} y={y}
+          <ScoreSide label={upcoming ? 'Their picks' : 'Their starters'} y={y}
             athleteIds={upcoming ? [] : them.athleteIds} score={them.score} from={now?.from.them}
             empty={upcoming ? 'Hidden' : noStarters(them)} lost={final && mine.result === 'W'} />
         </div>

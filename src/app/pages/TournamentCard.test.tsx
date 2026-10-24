@@ -618,7 +618,7 @@ describe('TournamentCard', () => {
       await show({ ...r, settings: { default_pick: 'forfeit' }, picks: r.picks.filter((p) => p.membership_id === 'm2') });
       const opened = body(lines()[0]);
       expect(opened.querySelector('.stack > .stack')!.textContent).toContain('No starters');
-      expect(screen.getByText('You played').parentElement!.textContent).toContain('No starters'); // the scoreboard
+      expect(screen.getByText('Your starters').parentElement!.textContent).toContain('No starters'); // the scoreboard
       expect(screen.getByRole('region', { name: 'Starters' }).textContent).toContain('No starters');
       expect(document.body.textContent).not.toMatch(/forfeit|No players/i);
     });
@@ -751,7 +751,7 @@ describe('TournamentCard', () => {
       expect(within(strip()).getByText('Live')).toBeTruthy(); // the game's line says it too
       expect(scoreboard()?.textContent).toContain('Avery');
       expect(scoreboard()?.textContent).toContain('Quinn'); // revealed: the game has started
-      expect(scoreboard()?.textContent).toContain('They played');
+      expect(scoreboard()?.textContent).toContain('Their starters');
     });
 
     it('between tournaments, folds the last tournament under Earlier and keeps the record in the table (X1)', async () => {
