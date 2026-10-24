@@ -132,7 +132,7 @@ Player-facing glossary (clarify pass, board t115): a **season** is the league ye
 number and status word comes from `src/app/lib/words.ts` (M15 P9), so each reads the same on every page:
 
 - **Game names** (`gameName`): "Game 3", or "Game 3 vs UNC" once a keeper names the real opponent. Where the tournament
-  matters too (the tally bar, the tally's Open games) it follows: "Game 1 vs Duke · CCCs" (`gameTitles`). Only older
+  matters too (the tally bar, the tally's Unsaved taps) it follows: "Game 1 vs Duke · CCCs" (`gameTitles`). Only older
   practice sessions fall back to date · kind. "vs" is also the word between two scores ("6 vs 4.5"), never "to".
 - **Status words** (`statusWord` for League, `rowStatus` for Stats and tally rows): Not started, Live (the red `.live`
   dot and the word in caps), Finished · not verified, Final, Doesn't count (a started game whose tally was deleted). A
@@ -147,10 +147,12 @@ number and status word comes from `src/app/lib/words.ts` (M15 P9), so each reads
   keys come back in), while the tally board keeps its own button order (keepers' muscle memory). Every stat table has
   the legend under it: "G goals · A assists · D blocks · C callahans · T turnovers". A starter with no line reads "no stats yet" until the game is verified; after it, "didn't
   play" (no line) or "no stats" (a line of zeros).
-- **What a player counts for** (`factorWords`): share, rest and earlier tournaments in words, "20% · played game 1: ¾
-  points · earlier tournaments: 90%". Rest (`restWords`): "rested", or "played game {n}: half / ¾ / ¼ / 60% points";
-  when the season's tired steps repeat a value the game can't be told, so it says only "half points". The pick card
-  says "Your 20% · …". In a calculation the share is exact to 3 figures (`pctExact`): "6 × 12.5%".
+- **What a player counts for** (`factorWords`): share, rest and earlier tournaments in words, "20% · picked for game 1:
+  ¾ points · earlier tournaments: 90%". Rest (`restWords`): "full points", or "picked for game {n}: half / ¾ / ¼ / 60%
+  points"; when the season's tired steps repeat a value the game can't be told, so it says only "half points". Rest
+  names the fantasy pick, not the field: "picked" (an auto-pick is the app picking), where Round 1 said "played" and
+  "rested" (P9 R2-extra; the Rules page and the `?` say "picked" too). The pick card says "Your 20% · …". In a
+  calculation the share is exact to 3 figures (`pctExact`): "6 × 12.5%".
 
 Buttons say the action and its object ("Save settings", "Change close time", "Reopen tally", "Delete these stats").
 Errors say what happened and what to do; an unknown error shows its code only in brackets after that.
@@ -204,20 +206,23 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
 - **Buttons**: gold with dark text by default. `.secondary` is a soft borderless `--surface-2` fill. `.linklike` looks
   like a link. `.button` makes a link look like a button. Buttons in a stack sit at their natural width, left.
 - **`.danger-link`** (M15 P9): the admin's destructive actions (Undo game, Delete tournament, Delete league, Remove
-  account, Remove a player, Remove a share, Delete season) are red underlined words (`--error`, a 44px target), never a
-  filled button, each last in the sheet it belongs to, after the everyday actions. Not one: Remove password stays a
-  secondary button (adding a password undoes it), and the game page's "Delete these stats" is still a secondary button. Each keeps its confirm, except Remove a
-  share, which needs none (giving the share back undoes it). Disabled (your own account, a season name not typed yet)
-  it greys to `--muted` words. It never lifts or squeezes and keeps the text lettering, not the button lettering.
+  account, Remove a player, Remove a share, Delete season, and the game page's "Delete these stats") are red underlined
+  words (`--error`, a 44px target), never a filled button, each last in the sheet it belongs to, after the everyday
+  actions ("Delete these stats" is the game page's last control, after its cards). The exception: Remove password stays a
+  secondary button (adding a password undoes it) and has no confirm. Each `.danger-link` keeps its confirm, except
+  Remove a share, which needs none (giving the share back undoes it). Disabled (your own account, a season name not typed
+  yet) it greys to `--muted` words. It never lifts or squeezes and keeps the text lettering, not the button lettering.
 - **`.list`**: on the page, each row is its own bordered box (min 56px tall). Inside a `.card`, rows become
   plain rows split by divider lines, and so do the rows of a list opened inside a page row (`.list .list`: admin's
-  Later and Earlier tournaments open to their own rows). `li.used` greys the row's title (a "Used" pill says why).
+  Later and Earlier tournaments open to their own rows). Lines of a list inside an opened row (a wallet's ledger, the
+  pairing checks) drop the 56px minimum; row links in them keep it. `li.used` greys the row's title (a "Used" pill says
+  why).
 - **The row is the button** (M15 P9 rule 1): anything that opens something is one whole-row target with a drawn chevron
   at its end, never a small button beside a row. `.row-link` is that row as a link or a `summary`: 56px, a `.who` first
   (a bold `b` name over `small` lines), pills after, the chevron last (a summary's own chevron, turned down when open).
   In a `.list li` it fills the row. A row that opens nothing (a game not started, a full league) is the same markup on a
   plain `div`, with no chevron. Used by the Stats games, the team page's game, Join a league, the tally games list,
-  Open games and every admin row (see Admin). `.row-target` does it for a table or ranked-list row whose first link
+  Unsaved taps and every admin row (see Admin). `.row-target` does it for a table or ranked-list row whose first link
   must stay a plain name: the link's `::before` stretches over the row (so an `a.row-link` inside keeps its `::after` chevron) and the focus ring sits inset
   on it. In a stat table the sticky first cell stops the stretch, so `StatTable` also follows a plain tap anywhere in the
   row (not a modifier click, another button or the end of a text selection). Used by stat tables with a link and by
@@ -227,6 +232,11 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   donations, whose settings the numbers are), then six closed `details.card` folds, each `summary > h2`: The season, Credits and
   shares, Picks, Scoring, Standings points, Questions. Under 120 words show before the folds. Every number is derived from the
   season's settings (the defaults when signed out); the email timings and the 100 / 50-credit example stay literal text.
+  The Picks and Scoring folds say "picked" for the fantasy pick ("You last picked them", "Picking the same player every
+  tournament"; P9 R2-extra), with the auto-pick line "We pick for you: players who aren't out and you picked least
+  recently, then the ones scoring best lately". Standings points says beating a team above you pays more only when it
+  does (`upsetsWeigh`) and ends with the order: "Level on points, the team that scored more over all its games goes
+  first; level on both, they share the place."
 - **Banners**: the first-visit guide shows only on the League page, never on task screens like Tally.
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
   `.warn`, `.bad`.
@@ -251,7 +261,15 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   league), then Manage league and Leave. With no team this season, a keeper (admins included) sees the quiet line "You
   don't have a team this season." and a "Join a league" `.more` link; anyone else sees the "Get started" card (gold
   "Join a league", secondary "Create a league").
-- **Matchup** (`Matchup`): per team, the game that matters now (live, else next, else last played). Once that game
+- **Current tournament only** (P9 R2-extra): the League matchup, its strip, the games list's top group, the League poll
+  and the team page's game row and poll take their games from the tournament being played (`currentGames(y)`, the
+  games of `currentStageId`: the earliest tournament whose shares are settled and whose last day hasn't passed), so an
+  earlier tournament's game left live or not verified never stands in for today's. Between tournaments there is none:
+  the strip shows the league line and each earlier tournament the team played sits folded under "Earlier". (The
+  tally's own game, `loadCurrentGame`, is unchanged: an ended tournament's live game stays there until a later
+  tournament's shares are settled, so a keeper can finish it.)
+- **Matchup** (`Matchup`): per team, the game that matters now in the current tournament (live, else next, else last
+  played). Once that game
   pairs you, a `.display` headline "TEAM vs OPPONENT" (`--fs-matchup`, shrinks on phones; the page `h1` is `.sr-only`
   once you have a team). Each name (`.side`) links to its team page with a
   quiet `--line-strong` underline that goes solid on hover or focus, and has its owner's real name under it in small
@@ -261,8 +279,8 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   pulses) and LIVE, "Next up" for the game to come (the strip's own word for it), "Finished · not verified", or "Final"
   with **Won +1.5** / **Lost −1**; a held game adds its "counts once … is verified" note; while the numbers are
   unofficial, the word "unofficial" and the verified `?`. A `.pill.warn` "Your pick is out" shows when a pick of yours
-  won't play. No tournament name or dates in the strip. With no game to show it reads the league and season, "N teams"
-  and, before any game counts, "No games yet".
+  won't play. No tournament name or dates in the strip. With no game to show (between tournaments too) it reads the
+  league and season, "N teams" and, before any game counts, "No games yet".
 - **Scoreboard and starters**: for a paired game, a black `.score` scoreboard: "Your picks" / "Their picks" before the
   start, "You played" / "They played" after; first names in the display face before scores exist ("No picks yet"; theirs
   read "Hidden" until the start), `--fs-score` numbers after (the unofficial numbers while the game is live or not
@@ -274,19 +292,21 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   until the next change (the sign carries the meaning, not the colour). A verified game shows the same block without
   "unofficial". A side with no starters reads "No starters" (the scoreboard too), or "No players" when the team has no
   roster this tournament. Never "Forfeit": the core has no forfeit rule (an empty side scores 0 and can tie or win).
-- **Keeper's live game** (`LiveGame` in `HomePage.tsx`): while the current tournament has a started, unfinished game with
-  a tally, a keeper (admins included) sees a `.card` with the `.strip` "CCCs · Game 2 vs UNC" and the Live dot, then
+- **Keeper's live game** (`LiveGame` in `HomePage.tsx`): while the tally's game (the one on Tally's tournament card) is
+  started and unfinished and has a tally, a keeper (admins included) sees a `.card` with the `.strip` "CCCs · Game 2 vs UNC" and the Live dot, then
   "Tally game 2" to `/tally?game=<id>`: a gold button for a keeper with no team this season, a `.more` link otherwise
   (one gold button at a time). While it shows it refreshes (Live refresh), so it goes once the game is finished; a
   failed first load shows no card, a failed refresh keeps it.
 - **Pick card** (`PickGame`, `article.card` "Next game"; P9 rulings 5–7): the head `h2` "Pick 2 for game 3" (+ " vs UNC"
   once named), the `?` on a player's points and `strong.num` "1 of 2". Then one line: "You play Layout Legends." (the
   name links to its team page) or "Bye in game 3: no opponent, so your standings points don't change.", and the `.hint`
-  "Picks lock when a keeper starts game 3." While the game isn't paired yet you can still pick (it gets paired when
-  the game before it finishes): the line is only the hint, "You'll see who you play once game 2 ends. Picks lock when a
-  keeper starts game 3." (game 1 has just the lock sentence). Then every roster player A→Z as a `button.pick-row`, the
-  whole row the toggle (`aria-pressed`): the name (an Out `.pill.bad` if a keeper marked him out), under it small "Your
-  20% · played game 1: ¾ points" (`factorWords`, from the core's numbers, never the UI's), and a drawn ring at the end
+  "Picks lock when the stat keeper at the field starts game 3. No set time: pick early." (the lock rule itself is
+  unchanged: Start game locks every team's picks). While the game isn't paired yet you can still pick (it gets paired
+  when the game before it finishes): the line is only the hint, "You'll see who you play once game 2 ends. Picks lock
+  when the stat keeper at the field starts game 3. No set time: pick early." (game 1 has just the lock sentences). Then
+  every roster player A→Z as a `button.pick-row`, the whole row the toggle (`aria-pressed`): the name (an Out
+  `.pill.bad` if a keeper marked him out), under it small "Your 20% · picked for game 1: ¾ points" (`factorWords`, from
+  the core's numbers, never the UI's), and a drawn ring at the end
   that fills green (`--ok`, the name too) when picked; tap again to clear. With every slot full the other rows are off
   (muted) and a `.hint` says "You have 2 picks. Clear one to change."; an unpicked Out player's row is off too (a
   picked one stays on, so you can clear him). A save holds further taps until its reload lands and shows the new set as
@@ -298,29 +318,39 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   players this tournament, so you can't score."; a team that joined after the game was paired, "You joined after game 3
   was paired, so you start the game after it." There is no Tired pill and no bench.
 - **Buy shares card** (`AuctionCard`, while buying is open; between close and settling it is the single notice "Buying
-  closed for <tournament>. Your players show here once the shares are settled."; after settling the pick card lists the
-  roster). Credits are "credits left of N" in the sticky `.bid-header`, which reads "N of 6 players" with the shares `?`,
-  a `.pill.info` Closes pill and a "Get more credits" link to the Credits page. Once credits left drop
-  under 10% of the balance (or 2 minimum buys) that link becomes a gold button (t234). Under the header, buys over the
-  balance show an alert notice. Credits an admin grants or adds by hand arrive silently, and a team with 0 credits sees
+  closed for CCCs. Once shares are settled, your players and game 1 picks show here.", plus "CCCs starts Fri, Oct 23."
+  until its start day has passed; after settling the pick card lists the roster). Credits are "credits left of N" in the
+  sticky `.bid-header`, which reads "N of 6 players" with the shares `?`, a `.pill.info` Closes pill and a "Get more
+  credits" link to the Credits page. Once credits left drop under 10% of the balance (or 2 minimum buys) that link
+  becomes a gold button (t234). Under the header, first the rare alert notice for buys over the balance ("Buys are 20
+  credits over your balance.", an error before advice), then the `.hint` "CCCs starts Fri, Oct 23. Picks for game 1
+  open here once shares are settled." (the first sentence only until the start day has passed) and, while you have
+  fewer buys than a roster holds, the tiredness `.hint` "You pick 2 players a game, and a player you picked for the game
+  before scores half. Buying 6 lets you rotate them." (only when the season tires players and a game takes fewer picks
+  than a roster holds). The card has no poll, but it reloads when the app comes back on screen (`useReloadOnShow`), so
+  a credited donation or a close that passed while away shows at once. Credits an admin grants or adds by hand arrive
+  silently, and a team with 0 credits sees
   nothing extra: no late-joiner notice, no "an admin added" line, and no late-joiner prompt in Admin either (P9 Round
   2, the user's call). The list puts players you'd bought when the page loaded first; the order stays put while you buy (t237). A player row has the credits input
   and Buy / Save (and × to remove); at 6 players the other rows lock. After a save, that row shows `small.success` "Saved:
-  40 credits on Ari Banks." until the next save anywhere. A player you started in earlier tournaments carries a `.pill.warn`
-  "×0.9" (labelled "started in an earlier tournament: 90%"). "Buy shares" (`details.bid-cta`) reads as a full-width button:
+  40 credits on Ari Banks." until the next save anywhere. Each of your buys adds a small "You own up to 20%" (credits ÷
+  the player's shares, at most 100%: you see only your own buys, and when the league puts more than his shares on him
+  every slice shrinks, hence "up to"). A player you picked in earlier tournaments carries a `.pill.warn` "×0.9"
+  (labelled "picked in an earlier tournament: 90%"). "Buy shares" (`details.bid-cta`) reads as a full-width button:
   solid gold before your first buy (`.loud`), gold-outlined after. Open, it's a plain fold header. Above the rows a `.hint`
   "Points a game at <tournament>, the last tournament. Tap a name for game by game." (the last tournament = the most recent
   other tournament with a final game; no such tournament, no line and the names stay plain); each name links to
   `/player/<id>?t=<stage>` and, under it, a small "N a game" (that tournament's average, a game without his line counting 0;
   nothing for a player with no lines, never "0").
-- **League table** (`LeagueTable`; rule 6, show the league): an `article.card` titled with the league's name, a "Full
-  table" `.more` link to Leaderboards, and the short ranked list (`RankList short`, the `.ranks` look below): the top 3,
+- **League table** (`LeagueTable`; rule 6, show the league): an `article.card` titled with the league's name, the `?`
+  "How the table is ordered" and a "Full table" `.more` link to Leaderboards, and the short ranked list (`RankList short`, the `.ranks` look below): the top 3,
   plus your row and the rows just above and below it; each skipped run is one gap row "N more teams". Every row opens
-  its team. Before any game counts the card shows only "Standings start after the first game." (no rows, no Full table).
+  its team. Before any game counts the card shows only "Standings start after the first game." (no rows, no `?`, no
+  Full table).
   It replaced the Place / Record / Points tiles.
 - **Games** (`GameList`; rule 4, one line per game, grouped by tournament): a `section.card` with `h2` "Games". First
-  the current tournament (the one the next game is in, else the newest with a started game) under its name as a plain
-  label, every game of it on one `.game-line`: the number in the display face; both teams with their scores
+  the current tournament (the one being played, see Current tournament only; none between tournaments) under its name
+  as a plain label, every game of it on one `.game-line`: the number in the display face; both teams with their scores
   right-aligned, yours first and the loser muted (or "Bye", "Not playing", "Not paired yet"), with a small "vs Duke" and
   any held note under them; and at the end the state: the status word (Live with its dot, "unofficial" under it while the
   numbers are) or, for the next game while you have picks to make, gold "Pick 2" (`--gold-text`; it reads "Not started"
@@ -354,12 +384,18 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
 - **`?` help** (`Help.tsx`, `.help`): a 44px target around a 22px `--surface-2` circle (a hairline `--line-strong` ring in
   light mode), opening `.help-pop`, a native `popover`
   with the notice's raised shadow (the browser centres it in the top layer; Esc or a tap outside closes it; nothing positions it, so it never overflows at 375px).
-  Three texts, every number from the season's settings: **shares** ("How buying shares works": credits buy a slice of a
+  Four texts, every number from the season's settings: **shares** ("How buying shares works": credits buy a slice of a
   player, each player is N shares, slices shrink to fit when teams put in more, free credits each tournament carry over)
   in the Buy shares head; **a player's points** ("How a player's points count": you score your share of his points, the
   tired steps as "half" and "¾", and how much each earlier tournament takes off, down to the floor, sampled after any
-  free ones, "The first 2 earlier tournaments you started him in are free; each one after …"; no such sentence when
-  earlier tournaments take nothing off) in the pick card head and beside "Players" on the team page; **unofficial and
+  free ones, "If he was picked for the game before, they count half", "The first 2 earlier tournaments he was picked in
+  are free; each one after …"; no such sentence when earlier tournaments take nothing off) in the pick card head and
+  beside "Players" on the team page; **standings order** ("How the table is ordered", P9 R2-extra; at the defaults "A
+  win adds about 3 standings points and a loss takes away about 1: beating a team above you adds more, losing to one
+  takes away less. A tie gives each team +1. Level on points, the team that scored more over all its games goes first;
+  level on both, they share the place (T2)."; "about" and the upset clause only when results weigh by place,
+  `rank_weighted` with an upset factor above 0, `upsetsWeigh`) beside the League table's heading and Leaderboards'
+  "Standings", only once a game counts; **unofficial and
   verified** ("What unofficial and verified mean": keepers tap live so scores move, a second keeper checks them and
   then they're final, a final game can be reopened for N hours, a sentence dropped when N is 0) after "unofficial" in
   the League strip, at the end of the Stats live strip, and beside the Stats "Games" heading while a game there reads
@@ -368,9 +404,10 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   on the League tab (same `.team-switch`, same remembered choice), titled by the team name. Each card is always open, the balance as the big number in its head. A green
   `.success` thanks a donation from the last week while it's the newest entry. "Donate for more": `.amounts` chips
   $5 / $10 / $20 with the credits under each (the chosen one baby blue, a selection, t238), one full-width gold
-  `.button.go` "Donate $N on Venmo", and **right under it the terms** (a donation to the team fund, no cash value,
-  can't be refunded, no guaranteed prize: read before paying, t233). Then `.team-code`, "Venmo note: TribeF - CODE" beside Copy code, whose message is a `role="status"`. Credit history is a folded `.section`. With donations
-  off, the card is the balance, the terms and the history.
+  `.button.go` "Donate $N on Venmo", and **right under it the terms**, word for word "Donation to the team fund. No cash
+  value, no refunds, no guaranteed prize." (read before paying, t233). Then `.team-code`, "Venmo note: TribeF - CODE"
+  beside Copy code, whose message is a `role="status"`. Credit history is a folded `.section`. With donations off, the
+  card is the balance, the line "Credits are free and have no cash value." (P9 R2-extra) and the history.
   Under it, while the season takes donations, a **Donors** card: the season's donors across all leagues, biggest
   total first, as a plain divided `.list` of "N. Name … $X" (not `.ranks`: no standings place; equal totals list by name), "(you)"
   muted on your row, "Anonymous" for hidden names, then a "Show me as Anonymous" `label.check` that flips at once and
@@ -383,27 +420,31 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   the final games, byes included, ties by total score), or "No results yet." when no game counted. No per-game list.
 - **Team page** (`TeamPage`, `/team/:membershipId`): the team name as the `h1` with a back link at the head's end ("←
   Back" when opened from another page of the app, "← Leaderboards" when opened directly), the owner and league ("Maya
-  Lin · League A") under it. Then the team's game that matters now (its live game, else its next) as one row: "Game 2 vs
+  Lin · League A") under it. Then the team's game that matters now (its live game in the current tournament, else its
+  next) as one row: "Game 2 vs
   Gimp Zeal" (the team it plays), the scores "0.45 vs 1.35" (" · unofficial" while not verified), "Bye", or the real
   opponent as a small "vs Duke", and the status word at the end; once the game has a tally the row is a `.row-link` to its
   game page, before that a plain row. Then `h2` "Players" with the `?` on a player's points, and its players A→Z as
-  `.list` rows: the name and small "15% · played game 1: half points" (`factorWords` for the next game). No picks,
+  `.list` rows: the name and small "15% · picked for game 1: half points" (`factorWords` for the next game). No picks,
   credits or prices. No next game: "No tournament on. Players show once the next tournament's shares are settled."
   No roster: "No players this tournament." A removed team reads "(removed)" and "No players." Only that league's
   members (current season) and staff can open it; anyone else, an unknown id or a malformed one sees "You can only see
   teams in your league." with a Leaderboards link. It loads the live game's taps and refreshes while any paired game
-  of its league is live (not only its own); a failed refresh keeps the page under the error.
+  of its league's current tournament is live (not only its own); a failed refresh keeps the page under the error.
 - **Team links**: a team name links to its page from standings rows (the whole row; in All leagues only your own
   league's rows), the League tab's short table, past-tournament rows, both names in the League matchup headline and
   "You play X" on the pick card. Not game lines. Links inherit the text colour and underline on hover and focus.
 - **Standings** (`.ranks`, on Leaderboards): a ranked list. Rank and points in the display face, the rank muted and yours in
-  `--gold-text`; the team with its owner's real name and record under it ("Maya Lin · 2–1"; "League · Maya Lin · 2–1" in All leagues). A `.segmented` [league]
-  [All leagues] toggle shows only when the season has 2+ leagues. Before a verified game this league was paired in (a bye counts) the card shows only "Standings start after the first game." (no rows, no
+  `--gold-text`; the team with its owner's real name and record under it ("Maya Lin · 2–1"; "League · Maya Lin · 2–1" in All leagues). The
+  `h2` "Standings" has the `?` "How the table is ordered" beside it, and a `.segmented` [league]
+  [All leagues] toggle shows only when the season has 2+ leagues. Before a verified game this league was paired in (a bye counts) the card shows only "Standings start after the first game." (no rows, no `?`, no
   toggle); this overturns t239, "a leaderboard from day one", per the M15 spec (§5.7). A long list keeps the top 5, everyone tied with 5th and your row,
   and only cuts when that hides 4+ teams: each skipped run is a visible gap row "N more teams", and a secondary "Show all
-  N teams" opens the rest. Ties list by team name. A row you can open is a `.row-target`: the whole row opens the team.
-- **Join a league** (`LeaguesPage`, `/leagues`): one `.card` list of the current season's leagues (a "Search leagues"
-  field once there are more than 6). Each row names its members by first name and counts the teams: "Maya, Gabe, Rory
+  N teams" opens the rest. The order is standings points, then total score; level on both is a shared place ("T2"),
+  and ties list by team name. A row you can open is a `.row-target`: the whole row opens the team.
+- **Join a league** (`LeaguesPage`, `/leagues`): with 2+ leagues, the `.hint` "Every league uses the same players and
+  plays on its own. Join the one your friends are in." under the `h1` (all leagues are equal; there is no main league),
+  then one `.card` list of the current season's leagues (a "Search leagues" field once there are more than 6). Each row names its members by first name and counts the teams: "Maya, Gabe, Rory
   and 2 more · 5 of 12" (just "0 of 12" with no names), with a "Password" pill when it has one. A league you can join is a
   `details` whose `summary.row-link` opens the form in the row ("Your team name", Password if needed, gold "Join League
   A"; one open at a time). A league you're in ("Joined", `.pill.ok`) or a full one ("Full") is a plain row with no
@@ -450,17 +491,23 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   the status word (plus a "Not counted" pill for a session that doesn't count). While the game is live or not verified,
   members see its unofficial lines in a "Stats unofficial" card (refreshing). A verified game shows its "Stats" table,
   with Reopen tally (keepers, within the lock hours) or Correct a stat line (admins, once locked). Keepers on an open game
-  see "Totals to verify", "Counted once" merges, a "Tallied by …" fold per keeper, Verify these totals (or the notice
-  "Another keeper must verify." if they tapped it), and "Back to tallying". The rows of the live, verified and to-verify tables open the player page.
-  Admins get "Delete these stats" (confirmed).
+  see "Totals to verify", "Counted once" merges, a "Tallied by …" fold per keeper, Verify these totals (or, if they
+  tapped a stat in it, the notice "You tallied this game, so you can't verify it. A keeper who didn't tally it can, or
+  an admin."; an admin sees Verify even after tallying, as `verify_session` allows), and "Back to tallying". The rows of
+  the live, verified and to-verify tables open the player page. Admins get "Delete these stats" as the page's last
+  control, a `.danger-link` (confirmed: "Delete all stats for Game 1 vs Duke · CCCs? Past results and standings can
+  change. This can't be undone.").
 - **Stats outside a league**: a signed-in account that can't read league data (no league, or athlete-only; checked with
   `can_read_league_data()`) sees the `h1` and "Join a league to see stats." with a "Join a league" button to `/leagues`: no
   switcher, table, live strip or games. While the check is unknown the page is loading; if the check fails the usual page shows.
-- **Live refresh**: reload every 15 s while the tab is visible, at once when it becomes visible again, keeping the old
-  numbers on screen until the new ones arrive (a failed refresh shows the error above what is already there): the League
-  tab (while any of the league's games is live or not verified and has pairings), Stats and the player page (while a
-  shown game is started and unverified), a game page for members (while it shows live lines) and a team page (while its
-  league has any paired live game), and the keeper's live-game card on League (while it shows). Nothing else polls.
+- **Live refresh**: reload every 15 s while the tab is visible, keeping the old numbers on screen until the new ones
+  arrive (a failed refresh shows the error above what is already there): the League tab (while any of the current
+  tournament's games is live or not verified and has pairings), Stats and the player page (while a shown game is
+  started and unverified), a game page for members (while it shows live lines) and a team page (while its league's
+  current tournament has any paired live game), and the keeper's live-game card on League (while it shows). Nothing
+  else polls. Each of these also reloads at once whenever the tab becomes visible again, polling or not (`usePoll`;
+  P9 R2-extra: a home-screen app back from another app shows fresh data without a tab change), and so does the Buy
+  shares card, which never polls (`useReloadOnShow`). There is no "Updated" label.
 
 ## Tally board
 
@@ -472,13 +519,16 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   A failed Start, Finish or load shows its error right under that action line. Under it one `.row-link` per game of the tournament, "Game 1 vs Duke" over its status word: a live game, or one with
   this phone's unsent taps (a "2 unsaved" pill), opens its board; a finished one opens its game page, with a
   "To verify" pill while it isn't verified; a game not started (or whose tally was deleted) opens nothing. Then the
-  closed `details.card` "Opponents": one form, a "Game k" field (placeholder "Opponent") for every game, started or
-  not, and one secondary "Save opponents" that saves the changed ones (a failed save shows its error in this fold,
-  under the button). Then "Out · <stage>" for marking before a tournament: rows "name · from game N" with Clear,
-  "Nobody is out." when empty, then a Player select and a secondary "Mark out". No confirms: Mark out and Clear undo
-  each other. Last, "Open games": other tournaments' unverified games and any other session with this phone's taps, as
-  rows to their boards; the current tournament's games (unsent taps included) sit on the tournament card instead. It
-  hides when empty.
+  closed `details.card` "Opponents": the `OpponentsForm` (the same form as Admin › Tournaments' Games and count), a
+  "Game k" field (placeholder "Opponent") for every game, started or not, and one secondary "Save opponents" that saves
+  the changed ones (an emptied box clears the name). The boxes lock while it saves; then `small.success` "Opponents
+  saved." sits by the button until the next edit, or a failed save shows its error under it and keeps every box's text;
+  either way the games reload, so the names that did save show. Then "Out · <stage>" for marking before a tournament:
+  rows "name · from game N" with Clear, "Nobody is out." when empty, then a Player select and a secondary "Mark out".
+  No confirms: Mark out and Clear undo each other. Last, "Unsaved taps" (P9 R2-extra; it was "Open games"): only the
+  sessions this phone still holds taps for, outside the tournament card, as rows to their boards with the "2 unsaved"
+  pill, so they can upload. It hides when empty. An earlier tournament's open game gets no board link on Tally any
+  more: it opens from Stats, and admins get the stuck-game warning.
 - **The bar**: a sticky `.tally-bar` in two rows: "← Games" and the game's name ("Game 4 vs Wake Forest · CCCs"), then
   the sync pill (Saved ✓ / Saving · 2 unsaved / Offline · 2 unsaved, in words) and a "Bright board" checkbox
   (`label.check`, `--check`). "← Games" opens the games list as a new history entry, so Back from it (or from a page
@@ -494,7 +544,9 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   label on top, the count large in the middle and the points small below. They are not gold; gold is only the press flash.
   "On your team" (a plain pill) greys a keeper's own players' buttons: another keeper tallies them.
 - Negative stats use a dashed border so the difference is not colour alone.
-- Tally buttons never animate. A tap must show instantly, even when other buttons fade.
+- Tally buttons never animate. A tap must show instantly, even when other buttons fade: the count and the sync pill
+  change in the tap's own render, before it is saved (a test pins it). The ~1 s lag testers saw in the sim (P9
+  R2-extra) is most likely the sim's in-page database; the user checks taps on a real phone against the live site.
 - The board is bright by default for daylight (see Colour). The "Bright board" checkbox switches it at once, with
   nothing fading, and the phone remembers the choice (`tribe.tally.bright`).
 - The Out control sits apart in the card header, never among the stat tiles: "Mark out", or an "Out" `.pill.bad` with
@@ -549,13 +601,16 @@ a time (M15 P9 Round 2).
   the card is secondary (Change close time while buying is open). Close buying now confirms "Close buying for CCCs now?
   Teams can't buy or change shares after this, and it can't be reopened."; Settle confirms that it runs once; Grant
   allowance asks first while earlier games aren't final; a past closing time is refused before any confirm. Each
-  result or error shows inside its tournament ("CCCs: credited 6 teams."). Below the card, `h2` "Later" (tournaments
+  result or error shows inside its tournament ("CCCs: credited 6 teams."; Open tournament's "CCCs: game 1 is paired.
+  Set opponents under Games and count; keepers start it from Stats → Tally."). Below the card, `h2` "Later" (tournaments
   made ahead of time) and `h2` "Earlier" (over ones), newest first, one row each: the name and dates and, for an over
   one, "Finished" or a `.pill.warn` "Game 4 live"; a row opens to the same steps with no gold button. Each tournament
   ends with its rows: **Games and count** ("5 games · 2 opponents not set"; on the tournament being played the Games
   field with Save count, never below the highest started game, raising an over tournament confirms the new game's
-  pairings and lowering doesn't; a `.more` "Opponents are set on Tally"; and, on that tournament, "Undo game 2" (its
-  newest started game) last), **Pairings** (Check
+  pairings and lowering doesn't; on every tournament with games, the Tally hub's `OpponentsForm` (P9 R2-extra, replacing
+  the `.more` "Opponents are set on Tally"), so an admin can also fix an earlier tournament's names, with "Opponents
+  saved." by its Save opponents and the row's "{n} opponents not set" refreshed after; and, on that tournament, "Undo
+  game 2" (its newest started game) last), **Pairings** (Check
   pairings re-runs each Finish's Swiss pairing against the standings it was made from) and **Name and dates** (Save
   tournament; "Delete tournament" last). The "Add a tournament" fold comes last, open while the season has none and
   gold only while no tournament is in progress.
@@ -615,7 +670,7 @@ a time (M15 P9 Round 2).
 - **The row is the button** (rule 1): see `.row-link` and `.row-target`. **One line per game, grouped by tournament**
   (rule 4): League games, Stats games and the tally list. **Status is a word and a dot** (rule 5) and **say it the way
   people count** (rule 3): see Words. **Show the league** (rule 6): the League tab's short table.
-- **Destructive actions come last, in red words** (`.danger-link`, admin; the exceptions are under `.danger-link`),
+- **Destructive actions come last, in red words** (`.danger-link`, admin; the one exception is under `.danger-link`),
   each with its confirm or an undo (doing it again).
 - **Text on gold is always `--on-gold`.** Links and focus are baby blue (`--link`).
 - **Depth**: floating panes (cards, the scoreboard, the account menu, the sticky buy-shares header and the admin
