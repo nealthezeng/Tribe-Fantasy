@@ -203,11 +203,11 @@ export function ManageLeague({ league, onChanged, children }: { league: LeagueLi
       <div className="section">
         {children}
         {league.teams === 1 ? (
-          <button className="secondary" disabled={busy} onClick={() => {
+          <button className="danger-link" disabled={busy} onClick={() => {
             if (!window.confirm(`Delete ${league.name}? Your team and its credits go with it. This can't be undone.`)) return;
             void act(() => api.deleteLeague(league.id), 'Deleted.');
           }}>Delete league</button>
-        ) : <p className="muted">{isAdmin ? 'Delete it from Admin → Leagues.' : 'Only an admin can delete a league others have joined.'}</p>}
+        ) : <p className="muted">{isAdmin ? 'Delete it from Admin › Teams › Leagues.' : 'Only an admin can delete a league others have joined.'}</p>}
       </div>
       {msg && <p className="success" role="status">{msg}</p>}
       {error && <p className="error" role="alert">{error}</p>}

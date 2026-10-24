@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api, type LeagueListing } from '../lib/rpc';
 import { CreateLeaguePage, LeagueLeave, LeaguesPage, ManageLeague } from './LeaguesPage';
 
-vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false }) }));
+const auth = vi.hoisted(() => ({ isAdmin: false }));
+vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false, isAdmin: auth.isAdmin }) }));
 vi.mock('../lib/rpc', () => ({ api: {
   listLeagues: vi.fn(),
   joinOpenLeague: vi.fn(() => Promise.resolve('m1')),
@@ -185,6 +186,22 @@ describe('ManageLeague (t215)', () => {
     rerender(<ManageLeague league={league({ teams: 2, is_creator: true })} onChanged={onChanged} />);
     expect(screen.queryByRole('button', { name: 'Delete league', hidden: true })).toBeNull();
     expect(screen.getByText(/only an admin can delete/i)).toBeTruthy();
+  });
+
+  it('puts Delete league last in its section, after Leave, in red words', () => {
+    render(<ManageLeague league={league({ teams: 1, is_creator: true })} onChanged={vi.fn()}><button>Leave Huck Yeah</button></ManageLeague>);
+    const del = screen.getByRole('button', { name: 'Delete league', hidden: true });
+    expect(del.className).toBe('danger-link');
+    const section = [...del.parentElement!.querySelectorAll('button')].map((b) => b.textContent);
+    expect(section).toEqual(['Leave Huck Yeah', 'Delete league']);
+    expect(del.parentElement!.lastElementChild).toBe(del);
+  });
+
+  it('sends an admin to Admin › Teams › Leagues once others have joined', () => {
+    auth.isAdmin = true;
+    render(<ManageLeague league={league({ teams: 2 })} onChanged={vi.fn()} />);
+    auth.isAdmin = false;
+    expect(screen.getByText('Delete it from Admin › Teams › Leagues.')).toBeTruthy();
   });
 
   it('renames, and removes the password only when there is one', async () => {
