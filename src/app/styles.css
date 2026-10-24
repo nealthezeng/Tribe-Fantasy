@@ -398,11 +398,13 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .team-card .who { display: grid; gap: var(--s1); }
 
 /* League tab while bidding is open: the header stays on screen while you scroll the bid list (top: 0, or under the
-   sticky top bar on phones). Negative margins let it cover the card's padding edge to edge. */
+   sticky top bar on phones). Negative margins let it cover the card's padding edge to edge. The pane's glow and sheen
+   sit on the card's flattened colour, so the list never shows through it while scrolling. */
 .bid-header {
   position: sticky; top: 0; z-index: 2; display: grid; gap: var(--s2);
   margin: calc(-1 * var(--s4)) calc(-1 * var(--s4)) 0; padding: var(--s3) var(--s4);
-  background: var(--pane-bg); border-bottom: 1px solid var(--pane-border); border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--pane-bg); background-color: var(--card-solid);
+  border-bottom: 1px solid var(--pane-border); border-radius: var(--radius) var(--radius) 0 0;
 }
 .bid-header.over { background: var(--error-soft); }
 /* The sticky header sits above the list, so a browser's own scroll-into-view for a focused control must clear it. */
