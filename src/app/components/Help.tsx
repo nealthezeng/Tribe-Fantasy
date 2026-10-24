@@ -56,12 +56,15 @@ export function FactorHelp({ settings: S }: { settings: SeasonSettings }) {
   );
 }
 
+/** Whether a win or loss weighs more or less by the two teams' places (matchupDeltas); otherwise it is exact. */
+export const upsetsWeigh = (S: SeasonSettings) => S.points_mode === 'rank_weighted' && S.upset_k > 0;
+
 /**
  * Beside a standings table (X7): the points a result gives (matchupDeltas), then the order (rankSnapshot): points, then
  * total score, equal on both = a shared place. With no upset factor a win and a loss are exact, so no "about".
  */
 export function StandingsHelp({ settings: S }: { settings: SeasonSettings }) {
-  const weighted = S.points_mode === 'rank_weighted' && S.upset_k > 0;
+  const weighted = upsetsWeigh(S);
   const about = weighted ? 'about ' : '';
   return (
     <Help label="How the table is ordered">

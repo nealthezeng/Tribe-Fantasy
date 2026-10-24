@@ -17,9 +17,9 @@ describe('RulesPage', () => {
   it('computes its numbers from the default settings', () => {
     render(<RulesPage />);
     const text = document.body.textContent ?? '';
-    // Allowance: 100 for first, 130 for last. Example: 2 goals = 6, a half share, started the game before (×0.5).
+    // Allowance: 100 for first, 130 for last. Example: 2 goals = 6, a half share, picked for the game before (×0.5).
     expect(text).toContain('100 for the team in first, up to 130 for the team in last');
-    expect(text).toContain('2 goals by a player you own half of, started the game before: 6 × 50% × 0.5 = 1.5');
+    expect(text).toContain('2 goals by a player you own half of, picked for the game before: 6 × 50% × 0.5 = 1.5');
     // Split example under the 200-share floor: 100 + 50 credits leave a quarter of the player unowned.
     expect(text).toContain('he has 200 shares: you own 50%, they own 25%, and the other 25% scores for nobody.');
     // Stat points are the weights as stored: a goal is +3, a block (D) +5, a turnover −1.
@@ -32,10 +32,11 @@ describe('RulesPage', () => {
     expect(text).toContain('Each roster holds up to 6 players');
     expect(text).toContain('Each game you start 2 of your players');
     expect(text).toContain('Up to 12 teams');
-    expect(text).toContain("Forgot to pick, or a pick is out? We start your most rested players who aren't out, then the ones scoring best lately");
+    expect(text).toContain("Forgot to pick, or a pick is out? We pick for you: players who aren't out and you picked least "
+      + 'recently, then the ones scoring best lately');
     expect(text).toContain("Keepers mark a player Out for a tournament; an Out player can't be picked.");
     expect(text).not.toMatch(/\b(bench|bids?|bidding|auction)\b/i);
-    expect(text).toContain('Resting a player for 2 games between starts never does.');
+    expect(text).toContain('Leaving a player out for 2 games between picks never does.');
     expect(text).toContain('and earlier tournaments (below)');
     // What ships: the pick card says the factors in words; there is no combined factor to tap open.
     expect(text).toContain('The pick card shows each player\'s share and tiredness in words, e.g. "Your 20% · picked for game 1: ¾ points".');
@@ -43,6 +44,11 @@ describe('RulesPage', () => {
     expect(text).not.toMatch(/repeat|Rotating/);
     expect(text).toContain("Other teams can't see your picks until the game starts");
     expect(screen.getByText('2 games before').parentElement?.textContent).toBe('2 games before×0.75');
+    // Tiredness and earlier tournaments follow the pick, not the field (X5).
+    expect(screen.getByText('You last picked them')).toBeTruthy();
+    expect(screen.getByText('Earlier tournaments you picked them')).toBeTruthy();
+    expect(text).toContain("Stats from a player you've picked in earlier tournaments count a little less");
+    expect(text).not.toMatch(/rested|resting|you('ve)? started|started the game/i);
     // Last beats 1st with upset_k 0.5: 3 × (1 + 0.5) = +4.5 for the winner, −1 × 1.5 = −1.5 for the loser.
     expect(screen.getByText('Last beats 1st').parentElement?.textContent).toBe('Last beats 1st+4.5-1.5');
     const standings = screen.getByRole('heading', { name: 'Standings points' }).closest('details')!;
@@ -54,7 +60,7 @@ describe('RulesPage', () => {
     current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ tiredness_multipliers: [0.5] }) };
     render(<RulesPage />);
     await screen.findByText(/Spring 2027's settings/);
-    expect(document.body.textContent).toContain('Resting a player for 1 game between starts never does.');
+    expect(document.body.textContent).toContain('Leaving a player out for 1 game between picks never does.');
   });
 
   it('says donations go to the team fund and credits have no cash value', () => {
@@ -95,8 +101,23 @@ describe('RulesPage', () => {
   it('shows Callahan at +12 and the repeat factor from the first repeat', () => {
     render(<RulesPage />);
     expect(screen.getByText('Callahan').parentElement?.textContent).toBe('Callahan+12');
-    const decay = screen.getByRole('heading', { name: 'Starting the same player every tournament' }).closest('details')!;
+    const decay = screen.getByRole('heading', { name: 'Picking the same player every tournament' }).closest('details')!;
     expect(within(decay).getByRole('cell', { name: '1' }).nextElementSibling?.textContent).toBe('×0.9');
+  });
+
+  it('says upsets weigh more only when they do', async () => {
+    const upsets = 'Beating a team above you in the standings pays more, and losing to one costs less.';
+    const { unmount } = render(<RulesPage />);
+    expect(document.body.textContent).toContain(upsets); // default: rank-weighted, upset_k 0.5
+    unmount();
+    for (const over of [{ points_mode: 'fixed' }, { upset_k: 0 }]) {
+      current = { id: 'se', name: 'Spring 2027', settings: parseSettings(over) };
+      const { unmount: done } = render(<RulesPage />);
+      await screen.findByText(/Spring 2027's settings/);
+      expect(document.body.textContent).toContain('Winning earns points and losing costs points.');
+      expect(document.body.textContent).not.toContain('Beating a team above you');
+      done();
+    }
   });
 
   it('heads the standings-points table for the league size', () => {
@@ -164,10 +185,10 @@ describe('RulesPage', () => {
     expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+4');
     expect(screen.getByText('Callahan').parentElement?.textContent).toBe('Callahan+10');
     expect(screen.getByText('The game before').parentElement?.textContent).toBe('The game before×0.6');
-    expect(text).toContain('Resting a player for 1 game');
+    expect(text).toContain('Leaving a player out for 1 game');
     expect(text).toContain('never drops below ×0.5');
     expect(text).toContain('reopened for 24 hours');
     expect(text).toContain('In a 8-team league');
-    expect(text).toContain('2 goals by a player you own half of, started the game before: 8 × 50% × 0.6 = 2.4');
+    expect(text).toContain('2 goals by a player you own half of, picked for the game before: 8 × 50% × 0.6 = 2.4');
   });
 });

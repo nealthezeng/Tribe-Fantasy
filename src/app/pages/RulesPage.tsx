@@ -3,7 +3,7 @@ import { athleteWeekScore } from '../../core/scoring';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import { stageMultiplier } from '../../core/decay';
 import { GuideSteps } from '../components/Guide';
-import { n, signed } from '../components/Help';
+import { n, signed, upsetsWeigh } from '../components/Help';
 import { loadCurrentSeason, statLabel } from '../lib/stats';
 import { useLoad } from '../lib/useLoad';
 import { statWords } from '../lib/words';
@@ -91,17 +91,17 @@ export function RulesPage() {
               tournament opens; each later game is paired when the game before it finishes.</li>
             <li>Pick for the next game any time before it starts, even before you know your opponent. Picks lock when a
               stat keeper starts the game. Other teams' picks stay hidden until then.</li>
-            <li>Forgot to pick, or a pick is out? We start your most rested players who aren't out, then the ones scoring
-              best lately, and you'll see a notice.</li>
+            <li>Forgot to pick, or a pick is out? We pick for you: players who aren't out and you picked least recently,
+              then the ones scoring best lately, and you'll see a notice.</li>
             <li>Keepers mark a player Out for a tournament; an Out player can't be picked.</li>
           </ul>
           <div className="section">
             <h3>Tired players</h3>
-            <p>Starting a player in back-to-back games tires them. Resting a player for {S.tiredness_multipliers.length}{' '}
-              {S.tiredness_multipliers.length === 1 ? 'game' : 'games'} between starts never does.</p>
+            <p>Picking a player for back-to-back games tires them. Leaving a player out for {S.tiredness_multipliers.length}{' '}
+              {S.tiredness_multipliers.length === 1 ? 'game' : 'games'} between picks never does.</p>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>You last started them</th><th>Their stats count</th></tr></thead>
+                <thead><tr><th>You last picked them</th><th>Their stats count</th></tr></thead>
                 <tbody>
                   {S.tiredness_multipliers.map((m, i) => (
                     <tr key={i}><td>{i === 0 ? 'The game before' : `${i + 1} games before`}</td><td>×{n(m)}</td></tr>
@@ -135,15 +135,15 @@ export function RulesPage() {
               (above) and <strong>earlier tournaments</strong> (below). The pick card shows each player's share and tiredness in
               words, e.g. "Your 20% · picked for game 1: ¾ points". Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
               matchup.</p>
-            <p>{statWords(game)} by a player you own half of, started the game before: {n(gameScore)} × {owned * 100}% ×{' '}
+            <p>{statWords(game)} by a player you own half of, picked for the game before: {n(gameScore)} × {owned * 100}% ×{' '}
               {n(tired)} = <strong>{n(gameScore * owned * tired)}</strong>.</p>
           </div>
           <div className="section">
-            <h3>Starting the same player every tournament</h3>
-            <p>Stats from a player you've started in earlier tournaments count a little less, so rosters keep changing.</p>
+            <h3>Picking the same player every tournament</h3>
+            <p>Stats from a player you've picked in earlier tournaments count a little less, so rosters keep changing.</p>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Earlier tournaments you started them</th><th>Their stats count</th></tr></thead>
+                <thead><tr><th>Earlier tournaments you picked them</th><th>Their stats count</th></tr></thead>
                 <tbody>
                   {[0, 1, 2, 3, 4, 5].map((k) => (
                     <tr key={k}><td>{k}</td><td>×{n(stageMultiplier(k, S))}</td></tr>
@@ -161,8 +161,8 @@ export function RulesPage() {
       <details className="card">
         <summary><h2>Standings points</h2></summary>
         <div className="stack">
-          <p>Winning earns points and losing costs points. Beating a team above you in the standings pays more, and
-            losing to one costs less.</p>
+          <p>Winning earns points and losing costs points.{upsetsWeigh(S) && ' Beating a team above you in the standings pays '
+            + 'more, and losing to one costs less.'}</p>
           <div className="table-wrap">
             <table>
               <thead><tr><th>In a {size}-team league</th><th>Winner</th><th>Loser</th></tr></thead>
