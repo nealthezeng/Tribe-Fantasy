@@ -99,7 +99,7 @@ button:hover:not(:disabled), .button:hover { background: var(--gold-hover); }
 button:active:not(:disabled), .button:active { background: var(--gold-press); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Unavailable reads as quiet grey, not faded gold (25 half-gold Bid buttons looked broken). Pick rows, the whole tally
-   board, segmented buttons and red danger links (half-faded red words) keep their own disabled look. */
+   board, segmented buttons and danger links (grey words, below) keep their own disabled look. */
 :is(button, .button):disabled:not(.pick-row, .danger-link, :where(.tally-buttons, .tally-head, .tally-bar, .segmented) *) { opacity: 1; background: var(--surface-2); color: var(--muted); }
 /* Secondary: a soft borderless fill, flat like the gold buttons (t111). */
 .secondary, .secondary:hover:not(:disabled) { background: var(--surface-2); color: var(--fg); border-color: transparent; }
@@ -113,12 +113,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .danger-link, .danger-link:hover:not(:disabled), .danger-link:active:not(:disabled) {
   background: none; border: 0; color: var(--error); min-height: var(--tap); padding: 0 var(--s1); font-weight: var(--fw-semi); text-decoration: underline; text-underline-offset: 3px;
 }
+.danger-link:disabled { opacity: 1; color: var(--muted); }
 label.check { display: flex; gap: var(--s3); align-items: center; font-weight: var(--fw-medium); min-height: var(--tap); }
 label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(--check); }
 .row { display: flex; gap: var(--s2) var(--s3); flex-wrap: wrap; align-items: end; }
 .row > * { flex: 1 1 160px; }
 .row > :is(button, .button) { flex: 0 0 auto; }
 .row > label:has(input[type='number']) { flex-basis: 96px; }
+/* Labelled number fields (admin Settings): as many to a row as fit, two at 375px; inputs line up under labels of 1 or 2 lines. */
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: var(--s2) var(--s3); align-items: end; }
 .segmented { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); overflow: hidden; }
 .segmented button, .segmented button:hover:not(:disabled) { border: 0; border-radius: 0; background: var(--surface); color: var(--fg); padding: var(--s2) var(--s4); }
 .segmented button + button { border-left: 1px solid var(--line-strong); }
@@ -128,11 +131,11 @@ label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(
 /* Lists: bordered rows on the page, divided rows inside a card (never a box inside a box). */
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
 .list li { background: var(--pane-bg); border: 1px solid var(--pane-border); box-shadow: var(--pane-highlight), var(--pane-shadow); border-radius: var(--radius-sm); padding: 10px 14px; min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: var(--s2) var(--s3); flex-wrap: wrap; }
-.list li select { width: auto; max-width: 100%; }
 /* A list opened inside a page row (admin's earlier tournaments) divides like one in a card. */
 .card .list, .list .list { gap: 0; }
 :is(.card, .list) .list li { background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: var(--s2) 0; box-shadow: none; }
 :is(.card, .list) .list li:first-child { border-top: 0; }
+.list .list li { min-height: 0; } /* lines in an opened row (a wallet's ledger, pairing checks); row links keep 56px */
 .list .title { font-weight: var(--fw-semi); }
 .list a.title { color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; min-height: var(--tap); }
 .list a.title:hover { text-decoration: underline; }
@@ -377,52 +380,22 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .ranks li[aria-current] .who strong { font-weight: var(--fw-bold); }
 .ranks li.gap { grid-template-columns: auto; justify-content: center; min-height: 0; color: var(--muted); }
 
-/* Admin (P9 ruling 17): one sticky block of four group chips (the pressed one filled like a .segmented button) and, for
-   a group of more than one section, its text tabs with the gold underline on the current one. Both rows wrap rather
-   than scroll, so nothing hides past an edge (t126); at 375px each fits on one line. */
+/* Admin (P9 rulings 17, 67): four group chips at their own width (the pressed one filled like a .segmented button),
+   one row at 375px, and for a group of more than one section its text tabs with the gold underline on the current one.
+   Rows wrap rather than scroll, so nothing hides past an edge (t126). Sticky on wider screens; on phones it scrolls
+   away with the page (two rows under the top bar took a quarter of the screen). */
 .subnav { position: sticky; top: 0; z-index: 1; display: grid; margin: 0 calc(-1 * var(--gutter)); padding: var(--s2) var(--gutter) 0; background: var(--sticky-bg); border-bottom: 1px solid var(--pane-border); }
-.subnav > nav { display: flex; flex-wrap: wrap; gap: var(--s2); padding-bottom: var(--s2); }
+.subnav > nav { display: flex; flex-wrap: wrap; gap: var(--s1); padding-bottom: var(--s2); }
 .subnav > nav + nav { gap: 0 var(--s3); padding-bottom: 0; }
-.subnav button, .subnav button:hover:not(:disabled) { flex: 1 1 auto; background: var(--chip-bg); color: var(--fg); border-color: transparent; border-radius: var(--radius-pill); padding: var(--s2) var(--s3); font-size: var(--fs-sm); }
+.subnav button, .subnav button:hover:not(:disabled) { flex: none; background: var(--chip-bg); color: var(--fg); border-color: transparent; border-radius: var(--radius-pill); padding: var(--s2); font-size: var(--fs-sm); }
 .subnav button:hover:not(:disabled) { background: var(--line); }
 .subnav button[aria-pressed='true'], .subnav button[aria-pressed='true']:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
 .subnav a { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--s1); border-bottom: 3px solid transparent; color: var(--muted); font-weight: var(--fw-semi); text-decoration: none; }
 .subnav a:hover, .subnav a[aria-current='page'] { color: var(--fg); }
 .subnav a[aria-current='page'] { border-bottom-color: var(--gold); }
 
-/* A row of equal-width buttons that never wraps unevenly. */
-.actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: var(--s2); }
-.actions button { padding-inline: var(--s2); white-space: nowrap; }
-/* Admin user row: five buttons wrap under the name instead of squeezing into one line. */
-.user-actions { display: flex; flex-wrap: wrap; gap: var(--s2); flex: 1 1 100%; }
-/* Admin athlete row. Phone: name, then the account picker, then the actions, each full width.
-   Wider: one line. Editing the name takes the whole first line. */
-.list li.athlete { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: var(--s2) var(--s3); }
-.card .list li.athlete { padding-block: var(--s3); }
-.list li.athlete select { width: 100%; }
-.list li.athlete > form > input { flex-basis: 100%; }
-.list li.athlete > form > button { flex: 1 1 0; }
-@media (min-width: 640px) {
-  .list li.athlete { grid-template-columns: minmax(0, 1fr) 12rem auto; }
-  .list li.athlete > form { grid-column: 1 / -1; }
-  .list li.athlete > form ~ select { grid-column: 2; }
-  .list li.athlete > form > input { flex-basis: 160px; }
-  .list li.athlete > form > button { flex: 0 0 auto; }
-}
-
-/* Admin league row (t216): name, creator line and teams on the left, Delete on the right, password form below at
-   full width. A grid, not a wrapping flex row, so Delete never drifts with the length of the text. */
-.list li.league-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--s2) var(--s3); padding-block: var(--s3); }
-.league-row .who { display: grid; gap: var(--s1); }
 /* Admin league browser (M14): a team's name with its owner under it. */
 .team-card .who { display: grid; gap: var(--s1); }
-.list li.league-row > form { grid-column: 1 / -1; }
-.list li.league-row > form > input { flex-basis: 100%; }
-.list li.league-row > form > button { flex: 1 1 0; }
-@media (min-width: 640px) {
-  .list li.league-row > form > input { flex-basis: 160px; }
-  .list li.league-row > form > button { flex: 0 0 auto; }
-}
 
 /* League tab while bidding is open: the header stays on screen while you scroll the bid list (top: 0, or under the
    sticky top bar on phones). Negative margins let it cover the card's padding edge to edge. */
@@ -532,7 +505,8 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
      and the menu, a top-layer popover, is fixed so it opens under the bar, not at the top of the page. */
   .topbar { position: sticky; top: 0; z-index: 2; }
   body:has(.tally-bar) .topbar { position: static; }
-  .subnav, .bid-header { top: calc(var(--bar-height) + 1px); }
+  .bid-header { top: calc(var(--bar-height) + 1px); }
+  .subnav { position: static; } /* ruling 67: admin tabs scroll away with the page */
   html:not(:has(.tally-bar)) { scroll-padding-top: calc(var(--bar-height) + 1px); }
   .account-menu { position: fixed; }
 }

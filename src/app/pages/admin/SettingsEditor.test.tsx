@@ -38,14 +38,15 @@ afterEach(cleanup);
 describe('SettingsEditor', () => {
   it('shows the stat points and the credit and pick settings as labelled number fields', async () => {
     await open();
-    const shown = Object.fromEntries(['Goal', 'Assist', 'Block', 'Callahan', 'Turnover', 'Free credits each tournament',
+    const shown = Object.fromEntries(['Goal', 'Assist', 'Block', 'Callahan', 'Turnover', 'Credits for the team in first',
       'Extra for the last-placed team', 'Players a team can own', 'Picks each game'].map((n) => [n, field(n).value]));
     expect(shown).toEqual({
-      Goal: '3', Assist: '3', Block: '5', Callahan: '12', Turnover: '-1', 'Free credits each tournament': '90',
+      Goal: '3', Assist: '3', Block: '5', Callahan: '12', Turnover: '-1', 'Credits for the team in first': '90',
       'Extra for the last-placed team': '30', 'Players a team can own': '6', 'Picks each game': '2',
     });
     expect(['Goal', 'Assist', 'Block', 'Callahan', 'Turnover'].map((n) => field(n).step)).toEqual(Array(5).fill('any'));
-    expect(field('Free credits each tournament').hasAttribute('step')).toBe(false);
+    expect(field('Credits for the team in first').hasAttribute('step')).toBe(false);
+    expect(screen.queryByRole('spinbutton', { name: 'Free credits each tournament' })).toBeNull(); // ruling 79
     expect(screen.getByRole('heading', { name: 'Points for stats' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Credits and picks' })).toBeTruthy();
   });
@@ -53,7 +54,7 @@ describe('SettingsEditor', () => {
   it('merges the fields into the saved settings and saves once', async () => {
     await open();
     type(field('Goal'), '4');
-    type(field('Free credits each tournament'), '120');
+    type(field('Credits for the team in first'), '120');
     type(field('Picks each game'), '3');
     save();
     await screen.findByText('Saved.');
@@ -78,10 +79,10 @@ describe('SettingsEditor', () => {
 
   it('shows what a field is missing instead of saving', async () => {
     await open();
-    type(field('Free credits each tournament'), '');
+    type(field('Credits for the team in first'), '');
     save();
     expect((await screen.findByRole('alert')).textContent).toContain('allowance_base must be a finite number');
-    type(field('Free credits each tournament'), '100');
+    type(field('Credits for the team in first'), '100');
     type(field('Players a team can own'), '1');
     save();
     expect((await screen.findByRole('alert')).textContent).toContain('picks_per_game must be at most roster_size');

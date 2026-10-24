@@ -8,7 +8,7 @@ import { useLoad } from '../../lib/useLoad';
 
 // The settings admins change, as labelled fields: [key, label]. Every setting stays editable as JSON under Advanced.
 const STATS = [['goal', 'Goal'], ['assist', 'Assist'], ['block', 'Block'], ['callahan', 'Callahan'], ['turnover', 'Turnover']];
-const CREDITS = [['allowance_base', 'Free credits each tournament'], ['allowance_gap', 'Extra for the last-placed team'],
+const CREDITS = [['allowance_base', 'Credits for the team in first'], ['allowance_gap', 'Extra for the last-placed team'],
   ['roster_size', 'Players a team can own'], ['picks_per_game', 'Picks each game']];
 
 type Saved = Record<string, unknown> & { stat_weights?: Record<string, unknown> };
@@ -87,9 +87,9 @@ export function SettingsEditor({ seasonId }: { seasonId: string }) {
         {saved !== undefined && (
           <>
             <h2>Points for stats</h2>
-            <div className="row">{STATS.map((f) => field(f, 'any'))}</div>
+            <div className="fields">{STATS.map((f) => field(f, 'any'))}</div>
             <h2>Credits and picks</h2>
-            <div className="row">{CREDITS.map((f) => field(f))}</div>
+            <div className="fields">{CREDITS.map((f) => field(f))}</div>
             <details className="section">
               <summary>Advanced (all settings as JSON)</summary>
               <textarea aria-label="Season settings JSON" value={text ?? JSON.stringify(saved, null, 2)} spellCheck={false}
