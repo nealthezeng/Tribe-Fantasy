@@ -55,8 +55,8 @@ Status, each with a soft background for pills:
 | Token | Value | Used by |
 |---|---|---|
 | `--ok` / `--ok-soft` | #7fd69a / #16301f | `.success`, `.pill.ok`, a picked pick row (name and ring); `--ok-on-bar` for your set picks on the scoreboard |
-| `--warn` / `--warn-soft` | #f4b566 / #3a2a13 | `.pill.warn` |
-| `--error` / `--error-soft` | #ff8a80 / #3b1a18 | `.error`, `.pill.bad`, the Live dot and word, a falling since chip |
+| `--warn` / `--warn-soft` | #f4b566 / #3a2a13 | `.pill.warn`, `.notice.warn` (Admin's stuck-game warning) |
+| `--error` / `--error-soft` | #ff8a80 / #3b1a18 | `.error`, `.pill.bad`, the Live dot and word, a falling since chip, `.danger-link` |
 
 ## Brand mark
 
@@ -110,7 +110,7 @@ labels), `--fs-lead` 18px (brand, hero text, sign-in codes, tally player names),
 Spacing: `--s1` 4, `--s2` 8, `--s3` 12, `--s4` 16, `--s5` 24, `--s6` 32 (px). Layouts stack with grid `gap`, not margins.
 
 Radii: `--radius` 14px for cards and the hero, `--radius-sm` 10px for buttons, inputs, list rows and notices,
-`--radius-xs` 8px for account menu items, `--radius-pill` for pills and subnav chips. Shadows belong to the pane
+`--radius-xs` 8px for account menu items, `--radius-pill` for pills and admin's group chips. Shadows belong to the pane
 system (`--pane-shadow`, `--score-shadow`, see Depth) plus the gold hover glow `--shadow-lift`.
 
 Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 76px stat buttons. Motion:
@@ -174,10 +174,10 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   `--sticky-bg` bar of equal 48px tabs, the gold marker on its top edge, and the page padded by `--dock-height` so
   nothing hides under it (focused inputs scroll clear of it too). Safari keeps the dock clear of the iPhone home bar
   on its own (checked on a real iPhone, t128), so there is no safe-area padding. **On phones the top bar is sticky**
-  (M15 P9): brand and avatar stay in reach on long pages; the admin `.subnav` and the buy card's `.bid-header` stick
-  just under it, focus scrolls clear of it (`scroll-padding-top`), and the account menu is `position: fixed` so it
-  opens under the bar. Over the tally board the bar scrolls away as before (the board never moves). Keepers reach the
-  tally from a secondary Tally button in the Stats page head, from the League tab's live-game card ("Tally game 2")
+  (M15 P9): brand and avatar stay in reach on long pages; the buy card's `.bid-header` sticks just under it (the admin
+  nav doesn't: on phones it scrolls with the page, see Admin), focus scrolls clear of it (`scroll-padding-top`), and the
+  account menu is `position: fixed` so it opens under the bar. Over the tally board the bar scrolls away as before (the
+  board never moves). Keepers reach the tally from a secondary Tally button in the Stats page head, from the League tab's live-game card ("Tally game 2")
   and from the tally games list (`/tally?game=<id>` opens that board directly), not from a tab. The dock is hidden while the
   tally board is on screen (`body:has(.tally-bar)`); `tokens.test.ts` guards that and the sticky bar. Deep routes light their tab:
   `/stats/*`, `/player/*` and `/tally` light Stats, `/team/*` lights Leaderboards; Me, Credits, Rules and Admin light none.
@@ -203,20 +203,24 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
 - **`.head` / `.meta` / `.row`**: title-with-actions row, wrapping inline details, and a wrapping form row.
 - **Buttons**: gold with dark text by default. `.secondary` is a soft borderless `--surface-2` fill. `.linklike` looks
   like a link. `.button` makes a link look like a button. Buttons in a stack sit at their natural width, left.
+- **`.danger-link`** (M15 P9): every destructive action (Undo game, Delete tournament, Delete league, Remove account,
+  Remove a player, Remove a share, Delete season) is red underlined words (`--error`, a 44px target), never a filled
+  button, and sits last in the sheet it belongs to, after the everyday actions. Each keeps its confirm, except Remove a
+  share, which needs none (giving the share back undoes it). Disabled (your own account, a season name not typed yet)
+  it greys to `--muted` words. It never lifts or squeezes and keeps the text lettering, not the button lettering.
 - **`.list`**: on the page, each row is its own bordered box (min 56px tall). Inside a `.card`, rows become
-  plain rows split by divider lines. `li.used` greys the row's title (a "Used" pill says why).
+  plain rows split by divider lines, and so do the rows of a list opened inside a page row (`.list .list`: admin's
+  Later and Earlier tournaments open to their own rows). `li.used` greys the row's title (a "Used" pill says why).
 - **The row is the button** (M15 P9 rule 1): anything that opens something is one whole-row target with a drawn chevron
   at its end, never a small button beside a row. `.row-link` is that row as a link or a `summary`: 56px, a `.who` first
   (a bold `b` name over `small` lines), pills after, the chevron last (a summary's own chevron, turned down when open).
   In a `.list li` it fills the row. A row that opens nothing (a game not started, a full league) is the same markup on a
-  plain `div`, with no chevron. Used by the Stats games, the team page's game, Join a league, the tally games list and
-  Open games. `.row-target` does it for a table or ranked-list row whose first link must stay a plain name: the link's
-  `::before` stretches over the row (so an `a.row-link` inside keeps its `::after` chevron) and the focus ring sits inset
+  plain `div`, with no chevron. Used by the Stats games, the team page's game, Join a league, the tally games list,
+  Open games and every admin row (see Admin). `.row-target` does it for a table or ranked-list row whose first link
+  must stay a plain name: the link's `::before` stretches over the row (so an `a.row-link` inside keeps its `::after` chevron) and the focus ring sits inset
   on it. In a stat table the sticky first cell stops the stretch, so `StatTable` also follows a plain tap anywhere in the
   row (not a modifier click, another button or the end of a text selection). Used by stat tables with a link and by
   standings rows you can open.
-- **`.actions`**: a row of equal-width buttons that never wraps unevenly. Admin athlete rows (`li.athlete`)
-  stack name, account picker and `.actions` on phones and sit on one line from 640px.
 - **Bullet lists** directly inside a `.card` (the rules page) have no margin and 8px gaps.
 - **Rules page** (`/rules`): the `h1` "How Tribe Fantasy works", the same four steps as the guide, the `.notice` (free to play,
   donations, whose settings the numbers are), then six closed `details.card` folds, each `summary > h2`: The season, Credits and
@@ -226,9 +230,10 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
   `.warn`, `.bad`.
 - **`.notice`**: an info pane, the same glass as every box but glowing blue (`--notice-bg`), for information and next
-  steps: the guide, "Buying closed for CCCs…", the late joiner's "Ask an admin to add yours." (in the buy card), a
-  closed tally board. Who the app started and when picks lock are `.hint` text (small and muted), not notice boxes
-  ("Ari Banks is out. Finn Garza plays."; M15 P9: they were boxes inside cards, and the pick card jumped).
+  steps: the guide, "Buying closed for CCCs…", a closed tally board, Admin's "Create a season in More › Season.". Who the
+  app started and when picks lock are `.hint` text (small and muted), not notice boxes ("Ari Banks is out. Finn Garza
+  plays."; M15 P9: they were boxes inside cards, and the pick card jumped). **`.notice.warn`** is the same pane in
+  `--warn` on `--warn-soft`, for something that is wrong and holds other things back: only Admin's stuck-game warning.
 - **`.success`**: green text with `role="status"` for a confirmed result. **`.error`**: red text with
   `role="alert"` for a failure, saying what to do next. **Loading** is the `Loading` component
   (`src/app/components/Loading.tsx`): a `.skeleton` pane in a card's shape (a title bar and two lines; inside a `.card`
@@ -236,17 +241,7 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   `role="status"` and a hidden "Loading…" for screen readers (M9 t99), on every page, Me and the tally included.
 - **`.segmented`**: a joined group of buttons with `aria-pressed`; the chosen one is inverted (text colour
   as background). Used for the Standings league / All leagues toggle (Leaderboards) and the team switcher.
-- **`.subnav`**: admin's sticky row of rounded tabs (`aria-pressed`): on phones one row you swipe sideways; from
-  640px the chips wrap onto a second row rather than hide past an edge a mouse can't scroll (t126). Admin shows one section
-  at a time; the chosen tab is inverted like `.segmented`, drawn by a dark `.ink` pill that glides between chips (the
-  chips are see-through so the pill shows while it moves). Admin opens on the newest season.
-- **Admin Users / League browser / History** (M14): Users is one `.card` list with Search people, a role button per
-  role, Rename and a red-worded "Remove account" whose confirm names every team, donation and profile it touches.
-  The league browser (Leagues → Open) shows each team with its owner and roster; each share is a percent field with Save and an X to remove it,
-  and a removed team is read-only. Admin changes never move credits. History is a `.card > ul.list`: one plain-words
-  line per audit row ("Gave Ari Banks 25% to Gimp Zeal"), actor and time as small text, a filter by action and
-  "Load more" for the next 50. Removed people show as "Removed user"; a removed team keeps its name.
-- **Admin Games count** (M15 P4): Open tournament has a required "Games" number (1-20); the open Tournament card shows "game n of N" and the same field with "Save count" (not below the highest started game). Raising an over tournament confirms the new game's pairings first; lowering needs no confirm.
+- **`.subnav`**: Admin's group chips and sub-tabs (see Admin).
 - **League tab** (`HomePage.tsx`, `TournamentCard.tsx`; layout A, M15 P9): top to bottom, the first-visit guide, a
   keeper's live-game card, the team switcher (2+ teams), then for the chosen team the matchup headline and strip, the
   scoreboard and starters, the pick card, the Buy shares card, the league's short table and the games; then the "Join
@@ -305,11 +300,10 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   closed for <tournament>. Your players show here once the shares are settled."; after settling the pick card lists the
   roster). Credits are "credits left of N" in the sticky `.bid-header`, which reads "N of 6 players" with the shares `?`,
   a `.pill.info` Closes pill and a "Get more credits" link to the Credits page. Once credits left drop
-  under 10% of the balance (or 2 minimum buys) that link becomes a gold button (t234). Under the header: a team with no
-  allowance for this tournament and no admin top-up sees the `.notice` "You joined after CCCs credits went out. Ask an
-  admin to add yours."; an admin adjustment that added credits in the last 7 days, while it is the newest ledger entry,
-  shows `.success` "An admin added 115 credits."; buys over the balance show an alert notice. The list puts players you'd
-  bought when the page loaded first; the order stays put while you buy (t237). A player row has the credits input
+  under 10% of the balance (or 2 minimum buys) that link becomes a gold button (t234). Under the header, buys over the
+  balance show an alert notice. Credits an admin grants or adds by hand arrive silently, and a team with 0 credits sees
+  nothing extra: no late-joiner notice, no "an admin added" line, and no late-joiner prompt in Admin either (P9 Round
+  2, the user's call). The list puts players you'd bought when the page loaded first; the order stays put while you buy (t237). A player row has the credits input
   and Buy / Save (and × to remove); at 6 players the other rows lock. After a save, that row shows `small.success` "Saved:
   40 credits on Ari Banks." until the next save anywhere. A player you started in earlier tournaments carries a `.pill.warn`
   "×0.9" (labelled "started in an earlier tournament: 90%"). "Buy shares" (`details.bid-cta`) reads as a full-width button:
@@ -413,9 +407,12 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   `details` whose `summary.row-link` opens the form in the row ("Your team name", Password if needed, gold "Join League
   A"; one open at a time). A league you're in ("Joined", `.pill.ok`) or a full one ("Full") is a plain row with no
   chevron. "Create a league" is a `.more` link under the card.
-- **`.steps`**: a real sequence as numbered inline steps (admin Tournaments: grant, open, run, open tournament).
-- **Fold the rare forms**: forms used once a season (add a tournament, new league, adjust credits) live in a
-  collapsed `details.section`; Edit opens the tournament form.
+- **`.steps`** (P9 rule 2): a real sequence as one line of small muted words split by " · ", the step at hand bold in
+  `--fg` (`.now`, `aria-current="step"`), its one gold button under the line; done steps read as words. Used by admin
+  Tournaments: "Allowance given · Buying open, closes in 1 d 4 h · Settle · Start".
+- **Fold the rare forms**: forms used once a season or less (Add a tournament, New season, Rename or delete a season,
+  Settings' Advanced JSON) live in a collapsed `details.section`, open by itself only while there is nothing yet (no
+  tournament, no season).
 - **`.more`**: a secondary way on, an underlined text link with a drawn chevron that nudges right on hover.
 - **`.hero`**: only on the signed-out home page, the one page that has to sell. Black panel, 40px headline,
   gold call to action, and the team crest ("A Tribe Called Tech", white + gold version for dark, `team-logo.png`, t131)
@@ -509,6 +506,99 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   Cancel. The last game asks "Finish game 6? It's the last game: CCCs ends." Neither the button nor its fold moves
   (`tokens.test.ts`).
 
+## Admin
+
+`#/admin` (`AdminPage` and its panels in `src/app/pages/admin/`; admins only, anyone else is sent home), one section at
+a time (M15 P9 Round 2).
+
+- **Heading**: the `h1` "Admin" with the managed season as small text (`h1 small`). Admin manages the newest season
+  unless More › Season picks another (a deleted pick falls back to the newest); every section remounts when the season
+  changes, so Settings never saves one season's settings onto another. With no season, Accounts, History and Season
+  still work and the other sections show the `.notice` "Create a season in More › Season." with the link.
+- **Nav** (`.subnav`, P9 ruling 17): four group chips in one row, most-used first: **Tournaments**; **Teams** ›
+  Leagues, Wallets; **People** › Accounts, Players; **More** › Settings, History, Backup, Season. The chips are buttons
+  with `aria-pressed` in a `nav` "Admin sections"; the pressed one is filled `--fg` on `--bg` like a `.segmented`
+  choice (no ink marker), and a chip opens its group's first section. A group with more than one section adds a row of
+  text sub-tabs: links with `aria-current="page"`, muted until hovered or current, the current one `--fg` with a 3px
+  gold underline. Neither row scrolls sideways, so nothing hides past an edge (t126); at 375px the four chips fit one
+  row. On phones the nav scrolls with the page instead of sticking under the top bar (ruling 67: chips and sub-tabs
+  under the bar took a quarter of the screen); the nav heads every section and each section keeps its scroll.
+- **Addresses**: `#/admin?tab=<id>` with ids `stages`, `leagues`, `wallets`, `users`, `athletes`, `settings`,
+  `history`, `backup`, `season`; a missing or unknown id opens Tournaments. Each section keeps its scroll for the
+  visit: coming back restores it, and a section still loading is followed as it grows back to the saved spot until it
+  gets there or the admin scrolls (wheel, touch or a key).
+- **Stuck-game warning** (P9 ruling 18): above every section, one `.notice.warn` per game whose tournament's last day
+  has passed and which started but isn't verified (`stuckGames`, `src/app/lib/adminWarnings.ts`; a void game holds
+  nothing back): bold "Feasterns game 4 is still live." (or "… isn't verified.") then "Later results won't count until
+  it's verified.", and the link "Open Feasterns game 4" to its game page (`/stats/<session>`), where Verify makes it
+  final even unfinished. It loads each time Admin mounts.
+- **Rows that open** (rule 1): every league, wallet, account and player, every tournament under Later and Earlier and
+  each tournament's own Games and count, Pairings and Name and dates is one `.list` row: a `details` whose
+  `summary.row-link` holds a `.who` (bold name over small lines; a wallet adds its balance), opening in place to that
+  thing's actions as a `.stack`, everyday ones first (secondary buttons and forms), the destructive one last as a
+  `.danger-link`. Leagues, wallets, accounts and players open one at a time (`details name`).
+- **Tournaments** (`StagesPanel`): the tournament in progress (the earliest one that isn't over; over = its last day
+  has passed or every game it has is finished) is a `.card` with its name and dates in the head, then its `.steps`
+  line, "Allowance given · Buying open, closes in 1 d 4 h · Settle · Start" (once done: "Shares settled", "Game 2 of 5
+  live" or "next", "Finished after game 5"), and under it exactly one gold button, the step due now: **Grant
+  allowance** → **Open share buying** (with its Buying closes field) → **Close buying now** → **Settle shares** →
+  **Open tournament** (with its Games field); none while games run, since keepers run them from Tally. Anything else on
+  the card is secondary (Change close time while buying is open). Close buying now confirms "Close buying for CCCs now?
+  Teams can't buy or change shares after this, and it can't be reopened."; Settle confirms that it runs once; Grant
+  allowance asks first while earlier games aren't final; a past closing time is refused before any confirm. Each
+  result or error shows inside its tournament ("CCCs: credited 6 teams."). Below the card, `h2` "Later" (tournaments
+  made ahead of time) and `h2` "Earlier" (over ones), newest first, one row each: the name and dates and, for an over
+  one, "Finished" or a `.pill.warn` "Game 4 live"; a row opens to the same steps with no gold button. Each tournament
+  ends with its rows: **Games and count** ("5 games · 2 opponents not set"; on the tournament being played the Games
+  field with Save count, never below the highest started game, raising an over tournament confirms the new game's
+  pairings and lowering doesn't; a `.more` "Opponents are set on Tally"; and, on that tournament, "Undo game 2" (its
+  newest started game) last), **Pairings** (Check
+  pairings re-runs each Finish's Swiss pairing against the standings it was made from) and **Name and dates** (Save
+  tournament; "Delete tournament" last). The "Add a tournament" fold comes last, open while the season has none and
+  gold only while no tournament is in progress.
+- **Teams › Leagues** (`LeaguesPanel`): a `.card` "Leagues", one row per league: its name, "Needs a password" or "Open to
+  anyone" (the current season only; an older season's lock is unknown) and "5 teams · Made by Maya" ("an admin" with no
+  creator, "a removed user"). Opened: its teams by name, a secondary "Open league", the password form ("New password"
+  with "Add a password" or "Change password", and "Remove password" unless the league is known to be open), and
+  "Delete league" last. Leagues are created on `/leagues/new`, by anyone; Admin only deletes them.
+- **League browser** (Open league, M14): the league's name with a secondary Back; while share buying is open, "Buys so
+  far" (sealed from members); then a `.card.team-card` per team: its name, owner, place and record, balance, shares
+  and picks for the next game. Each share is a "{Player} (%)" field with Save and a red "Remove" (no bare ×), Add gives
+  a new share once the tournament's shares are settled ("Close share buying first" before), and Rename renames the
+  team. A removed team is read-only. Admin changes never move credits. Its Games card names each game with its pairings
+  ("Game 1 vs Duke · Zeal vs Flow"; a live one with its unofficial score).
+- **Teams › Wallets** (`WalletsPanel`): a `.card` "Wallets", one row per team, A→Z within each league: the team, its
+  league and its balance. Opened: its last 5 ledger lines ("No credits yet." when none), the Adjust form ("Credits
+  (+/−)", Note, gold Save; "Adjusted Gimp Zeal by 25." under its own Save) and, with donations on, "Only once the
+  treasurer has the money." with a secondary Record donation. Every control's accessible name says its team. Venmo
+  receipts that didn't become credits follow the list.
+- **People › Accounts** (`UsersPanel`): a `.card` "Accounts" with the count and Search people, one row per account: the
+  name (or the email) over its roles in words ("Admin, Stat keeper") or, with none, its teams ("Gimp Zeal · League A").
+  Opened: the email, the three role checkboxes (Admin, Stat keeper, Treasurer; off while a change is in flight), the
+  Name field with Save name, and "Remove account" last, its confirm naming every team, donation, profile and role it
+  touches (off on your own account). Unticking your own Admin confirms first ("Remove your own admin role? You lose
+  Admin right away and can't give it back yourself; another admin has to."), the one role change with no undo.
+- **People › Players** (`AthletesPanel`): a `.card` "Players" with the opted-in count, one row per player: the name and
+  "Opted out" when so. Opened: Linked account (a select), Opt out / Opt back in, the Name field with Save name, and
+  "Remove" last (its confirm, and a second one when he has stats, shares, roster spots or picks). "Add player" sits
+  under the list.
+- **More › Settings** (`SettingsEditor`): labelled number fields in two groups, `h2` "Points for stats" (Goal, Assist,
+  Block, Callahan, Turnover; fractions allowed) and `h2` "Credits and picks" ("Credits for the team in first"
+  (`allowance_base`), "Extra for the last-placed team", "Players a team can own", "Picks each game"; whole numbers),
+  two to a row on phones. Every setting stays editable as JSON in the "Advanced (all settings as JSON)" fold. One gold
+  "Save settings" checks with `parseSettings` and lists what's wrong; a field edit and a JSON edit are never both
+  pending (editing one puts the other back to the saved value).
+- **More › History** (`HistoryPanel`): a `.card` "History": an Action filter (All actions, or one by its plain name:
+  "Settle shares", "Close share buying"), one `.list` line per audit row ("Gave Ari Banks 25% to Gimp Zeal", "Tallied
+  Game 2 vs UNC (CCCs)", "Closed share buying for CCCs") with the actor ("Automatic" for the system, "Removed user")
+  and the time as small text, and "Load more" for the next 50. Names come from the live tables of every season, so a
+  removed team keeps its name; a game is found by its game id or its tally's.
+- **More › Backup** (`BackupPanel`): "Download backup", then "For the treasurer": Ledger CSV and Standings CSV
+  (secondary).
+- **More › Season** (`SeasonsPanel`): a `.card` "Seasons", one row per season with its status, "Managing" on the managed
+  one and a secondary Manage on the others; then the folds "Rename or delete {season}" (Delete season unlocks once the
+  name is typed; deleting the newest says which season everyone sees next) and "New season".
+
 ## Rules
 
 - **No box inside a box.** Inside a card, use `.section` rules and divided `.list` rows, never another bordered box.
@@ -517,14 +607,15 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   underlined, errors are written out.
 - **Gold means act.** Use gold for the main action and the current place, not for decoration or long text.
 - **One gold button at a time** (M15 P9 rule 2): gold is the one action due now (Start game 2, Tally game 2, the first
-  Buy shares, Join a league); a step that is done becomes words (a game line's "Pick 2" turns to "Not started"), and
+  Buy shares, Join a league, the tournament step due in admin Tournaments); a step that is done becomes words (a game line's "Pick 2" turns to "Not started"), and
   the other ways on are `.more` links or secondary buttons (a keeper with a team gets a `.more` "Tally game 2").
 - **The row is the button** (rule 1): see `.row-link` and `.row-target`. **One line per game, grouped by tournament**
   (rule 4): League games, Stats games and the tally list. **Status is a word and a dot** (rule 5) and **say it the way
   people count** (rule 3): see Words. **Show the league** (rule 6): the League tab's short table.
+- **Destructive actions come last, in red words** (`.danger-link`), each with its confirm or an undo (doing it again).
 - **Text on gold is always `--on-gold`.** Links and focus are baby blue (`--link`).
-- **Depth**: floating panes (cards, the scoreboard, the account menu, sticky buy-shares header and admin
-  subnav) are frosted glass: `--pane-bg` layered fill, `--pane-highlight` top edge, `--pane-shadow`, `--pane-blur`, over
+- **Depth**: floating panes (cards, the scoreboard, the account menu, the sticky buy-shares header and the admin
+  nav) are frosted glass: `--pane-bg` layered fill, `--pane-highlight` top edge, `--pane-shadow`, `--pane-blur`, over
   a faint gold and blue `--bg-ambient` glow on the page; each pane has a gold glow in its top-left corner, like the
   scoreboard. Page-level list rows get the same fill and shadow without the blur. Rows inside panes
   and the tally board never blur (phone GPU).
@@ -532,7 +623,8 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   14px (`--font-button`, `--fw-button`, `--fs-button`, `--button-stretch`, `--button-case`, `--button-track`), like a
   jersey label. Text links, account-menu items and the whole tally card keep their own lettering.
 - **Disabled buttons** are a quiet `--surface-2` fill with `--muted` text, not faded gold. Pick rows keep their own look:
-  an off row is muted text with no fill, and a pick being saved already shows as picked.
+  an off row is muted text with no fill, and a pick being saved already shows as picked. A disabled `.danger-link` is
+  just `--muted` words.
 - **Buttons are flat and crisp** (user's pick over keycap, push-key, glow and metal styles, board t111): plain fills,
   no border or bevel. Hover lifts 1px and gold buttons glow (`--shadow-lift`); press squeezes to 95% and springs back
   (`--dur-release`, `--ease-spring`). Chips, segmented buttons, the `?` and pick rows don't move: a pick is its ring
