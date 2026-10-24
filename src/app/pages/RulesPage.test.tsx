@@ -30,13 +30,14 @@ describe('RulesPage', () => {
     expect(text).toContain('Picks lock when a stat keeper starts the game');
     expect(text).toContain('Live scores during a game are unofficial and can shift until a keeper verifies the stats.');
     expect(text).toContain('Each roster holds up to 6 players');
-    expect(text).toContain('Each game you start 2 of your players');
+    expect(text).toContain('Each game you pick 2 of your players against one other fantasy team. Another team may pick the same player');
     expect(text).toContain('Up to 12 teams');
     expect(text).toContain("Forgot to pick, or a pick is out? We pick for you: players who aren't out and you picked least "
       + 'recently, then the ones scoring best lately');
     expect(text).toContain("Keepers mark a player Out for a tournament; an Out player can't be picked.");
     expect(text).not.toMatch(/\b(bench|bids?|bidding|auction)\b/i);
-    expect(text).toContain('Leaving a player out for 2 games between picks never does.');
+    expect(text).toContain('Not picking a player for 2 games between picks never does.');
+    expect(text).not.toMatch(/Leaving a player out|you start/);
     expect(text).toContain('and earlier tournaments (below)');
     // What ships: the pick card says the factors in words; there is no combined factor to tap open.
     expect(text).toContain('The pick card shows each player\'s share and tiredness in words, e.g. "Your 20% · picked for game 1: ¾ points".');
@@ -60,7 +61,14 @@ describe('RulesPage', () => {
     current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ tiredness_multipliers: [0.5] }) };
     render(<RulesPage />);
     await screen.findByText(/Spring 2027's settings/);
-    expect(document.body.textContent).toContain('Leaving a player out for 1 game between picks never does.');
+    expect(document.body.textContent).toContain('Not picking a player for 1 game between picks never does.');
+  });
+
+  it('says nothing about resting when no pick tires', async () => {
+    current = { id: 'se', name: 'Spring 2027', settings: parseSettings({ tiredness_multipliers: [] }) };
+    render(<RulesPage />);
+    await screen.findByText(/Spring 2027's settings/);
+    expect(document.body.textContent).not.toMatch(/never does|for 0 games/);
   });
 
   it('says donations go to the team fund and credits have no cash value', () => {
@@ -180,12 +188,12 @@ describe('RulesPage', () => {
     await screen.findByText(/Spring 2027's settings/);
     const text = document.body.textContent ?? '';
     expect(text).toContain('Pick 3 each game');
-    expect(text).toContain('Each game you start 3');
+    expect(text).toContain('Each game you pick 3');
     expect(text).toContain('up to 5 players');
     expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+4');
     expect(screen.getByText('Callahan').parentElement?.textContent).toBe('Callahan+10');
     expect(screen.getByText('The game before').parentElement?.textContent).toBe('The game before×0.6');
-    expect(text).toContain('Leaving a player out for 1 game');
+    expect(text).toContain('Not picking a player for 1 game');
     expect(text).toContain('never drops below ×0.5');
     expect(text).toContain('reopened for 24 hours');
     expect(text).toContain('In a 8-team league');

@@ -84,8 +84,8 @@ export function RulesPage() {
         <summary><h2>Picks</h2></summary>
         <div className="stack">
           <ul>
-            <li>Each game you start {S.picks_per_game} of your players against one other fantasy team. Another team may
-              start the same player; each side scores its own share.</li>
+            <li>Each game you pick {S.picks_per_game} of your players against one other fantasy team. Another team may
+              pick the same player; each side scores its own share.</li>
             <li>Opponents are paired Swiss style: teams close in the standings meet, and you don't play the same team
               twice if it can be avoided. Game 1 is paired by the standings when the
               tournament opens; each later game is paired when the game before it finishes.</li>
@@ -97,8 +97,9 @@ export function RulesPage() {
           </ul>
           <div className="section">
             <h3>Tired players</h3>
-            <p>Picking a player for back-to-back games tires them. Leaving a player out for {S.tiredness_multipliers.length}{' '}
-              {S.tiredness_multipliers.length === 1 ? 'game' : 'games'} between picks never does.</p>
+            <p>Picking a player for back-to-back games tires them.{S.tiredness_multipliers.length > 0 && <> Not picking a player
+              for {S.tiredness_multipliers.length} {S.tiredness_multipliers.length === 1 ? 'game' : 'games'} between picks never
+              does.</>}</p>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>You last picked them</th><th>Their stats count</th></tr></thead>
