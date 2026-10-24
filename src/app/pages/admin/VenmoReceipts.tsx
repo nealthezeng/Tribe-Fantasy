@@ -11,7 +11,7 @@ const REASON: Record<VenmoReceipt['status'], string> = {
   duplicate: 'Already credited (same Venmo payment)',
 };
 
-/** Venmo receipts that didn't become credits. Fix one with "Record a donation" below. */
+/** Venmo receipts that didn't become credits. Fix one with "Record donation" in that team's wallet row. */
 export function VenmoReceipts() {
   const list = useLoad(() => api.listVenmoReceipts(), []);
   const receipts = list.data?.receipts ?? [];

@@ -1,138 +1,135 @@
 import { useState, type FormEvent } from 'react';
 import { Loading } from '../../components/Loading';
 import { DEFAULT_SETTINGS } from '../../../core/settings';
+import { loadLateJoiners } from '../../lib/adminWarnings';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
+import { teamLabel } from '../../lib/tournament';
 import { useLoad } from '../../lib/useLoad';
 import { VenmoReceipts } from './VenmoReceipts';
-import { balance, credits } from '../../lib/wallet';
+import { balance, credits, entryLabel, LEDGER_COLUMNS, type LedgerEntry } from '../../lib/wallet';
 
 interface LeagueRow {
   id: string;
   name: string;
-  memberships: { id: string; team_name: string; credit_ledger: { amount: number }[] }[];
+  memberships: { id: string; team_name: string; removed_at: string | null; credit_ledger: LedgerEntry[] }[];
 }
-interface Team { id: string; label: string }
+interface Wallet { id: string; team: string; league: string; entries: LedgerEntry[]; late: string | null }
 
+/** Every team's credits as a row (P9 rule 1) that opens to its latest lines and the admin's credit forms for it. */
 export function WalletsPanel({ seasonId }: { seasonId: string }) {
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const data = useLoad(async () => {
-    const [season, leagues] = await Promise.all([
+    const [season, leagues, late] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
-      supabase!.from('leagues').select('id, name, memberships(id, team_name, credit_ledger(amount))')
+      supabase!.from('leagues').select(`id, name, memberships(id, team_name, removed_at, credit_ledger(${LEDGER_COLUMNS}))`)
         .eq('season_id', seasonId).order('name'),
+      loadLateJoiners(seasonId),
     ]);
     if (season.error) throw season.error;
     if (leagues.error) throw leagues.error;
     const settings = season.data.settings as { donations_enabled?: unknown; credits_per_dollar?: unknown };
+    const lateIds = new Set(late?.teams.map((t) => t.id));
     return {
       donationsEnabled: settings.donations_enabled === true,
       creditsPerDollar: Number(settings.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar),
-      leagues: (leagues.data ?? []) as LeagueRow[],
+      wallets: ((leagues.data ?? []) as LeagueRow[]).flatMap((l) => l.memberships.map((m): Wallet => ({
+        id: m.id, team: teamLabel(m), league: l.name, entries: m.credit_ledger, late: lateIds.has(m.id) ? late!.stage.name : null,
+      }))),
     };
   }, [seasonId]);
-
-  /** True when the action succeeded, so the form can clear itself. */
-  async function run(action: () => Promise<string>): Promise<boolean> {
-    setStatus(null);
-    setError(null);
-    try {
-      setStatus(await action());
-      data.reload();
-      return true;
-    } catch (err) {
-      setError(errorMessage(err));
-      return false;
-    }
-  }
-
-  const teams: Team[] = (data.data?.leagues ?? []).flatMap((l) =>
-    l.memberships.map((m) => ({ id: m.id, label: `${m.team_name} (${l.name})` })));
+  const d = data.data;
 
   return (
     <div className="card">
       <h2>Wallets</h2>
-      {!data.data && !data.error && <Loading />}
-      {data.data?.leagues.map((l) => (
-        <div key={l.id} className="stack">
-          <h3>{l.name}</h3>
-          {l.memberships.length === 0 && <p className="muted">No teams yet.</p>}
-          <ul className="list">
-            {l.memberships.map((m) => (
-              <li key={m.id}><span>{m.team_name}</span><strong className="num">{credits(balance(m.credit_ledger))}</strong></li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {!d && !data.error && <Loading />}
+      {d?.wallets.length === 0 && <p className="muted">No teams in this season yet.</p>}
+      <ul className="list">
+        {d?.wallets.map((w) => (
+          <li key={w.id}>
+            <details name="admin-wallet">
+              <summary className="row-link">
+                <span className="who"><b>{w.team}</b><small>{w.league}</small></span>
+                {w.late && <span className="pill warn">No {w.late} credits</span>}
+                <strong className="num">{credits(balance(w.entries))}</strong>
+              </summary>
+              <div className="stack">
+                <ul className="list">
+                  {w.entries.length === 0 && <li className="muted">No credits yet.</li>}
+                  {[...w.entries].sort((a, b) => b.id - a.id).slice(0, 5).map((e) => (
+                    <li key={e.id}>
+                      <span>{entryLabel(e)} <small>{new Date(e.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></span>
+                      <strong className="num">{e.amount > 0 ? '+' : ''}{e.amount}</strong>
+                    </li>
+                  ))}
+                </ul>
+                <CreditForm amountLabel="Credits (+/−)" step="1" button="Save" onDone={data.reload}
+                  submit={async (amount, note) => { await api.adjustCredits(w.id, amount, note); return `Adjusted ${w.team} by ${amount}.`; }} />
+                {d.donationsEnabled && (
+                  <>
+                    <p className="muted">Only once the treasurer has the money. {d.creditsPerDollar} credits per dollar.</p>
+                    <CreditForm amountLabel="Dollars donated to the team" step="0.01" button="Record donation" quiet onDone={data.reload}
+                      submit={async (dollars, note) => {
+                        await api.recordDonation(w.id, dollars, note);
+                        return `Recorded a $${dollars.toFixed(2)} donation to the team from ${w.team}.`;
+                      }} />
+                  </>
+                )}
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
       <VenmoReceipts />
-      <CreditForm
-        title="Adjust credits"
-        help="Use a negative number to take credits away."
-        teams={teams}
-        amountLabel="Credits (+/−)"
-        step="1"
-        onSubmit={(team, amount, note) => run(async () => {
-          await api.adjustCredits(team.id, amount, note);
-          return `Adjusted ${team.label} by ${amount}.`;
-        })}
-      />
-      {data.data?.donationsEnabled && (
-        <CreditForm
-          title="Record a donation to the team"
-          help={`Only once the treasurer has the money. ${data.data.creditsPerDollar} credits per dollar.`}
-          teams={teams}
-          amountLabel="Dollars donated to the team"
-          step="0.01"
-          onSubmit={(team, dollars, note) => run(async () => {
-            await api.recordDonation(team.id, dollars, note);
-            return `Recorded a $${dollars.toFixed(2)} donation to the team from ${team.label}.`;
-          })}
-        />
-      )}
-      {status && <p className="success" role="status">{status}</p>}
-      {(error || data.error) && <p className="error" role="alert">{error ?? data.error}</p>}
+      {data.error && <p className="error" role="alert">{data.error}</p>}
     </div>
   );
 }
 
-function CreditForm({ title, help, teams, amountLabel, step, onSubmit }: {
-  title: string;
-  help: string;
-  teams: Team[];
+/** Amount, note and its button for one team; what happened shows right under its own button. */
+function CreditForm({ amountLabel, step, button, quiet = false, submit, onDone }: {
   amountLabel: string;
   step: string;
-  onSubmit: (team: Team, amount: number, note: string) => Promise<boolean>;
+  button: string;
+  /** A secondary button, so an opened row has one gold button (P9 rule 2). */
+  quiet?: boolean;
+  /** Resolves to the success sentence. */
+  submit: (amount: number, note: string) => Promise<string>;
+  onDone: () => void;
 }) {
-  const [teamId, setTeamId] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  function submit(e: FormEvent) {
+  async function save(e: FormEvent) {
     e.preventDefault();
-    const team = teams.find((t) => t.id === teamId);
-    if (!team) return;
-    void onSubmit(team, Number(amount), note).then((ok) => { if (ok) { setAmount(''); setNote(''); } });
+    setBusy(true);
+    setStatus(null);
+    setError(null);
+    try {
+      setStatus(await submit(Number(amount), note));
+      setAmount('');
+      setNote('');
+      onDone();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <details className="section">
-      <summary>{title}</summary>
-      <form onSubmit={submit}>
-        <p className="muted">{help}</p>
-        <div className="row">
-          <label>Team
-            <select required value={teamId} onChange={(e) => setTeamId(e.target.value)}>
-              <option value="">Choose…</option>
-              {teams.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-          </label>
-          <label>{amountLabel}<input type="number" required step={step} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
-          <label>Note<input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-          <button>Save</button>
-        </div>
+    <>
+      <form className="row" onSubmit={(e) => void save(e)}>
+        <label>{amountLabel}<input type="number" required step={step} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
+        <label>Note<input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+        <button className={quiet ? 'secondary' : undefined} disabled={busy}>{button}</button>
       </form>
-    </details>
+      {status && <p className="success" role="status">{status}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+    </>
   );
 }

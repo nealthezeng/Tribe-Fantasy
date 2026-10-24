@@ -84,8 +84,8 @@ describe('LeagueBrowser', () => {
     const zeal = within(screen.getByRole('article', { name: 'Gimp Zeal' }));
     expect(zeal.getByText('Pat Example')).toBeTruthy();
     expect(zeal.getByText('85 credits')).toBeTruthy();
-    expect((zeal.getByLabelText('Ash percent') as HTMLInputElement).value).toBe('25');
-    expect((zeal.getByLabelText('Avery percent') as HTMLInputElement).value).toBe('25');
+    expect((zeal.getByLabelText('Ash (%)') as HTMLInputElement).value).toBe('25');
+    expect((zeal.getByLabelText('Avery (%)') as HTMLInputElement).value).toBe('25');
     expect(zeal.getByText('Picks for Game 2: Avery')).toBeTruthy();
 
     const money = within(screen.getByRole('article', { name: 'Money (removed)' }));
@@ -118,6 +118,15 @@ describe('LeagueBrowser', () => {
     render(<LeagueBrowser seasonId="se" leagueId="L" onClose={() => {}} />);
     expect(await screen.findByText('Game 1 · Gimp Zeal 6 – 3 Money · Unofficial')).toBeTruthy();
     expect(screen.getByText('Game 2 · Gimp Zeal vs Money')).toBeTruthy();
+  });
+
+  it("names games with the real opponent once a keeper sets it (gameName)", async () => {
+    setup();
+    ROWS.league.games[1].opponent = 'UNC';
+    render(<LeagueBrowser seasonId="se" leagueId="L" onClose={() => {}} />);
+    const zeal = within(await screen.findByRole('article', { name: 'Gimp Zeal' }));
+    expect(zeal.getByText('Picks for Game 2 vs UNC: Avery')).toBeTruthy();
+    expect(screen.getByText('Game 2 vs UNC · Gimp Zeal vs Money (removed)')).toBeTruthy();
   });
 
   it('has no Buys section once share buying has closed', async () => {

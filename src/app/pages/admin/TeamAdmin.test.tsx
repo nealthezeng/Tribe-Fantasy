@@ -38,7 +38,7 @@ describe('TeamAdmin', () => {
     const changed = vi.fn();
     render(<TeamAdmin data={data()} membershipId="m1" onChanged={changed} />);
     fireEvent.change(screen.getByLabelText('Player'), { target: { value: 'a4' } });
-    fireEvent.change(screen.getByLabelText('Percent'), { target: { value: '25' } });
+    fireEvent.change(screen.getByLabelText('Share (%)'), { target: { value: '25' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
     await waitFor(() => expect(api.adminSetShare).toHaveBeenCalledWith('S1', 'm1', 'a4', 25));
     await waitFor(() => expect(changed).toHaveBeenCalled());
@@ -52,11 +52,20 @@ describe('TeamAdmin', () => {
     expect(options).toContain('Bea');
   });
 
-  it('edits a percent in place and removes with × (no confirm: it can be added back)', async () => {
+  it('shows every share box with its % unit, and Remove in red words last in its row (no bare ×)', () => {
+    render(<TeamAdmin data={data()} membershipId="m1" onChanged={vi.fn()} />);
+    for (const label of ['Ash (%)', 'Avery (%)', 'Share (%)']) expect(screen.getByLabelText(label)).toBeTruthy();
+    const remove = screen.getByRole('button', { name: 'Remove Ash from Gimp Zeal' });
+    expect([remove.textContent, remove.className]).toEqual(['Remove', 'danger-link']);
+    expect(remove.querySelector('svg')).toBeNull();
+    expect([...remove.closest('form')!.querySelectorAll('button')].at(-1)).toBe(remove);
+  });
+
+  it('edits a percent in place and removes with Remove (no confirm: it can be added back)', async () => {
     const changed = vi.fn();
     const confirm = vi.spyOn(window, 'confirm');
     render(<TeamAdmin data={data()} membershipId="m1" onChanged={changed} />);
-    fireEvent.change(screen.getByLabelText('Ash percent'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Ash (%)'), { target: { value: '40' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Save' })[0]);
     await waitFor(() => expect(api.adminSetShare).toHaveBeenCalledWith('S1', 'm1', 'a0', 40));
     fireEvent.click(screen.getByRole('button', { name: 'Remove Ash from Gimp Zeal' }));
@@ -67,7 +76,7 @@ describe('TeamAdmin', () => {
 
   it('never sends 0 or a bad percent, even when the form is submitted directly', () => {
     render(<TeamAdmin data={data()} membershipId="m1" onChanged={() => {}} />);
-    const box = screen.getByLabelText('Ash percent') as HTMLInputElement;
+    const box = screen.getByLabelText('Ash (%)') as HTMLInputElement;
     const save = screen.getAllByRole('button', { name: 'Save' })[0] as HTMLButtonElement;
     expect(save.disabled).toBe(true); // same as the current share
     for (const v of ['', '0', '101', '2.5']) {
@@ -76,11 +85,11 @@ describe('TeamAdmin', () => {
     }
     fireEvent.change(screen.getByLabelText('Player'), { target: { value: 'a4' } });
     for (const v of ['', '0', '101', '2.5']) {
-      fireEvent.change(screen.getByLabelText('Percent'), { target: { value: v } });
-      fireEvent.submit(screen.getByLabelText('Percent').closest('form')!);
+      fireEvent.change(screen.getByLabelText('Share (%)'), { target: { value: v } });
+      fireEvent.submit(screen.getByLabelText('Share (%)').closest('form')!);
     }
-    fireEvent.change(screen.getByLabelText('Percent'), { target: { value: '25' } });
-    fireEvent.submit(screen.getByLabelText('Percent').closest('form')!);
+    fireEvent.change(screen.getByLabelText('Share (%)'), { target: { value: '25' } });
+    fireEvent.submit(screen.getByLabelText('Share (%)').closest('form')!);
     expect(api.adminSetShare).toHaveBeenCalledTimes(1);
     expect(api.adminSetShare).toHaveBeenCalledWith('S1', 'm1', 'a4', 25);
   });
@@ -89,7 +98,7 @@ describe('TeamAdmin', () => {
     render(<TeamAdmin data={data(7)} membershipId="m1" onChanged={() => {}} />);
     expect(screen.getByText('7 of 6 players')).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Player'), { target: { value: 'a7' } });
-    fireEvent.change(screen.getByLabelText('Percent'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Share (%)'), { target: { value: '10' } });
     expect((screen.getByRole('button', { name: 'Add' }) as HTMLButtonElement).disabled).toBe(false);
   });
 

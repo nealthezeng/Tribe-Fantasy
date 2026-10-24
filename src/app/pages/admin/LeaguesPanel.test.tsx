@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../lib/rpc';
 import { LeaguesPanel } from './LeaguesPanel';
@@ -26,63 +26,112 @@ vi.mock('../../lib/supabase', () => ({
 }));
 vi.mock('../../lib/rpc', () => ({ api: {
   // Only the current season's leagues come back: League A (l2) is from an older season here, so its lock is unknown.
-  listLeagues: vi.fn(() => Promise.resolve([{ id: 'l1', has_password: false }])),
+  listLeagues: vi.fn(() => Promise.resolve([{ id: 'l1', has_password: false }, { id: 'l3', has_password: true }])),
   deleteLeague: vi.fn(() => Promise.resolve()),
   setLeaguePassword: vi.fn(() => Promise.resolve()),
 } }));
+// The browser is its own tested component: here it only says which league it shows.
+vi.mock('./LeagueBrowser', () => ({
+  LeagueBrowser: ({ leagueId, onClose }: { leagueId: string; onClose: () => void }) => <button onClick={onClose}>Browser of {leagueId}</button>,
+}));
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
 
-describe('LeaguesPanel (t215)', () => {
-  it('lists every league with its creator and teams, and no invite codes', async () => {
+/** A league's closed row: its summary. */
+const row = (name: string) => screen.getByText(name).closest<HTMLElement>('summary.row-link')!;
+/** Opens a league's row (P9 rule 1) and returns what it holds. */
+const openRow = async (name: string) => {
+  fireEvent.click((await screen.findByText(name)).closest('summary')!);
+  const details = row(name).closest('details')!;
+  expect(details.open).toBe(true);
+  return within(details);
+};
+
+describe('LeaguesPanel (t215, P9 T18)', () => {
+  it('shows each league as one row: its name, who can join, its live teams and who made it, and no invite codes', async () => {
     render(<LeaguesPanel seasonId="s1" />);
-    expect(await screen.findByText('by Alice · 2 teams')).toBeTruthy();
-    expect(screen.getByText('by An admin · 0 teams')).toBeTruthy();
-    expect(screen.getByText('Zips, Hucks')).toBeTruthy();
+    await screen.findByText('Huck Yeah');
+    expect(within(row('Huck Yeah')).getByText('Open to anyone')).toBeTruthy();
+    expect(within(row('Huck Yeah')).getByText('2 teams · Made by Alice')).toBeTruthy();
+    expect(within(row('Ghost League')).getByText('Needs a password')).toBeTruthy();
+    expect(within(row('Ghost League')).getByText('1 team · Made by a removed user')).toBeTruthy();
+    // An older season's league: its lock is unknown, so the row says nothing about it.
+    expect(row('League A').textContent).toBe('League A0 teams · Made by an admin');
     expect(screen.queryByText(/invite/i)).toBeNull();
+    expect(screen.queryByText(/^(Public|Password)$/)).toBeNull();
   });
 
-  it('counts live teams only, marks removed teams, and reads Removed user for a creator whose profile is gone', async () => {
+  it('opens to its teams, removed ones marked, and Open league shows the league browser', async () => {
     render(<LeaguesPanel seasonId="s1" />);
-    expect(await screen.findByText('by Removed user · 1 team')).toBeTruthy();
-    expect(screen.getByText('Live, Left (removed)')).toBeTruthy();
+    expect((await openRow('Huck Yeah')).getByText('Zips, Hucks')).toBeTruthy();
+    const ghost = await openRow('Ghost League');
+    expect(ghost.getByText('Live, Left (removed)')).toBeTruthy();
+    fireEvent.click(ghost.getByRole('button', { name: 'Open league' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Browser of l3' }));
+    expect(await screen.findByText('Huck Yeah')).toBeTruthy(); // Back to the list
   });
 
-  it("sets or removes any league's password, so admins can lock a league they aren't in (review fix)", async () => {
+  it('adds a password to an open league, with no Remove password there', async () => {
     render(<LeaguesPanel seasonId="s1" />);
-    fireEvent.change(await screen.findByLabelText('New password for League A'), { target: { value: ' secret1 ' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Set password' })[1]);
-    await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l2', ' secret1 '));
-    expect(await screen.findByText('League A now needs a password.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Make League A public' }));
+    const huck = await openRow('Huck Yeah');
+    expect(huck.queryByRole('button', { name: 'Remove password' })).toBeNull();
+    fireEvent.change(huck.getByLabelText('New password'), { target: { value: ' secret1 ' } });
+    fireEvent.click(huck.getByRole('button', { name: 'Add a password' }));
+    await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l1', ' secret1 '));
+    expect(await huck.findByText('Huck Yeah now needs a password.')).toBeTruthy();
+  });
+
+  it('changes or removes the password of a locked league, Remove password with no confirm (as before)', async () => {
+    const confirm = vi.spyOn(window, 'confirm');
+    render(<LeaguesPanel seasonId="s1" />);
+    const ghost = await openRow('Ghost League');
+    expect(ghost.queryByRole('button', { name: 'Add a password' })).toBeNull();
+    fireEvent.change(ghost.getByLabelText('New password'), { target: { value: 'secret22' } });
+    fireEvent.click(ghost.getByRole('button', { name: 'Change password' }));
+    await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l3', 'secret22'));
+    fireEvent.click(ghost.getByRole('button', { name: 'Remove password' }));
+    await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l3', null));
+    expect(await ghost.findByText('Anyone can join Ghost League now.')).toBeTruthy();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it("keeps both password actions for an older season's league, whose lock is unknown", async () => {
+    render(<LeaguesPanel seasonId="s1" />);
+    const a = await openRow('League A');
+    expect(a.getByRole('button', { name: 'Add a password' })).toBeTruthy();
+    fireEvent.click(a.getByRole('button', { name: 'Remove password' }));
     await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l2', null));
-  });
-
-  it('says which leagues are public, and offers Make public only where it changes something', async () => {
-    render(<LeaguesPanel seasonId="s1" />);
-    expect(await screen.findByText('Public')).toBeTruthy();
-    expect(screen.queryByText('Password')).toBeNull();
-    expect((screen.getByRole('button', { name: 'Make Huck Yeah public' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Make League A public' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('refuses a password of only spaces', async () => {
     render(<LeaguesPanel seasonId="s1" />);
-    fireEvent.change(await screen.findByLabelText('New password for League A'), { target: { value: '     ' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Set password' })[1]);
-    expect((await screen.findByRole('alert')).textContent).toMatch(/4–40 characters/);
+    const a = await openRow('League A');
+    fireEvent.change(a.getByLabelText('New password'), { target: { value: '     ' } });
+    fireEvent.click(a.getByRole('button', { name: 'Add a password' }));
+    expect((await a.findByRole('alert')).textContent).toMatch(/4–40 characters/);
     expect(api.setLeaguePassword).not.toHaveBeenCalled();
   });
 
-  it('deletes a league only after the confirm', async () => {
+  it('puts Delete league last in red words, and deletes only after the confirm, word for word', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     render(<LeaguesPanel seasonId="s1" />);
-    const del = await screen.findByRole('button', { name: 'Delete Huck Yeah' });
+    const huck = await openRow('Huck Yeah');
+    const del = huck.getByRole('button', { name: 'Delete league' });
+    expect(huck.getAllByRole('button').at(-1)).toBe(del);
+    expect(del.className).toBe('danger-link');
     fireEvent.click(del);
     expect(api.deleteLeague).not.toHaveBeenCalled();
     fireEvent.click(del);
     await waitFor(() => expect(api.deleteLeague).toHaveBeenCalledWith('l1'));
-    expect(confirm.mock.calls[0][0]).toMatch(/^Delete Huck Yeah\? Its 2 teams/);
-    expect(confirm.mock.calls[0][0]).not.toMatch(/bid|auction/i);
+    expect(confirm.mock.calls[0][0]).toBe("Delete Huck Yeah? Its 2 teams, their credits, shares and rosters go with it. This can't be undone.");
+  });
+
+  it("says why a delete failed inside that league's row", async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(api.deleteLeague).mockRejectedValueOnce({ message: 'FORBIDDEN' });
+    render(<LeaguesPanel seasonId="s1" />);
+    const huck = await openRow('Huck Yeah');
+    fireEvent.click(huck.getByRole('button', { name: 'Delete league' }));
+    expect((await huck.findByRole('alert')).textContent).toBe("You don't have permission to do that.");
   });
 });

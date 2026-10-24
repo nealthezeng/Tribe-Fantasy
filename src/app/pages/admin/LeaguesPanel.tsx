@@ -14,12 +14,12 @@ interface LeagueRow {
   created_by: string | null;
   memberships: { id: string; team_name: string; removed_at: string | null }[];
 }
+type League = LeagueRow & { live: number; creator: string; locked?: boolean };
 
 /** Every league of the season, with who made it (t215). Anyone creates leagues on /leagues/new; admins delete here. */
 export function LeaguesPanel({ seasonId }: { seasonId: string }) {
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const leagues = useLoad(async () => {
+  const leagues = useLoad(async (): Promise<League[]> => {
     const { data, error } = await supabase!
       .from('leagues')
       .select('id, name, created_by, memberships(id, team_name, removed_at)')
@@ -38,22 +38,10 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
     // Locked or public: only the current season's list says (the hash itself is private). Older seasons show neither.
     const locked = new Map((await api.listLeagues()).map((l) => [l.id, l.has_password]));
     return rows.map((l) => ({
-      ...l, live: l.memberships.filter((m) => m.removed_at === null).length, creator: l.created_by ? names.get(l.created_by) ?? 'Removed user' : 'An admin', locked: locked.get(l.id),
+      ...l, live: l.memberships.filter((m) => m.removed_at === null).length,
+      creator: l.created_by ? names.get(l.created_by) ?? 'a removed user' : 'an admin', locked: locked.get(l.id),
     }));
   }, [seasonId]);
-
-  async function remove(l: LeagueRow) {
-    const teams = l.memberships.length;
-    if (!window.confirm(`Delete ${l.name}? Its ${teams} ${teams === 1 ? 'team' : 'teams'}, their credits, shares and rosters go with it. `
-      + "This can't be undone.")) return;
-    setError(null);
-    try {
-      await api.deleteLeague(l.id);
-      leagues.reload();
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
 
   if (open) return <LeagueBrowser seasonId={seasonId} leagueId={open} onClose={() => setOpen(null)} />;
   return (
@@ -62,31 +50,54 @@ export function LeaguesPanel({ seasonId }: { seasonId: string }) {
       {!leagues.data && !leagues.error && <Loading />}
       {leagues.data?.length === 0 && <p className="muted">No leagues in this season yet.</p>}
       <ul className="list">
-        {leagues.data?.map((l) => (
-          <li key={l.id} className="league-row">
-            <div className="who">
-              <span className="meta">
-                <span className="title">{l.name}</span>
-                {l.locked !== undefined && <span className={l.locked ? 'pill' : 'pill info'}>{l.locked ? 'Password' : 'Public'}</span>}
-              </span>
-              <span className="muted">by {l.creator} · {l.live} {l.live === 1 ? 'team' : 'teams'}</span>
-              {l.memberships.length > 0 && <small>{l.memberships.map(teamLabel).join(', ')}</small>}
-            </div>
-            <div className="row">
-              <button className="secondary" aria-label={`Open ${l.name}`} onClick={() => setOpen(l.id)}>Open</button>
-              <button className="secondary" aria-label={`Delete ${l.name}`} onClick={() => void remove(l)}>Delete</button>
-            </div>
-            <PasswordForm league={l} onSaved={leagues.reload} />
-          </li>
-        ))}
+        {leagues.data?.map((l) => <LeagueItem key={l.id} league={l} onOpen={() => setOpen(l.id)} onChanged={leagues.reload} />)}
       </ul>
-      {(error || leagues.error) && <p className="error" role="alert">{error ?? leagues.error}</p>}
+      {leagues.error && <p className="error" role="alert">{leagues.error}</p>}
     </div>
   );
 }
 
+/** One league as a row that opens its actions (P9 rule 1): its teams, the browser, the password, and Delete last. */
+function LeagueItem({ league: l, onOpen, onChanged }: { league: League; onOpen: () => void; onChanged: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove() {
+    const teams = l.memberships.length;
+    if (!window.confirm(`Delete ${l.name}? Its ${teams} ${teams === 1 ? 'team' : 'teams'}, their credits, shares and rosters go with it. `
+      + "This can't be undone.")) return;
+    setError(null);
+    try {
+      await api.deleteLeague(l.id);
+      onChanged();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  return (
+    <li>
+      <details name="admin-league">
+        <summary className="row-link">
+          <span className="who">
+            <b>{l.name}</b>
+            {l.locked !== undefined && <small>{l.locked ? 'Needs a password' : 'Open to anyone'}</small>}
+            <small>{l.live} {l.live === 1 ? 'team' : 'teams'} · Made by {l.creator}</small>
+          </span>
+        </summary>
+        <div className="stack">
+          {l.memberships.length > 0 && <p>{l.memberships.map(teamLabel).join(', ')}</p>}
+          <button className="secondary" onClick={onOpen}>Open league</button>
+          <PasswordForm league={l} onSaved={onChanged} />
+          <button className="danger-link" onClick={() => void remove()}>Delete league</button>
+          {error && <p className="error" role="alert">{error}</p>}
+        </div>
+      </details>
+    </li>
+  );
+}
+
 /** Admins lock or open any league, including ones they aren't in (older leagues have no creator to do it). */
-function PasswordForm({ league, onSaved }: { league: LeagueRow & { locked?: boolean }; onSaved: () => void }) {
+function PasswordForm({ league, onSaved }: { league: League; onSaved: () => void }) {
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -110,14 +121,20 @@ function PasswordForm({ league, onSaved }: { league: LeagueRow & { locked?: bool
   }
 
   return (
-    <form className="row" onSubmit={(e) => { e.preventDefault(); void save(password, `${league.name} now needs a password.`); }}>
-      <input aria-label={`New password for ${league.name}`} placeholder="New password" maxLength={40} autoComplete="off"
-        value={password} onChange={(e) => setPassword(e.target.value)} />
-      <button className="secondary" disabled={busy}>Set password</button>
-      <button type="button" className="secondary" disabled={busy || league.locked === false} aria-label={`Make ${league.name} public`}
-        onClick={() => void save(null, `Anyone can join ${league.name} now.`)}>Make public</button>
+    <>
+      <form className="row" onSubmit={(e) => { e.preventDefault(); void save(password, `${league.name} now needs a password.`); }}>
+        <label>New password
+          <input maxLength={40} autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </label>
+        <button className="secondary" disabled={busy}>{league.locked ? 'Change password' : 'Add a password'}</button>
+        {/* An older season's lock is unknown, so it keeps Remove password, as it kept Make public before. */}
+        {league.locked !== false && (
+          <button type="button" className="secondary" disabled={busy}
+            onClick={() => void save(null, `Anyone can join ${league.name} now.`)}>Remove password</button>
+        )}
+      </form>
       {msg && <p className="success" role="status">{msg}</p>}
       {error && <p className="error" role="alert">{error}</p>}
-    </form>
+    </>
   );
 }

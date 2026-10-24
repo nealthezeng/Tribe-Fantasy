@@ -46,14 +46,13 @@ function ShareRow({ name, team, share, disabled, set }: {
   const same = value === String(share);
   return (
     <li>
-      <span>{name}</span>
-      <form className="bid" onSubmit={(e) => { e.preventDefault(); if (isPercent(value)) set(+value); }}>
-        <input type="number" inputMode="numeric" min={1} max={100} step={1} value={value} onChange={(e) => setValue(e.target.value)}
-          aria-label={`${name} percent`} aria-invalid={!isPercent(value)} />
+      <form className="row" onSubmit={(e) => { e.preventDefault(); if (isPercent(value)) set(+value); }}>
+        <label>{name} (%)
+          <input type="number" inputMode="numeric" min={1} max={100} step={1} value={value} onChange={(e) => setValue(e.target.value)}
+            aria-invalid={!isPercent(value)} />
+        </label>
         <button disabled={disabled || same || !isPercent(value)}>Save</button>
-        <button type="button" className="secondary icon" disabled={disabled} aria-label={`Remove ${name} from ${team}`} onClick={() => set(null)}>
-          <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" /></svg>
-        </button>
+        <button type="button" className="danger-link" disabled={disabled} aria-label={`Remove ${name} from ${team}`} onClick={() => set(null)}>Remove</button>
       </form>
     </li>
   );
@@ -96,7 +95,7 @@ export function TeamAdmin({ data, membershipId, onChanged }: { data: LeagueAdmin
               {data.players.filter((a) => !roster.some((p) => p.id === a.id)).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
           </label>
-          <label>Percent
+          <label>Share (%)
             <input type="number" inputMode="numeric" min={1} max={100} step={1} value={percent} onChange={(e) => setPercent(e.target.value)} />
           </label>
           <button disabled={busy || !player || !isPercent(percent)}>Add</button>
