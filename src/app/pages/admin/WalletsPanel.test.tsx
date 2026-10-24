@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadLateJoiners } from '../../lib/adminWarnings';
 import { api } from '../../lib/rpc';
 import type { LedgerEntry } from '../../lib/wallet';
 import { WalletsPanel } from './WalletsPanel';
@@ -25,7 +24,6 @@ vi.mock('../../lib/supabase', () => ({
   },
 }));
 vi.mock('../../lib/rpc', () => ({ api: { adjustCredits: vi.fn(), recordDonation: vi.fn() } }));
-vi.mock('../../lib/adminWarnings', () => ({ loadLateJoiners: vi.fn() }));
 vi.mock('./VenmoReceipts', () => ({ VenmoReceipts: () => <p>Venmo receipts</p> }));
 
 beforeEach(() => {
@@ -39,7 +37,6 @@ beforeEach(() => {
       { id: 'm2', team_name: 'Money', removed_at: '2026-11-05T00:00:00Z', credit_ledger: [entry(1, 'allowance', 40, { stages: CCCS })] }] },
     { id: 'l2', name: 'Zip Zap', memberships: [{ id: 'm3', team_name: 'Late Larks', removed_at: null, credit_ledger: [] }] },
   ];
-  vi.mocked(loadLateJoiners).mockResolvedValue({ stage: { id: 'S2', name: 'Feasterns' }, teams: [{ id: 'm3', team: 'Late Larks', league: 'Zip Zap' }] });
   vi.mocked(api.adjustCredits).mockResolvedValue(1);
   vi.mocked(api.recordDonation).mockResolvedValue(1);
 });
@@ -66,14 +63,8 @@ describe('WalletsPanel (P9 T18)', () => {
     expect(within(row('Money (removed)')).getByText('40 credits')).toBeTruthy();
     expect(within(row('Late Larks')).getByText('Zip Zap')).toBeTruthy();
     expect(within(row('Late Larks')).getByText('0 credits')).toBeTruthy();
+    expect(document.querySelector('.pill')).toBeNull(); // a team with no credits gets nothing extra (ruling 76)
     expect(screen.getByText('Venmo receipts')).toBeTruthy();
-  });
-
-  it('marks a team that joined after the open tournament\'s credits went out', async () => {
-    render(<WalletsPanel seasonId="s1" />);
-    await screen.findByText('Late Larks');
-    expect(within(row('Late Larks')).getByText('No Feasterns credits').className).toBe('pill warn');
-    expect(within(row('Gimp Zeal')).queryByText(/credits$/, { selector: '.pill' })).toBeNull();
   });
 
   it('lists teams by name within each league', async () => {
@@ -83,16 +74,6 @@ describe('WalletsPanel (P9 T18)', () => {
     expect([...document.querySelectorAll('summary.row-link b')].map((b) => b.textContent)).toEqual(['Gimp Zeal', 'Money (removed)', 'Late Larks']);
   });
 
-  it('still shows every wallet and its forms when the late-joiner check fails (it is only a warning)', async () => {
-    vi.mocked(loadLateJoiners).mockRejectedValue({ message: 'FORBIDDEN' });
-    render(<WalletsPanel seasonId="s1" />);
-    const larks = await openRow('Late Larks');
-    expect(larks.getByRole('button', { name: 'Save for Late Larks' })).toBeTruthy();
-    expect(larks.getByRole('button', { name: 'Record donation for Late Larks' })).toBeTruthy();
-    expect(document.querySelector('.pill')).toBeNull();
-    expect(screen.queryByRole('alert')).toBeNull();
-  });
-
   it('names each form control after its team, visible words unchanged', async () => {
     render(<WalletsPanel seasonId="s1" />);
     const zeal = await openRow('Gimp Zeal');
@@ -100,13 +81,6 @@ describe('WalletsPanel (P9 T18)', () => {
       .toEqual([['Save', 'Save for Gimp Zeal'], ['Record donation', 'Record donation for Gimp Zeal']]);
     expect(zeal.getAllByRole('textbox').concat(zeal.getAllByRole('spinbutton')).map((i) => i.getAttribute('aria-label')).sort()).toEqual([
       'Credits (+/−) for Gimp Zeal', 'Dollars donated to the team for Gimp Zeal', "Note on Gimp Zeal's adjustment", "Note on Gimp Zeal's donation"]);
-  });
-
-  it('has no pill when no tournament is waiting on credits', async () => {
-    vi.mocked(loadLateJoiners).mockResolvedValue(null);
-    render(<WalletsPanel seasonId="s1" />);
-    await screen.findByText('Late Larks');
-    expect(document.querySelector('.pill')).toBeNull();
   });
 
   it('opens to the last 5 credit lines, newest first', async () => {

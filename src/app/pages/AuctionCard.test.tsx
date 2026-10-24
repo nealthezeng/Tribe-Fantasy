@@ -347,49 +347,16 @@ describe('AuctionCard', () => {
     expect(screen.getByRole('button', { name: 'Remove Gone' })).toBeTruthy();
   });
 
-  it("tells a team without this tournament's credits to ask an admin", async () => {
+  it('says nothing extra about credits: none for this tournament, or credits an admin added by hand (ruling 76)', async () => {
     db.stages = [{ ...openStage, name: 'CCCs' } as unknown as Row];
-    db.credit_ledger = [{ ...allowance, stage_id: 's0' }]; // an earlier tournament's credits only
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.getByText('You joined after CCCs credits went out. Ask an admin to add yours.').className).toBe('notice');
-
-    db.credit_ledger = [allowance];
-    cleanup();
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.queryByText(/You joined after/)).toBeNull();
-  });
-
-  it('drops the late-joiner notice once an admin adds credits by hand, for good', async () => {
-    db.stages = [{ ...openStage, name: 'CCCs' } as unknown as Row];
-    db.credit_ledger = [adjustment(115, 1)]; // no CCCs allowance: the admin fixed it from Wallets
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.getByText('An admin added 115 credits.')).toBeTruthy();
-    expect(screen.queryByText(/You joined after/)).toBeNull();
-
-    db.credit_ledger = [adjustment(115, 8)]; // the success line's week is over
-    cleanup();
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.queryByText(/An admin added/)).toBeNull();
-    expect(screen.queryByText(/You joined after/)).toBeNull();
-  });
-
-  it('says when an admin added credits this week', async () => {
-    db.stages = [openStage as unknown as Row];
-    db.credit_ledger = [allowance, adjustment(115, 1)];
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.getByText('An admin added 115 credits.').className).toBe('success');
-
-    for (const ledger of [[allowance, adjustment(115, 8)], [allowance, adjustment(-20, 1)]]) {
+    // No credits at all, an earlier tournament's only, and an admin's hand-added credits from yesterday.
+    for (const ledger of [[], [{ ...allowance, stage_id: 's0' }], [allowance, adjustment(115, 1)]]) {
       db.credit_ledger = ledger;
       cleanup();
       renderCard();
       await screen.findByText(/^Closes in/);
-      expect(screen.queryByText(/An admin added/)).toBeNull();
+      expect(screen.queryByText(/joined after|ask an admin|admin added/i)).toBeNull();
+      expect(document.querySelector('article > :is(.notice, .success)')).toBeNull();
     }
   });
 

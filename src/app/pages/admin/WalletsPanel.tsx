@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Loading } from '../../components/Loading';
 import { DEFAULT_SETTINGS } from '../../../core/settings';
-import { loadLateJoiners } from '../../lib/adminWarnings';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
 import { supabase } from '../../lib/supabase';
@@ -15,29 +14,25 @@ interface LeagueRow {
   name: string;
   memberships: { id: string; team_name: string; removed_at: string | null; credit_ledger: LedgerEntry[] }[];
 }
-interface Wallet { id: string; team: string; league: string; entries: LedgerEntry[]; late: string | null }
+interface Wallet { id: string; team: string; league: string; entries: LedgerEntry[] }
 
 /** Every team's credits as a row (P9 rule 1) that opens to its latest lines and the admin's credit forms for it. */
 export function WalletsPanel({ seasonId }: { seasonId: string }) {
   const data = useLoad(async () => {
-    const [season, leagues, late] = await Promise.all([
+    const [season, leagues] = await Promise.all([
       supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
       supabase!.from('leagues').select(`id, name, memberships(id, team_name, removed_at, credit_ledger(${LEDGER_COLUMNS}))`)
         .eq('season_id', seasonId).order('name'),
-      loadLateJoiners(seasonId).catch(() => null), // only a warning: Adjust and Record donation work without it
     ]);
     if (season.error) throw season.error;
     if (leagues.error) throw leagues.error;
     const settings = season.data.settings as { donations_enabled?: unknown; credits_per_dollar?: unknown };
-    const lateIds = new Set(late?.teams.map((t) => t.id));
     return {
       donationsEnabled: settings.donations_enabled === true,
       creditsPerDollar: Number(settings.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar),
       // Teams A→Z within each league: the flat list has no league headings.
       wallets: ((leagues.data ?? []) as LeagueRow[]).flatMap((l) => [...l.memberships].sort((a, b) => a.team_name.localeCompare(b.team_name))
-        .map((m): Wallet => ({
-          id: m.id, team: teamLabel(m), league: l.name, entries: m.credit_ledger, late: lateIds.has(m.id) ? late!.stage.name : null,
-        }))),
+        .map((m): Wallet => ({ id: m.id, team: teamLabel(m), league: l.name, entries: m.credit_ledger }))),
     };
   }, [seasonId]);
   const d = data.data;
@@ -53,7 +48,6 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
             <details name="admin-wallet">
               <summary className="row-link">
                 <span className="who"><b>{w.team}</b><small>{w.league}</small></span>
-                {w.late && <span className="pill warn">No {w.late} credits</span>}
                 <strong className="num">{credits(balance(w.entries))}</strong>
               </summary>
               <div className="stack">

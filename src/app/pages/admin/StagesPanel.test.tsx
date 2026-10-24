@@ -2,18 +2,14 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadLateJoiners } from '../../lib/adminWarnings';
 import { formatWhen } from '../../lib/auction';
 import { api } from '../../lib/rpc';
 import { seasonRanks } from '../../lib/tournament';
 import { StagesPanel } from './StagesPanel';
 
 type Row = Record<string, unknown>;
-type Late = { stage: { id: string; name: string }; teams: { id: string; team: string; league: string }[] };
 
-const db = vi.hoisted(() => ({
-  stages: [] as Row[], games: [] as Row[], audit_log: [] as Row[], credit_ledger: [] as Row[], late: null as Late | null,
-}));
+const db = vi.hoisted(() => ({ stages: [] as Row[], games: [] as Row[], audit_log: [] as Row[], credit_ledger: [] as Row[] }));
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -41,8 +37,6 @@ vi.mock('../../lib/rpc', () => ({
   },
 }));
 
-vi.mock('../../lib/adminWarnings', () => ({ loadLateJoiners: vi.fn(async () => db.late) }));
-
 const pairings = [{ league_id: 'L', home: 'm1', away: 'm2' }];
 const provisional = [{ league_id: 'L', order: ['m1', 'm2'], meetings: {}, season_meetings: {} }];
 vi.mock('../../lib/tournament', async (orig) => ({
@@ -59,7 +53,6 @@ afterEach(() => {
   db.games = [];
   db.audit_log = [];
   db.credit_ledger = [];
-  db.late = null;
 });
 const show = () => render(<MemoryRouter><StagesPanel seasonId="se1" /></MemoryRouter>);
 const stage = (id: string, starts_on: string, bid_close_at: string, ends_on = '2027-12-31') => (
@@ -107,14 +100,15 @@ describe('StagesPanel', () => {
   });
 
   it.each([
-    ['no allowance yet', S(), [], [], 'Allowance · Buying · Settle · Start', 'Grant allowance'],
-    ['allowance given', S(), given, [], 'Allowance given · Buying · Settle · Start', 'Open share buying'],
-    ['buying open', S({ bid_close_at: FUTURE }), given, [], `Allowance given · Buying open, closes ${formatWhen(FUTURE)} · Settle · Start`, 'Close buying now'],
-    ['buying closed', S({ bid_close_at: PAST }), given, [], `Allowance given · Buying closed ${formatWhen(PAST)} · Settle · Start`, 'Settle shares'],
-    ['shares settled', S({ bid_close_at: PAST, auction_run_at: PAST }), given, [], 'Allowance given · Shares settled · Start', 'Open tournament'],
+    ['no allowance yet', S(), [], [], 'Allowance · Buying · Settle · Start', 'Allowance', 'Grant allowance'],
+    ['allowance given', S(), given, [], 'Allowance given · Buying · Settle · Start', 'Buying', 'Open share buying'],
+    ['buying open', S({ bid_close_at: FUTURE }), given, [], `Allowance given · Buying open, closes ${formatWhen(FUTURE)} · Settle · Start`,
+      `Buying open, closes ${formatWhen(FUTURE)}`, 'Close buying now'],
+    ['buying closed', S({ bid_close_at: PAST }), given, [], `Allowance given · Buying closed ${formatWhen(PAST)} · Settle · Start`, 'Settle', 'Settle shares'],
+    ['shares settled', S({ bid_close_at: PAST, auction_run_at: PAST }), given, [], 'Allowance given · Shares settled · Start', 'Start', 'Open tournament'],
     ['games running', S({ bid_close_at: PAST, auction_run_at: PAST }), given, [game(1, T, T, 'CCCs'), game(2, null, null, 'CCCs')],
-      'Allowance given · Shares settled · Game 2 of 2 next', null],
-  ])('%s: the step line and exactly one gold button', async (_name, s, ledger, games, line, button) => {
+      'Allowance given · Shares settled · Game 2 of 2 next', 'Game 2 of 2 next', null],
+  ])('%s: the step line and exactly one gold button', async (_name, s, ledger, games, line, current, button) => {
     db.stages = [s];
     db.credit_ledger = ledger;
     db.games = games;
@@ -122,36 +116,25 @@ describe('StagesPanel', () => {
     await screen.findByRole('heading', { name: 'CCCs' });
     expect(steps()).toBe(line);
     expect(gold()).toEqual(button ? [button] : []);
+    // The step at hand is bold and announced as the current step; there is only one.
+    const at = document.querySelectorAll('article .steps [aria-current="step"]');
+    expect([...at].map((e) => [e.className, e.textContent])).toEqual([['now', current]]);
   });
 
-  it('turns the due step into the late joiners and gives them their credits, with the standings confirm', async () => {
-    db.stages = [S({ bid_close_at: FUTURE })];
-    db.credit_ledger = given;
-    db.late = { stage: { id: 'CCCs', name: 'CCCs' }, teams: [{ id: 'm9', team: 'Late Larks', league: 'League A' }] };
+  it('grants the allowance after the standings confirm, then the step line moves on', async () => {
+    db.stages = [S()];
     vi.mocked(seasonRanks).mockResolvedValueOnce({ ranks: { m1: 1 }, unsettled: 2 });
+    vi.mocked(api.grantStageAllowance).mockImplementationOnce(async () => { db.credit_ledger = given; return 1; });
     const ask = vi.fn(() => true);
     window.confirm = ask;
     show();
-    await screen.findByRole('heading', { name: 'CCCs' });
-    expect(steps()).toBe(`1 team has no CCCs credits · Buying open, closes ${formatWhen(FUTURE)} · Settle · Start`);
-    expect(gold()).toEqual(['Give them their credits']);
-    expect(screen.getByRole('button', { name: 'Close buying now' }).className).toBe('secondary');
-    db.late = { ...db.late, teams: [] };
-    fireEvent.click(screen.getByRole('button', { name: 'Give them their credits' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant allowance' }));
     await waitFor(() => expect(api.grantStageAllowance).toHaveBeenCalledWith('CCCs', { m1: 1 }));
     expect(ask).toHaveBeenCalledWith('2 earlier games are not final yet, so the standings may still change. Grant anyway?');
-    await waitFor(() => expect(steps()).toMatch(/^Allowance given · /)); // reloaded: the step line updates
-    expect(vi.mocked(loadLateJoiners).mock.calls.length).toBeGreaterThan(1);
-  });
-
-  it('says how many teams have no credits', async () => {
-    db.stages = [S()];
-    db.credit_ledger = given;
-    db.late = { stage: { id: 'CCCs', name: 'CCCs' }, teams: [{ id: 'm8', team: 'Huck Hens', league: 'L' }, { id: 'm9', team: 'Late Larks', league: 'L' }] };
-    show();
-    await screen.findByRole('heading', { name: 'CCCs' });
-    expect(steps()).toMatch(/^2 teams have no CCCs credits · /);
-    expect(gold()).toEqual(['Give them their credits']);
+    await screen.findByText('CCCs: credited 1 team.');
+    await waitFor(() => expect(steps()).toBe('Allowance given · Buying · Settle · Start')); // reloaded
+    expect(screen.queryByRole('button', { name: 'Grant allowance' })).toBeNull();
+    expect(gold()).toEqual(['Open share buying']);
   });
 
   it('closes buying now after the ruling 19 confirm', async () => {

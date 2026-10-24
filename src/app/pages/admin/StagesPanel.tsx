@@ -1,7 +1,6 @@
 import { Fragment, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Loading } from '../../components/Loading';
-import { loadLateJoiners } from '../../lib/adminWarnings';
 import { auctionPhase, formatWhen, pickPlayingStage } from '../../lib/auction';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
@@ -36,10 +35,11 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
     const stages = (await rowsOf<StageRow>(sb.from('stages').select('id, name, starts_on, ends_on, bid_close_at, auction_run_at').eq('season_id', seasonId)))
       .sort((a, b) => b.starts_on.localeCompare(a.starts_on)); // newest first
     const ids = stages.map((s) => s.id);
-    const games = await rowsOf<GameRow>(ids.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', ids).order('number') : null);
-    const granted = await rowsOf<{ stage_id: string }>(ids.length
-      ? sb.from('credit_ledger').select('stage_id').in('stage_id', ids).eq('kind', 'allowance') : null);
-    return { stages, games, granted: new Set(granted.map((r) => r.stage_id)), late: await loadLateJoiners(seasonId) };
+    const [games, granted] = await Promise.all([
+      rowsOf<GameRow>(ids.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', ids).order('number') : null),
+      rowsOf<{ stage_id: string }>(ids.length ? sb.from('credit_ledger').select('stage_id').in('stage_id', ids).eq('kind', 'allowance') : null),
+    ]);
+    return { stages, games, granted: new Set(granted.map((r) => r.stage_id)) };
   }, [seasonId]);
 
   const run: Run = (at, action) => {
@@ -53,7 +53,7 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
     && <p className={note.bad ? 'error' : 'success'} role={note.bad ? 'alert' : 'status'}>{note.text}</p>;
 
   if (!data.data) return data.error ? <p className="error" role="alert">{data.error}</p> : <Loading />;
-  const { stages, games, granted, late } = data.data;
+  const { stages, games, granted } = data.data;
   const today = todayLocal();
   const playing = pickPlayingStage(stages, today)?.id;
   const of = (s: StageRow) => games.filter((g) => g.stage_id === s.id);
@@ -61,8 +61,8 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
   const over = (s: StageRow) => s.ends_on < today || (of(s).length > 0 && of(s).every((g) => g.finished_at !== null));
   const current = stages.filter((s) => !over(s)).at(-1);
   const body = (s: StageRow, gold: boolean) => (
-    <Tournament s={s} games={of(s)} granted={granted.has(s.id)} late={late?.stage.id === s.id ? late.teams.length : 0}
-      playing={s.id === playing} gold={gold} seasonId={seasonId} run={run} note={noteAt(s.id)} />
+    <Tournament s={s} games={of(s)} granted={granted.has(s.id)} playing={s.id === playing} gold={gold} seasonId={seasonId} run={run}
+      note={noteAt(s.id)} />
   );
   const rows = (list: StageRow[]) => (
     <ul className="list">
@@ -103,23 +103,22 @@ export function StagesPanel({ seasonId }: { seasonId: string }) {
 }
 
 /** One tournament: its steps in one line, the action due now (gold only on the card, P9 rule 2), then its rows. */
-function Tournament({ s, games, granted, late, playing, gold, seasonId, run, note }: {
-  s: StageRow; games: GameRow[]; granted: boolean; late: number; playing: boolean; gold: boolean; seasonId: string; run: Run; note: ReactNode;
+function Tournament({ s, games, granted, playing, gold, seasonId, run, note }: {
+  s: StageRow; games: GameRow[]; granted: boolean; playing: boolean; gold: boolean; seasonId: string; run: Run; note: ReactNode;
 }) {
   const phase = auctionPhase(s);
   const now = games.find((g) => g.finished_at === null); // the current game; none = every game is finished
   const when = s.bid_close_at ? formatWhen(s.bid_close_at) : '';
-  // The step at hand: credits while shares aren't settled (late joiners too, ruling 12), then buying, settling, starting.
-  const at: Step = phase !== 'run' && (!granted || late > 0) ? 'credits' : phase === 'closed' ? 'settle' : phase === 'run' ? 'start' : 'buying';
+  // The step at hand: the allowance while shares aren't settled, then buying, settling, starting.
+  const at: Step = phase !== 'run' && !granted ? 'credits' : phase === 'closed' ? 'settle' : phase === 'run' ? 'start' : 'buying';
   const steps: [Step, string][] = [
-    ['credits', late > 0 ? `${plural(late, 'team has', 'teams have')} no ${s.name} credits` : granted ? 'Allowance given' : 'Allowance'],
+    ['credits', granted ? 'Allowance given' : 'Allowance'],
     ...(phase === 'run' ? [] : [['buying', { not_open: 'Buying', open: `Buying open, closes ${when}`, closed: `Buying closed ${when}` }[phase]] as [Step, string]]),
     ['settle', phase === 'run' ? 'Shares settled' : 'Settle'],
     ['start', now ? `Game ${now.number} of ${games.length} ${now.started_at ? 'live' : 'next'}` : games.length ? `Finished after game ${games.length}` : 'Start'],
   ];
   const cls = (step: Step) => (gold && step === at ? undefined : 'secondary');
 
-  // Grant only credits teams without this allowance, so the same call gives late joiners theirs.
   const grant = () => run(s.id, async () => {
     const { ranks, unsettled } = await seasonRanks(seasonId, s.id);
     if (unsettled > 0 && !window.confirm(
@@ -141,9 +140,11 @@ function Tournament({ s, games, granted, late, playing, gold, seasonId, run, not
   return (
     <div className="stack">
       <p className="steps">
-        {steps.map(([k, w], i) => <Fragment key={k}>{i > 0 && ' · '}<span className={k === at ? 'now' : undefined}>{w}</span></Fragment>)}
+        {steps.map(([k, w], i) => (
+          <Fragment key={k}>{i > 0 && ' · '}{k === at ? <span className="now" aria-current="step">{w}</span> : <span>{w}</span>}</Fragment>
+        ))}
       </p>
-      {(!granted || late > 0) && <button className={cls('credits')} onClick={grant}>{granted ? 'Give them their credits' : 'Grant allowance'}</button>}
+      {!granted && <button className={cls('credits')} onClick={grant}>Grant allowance</button>}
       {phase === 'open' && <button className={cls('buying')} onClick={closeNow}>Close buying now</button>}
       {(phase === 'not_open' || phase === 'open') && <CloseTime s={s} cls={phase === 'open' ? 'secondary' : cls('buying')} run={run} />}
       {phase === 'closed' && <button className={cls('settle')} onClick={settle}>Settle shares</button>}
