@@ -1,5 +1,6 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router';
+import { OpponentsForm } from '../components/OpponentsForm';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import type { CurrentSeason } from '../lib/stats';
@@ -43,19 +44,15 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [opponentsError, setOpponentsError] = useState<string | null>(null); // shown in the Opponents fold, by its Save
-  const [drafts, setDrafts] = useState<Record<string, string>>({}); // unsaved opponent text by game id
 
-  /** `fail` says where the error shows: the stage card by default, near the button that failed. */
-  async function run(action: () => Promise<void>, fail = setError) {
+  async function run(action: () => Promise<void>) {
     setBusy(true);
     setStatus(null);
     setError(null);
-    setOpponentsError(null);
     try {
       await action();
     } catch (err) {
-      fail(errorMessage(err));
+      setError(errorMessage(err));
       setPreview(null);
     }
     setBusy(false);
@@ -127,15 +124,6 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
     return live && game.session_id === sessionId ? <div className="stack">{finishing}{messages}</div> : messages;
   }
 
-  const changed = games.filter((g) => drafts[g.id] !== undefined && drafts[g.id] !== (g.opponent ?? ''));
-  const saveOpponents = (e: FormEvent) => {
-    e.preventDefault();
-    void run(async () => {
-      for (const g of changed) await api.setGameOpponent(g.id, drafts[g.id]);
-      setDrafts({});
-    }, setOpponentsError);
-  };
-
   return (
     <>
       <article className="card">
@@ -166,14 +154,7 @@ export function GameControls({ season, sessionId, unsaved = new Map(), onOpen }:
       </article>
       <details className="card">
         <summary><h2>Opponents</h2></summary>
-        <form onSubmit={saveOpponents}>
-          {games.map((g) => (
-            <label key={g.id}>Game {g.number}<input maxLength={40} placeholder="Opponent" value={drafts[g.id] ?? g.opponent ?? ''}
-              onChange={(e) => setDrafts({ ...drafts, [g.id]: e.target.value })} /></label>
-          ))}
-          <button className="secondary" disabled={busy || changed.length === 0}>Save opponents</button>
-        </form>
-        {opponentsError && <p className="error" role="alert">{opponentsError}</p>}
+        <OpponentsForm games={games} onSaved={current.reload} />
       </details>
     </>
   );

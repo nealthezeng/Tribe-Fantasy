@@ -157,6 +157,19 @@ describe('GameControls', () => {
     expect(api.setGameOpponent).toHaveBeenCalledWith('g3', 'Duke');
   });
 
+  it('says Opponents saved. by the button', async () => {
+    state.game = upcoming;
+    view(<GameControls season={season} onOpen={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText('Game 2'), { target: { value: 'Duke' } });
+    const save = screen.getByRole('button', { name: 'Save opponents' });
+    fireEvent.click(save);
+    const saved = await screen.findByRole('status');
+    expect(saved.outerHTML).toBe('<small class="success" role="status">Opponents saved.</small>');
+    expect(save.nextElementSibling).toBe(saved);
+    fireEvent.change(screen.getByLabelText('Game 2'), { target: { value: 'Duke U' } });
+    expect(screen.queryByRole('status')).toBeNull(); // gone at the next edit
+  });
+
   it('makes Tally the one gold button while a game is live, with no Finish on the list', async () => {
     state.games = [game(1, { session_id: 'p1', started_at: T, finished_at: T }), live, game(3)];
     state.sessions = [{ id: 'p1', verified_at: T }, { id: 'p2', verified_at: null }];

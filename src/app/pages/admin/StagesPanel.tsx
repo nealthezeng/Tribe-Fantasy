@@ -1,6 +1,6 @@
 import { Fragment, useState, type FormEvent, type ReactNode } from 'react';
-import { Link } from 'react-router';
 import { Loading } from '../../components/Loading';
+import { OpponentsForm } from '../../components/OpponentsForm';
 import { auctionPhase, formatWhen, pickPlayingStage } from '../../lib/auction';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
@@ -194,7 +194,7 @@ function OpenTournament({ s, cls, seasonId, run }: { s: StageRow; cls: string | 
         const p = await seasonPairings(seasonId);
         if (!window.confirm(`Open the ${s.name} tournament with ${count} ${count === '1' ? 'game' : 'games'}? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
         await api.openTournament(s.id, p.pairings, Number(count));
-        return `${s.name}: game 1 is paired. Keepers start it from Stats → Tally.`;
+        return `${s.name}: game 1 is paired. Set opponents under Games and count; keepers start it from Stats → Tally.`;
       });
     }}>
       <label>Games<input type="number" required min={1} max={20} value={count} onChange={(e) => setCount(e.target.value)} /></label>
@@ -203,7 +203,7 @@ function OpenTournament({ s, cls, seasonId, run }: { s: StageRow; cls: string | 
   );
 }
 
-/** The game count (on the tournament being played), where opponents are set, and Undo game last. */
+/** The game count (on the tournament being played), every game's opponent, and Undo game last. */
 function GamesRow({ s, games, playing, seasonId, run }: { s: StageRow; games: GameRow[]; playing: boolean; seasonId: string; run: Run }) {
   const [count, setCount] = useState<string | null>(null); // the Games field: an edit of the current count (null = untouched)
   const total = games.length;
@@ -249,8 +249,8 @@ function GamesRow({ s, games, playing, seasonId, run }: { s: StageRow; games: Ga
               <button className="secondary">Save count</button>
             </form>
           )}
-          {/* Round 1's admin found no place for opponents: keepers set them on the tally hub (ruling 59). */}
-          <p><Link className="more" to="/tally">Opponents are set on Tally</Link></p>
+          {/* The Tally hub's form too (X12); run reloads after any action, so "{n} opponents not set" updates. */}
+          <OpponentsForm games={games} onSaved={() => run(s.id, async () => {})} />
           {played && <button className="danger-link" onClick={() => undo(played)}>Undo game {played.number}</button>}
         </div>
       </details>

@@ -33,7 +33,7 @@ vi.mock('../../lib/rpc', () => ({
   api: {
     resetGame: vi.fn(), deleteStage: vi.fn(), runAuction: vi.fn(async () => ({ by_bid: 3, empty: 69 })), openAuction: vi.fn(),
     openTournament: vi.fn(), setGameCount: vi.fn(), closeShareBuying: vi.fn(), grantStageAllowance: vi.fn(async () => 1),
-    updateStage: vi.fn(), createStage: vi.fn(),
+    updateStage: vi.fn(), createStage: vi.fn(), setGameOpponent: vi.fn(),
   },
 }));
 
@@ -206,19 +206,26 @@ describe('StagesPanel', () => {
     fireEvent.change(input, { target: { value: '4' } });
     fireEvent.click(open);
     await waitFor(() => expect(api.openTournament).toHaveBeenCalledWith('Fall', pairings, 4));
+    await screen.findByText('Fall: game 1 is paired. Set opponents under Games and count; keepers start it from Stats → Tally.');
   });
 
   it("opens each row to today's forms: Games and count, Pairings, Name and dates", async () => {
     db.stages = [stage('Fall', '2026-09-01', '2026-09-10T00:00:00Z')];
     db.games = [game(1, T, T), game(2, null)];
+    vi.mocked(api.setGameOpponent).mockImplementationOnce(async () => { db.games[0] = { ...db.games[0], opponent: 'Duke' }; });
     show();
     await screen.findByRole('heading', { name: 'Fall' });
     const games = row('Games and count');
     expect(within(games).getByText('2 games · 2 opponents not set')).toBeTruthy();
     expect(within(games).getByLabelText('Games', { selector: 'input' })).toBeTruthy();
-    const tally = within(games).getByRole('link', { name: 'Opponents are set on Tally', hidden: true });
-    expect(tally.getAttribute('href')).toBe('/tally');
-    expect(tally.className).toBe('more');
+    const g1 = within(games).getByLabelText('Game 1');
+    expect([g1, within(games).getByLabelText('Game 2')].map((i) => i.getAttribute('placeholder'))).toEqual(['Opponent', 'Opponent']);
+    fireEvent.change(g1, { target: { value: 'Duke' } });
+    fireEvent.click(within(games).getByRole('button', { name: 'Save opponents', hidden: true }));
+    await within(games).findByText('Opponents saved.');
+    expect(api.setGameOpponent).toHaveBeenCalledTimes(1);
+    expect(api.setGameOpponent).toHaveBeenCalledWith('g1', 'Duke');
+    await within(games).findByText('2 games · 1 opponent not set'); // the panel reloaded
     expect(within(row('Pairings')).getByRole('button', { name: 'Check pairings', hidden: true })).toBeTruthy();
     const name = row('Name and dates');
     fireEvent.change(within(name).getByLabelText('Name'), { target: { value: 'Fall open' } });
