@@ -8,10 +8,10 @@ import { useLoad } from '../../lib/useLoad';
 interface AthleteRow { id: string; name: string; opted_in: boolean; user_id: string | null }
 interface ProfileRow { id: string; display_name: string }
 
+/** The season's players, one row each (P9 rule 1): the row opens its account link, opt-out, name and removal. */
 export function AthletesPanel({ seasonId }: { seasonId: string }) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
   const athletes = useLoad(async () => {
     const [athletes, profiles] = await Promise.all([
       supabase!.from('athletes').select('id, name, opted_in, user_id').eq('season_id', seasonId).order('name'),
@@ -22,34 +22,56 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
     return { list: (athletes.data ?? []) as AthleteRow[], profiles: (profiles.data ?? []) as ProfileRow[] };
   }, [seasonId]);
 
-  async function run(action: () => Promise<unknown>) {
+  async function add(e: FormEvent) {
+    e.preventDefault();
     setError(null);
     try {
-      await action();
+      await api.addAthlete(seasonId, name);
+      setName('');
       athletes.reload();
     } catch (err) {
       setError(errorMessage(err));
     }
   }
 
-  function add(e: FormEvent) {
-    e.preventDefault();
-    void run(async () => {
-      await api.addAthlete(seasonId, name);
-      setName('');
-    });
+  const count = athletes.data?.list.filter((a) => a.opted_in).length ?? 0;
+  return (
+    <div className="card">
+      <h2>Players <small>{count} opted in</small></h2>
+      {!athletes.data && !athletes.error && <Loading />}
+      {athletes.data?.list.length === 0 && <p className="muted">None yet.</p>}
+      <ul className="list">
+        {athletes.data?.list.map((a) => <Player key={a.id} a={a} profiles={athletes.data!.profiles} reload={athletes.reload} />)}
+      </ul>
+      <form onSubmit={add} className="row section">
+        <label>Add player<input required value={name} onChange={(e) => setName(e.target.value)} /></label>
+        <button>Add</button>
+      </form>
+      {(error || athletes.error) && <p className="error" role="alert">{error ?? athletes.error}</p>}
+    </div>
+  );
+}
+
+function Player({ a, profiles, reload }: { a: AthleteRow; profiles: ProfileRow[]; reload: () => void }) {
+  const [name, setName] = useState(a.name);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run(action: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await action();
+      reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
   }
 
   function rename(e: FormEvent) {
     e.preventDefault();
-    if (!editing) return;
-    void run(async () => {
-      await api.renameAthlete(editing.id, editing.name);
-      setEditing(null);
-    });
+    void run(() => api.renameAthlete(a.id, name));
   }
 
-  function remove(a: AthleteRow) {
+  function remove() {
     if (!window.confirm(`Remove ${a.name}? This can't be undone.`)) return;
     void run(async () => {
       try {
@@ -64,48 +86,28 @@ export function AthletesPanel({ seasonId }: { seasonId: string }) {
     });
   }
 
-  const count = athletes.data?.list.filter((a) => a.opted_in).length ?? 0;
   return (
-    <div className="card">
-      <h2>Athletes <small>{count} opted in</small></h2>
-      {!athletes.data && !athletes.error && <Loading />}
-      {athletes.data?.list.length === 0 && <p className="muted">None yet.</p>}
-      <ul className="list">
-        {athletes.data?.list.map((a) => (
-          <li key={a.id} className="athlete">
-            {editing?.id === a.id ? (
-              <form className="row" onSubmit={rename} onKeyDown={(e) => e.key === 'Escape' && setEditing(null)}>
-                <input aria-label={`New name for ${a.name}`} required maxLength={60} autoFocus value={editing.name}
-                  onChange={(e) => setEditing({ id: a.id, name: e.target.value })} />
-                <button>Save</button>
-                <button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button>
-              </form>
-            ) : (
-              <span className="meta">
-                <span className={a.opted_in ? 'title' : 'title muted'}>{a.name}</span>
-                {!a.opted_in && <span className="pill">Opted out</span>}
-              </span>
-            )}
-            <select aria-label={`Account for ${a.name}`} value={a.user_id ?? ''}
-              onChange={(e) => void run(() => api.linkAthleteUser(a.id, e.target.value || null))}>
+    <li>
+      <details name="player">
+        <summary className="row-link"><span className="who"><b>{a.name}</b>{!a.opted_in && <small>Opted out</small>}</span></summary>
+        <div className="stack">
+          <label>Linked account
+            <select value={a.user_id ?? ''} onChange={(e) => void run(() => api.linkAthleteUser(a.id, e.target.value || null))}>
               <option value="">No linked account</option>
-              {athletes.data?.profiles.map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+              {profiles.map((p) => <option key={p.id} value={p.id}>{p.display_name}</option>)}
             </select>
-            <div className="actions">
-              <button className="secondary" onClick={() => void run(() => api.setAthleteOptIn(a.id, !a.opted_in))}>
-                {a.opted_in ? 'Opt out' : 'Opt back in'}
-              </button>
-              <button className="secondary" onClick={() => setEditing({ id: a.id, name: a.name })}>Rename</button>
-              <button className="secondary" onClick={() => remove(a)}>Remove</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <form onSubmit={add} className="row section">
-        <label>Add athlete<input required value={name} onChange={(e) => setName(e.target.value)} /></label>
-        <button>Add</button>
-      </form>
-      {(error || athletes.error) && <p className="error" role="alert">{error ?? athletes.error}</p>}
-    </div>
+          </label>
+          <button className="secondary" onClick={() => void run(() => api.setAthleteOptIn(a.id, !a.opted_in))}>
+            {a.opted_in ? 'Opt out' : 'Opt back in'}
+          </button>
+          <form className="row" onSubmit={rename}>
+            <label>Name<input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>
+            <button className="secondary">Save name</button>
+          </form>
+          {error && <p className="error" role="alert">{error}</p>}
+          <button className="danger-link" onClick={remove}>Remove</button>
+        </div>
+      </details>
+    </li>
   );
 }
