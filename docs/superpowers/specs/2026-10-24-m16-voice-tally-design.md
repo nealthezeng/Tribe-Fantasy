@@ -9,7 +9,7 @@ screen changes Nov 6–8.
 ## 1. Why
 
 Keepers tally by finding a player's card and tapping one of five stat buttons while trying to watch the game. The user
-wants to call stats out loud instead ("Toby gets a D", "Sam turns it over", "Toby to Sam") and only glance at the
+wants to call stats out loud instead ("Toby gets a D", "Max turns it over", "Toby to Max") and only glance at the
 screen to confirm. Everything that exists today stays: voice is an extra way in, not a replacement.
 
 Findings this rests on (voice-test work, 2026-10-22/23, branch `voice-test`):
@@ -32,7 +32,7 @@ Findings this rests on (voice-test work, 2026-10-22/23, branch `voice-test`):
 3. While stats wait, the keeper **fixes them on those cards** with the usual gestures (tap = one more, hold = one
    fewer), then taps **Add N stats** to save them or **Discard** to drop them.
 4. If nothing usable was heard: a **short message** and no change.
-5. **Counts**: "Toby gets two Ds", "Sam 2 turnovers". A number always **adds**; it never sets a total.
+5. **Counts**: "Toby gets two Ds", "Max 2 turnovers". A number always **adds**; it never sets a total.
 6. Works on an iPhone (installed app and Safari) and Android Chrome, before Nov 7.
 
 ## 3. Non-goals
@@ -106,8 +106,8 @@ tokens.css; the tally board stays exempt from motion (no animation when cards mo
 ### 5.3 Reading the transcript (`src/core/voice.ts`)
 
 Starts from `voice-test` (commits b51aabf, f3ac655) and keeps what it does:
-- A **player** is found by full name, or by a first or last name only they have (two Sams: "Sam" alone matches
-  nobody; "Ortiz" or "Sam Ortiz" does). Spellings that sound alike read the same (Tobie, Tobey, Tobbi → Tobi); there is
+- A **player** is found by full name, or by a first or last name only they have (two Maxes: "Max" alone matches
+  nobody; "Ortiz" or "Max Ortiz" does). Spellings that sound alike read the same (Tobie, Tobey, Tobbi → Tobi); there is
   no typo tolerance (it turned "then" into a player called Theo). A name heard word by word (a three-part name whose
   last part is misspelt) counts once.
 - A **stat** goes to the player named before it. Phrases: D, dee, block(s/ed), goal, score(s/d), point, assist(s),
@@ -119,7 +119,7 @@ Starts from `voice-test` (commits b51aabf, f3ac655) and keeps what it does:
 New in M16:
 - **Plural stat words**: Ds, dees, goals, assists, turnovers, turns, drops, throwaways, Callahans.
 - **Counts 1–5**, as digits or words (one … five; "a" and "an" are 1): a number right before a stat word is how many
-  ("two Ds", "2 turnovers", "three goals"). A number right before a **player's name** is still a pass ("Toby two Sam").
+  ("two Ds", "2 turnovers", "three goals"). A number right before a **player's name** is still a pass ("Toby two Max").
   Bigger numbers are ignored (more likely a mishearing). A count always **adds**.
 - Test fixtures use the patterns from the real tries (sound-alikes, a three-part name with a misspelt last part, two
   players sharing a first name, "to"/"two", a looping garbage transcript that must read as nothing) but **made-up
@@ -167,7 +167,7 @@ Picked in the browser mockups (option "3A", user 2026-10-23): the stats are fixe
   exactly (same stats, same times).
 - **Leaving the board** while stats wait drops them (user, 2026-10-23):
   - leaving inside the app (← Games, a tab, the phone's back gesture) asks first, naming the stats: "Leave and drop 2
-    stats you haven't added: Toby Grant Assist, Sam Ortiz Goal?" with **Stay** and **Drop and leave**;
+    stats you haven't added: Toby Grant Assist, Max Ortiz Goal?" with **Stay** and **Drop and leave**;
   - closing the app, reloading, or the phone killing the page just drops them. Waiting stats are never stored on the
     phone.
 - If the game is verified while stats wait, **Add** fails like any tap today (the existing rejected-taps banner).
