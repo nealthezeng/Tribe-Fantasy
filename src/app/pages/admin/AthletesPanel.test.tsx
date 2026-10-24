@@ -54,7 +54,7 @@ const open = async (name: string) => {
 
 async function clickRemove() {
   render(<AthletesPanel seasonId="se1" />);
-  fireEvent.click((await open('Sam')).getByRole('button', { name: 'Remove' }));
+  fireEvent.click((await open('Sam')).getByRole('button', { name: 'Remove player Sam' }));
 }
 
 describe('AthletesPanel rows (M15 P9 T17)', () => {
@@ -76,8 +76,10 @@ describe('AthletesPanel rows (M15 P9 T17)', () => {
     expect((sam.getByLabelText('Name') as HTMLInputElement).value).toBe('Sam');
     const controls = [...account.closest('details')!.querySelectorAll('select, input, button')];
     expect(controls.map((c) => c.getAttribute('aria-label') ?? (c.tagName === 'BUTTON' ? c.textContent : c.tagName)))
-      .toEqual(['SELECT', 'Opt out', 'INPUT', 'Save name', 'Remove']);
-    expect(sam.getByRole('button', { name: 'Remove' }).className).toBe('danger-link');
+      .toEqual(['SELECT', 'Opt out', 'INPUT', 'Save name', 'Remove player Sam']); // Remove names its player (ruling 73)
+    const remove = sam.getByRole('button', { name: 'Remove player Sam' });
+    expect(remove.textContent).toBe('Remove');
+    expect(remove.className).toBe('danger-link');
     expect(((await open('Riley Fox')).getByLabelText('Linked account') as HTMLSelectElement).value).toBe('p1');
   });
 

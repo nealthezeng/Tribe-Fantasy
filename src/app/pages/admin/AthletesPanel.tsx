@@ -105,7 +105,7 @@ function Player({ a, profiles, reload }: { a: AthleteRow; profiles: ProfileRow[]
             <button className="secondary">Save name</button>
           </form>
           {error && <p className="error" role="alert">{error}</p>}
-          <button className="danger-link" onClick={remove}>Remove</button>
+          <button className="danger-link" aria-label={`Remove player ${a.name}`} onClick={remove}>Remove</button>
         </div>
       </details>
     </li>
