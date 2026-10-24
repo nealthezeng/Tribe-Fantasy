@@ -112,6 +112,17 @@ describe('LeaguesPage (t215)', () => {
     expect(api.joinOpenLeague).toHaveBeenCalledWith('d', null, 'Zips');
   });
 
+  it('says how to choose between leagues', async () => {
+    const hint = 'Every league uses the same players and plays on its own. Join the one your friends are in.';
+    at('/leagues');
+    expect((await screen.findByText(hint)).className).toBe('hint');
+    cleanup();
+    vi.mocked(api.listLeagues).mockResolvedValue([league({ id: 'a', name: 'League A' })]);
+    at('/leagues');
+    await screen.findByText('League A');
+    expect(screen.queryByText(hint)).toBeNull();
+  });
+
   it('invites you to create the first league when there are none', async () => {
     vi.mocked(api.listLeagues).mockResolvedValue([]);
     at('/leagues');

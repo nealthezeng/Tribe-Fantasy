@@ -20,7 +20,7 @@ const MESSAGES: Record<string, string> = {
   SESSION_NOT_VERIFIED: "These stats aren't verified yet.",
   SESSION_NOT_EMPTY: "This tally already has saved taps, so it can't be deleted.",
   SESSION_NOT_LOCKED: 'Corrections are only for locked stats. Reopen the tally instead.',
-  VERIFIER_TAPPED: 'You tallied this game, so another keeper has to verify it.',
+  VERIFIER_TAPPED: "You tallied this game, so a keeper who didn't tally it, or an admin, has to verify it.",
   OWNS_ATHLETE: 'You own a player this affects, so someone else has to do this.',
   UNKNOWN_STAT: "That stat isn't tracked this season.",
   INVALID_TAPS: 'Some taps were malformed and were not saved.',

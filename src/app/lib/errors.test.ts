@@ -19,7 +19,7 @@ describe('errorMessage', () => {
     expect(errorMessage({ message: 'TEAM_HAS_GAMES' })).toMatch(/paired for a game/);
   });
   it('maps the M3 stats codes', () => {
-    expect(errorMessage({ message: 'VERIFIER_TAPPED' })).toMatch(/another keeper has to verify/);
+    expect(errorMessage({ message: 'VERIFIER_TAPPED' })).toBe("You tallied this game, so a keeper who didn't tally it, or an admin, has to verify it.");
   });
   it('maps the M4 wallet codes', () => {
     expect(errorMessage({ message: 'LEAGUE_FULL' })).toMatch(/full/);

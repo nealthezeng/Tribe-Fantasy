@@ -68,5 +68,7 @@ describe('Credits (t224, t225)', () => {
     show([entry(1, 'allowance', 115, '2026-10-03T00:00:00Z')], null);
     expect(screen.queryByRole('link', { name: /on Venmo/ })).toBeNull();
     expect(screen.getByText('Credit history')).toBeTruthy();
+    expect(screen.getByText('Credits are free and have no cash value.')).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/refund/);
   });
 });

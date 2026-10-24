@@ -15,12 +15,14 @@ const session = {
   id: 's1', season_id: 'se1', kind: 'tournament', held_on: '2026-11-16', counts: true,
   created_by: 'k1', verified_by: 'k2', verified_at: '2026-01-01T00:00:00Z' as string | null,
 };
+// The open game's taps (keepers read stat_taps); tests add one by the signed-in keeper, u1.
+const taps: { id: string; athlete_id: string; stat: string; keeper_id: string; tapped_at: string; undoes: null }[] = [];
 const game = { id: 'g1', stage_id: 'S9', number: 1, opponent: 'Duke', started_at: '2026-11-16T10:00:00Z', finished_at: '2026-11-16T11:00:00Z' as string | null, stages: { name: 'CCCs' } };
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
       const rows = table === 'stat_lines' ? [{ athlete_id: 'a1', stats: { goal: 1 } }]
-        : table === 'athletes' ? [{ id: 'a1', name: 'Sam' }] : [];
+        : table === 'athletes' ? [{ id: 'a1', name: 'Sam' }] : table === 'stat_taps' ? taps : [];
       const builder = {
         select: () => builder,
         eq: () => builder,
@@ -42,6 +44,7 @@ beforeEach(() => {
   auth.isKeeper = true;
   session.verified_at = '2026-01-01T00:00:00Z';
   game.finished_at = '2026-11-16T11:00:00Z';
+  taps.length = 0;
   vi.mocked(api.liveGameTaps).mockReset().mockResolvedValue([]);
   vi.mocked(api.deleteSession).mockReset();
   confirm.mockReset();
@@ -136,7 +139,43 @@ describe('SessionPage', () => {
   });
 });
 
+describe('SessionPage verify (X8)', () => {
+  const myTap = { id: 't1', athlete_id: 'a1', stat: 'goal', keeper_id: 'u1', tapped_at: '2026-11-16T10:05:00Z', undoes: null };
+
+  it("says why a keeper who tallied can't verify, and who can", async () => {
+    auth.isAdmin = false;
+    session.verified_at = null;
+    taps.push(myTap);
+    renderPage();
+    expect(await screen.findByText("You tallied this game, so you can't verify it. A keeper who didn't tally it can, or an admin.")).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Verify these totals' })).toBeNull();
+  });
+
+  it('lets an admin verify a game they tallied', async () => {
+    auth.isAdmin = true;
+    session.verified_at = null;
+    taps.push(myTap);
+    renderPage();
+    expect(await screen.findByRole('button', { name: 'Verify these totals' })).toBeTruthy();
+    expect(screen.queryByText(/You tallied this game/)).toBeNull();
+  });
+});
+
 describe('SessionPage delete (t81)', () => {
+  it('words Delete these stats red, after every other action (ruling 81)', async () => {
+    auth.isAdmin = true;
+    // Locked: the correction form's Save comes before it; open: Verify does.
+    for (const [verified, other] of [['2026-01-01T00:00:00Z', 'Save correction'], [null, 'Verify these totals']] as const) {
+      session.verified_at = verified;
+      renderPage();
+      const del = await screen.findByRole('button', { name: 'Delete these stats' });
+      expect(screen.getByRole('button', { name: other })).toBeTruthy();
+      expect(screen.getAllByRole('button').at(-1)).toBe(del);
+      expect(del.className).toBe('danger-link');
+      cleanup();
+    }
+  });
+
   it('lets an admin force-delete a locked session, then goes back to Stats', async () => {
     auth.isAdmin = true;
     confirm.mockReturnValue(true);

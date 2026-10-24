@@ -175,7 +175,7 @@ export function SessionPage() {
             </details>
           ))}
           {iTapped ? (
-            <p className="notice">Another keeper must verify.</p>
+            <p className="notice">You tallied this game, so you can't verify it. A keeper who didn't tally it can, or an admin.</p>
           ) : (
             <button disabled={busy} onClick={() => void verify()}>{busy ? 'Verifying…' : 'Verify these totals'}</button>
           )}
@@ -183,8 +183,9 @@ export function SessionPage() {
         </div>
       )}
 
+      {/* Last on the page and red-worded (ruling 81). */}
       {isAdmin && (
-        <p><button className="secondary" disabled={busy} onClick={() => void remove()}>Delete these stats</button></p>
+        <p><button className="danger-link" disabled={busy} onClick={() => void remove()}>Delete these stats</button></p>
       )}
     </section>
   );

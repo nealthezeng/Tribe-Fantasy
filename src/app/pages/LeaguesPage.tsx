@@ -26,6 +26,10 @@ export function LeaguesPage() {
   return (
     <section className="page">
       <h1>Join a league</h1>
+      {/* All leagues are equal (X9): only the people in them differ. */}
+      {leagues.data && leagues.data.length > 1 && (
+        <p className="hint">Every league uses the same players and plays on its own. Join the one your friends are in.</p>
+      )}
       <div className="card">
         {leagues.data && leagues.data.length > 6 && (
           <label>Search leagues<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} autoComplete="off" /></label>

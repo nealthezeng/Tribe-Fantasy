@@ -11,7 +11,6 @@ import { balance, credits, entryLabel, type LedgerEntry } from '../lib/wallet';
 const AMOUNTS = [5, 10, 20];
 const THANKS_FOR = 7 * 24 * 3600_000; // a donation is thanked for a week, or until the next credit change
 export const usd = (d: number) => `$${Number.isInteger(d) ? d : d.toFixed(2)}`;
-const TERMS = 'No cash value, no refunds, no guaranteed prize.';
 
 export interface Donate { code: string; handle: string; creditsPerDollar: number }
 
@@ -59,7 +58,7 @@ export function Credits({ title = 'Credits', entries, donate, now = Date.now() }
         <p><span className="big">{total}</span> <span className="muted">{Math.abs(total) === 1 ? 'credit' : 'credits'}</span></p>
       </div>
       {thanks && <p className="success">Thanks for the {usd(Number(thanks.dollars))}! {credits(thanks.amount)} added.</p>}
-      {donate ? <DonateForm {...donate} /> : <p className="muted"><small>{TERMS}</small></p>}
+      {donate ? <DonateForm {...donate} /> : <p className="muted"><small>Credits are free and have no cash value.</small></p>}
       <details className="section">
         <summary>Credit history</summary>
         <ul className="list">
@@ -105,7 +104,7 @@ function DonateForm({ code, handle, creditsPerDollar }: Donate) {
         Donate {usd(amount)} on Venmo<span className="sr-only"> (opens Venmo)</span>
       </a>
       {/* The terms sit right under the button: read before paying, not after (t233). */}
-      <p className="muted"><small>Donation to the team fund. {TERMS}</small></p>
+      <p className="muted"><small>Donation to the team fund. No cash value, no refunds, no guaranteed prize.</small></p>
       <div className="team-code">
         <p>Venmo note: <strong>TribeF - <span className="code-chars">{code}</span></strong></p>
         <button type="button" className="secondary" onClick={copy}>Copy code</button>
