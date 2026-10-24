@@ -205,8 +205,9 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
 - **`.head` / `.meta` / `.row`**: title-with-actions row, wrapping inline details, and a wrapping form row.
 - **Buttons**: gold with dark text by default. `.secondary` is a soft borderless `--surface-2` fill. `.linklike` looks
   like a link. `.button` makes a link look like a button. Buttons in a stack sit at their natural width, left.
-- **`.danger-link`** (M15 P9): the admin's destructive actions (Undo game, Delete tournament, Delete league, Remove
-  account, Remove a player, Remove a share, Delete season, and the game page's "Delete these stats") are red underlined
+- **`.danger-link`** (M15 P9): the destructive actions (Undo game, Delete tournament, Delete league in Admin and in Home's
+  League settings, Remove account, Remove a player, Remove a share, Delete season, and the game page's "Delete these
+  stats") are red underlined
   words (`--error`, a 44px target), never a filled button, each last in the sheet it belongs to, after the everyday
   actions ("Delete these stats" is the game page's last control, after its cards). The exception: Remove password stays a
   secondary button (adding a password undoes it) and has no confirm. Each `.danger-link` keeps its confirm, except
@@ -232,8 +233,10 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   donations, whose settings the numbers are), then six closed `details.card` folds, each `summary > h2`: The season, Credits and
   shares, Picks, Scoring, Standings points, Questions. Under 120 words show before the folds. Every number is derived from the
   season's settings (the defaults when signed out); the email timings and the 100 / 50-credit example stay literal text.
-  The Picks and Scoring folds say "picked" for the fantasy pick ("You last picked them", "Picking the same player every
-  tournament"; P9 R2-extra), with the auto-pick line "We pick for you: players who aren't out and you picked least
+  The Picks and Scoring folds say "picked" for the fantasy pick ("Each game you pick 2 of your players", "You last
+  picked them", "Picking the same player every tournament"; P9 R2-extra and its final fixes), and Tired players reads
+  "Picking a player for back-to-back games tires them. Not picking a player for 2 games between picks never does."
+  (the second sentence only when the season has tired steps; "out" is the keeper's Out mark), with the auto-pick line "We pick for you: players who aren't out and you picked least
   recently, then the ones scoring best lately". Standings points says beating a team above you pays more only when it
   does (`upsetsWeigh`) and ends with the order: "Level on points, the team that scored more over all its games goes
   first; level on both, they share the place."
@@ -258,7 +261,9 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   scoreboard and starters, the pick card, the Buy shares card, the league's short table and the games; then the "Join
   another league" / "Create a league" `.more` links, and last a muted `details.settings` "League settings" fold. That
   fold always renders for your team and opens with Rename team first (`rename_my_team`: 1–40 characters, unique in the
-  league), then Manage league and Leave. With no team this season, a keeper (admins included) sees the quiet line "You
+  league), then Manage league (Rename league, the password form, then Leave and, while yours is the only team, a red
+  `.danger-link` "Delete league" last, its confirm unchanged; with other teams, "Delete it from Admin › Teams ›
+  Leagues." for an admin) or, for anyone else, Leave. With no team this season, a keeper (admins included) sees the quiet line "You
   don't have a team this season." and a "Join a league" `.more` link; anyone else sees the "Get started" card (gold
   "Join a league", secondary "Create a league").
 - **Current tournament only** (P9 R2-extra): the League matchup, its strip, the games list's top group, the League poll
@@ -282,7 +287,7 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   won't play. No tournament name or dates in the strip. With no game to show (between tournaments too) it reads the
   league and season, "N teams" and, before any game counts, "No games yet".
 - **Scoreboard and starters**: for a paired game, a black `.score` scoreboard: "Your picks" / "Their picks" before the
-  start, "You played" / "They played" after; first names in the display face before scores exist ("No picks yet"; theirs
+  start, "Your starters" / "Their starters" after ("starter" is the Rules word); first names in the display face before scores exist ("No picks yet"; theirs
   read "Hidden" until the start), `--fs-score` numbers after (the unofficial numbers while the game is live or not
   verified), the losing side muted; your side's label and names turn green (`--ok-on-bar`) once your picks are set.
   Once the game has started, a `section.card.starters` lists each side: a `.head` with the team (`.by`) and its score,
@@ -319,15 +324,17 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   was paired, so you start the game after it." There is no Tired pill and no bench.
 - **Buy shares card** (`AuctionCard`, while buying is open; between close and settling it is the single notice "Buying
   closed for CCCs. Once shares are settled, your players and game 1 picks show here.", plus "CCCs starts Fri, Oct 23."
-  until its start day has passed; after settling the pick card lists the roster). Credits are "credits left of N" in the
-  sticky `.bid-header`, which reads "N of 6 players" with the shares `?`, a `.pill.info` Closes pill and a "Get more
+  ("CCCs starts today." on the day) until its start day has passed; after settling the pick card lists the roster). Credits are "credits left of N" in the
+  sticky `.bid-header`, opaque (the pane's gold glow and sheen on `--card-solid`, so the list never shows through while
+  you scroll), which reads "N of 6 players" with the shares `?`, a `.pill.info` Closes pill and a "Get more
   credits" link to the Credits page. Once credits left drop under 10% of the balance (or 2 minimum buys) that link
   becomes a gold button (t234). Under the header, first the rare alert notice for buys over the balance ("Buys are 20
   credits over your balance.", an error before advice), then the `.hint` "CCCs starts Fri, Oct 23. Picks for game 1
-  open here once shares are settled." (the first sentence only until the start day has passed) and, while you have
-  fewer buys than a roster holds, the tiredness `.hint` "You pick 2 players a game, and a player you picked for the game
-  before scores half. Buying 6 lets you rotate them." (only when the season tires players and a game takes fewer picks
-  than a roster holds). The card has no poll, but it reloads when the app comes back on screen (`useReloadOnShow`), so
+  open here once shares are settled." (the first sentence only until the start day has passed, "CCCs starts today." on
+  the day) and the tiredness `.hint` "You pick 2 players a game, and a player you picked for the game before scores
+  half. Buying 6 lets you rotate them.", shown only when all three hold: the first tired step
+  (`tiredness_multipliers[0]`; none counts as 1) is under 1, `picks_per_game` is under `roster_size`, and you have fewer
+  buys than `roster_size`. The card has no poll, but it reloads when the app comes back on screen (`useReloadOnShow`), so
   a credited donation or a close that passed while away shows at once. Credits an admin grants or adds by hand arrive
   silently, and a team with 0 credits sees
   nothing extra: no late-joiner notice, no "an admin added" line, and no late-joiner prompt in Admin either (P9 Round
@@ -527,8 +534,10 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   rows "name · from game N" with Clear, "Nobody is out." when empty, then a Player select and a secondary "Mark out".
   No confirms: Mark out and Clear undo each other. Last, "Unsaved taps" (P9 R2-extra; it was "Open games"): only the
   sessions this phone still holds taps for, outside the tournament card, as rows to their boards with the "2 unsaved"
-  pill, so they can upload. It hides when empty. An earlier tournament's open game gets no board link on Tally any
-  more: it opens from Stats, and admins get the stuck-game warning.
+  pill, so they can upload. It hides when empty. Other than this phone's unsaved taps, an earlier tournament's open
+  game gets no board link on Tally, except that an ended tournament's live game stays on Tally's tournament card
+  ("Tally game 4", `loadCurrentGame`) until a later tournament's shares are settled, so a keeper can finish it. After
+  that it opens from Stats, and admins get the stuck-game warning.
 - **The bar**: a sticky `.tally-bar` in two rows: "← Games" and the game's name ("Game 4 vs Wake Forest · CCCs"), then
   the sync pill (Saved ✓ / Saving · 2 unsaved / Offline · 2 unsaved, in words) and a "Bright board" checkbox
   (`label.check`, `--check`). "← Games" opens the games list as a new history entry, so Back from it (or from a page
@@ -580,7 +589,7 @@ a time (M15 P9 Round 2).
 - **Addresses**: `#/admin?tab=<id>` with ids `stages`, `leagues`, `wallets`, `users`, `athletes`, `settings`,
   `history`, `backup`, `season`; a missing or unknown id opens Tournaments. Each section keeps its scroll for the
   visit: coming back restores it, and a section still loading is followed as it grows back to the saved spot until it
-  gets there or the admin scrolls (wheel, touch or a key).
+  gets there or the admin scrolls or presses (wheel, touch, a key or a mouse press).
 - **Stuck-game warning** (P9 ruling 18): above every section, one `.notice.warn` per game whose tournament's last day
   has passed and which started but isn't verified (`stuckGames`, `src/app/lib/adminWarnings.ts`; a void game holds
   nothing back): bold "Feasterns game 4 is still live." (or "… isn't verified.") then "Later results won't count until
@@ -600,7 +609,10 @@ a time (M15 P9 Round 2).
   **Open tournament** (with its Games field); none while games run, since keepers run them from Tally. Anything else on
   the card is secondary (Change close time while buying is open). Close buying now confirms "Close buying for CCCs now?
   Teams can't buy or change shares after this, and it can't be reopened."; Settle confirms that it runs once; Grant
-  allowance asks first while earlier games aren't final; a past closing time is refused before any confirm. Each
+  allowance asks first while earlier games aren't final, and anywhere it isn't the gold due step (a settled, later or
+  over tournament never granted, where it is secondary) it confirms "Grant the CCCs allowance? Every team in the season
+  gets its credits for it now, by the standings. Undo is Wallets › Adjust, one team at a time." first, one confirm
+  carrying both when both apply; a past closing time is refused before any confirm. Each
   result or error shows inside its tournament ("CCCs: credited 6 teams."; Open tournament's "CCCs: game 1 is paired.
   Set opponents under Games and count; keepers start it from Stats → Tally."). Below the card, `h2` "Later" (tournaments
   made ahead of time) and `h2` "Earlier" (over ones), newest first, one row each: the name and dates and, for an over
@@ -638,7 +650,8 @@ a time (M15 P9 Round 2).
   Admin right away and can't give it back yourself; another admin has to."), the one role change with no undo.
 - **People › Players** (`AthletesPanel`): a `.card` "Players" with the opted-in count, one row per player: the name and
   "Opted out" when so. Opened: Linked account (a select), Opt out / Opt back in, the Name field with Save name, and
-  "Remove" last (its confirm, and a second one when he has stats, shares, roster spots or picks). "Add player" sits
+  "Remove" last (named "Remove player Sam" for screen readers; its confirm, and a second one when he has stats, shares,
+  roster spots or picks). "Add player" sits
   under the list.
 - **More › Settings** (`SettingsEditor`): labelled number fields in two groups, `h2` "Points for stats" (Goal, Assist,
   Block, Callahan, Turnover; fractions allowed) and `h2` "Credits and picks" ("Credits for the team in first"

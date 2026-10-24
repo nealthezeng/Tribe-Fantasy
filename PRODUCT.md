@@ -25,7 +25,7 @@ Unlike a generic fantasy sports app, the "athletes" are the users' own teammates
 ## Operating Context
 
 - Runs in tournaments (each one event, paired in one 2-v-2 matchup per game) within a season-long league; a fresh round of share buying happens before each tournament; standings and ranks never reset across tournaments.
-- Stats are entered live at tournament games on phones/tablets by keepers, then verified by a second person before they count toward league scoring.
+- Stats are entered live at tournament games on phones/tablets by keepers, then verified by a keeper who didn't tally them, or an admin, before they count toward league scoring.
 - Money flows only as donations recorded by admins/treasurer against a university club-sports or student-org giving channel — never a personal payment account.
 - Deployed as a public GitHub Pages SPA (hash routing) backed by Supabase (Postgres + auth + RLS); all writes go through security-definer RPCs.
 - Installs as a phone app (web app manifest + an app-shell service worker, M15 P8); keepers get a bright tally board for daylight.
