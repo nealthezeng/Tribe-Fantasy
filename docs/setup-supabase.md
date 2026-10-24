@@ -537,3 +537,31 @@ reopening).
 
 What admins can do: everything as before, plus close a tournament's share buying early (the button comes in Round 2).
 Closing has no undo: `open_auction` refuses a closed stage.
+
+## Voice tally (Edge Function `voice`, no migration)
+
+M16 puts a hold-to-talk mic on the tally board. The phone posts the clip, the board's player names and a Whisper
+prompt to the Edge Function `voice`, which answers only signed-in keepers and admins and asks Groq
+`whisper-large-v3` what was said. It writes nothing and logs only timing and status, never what was said. Nothing
+changes in the database: the on/off switch lives in the season settings.
+
+1. Groq key (the one from the local tries works) → **Edge Functions → Secrets**: add `GROQ_API_KEY`.
+2. **Edge Functions → Deploy a new function → Via editor**, name it `voice`, paste `supabase/functions/voice/index.ts`.
+   **Verify JWT** may stay on (the function asks `is_keeper` with the caller's own token either way). Do steps 1–2
+   BEFORE the push: a board without the function only shows "Voice isn't working right now".
+3. Push (deploy). Hard-reload any open admin or keeper tab. An installed app never reloads while a tally board is on
+   screen or while offline (M15 P8), so a phone left sitting on a board keeps the old build: keepers leave the board
+   (← Games) and come back, or close and reopen the app, to get the mic.
+4. Nothing to switch on: voice is on by default.
+5. One practice before Nov 6: a keeper on an iPhone **in the installed app** and one on Android each try about ten
+   calls (single stats, "A to B", a count, a shared first name, one nonsense call) and add them. Check the counts, and
+   that another keeper's taps on the same plays counted once. **Edge Functions → voice → Logs** show one
+   `{ms, status}` line per call.
+6. Rollback: Admin → Settings, turn **Voice tally: mic on the tally board** off; the mic goes the next time a board
+   loads or refreshes. Turning it off stores `voice_tally` in the season settings, and a phone still on a pre-M16
+   build can't load the season then (it refuses unknown settings) until it updates. Or revert the deploy; if voice
+   is off, turn it back on FIRST (saving with it on stores nothing), or the reverted build can't load the season.
+
+What admins can do: use the mic like keepers, and turn voice off for everyone (the switch above). Voice stats are
+ordinary taps by that keeper, so Verify, hold-to-undo, stat corrections and Undo game work on them unchanged. Outside
+the app, deleting the `voice` function or its secret stops voice too.
