@@ -95,7 +95,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
   const { stage, settings, minBid, rosterSize, athletes, out, bids, ledger } = data;
   const balance = sumLedger(ledger);
   const phase = auctionPhase(stage, now);
-  const starts = stage.starts_on >= todayLocal() ? `${stage.name} starts ${formatDay(stage.starts_on)}.` : null;
+  const today = todayLocal();
+  const starts = stage.starts_on >= today ? `${stage.name} starts ${stage.starts_on === today ? 'today' : formatDay(stage.starts_on)}.` : null;
   if (phase === 'closed') {
     return (
       <p className="notice">

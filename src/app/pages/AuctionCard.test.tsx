@@ -8,6 +8,7 @@ import { api } from '../lib/rpc';
 import { pairKey } from '../../core/week';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import { loadLeagueTournament } from '../lib/tournament';
+import { todayLocal } from '../lib/stats';
 
 type Row = Record<string, unknown>;
 
@@ -443,6 +444,12 @@ describe('AuctionCard', () => {
     await screen.findByText(/^Closes in/);
     expect(screen.getByText('Fall starts Sat, Oct 24. Picks for game 1 open here once shares are settled.').className).toBe('hint');
 
+    db.stages = [{ ...openStage, starts_on: todayLocal() } as unknown as Row]; // its first day
+    cleanup();
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(screen.getByText('Fall starts today. Picks for game 1 open here once shares are settled.')).toBeTruthy();
+
     db.stages = [openStage as unknown as Row]; // started 2026-10-18, before today
     cleanup();
     renderCard();
@@ -457,6 +464,10 @@ describe('AuctionCard', () => {
     await loaded();
     expect(await screen.findByText('Buying closed for Fall. Once shares are settled, your players and game 1 picks show here. '
       + 'Fall starts Sat, Oct 24.')).toBeTruthy();
+    db.stages = [{ ...closedStage, starts_on: todayLocal() }];
+    cleanup();
+    renderCard();
+    expect(await screen.findByText(/Fall starts today\.$/)).toBeTruthy();
   });
 
   it('reloads when the app comes back on screen', async () => {
