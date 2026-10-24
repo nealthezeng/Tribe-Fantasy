@@ -43,18 +43,18 @@ function SessionPicker({ season, keeperId, onPick }: {
 }) {
   // Taps still on this phone, so they're never stranded: their sessions are listed even once verified.
   const [unsaved] = useState(() => new Map(queuedSessions(keeperId).map((q) => [q.sessionId, q.count])));
-  // Tournament games only (T4): practice tallying is retired. A non-game session shows up only to drain this phone's taps.
-  // The current tournament's games (unsaved taps too) are rows on GameControls' card: this card holds everything else.
+  // Unsaved taps (X2): only sessions this phone still holds taps for, outside the hub (the current tournament's games,
+  // unsaved taps too, are rows on GameControls' card), so they can upload. Nothing else gets a board link here: an
+  // earlier tournament's open game opens from Stats, and admins get the stuck-game warning.
   const sessions = useLoad(async () => {
-    const open = `and(season_id.eq.${season.id},verified_at.is.null)`;
-    const { data, error } = await supabase!.from('sessions').select(SESSION_COLUMNS)
-      .or(unsaved.size ? `${open},id.in.(${[...unsaved.keys()].join(',')})` : open)
+    if (unsaved.size === 0) return [];
+    const { data, error } = await supabase!.from('sessions').select(SESSION_COLUMNS).in('id', [...unsaved.keys()])
       .order('held_on', { ascending: false });
     if (error) throw error;
     const rows = (data ?? []) as SessionRow[];
     const [game, current] = await Promise.all([gameTitles(rows.map((s) => s.id)), loadCurrentGame(season.id)]);
     const hub = new Set(current?.games.map((g) => g.session_id));
-    return rows.filter((s) => !hub.has(s.id) && (game.has(s.id) || unsaved.has(s.id))).map((s) => ({ ...s, game: game.get(s.id) ?? null }));
+    return rows.filter((s) => !hub.has(s.id) && unsaved.has(s.id)).map((s) => ({ ...s, game: game.get(s.id) ?? null }));
   }, [season.id, unsaved]);
 
   return (
@@ -64,7 +64,7 @@ function SessionPicker({ season, keeperId, onPick }: {
       <OutList season={season} />
       {(sessions.error || !!sessions.data?.length) && (
         <div className="card">
-          <h2>Open games</h2>
+          <h2>Unsaved taps</h2>
           <ul className="list">
             {sessions.data?.map((s) => (
               <li key={s.id}>

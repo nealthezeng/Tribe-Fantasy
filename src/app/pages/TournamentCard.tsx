@@ -8,7 +8,7 @@ import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
 import type { Seen } from '../lib/seen';
-import { anyCounted, fmt, loadLeagueTournament, mergeStandings, record, type LeagueTournament } from '../lib/tournament';
+import { anyCounted, currentGames, fmt, loadLeagueTournament, mergeStandings, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { factorWords, gameName, heldNote, pctExact, statusWord, statWords } from '../lib/words';
 
@@ -31,8 +31,8 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
   children?: ReactNode;
 }) {
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId, { live: true }), [seasonId, leagueId]);
-  // Live (or finished-but-unverified) paired games change under us: refresh every 15 s while any exists.
-  usePoll(reload, !!data?.result.games.some((g) => (g.status === 'live' || g.status === 'pending') && g.matchups.length > 0));
+  // Live (or finished-but-unverified) paired games of the current tournament change under us: refresh every 15 s while any exists.
+  usePoll(reload, !!data && currentGames(data).some((g) => (g.status === 'live' || g.status === 'pending') && g.matchups.length > 0));
   if (!data) {
     return (
       <>
@@ -64,9 +64,10 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
 const labelOf = (y: LeagueTournament, stageId: string, number: number) =>
   gameName(number, y.result.games.find((g) => g.game.stageId === stageId && g.game.number === number)?.game.opponent);
 
-/** The game that matters now: the live one, else the next one, else the last one played. */
+/** The game that matters now, in the current tournament only (X1): the live one, else the next one, else the last one played. */
 function focusGame(y: LeagueTournament, membershipId: string) {
-  const { games, next } = y.result;
+  const games = currentGames(y);
+  const { next } = y.result;
   const mineIn = (g: GameOutcome) => opponentIn(g, membershipId) !== undefined;
   const live = games.find((g) => g.status === 'live' && mineIn(g));
   if (live) return { stageId: live.game.stageId, number: live.game.number, g: live };
@@ -344,15 +345,16 @@ function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: 
 const byNumber = (a: GameOutcome, b: GameOutcome) => a.game.number - b.game.number;
 
 /**
- * The games (ruling 9): the current tournament (the one `next` is in, else the newest with a started game) with every
- * game on one line, then each earlier tournament this team played in, folded to one row. Nothing before any game.
+ * The games (ruling 9): the current tournament with every game on one line, then each earlier tournament this team
+ * played in, folded to one row. Nothing before any game.
  */
 function GameList({ y, membershipId, teamName }: { y: LeagueTournament; membershipId: string; teamName: string }) {
   const { games, next } = y.result;
   const day = (stageId: string) => y.stageDates.get(stageId)?.starts_on ?? '';
   const started = games.filter((g) => g.status !== 'upcoming');
   const stages = [...new Set(started.map((g) => g.game.stageId))].sort((a, b) => day(b).localeCompare(day(a)));
-  const current = next?.stageId ?? stages[0];
+  /** The tournament being played; between tournaments only Earlier (X1). */
+  const current = y.input.currentStageId ?? undefined;
   const lines = games.filter((g) => g.game.stageId === current).sort(byNumber);
   const earlier = stages.filter((s) => s !== current)
     .map((s) => started.filter((g) => g.game.stageId === s).sort(byNumber))

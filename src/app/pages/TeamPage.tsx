@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { FactorHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { supabase } from '../lib/supabase';
-import { fmt, loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
+import { currentGames, fmt, loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
 import { factorWords, gameName, statusWord } from '../lib/words';
 import { loadMyTeams } from './HomePage';
@@ -36,8 +36,8 @@ export function TeamPage() {
     const allowed = isAdmin || isKeeper || (await loadMyTeams(uid)).some((t) => t.league_id === team.league_id);
     return allowed ? { team, leagues: team.leagues, y: await loadLeagueTournament(team.leagues.season_id, team.league_id, { live: true }) } : null;
   }, [membershipId, uid, isAdmin, isKeeper]);
-  // A live game's numbers change under us: refresh every 15 s while one is paired, as League does.
-  usePoll(reload, !!data?.y.result.games.some((g) => g.status === 'live' && g.matchups.length > 0));
+  // A live game's numbers change under us: refresh every 15 s while the current tournament has one paired, as League does.
+  usePoll(reload, !!data && currentGames(data.y).some((g) => g.status === 'live' && g.matchups.length > 0));
 
   if (loading) return <Loading />;
   if (!session) return <Navigate to="/login" replace />;
@@ -55,8 +55,9 @@ export function TeamPage() {
   const side = next?.sides.find((s) => s.membershipId === membershipId);
   const name = (id: string) => y.athlete.get(id) ?? 'A player';
   const owner = [y.owner.get(membershipId), leagues.name].filter(Boolean).join(' · ');
-  // The game that matters now: the team's live game, else its next (which may have no game row yet), else none.
-  const live = games.find((g) => g.status === 'live' && g.matchups.some((m) => m.home.membershipId === membershipId || m.away?.membershipId === membershipId));
+  // The game that matters now: the team's live game in the current tournament (X1), else its next (which may have no
+  // game row yet), else none.
+  const live = currentGames(y).find((g) => g.status === 'live' && g.matchups.some((m) => m.home.membershipId === membershipId || m.away?.membershipId === membershipId));
   const focus = live ?? games.find((g) => g.game.stageId === next?.stageId && g.game.number === next?.number);
   const number = live?.game.number ?? next?.number;
   return (

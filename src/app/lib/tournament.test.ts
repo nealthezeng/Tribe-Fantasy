@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import type { TournamentResult } from '../../core/tournament';
-import { anyCounted, buildLeagueTournament, checkPairing, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, shortRows, startersOf, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
+import { anyCounted, buildLeagueTournament, checkPairing, currentGames, loadLeagueRows, fetchAll, fmt, record, loadCurrentGame, mergeRanks, lastTournamentForm, mergeStandings, needsYou, outStage, pastTournaments, shortRows, startersOf, teamLabel, toTournamentInput, type LeagueTournament, type TournamentRows } from './tournament';
 import type { AuctionStage } from './auction';
 import type { GameRow } from './tournament';
 
@@ -121,6 +121,33 @@ describe('buildLeagueTournament', () => {
     expect(y.team.get('m2')).toBe('Flow (removed)');
     expect(y.input.members[1].removedAt).toBe('2026-11-08T00:00:00+00:00');
     expect(y.input.slots[0]).toMatchObject({ fromGame: 2, untilGame: 5 });
+  });
+});
+
+describe('currentGames', () => {
+  const NOW = Date.parse('2026-11-07T16:30:00Z');
+  // Feasterns ended a month ago with game 4 left live (fake-user round 2); Fall beta's game 1 is live today.
+  const feasterns = { ...stage, id: 'S0', name: 'Feasterns', starts_on: '2026-10-09', ends_on: '2026-10-10',
+    bid_close_at: '2026-10-07T00:00:00+00:00', auction_run_at: '2026-10-08T00:00:00+00:00' };
+  const both = (s1: AuctionStage): TournamentRows => ({
+    ...rows,
+    stages: [feasterns, s1],
+    games: [{ id: 'g4', stage_id: 'S0', number: 4, session_id: 'p0', started_at: '2026-10-10T15:00:00+00:00', finished_at: null, opponent: null },
+      { id: 'g1', stage_id: 'S1', number: 1, session_id: 'p1', started_at: T, finished_at: null, opponent: null }],
+    pairings: [{ game_id: 'g4', home: 'm1', away: 'm2' }, { game_id: 'g1', home: 'm1', away: 'm2' }],
+    sessions: [{ id: 'p0', verified_at: null }, { id: 'p1', verified_at: null }],
+    lines: [],
+  });
+  const fallBeta = { ...stage, ends_on: '2026-11-08' };
+
+  it('keeps only the tournament being played, never an earlier one left live', () => {
+    const y = buildLeagueTournament(both(fallBeta), NOW);
+    expect(y.result.games.map((g) => [g.game.id, g.status])).toEqual([['g4', 'live'], ['g1', 'live']]);
+    expect(currentGames(y).map((g) => g.game.id)).toEqual(['g1']);
+  });
+
+  it('is empty between tournaments', () => {
+    expect(currentGames(buildLeagueTournament(both({ ...fallBeta, auction_run_at: null }), NOW))).toEqual([]);
   });
 });
 

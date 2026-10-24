@@ -43,6 +43,7 @@ const tournament = (over: Record<string, unknown> = {}) => ({
   settings: DEFAULT_SETTINGS,
   athlete: new Map([['a', 'Finn Garza'], ['b', 'Rory Vance']]),
   unofficial: new Map(),
+  input: { currentStageId: 'S1' },
   result: { games: [], next: { stageId: 'S1', number: 2, sides: [side(ID2)] } },
   ...over,
 });
@@ -89,6 +90,16 @@ describe('TeamPage', () => {
     expect(screen.queryByText(/^Game [13]/)).toBeNull(); // one row: the live game, not the next
     expect(db.loadArgs[2]).toEqual({ live: true }); // live numbers need the live taps
     expect(screen.getByRole('heading', { name: 'Players' }).nextElementSibling?.matches('button.help')).toBe(true); // help while live too
+  });
+
+  it("shows the current tournament's game, not one an earlier tournament left live", async () => {
+    const stale = game(4, 'live', { game: { id: 'g0', stageId: 'S0', number: 4, opponent: null, sessionId: 'p0' } });
+    db.y = tournament({ result: { games: [stale, game(1, 'live')], next: { stageId: 'S1', number: 2, sides: [side(ID2)] } } });
+    visit(ID2);
+    await screen.findByText('Finn Garza');
+    const row = document.querySelector('.row-link')!;
+    expect(row.getAttribute('href')).toBe('/stats/p1');
+    expect(row.textContent).toMatch(/^Game 1/);
   });
 
   it('shows the next game as the row when nothing is live, with the real opponent once a keeper sets it', async () => {

@@ -45,12 +45,14 @@ const afterGame1 = (): TournamentRows => ({
   sessions: [{ id: 'p1', verified_at: null }],
 });
 
-/** Game 1 played and verified, so final: Ash (2 goals) beat Bea (1 goal); each 2nd starter was auto-picked. The stage is over. */
+/**
+ * Game 1 played and verified, so final: Ash (2 goals) beat Bea (1 goal); each 2nd starter was auto-picked. Its only
+ * game is finished, so the tournament is over (no pick card), though its last day hasn't passed.
+ */
 const finalGame1 = (): TournamentRows => {
   const r = afterGame1();
   return {
     ...r,
-    stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
     games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, started_at: '2026-11-03T14:00:00Z', finished_at: '2026-11-03T15:00:00Z' })),
     pairings: r.pairings.filter((p) => p.game_id === 'g1'),
     sessions: [{ id: 'p1', verified_at: '2026-11-03T16:00:00Z' }],
@@ -66,6 +68,20 @@ const TAPS = [tap('t1', 'a1', 'goal', '14:01'), tap('t2', 'a1', 'goal', '14:03')
 const liveGame1 = (): TournamentRows => {
   const r = afterGame1();
   return { ...r, games: r.games.map((g) => (g.id === 'g1' ? { ...g, finished_at: null } : g)), taps: TAPS };
+};
+
+/** liveGame1 plus an earlier tournament, Feasterns (ended Oct 10), whose game 4 vs Wake Forest was left live (fake-user round 2). */
+const staleAndCurrent = (): TournamentRows => {
+  const r = liveGame1();
+  return {
+    ...r,
+    stages: [{ ...r.stages[0], id: 'S0', name: 'Feasterns', starts_on: '2026-10-09', ends_on: '2026-10-10', bid_close_at: '2026-10-07T00:00:00Z',
+      auction_run_at: '2026-10-08T00:00:00Z' }, ...r.stages],
+    games: [{ id: 'g0', stage_id: 'S0', number: 4, session_id: 'p0', started_at: '2026-10-10T15:00:00Z', finished_at: null, opponent: 'Wake Forest' },
+      ...r.games],
+    pairings: [{ game_id: 'g0', home: 'm1', away: 'm2' }, ...r.pairings],
+    sessions: [{ id: 'p0', verified_at: null }, ...r.sessions],
+  };
 };
 
 afterEach(cleanup);
@@ -605,6 +621,47 @@ describe('TournamentCard', () => {
       expect(words(lines()[0])).toEqual(['Game 1', [['Selling Zeal Stock', '6'], ['Money 🤑', '3']], ['Final']]);
     });
 
+    describe('an earlier tournament left live', () => {
+      const groups = () => [...screen.getByRole('region', { name: 'Zeal games' }).querySelectorAll(':scope > .game-group')];
+      const heads = () => groups().map((g) => g.querySelector(':scope > p')?.textContent);
+      const folded = (g: Element) => [...g.querySelectorAll(':scope > details > summary')].map((s) => s.textContent);
+      const strip = () => document.querySelector('.matchup .strip')!.textContent!;
+
+      it('takes the matchup from the current tournament, not a game an earlier one left live', async () => {
+        await show(staleAndCurrent());
+        expect(strip()).toContain('Game 1');
+        expect(strip()).toContain('Live');
+        expect(strip()).not.toContain('Game 4');
+        expect(document.querySelector('.score .pts')?.textContent).toBe('6'); // Ash's 2 goals
+      });
+
+      it('folds the earlier tournament under Earlier, not into the current games', async () => {
+        await show(staleAndCurrent());
+        expect(heads()).toEqual(['Fall beta', 'Earlier']);
+        expect([...groups()[0].querySelectorAll('.game-line .n')].map((n) => n.textContent)).toEqual(['Game 1', 'Game 2']);
+        expect(folded(groups()[1])).toEqual(['Feasterns · 1 game · 0–0']);
+      });
+
+      it('shows no game in the strip between tournaments', async () => {
+        const r = staleAndCurrent();
+        // Fall beta is buying (not settled), with no games or pairings yet.
+        await show({
+          ...r,
+          stages: [r.stages[0], { ...r.stages[1], bid_close_at: '2026-11-10T00:00:00Z', auction_run_at: null }],
+          games: r.games.filter((g) => g.stage_id === 'S0'),
+          pairings: r.pairings.filter((p) => p.game_id === 'g0'),
+          sessions: r.sessions.filter((s) => s.id === 'p0'),
+          picks: [],
+          taps: [],
+        });
+        expect(strip()).toContain('League A');
+        expect(strip()).toContain('2 teams');
+        expect(strip()).not.toContain('Game');
+        expect(heads()).toEqual(['Earlier']);
+        expect(folded(groups()[0])).toEqual(['Feasterns · 1 game · 0–0']);
+      });
+    });
+
     it('lists nothing before the tournament opens and no earlier tournament was played', async () => {
       await show(base()); // the tournament's games aren't made yet
       expect(screen.queryByRole('heading', { name: 'Games' })).toBeNull();
@@ -646,7 +703,6 @@ describe('TournamentCard', () => {
       const r = afterGame1(); // game 1 finished, not verified
       await show({
         ...r,
-        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
         games: r.games.map((g) => (g.id === 'g2' ? { ...g, session_id: 'p2', started_at: '2026-11-07T15:10:00Z', finished_at: '2026-11-07T16:00:00Z' } : g)),
         sessions: [...r.sessions, { id: 'p2', verified_at: '2026-11-07T16:10:00Z' }],
       });
@@ -669,7 +725,7 @@ describe('TournamentCard', () => {
       expect(scoreboard()?.textContent).toContain('They played');
     });
 
-    it('between tournaments, shows the last final game with the result and the loser greyed', async () => {
+    it('between tournaments, folds the last tournament under Earlier and keeps the record in the table (X1)', async () => {
       const r = afterGame1();
       await show({
         ...r,
@@ -681,9 +737,13 @@ describe('TournamentCard', () => {
         lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 2 }, points_played: 0 },
           { session_id: 'p1', athlete_id: 'b1', stats: { goal: 1 }, points_played: 0 }],
       });
-      expect(document.querySelector('.strip')?.textContent).toMatch(/Won \+/);
-      expect(document.querySelector('.score-side.lost')?.textContent).toContain('Bea');
-      expect(document.querySelector('.score-side')?.textContent).toMatch(/^You played[\d.]+Ash\w+$/); // two starters
+      // The strip is the league line, with no game from a tournament that's over (DECISION 2).
+      expect(stripWords()).toEqual(['League A', '2 teams']);
+      expect(scoreboard()).toBeNull();
+      const games = screen.getByRole('region', { name: 'Zeal games' });
+      expect([...games.querySelectorAll(':scope > .game-group > p')].map((p) => p.textContent)).toEqual(['Earlier']);
+      expect(within(games).getByText('Fall beta · 1 game · 1–0').closest('summary')).toBeTruthy();
+      expect(games.querySelector('.game-line .t.lost')?.textContent).toBe('Flow3'); // opened, the loser greyed
       expect(document.querySelector('.ranks [aria-current] small')?.textContent).toBe('1–0');
     });
 
@@ -762,7 +822,6 @@ describe('TournamentCard', () => {
       const r = liveGame1();
       await show({
         ...r,
-        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }], // over, so the verified game stays the focus
         games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, finished_at: '2026-11-07T15:00:00Z' })),
         pairings: r.pairings.filter((p) => p.game_id === 'g1'),
         sessions: [{ id: 'p1', verified_at: '2026-11-07T16:00:00Z' }],
@@ -831,7 +890,6 @@ describe('TournamentCard', () => {
       const r = liveGame1();
       await show({
         ...r,
-        stages: [{ ...r.stages[0], ends_on: '2026-11-06' }],
         games: r.games.filter((g) => g.id === 'g1').map((g) => ({ ...g, finished_at: '2026-11-07T15:00:00Z' })),
         pairings: r.pairings.filter((p) => p.game_id === 'g1'),
         sessions: [{ id: 'p1', verified_at: '2026-11-07T16:00:00Z' }],

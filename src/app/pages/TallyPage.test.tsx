@@ -19,7 +19,7 @@ vi.mock('./GameControls', () => ({
   GameControls: ({ sessionId }: { sessionId?: string }) => (sessionId ? <button className="secondary">Finish game 2</button> : null),
 }));
 vi.mock('./OutList', () => ({ OutList: () => <p>Out list</p> }));
-vi.mock('../lib/rpc', () => ({ api: { setOut: vi.fn(), clearOut: vi.fn() } }));
+vi.mock('../lib/rpc', () => ({ api: { setOut: vi.fn(), clearOut: vi.fn(), saveTaps: vi.fn(() => new Promise(() => {})) } }));
 
 const gone = vi.hoisted(() => ({
   on: false, outs: [] as { athlete_id: string; from_game: number }[], owned: false, games: null as unknown[] | null,
@@ -58,6 +58,7 @@ vi.mock('../lib/supabase', () => ({
 beforeEach(() => {
   vi.mocked(api.setOut).mockReset().mockResolvedValue(3);
   vi.mocked(api.clearOut).mockReset().mockResolvedValue(undefined);
+  vi.mocked(api.saveTaps).mockClear(); // never settles: a board's taps stay unsaved
 });
 afterEach(() => {
   gone.on = false;
@@ -75,7 +76,17 @@ afterEach(() => {
 });
 
 describe('TallyPage session list', () => {
+  /** The list's load has landed. */
+  const settled = async () => {
+    await screen.findByText('Out list');
+    await act(() => new Promise((r) => setTimeout(r, 0)));
+  };
+
   it('lists open tournament games only, with no way to start or delete a practice session (T4)', async () => {
+    const id = '00000000-0000-4000-8000-00000000a111'; // queued taps are kept under uuid keys only
+    gone.sessions = [session(id, 'tournament'), session(DRILL, 'practice')];
+    gone.games = [{ session_id: id, stage_id: 's1', number: 2 }];
+    storeQueue('k1', id, [{} as QueuedTap]); // listed while this phone holds its taps
     render(<MemoryRouter><TallyPage /></MemoryRouter>);
     const game = (await screen.findByText(/^Game 2 ·/)).closest('li')!;
     expect(game.textContent).not.toContain('Delete');
@@ -85,29 +96,34 @@ describe('TallyPage session list', () => {
     expect(screen.getByText('Out list')).toBeTruthy(); // the Players out card sits on the list
   });
 
-  it("lists only other tournaments' open games under Open games, titled with gameTitles, as rows", async () => {
+  it("lists an earlier tournament's open game only while this phone holds its taps, under Unsaved taps", async () => {
     const live = '00000000-0000-4000-8000-00000000a222'; // the current tournament's live game
-    gone.sessions = [session(live, 'tournament'), session('old', 'tournament')];
+    const old = '00000000-0000-4000-8000-00000000b444'; // Warmup's game 4, left open (X2)
+    gone.sessions = [session(live, 'tournament'), session(old, 'tournament')];
     gone.games = [
       { session_id: live, stage_id: 's1', number: 2, opponent: 'UNC', stages: { name: 'CCCs' } },
-      { session_id: 'old', stage_id: 's0', number: 4, opponent: 'Duke', stages: { name: 'Warmup' } },
+      { session_id: old, stage_id: 's0', number: 4, opponent: 'Duke', stages: { name: 'Warmup' } },
     ];
     gone.current = { stage: { id: 's1', name: 'CCCs' }, games: [{ id: 'g2', session_id: live }, { id: 'g3', session_id: null }] };
-    storeQueue('k1', live, [{} as QueuedTap]); // its unsaved pill sits on its own row there too
+    storeQueue('k1', live, [{} as QueuedTap]); // its unsaved pill sits on its own row on the hub
     render(<MemoryRouter><TallyPage /></MemoryRouter>);
-    const card = (await screen.findByText('Open games')).closest('.card')!;
+    await settled();
+    expect(screen.queryByText('Unsaved taps')).toBeNull();
+    expect(screen.queryByText('Game 4 vs Duke · Warmup')).toBeNull(); // no board link into an earlier tournament's game
+    cleanup();
+    storeQueue('k1', old, [{} as QueuedTap]);
+    render(<MemoryRouter><TallyPage /></MemoryRouter>);
+    const card = (await screen.findByRole('heading', { name: 'Unsaved taps' })).closest('.card')!;
     const rows = [...card.querySelectorAll('.row-link')];
-    expect(rows.map((r) => r.textContent)).toEqual(['Game 4 vs Duke · Warmup']); // CCCs' games are on its own card
-    expect(rows[0].getAttribute('href')).toBe('/tally?game=old');
+    expect(rows.map((r) => [r.querySelector('.who')?.textContent, r.querySelector('.pill')?.textContent])).toEqual([['Game 4 vs Duke · Warmup', '1 unsaved']]);
+    expect(rows[0].getAttribute('href')).toBe(`/tally?game=${old}`);
   });
 
-  it('hides Open games when no other tournament has one', async () => {
-    gone.current = { stage: { id: 's1', name: 'CCCs' }, games: [{ id: 'g2', session_id: 'game' }] };
-    render(<MemoryRouter><TallyPage /></MemoryRouter>);
-    await screen.findByText('Out list');
-    await act(() => new Promise((r) => setTimeout(r, 0))); // the list's load lands
-    expect(screen.queryByText('Open games')).toBeNull();
-    expect(screen.queryByText('No open games.')).toBeNull();
+  it('hides Unsaved taps when this phone holds none', async () => {
+    render(<MemoryRouter><TallyPage /></MemoryRouter>); // "game" is open and outside the hub, with no taps here
+    await settled();
+    expect(screen.queryByText('Unsaved taps')).toBeNull();
+    expect(screen.queryByText(/^Game 2 ·/)).toBeNull();
   });
 
   it('still lists a practice session this phone holds unsaved taps for, so they can upload', async () => {
@@ -139,7 +155,7 @@ describe('TallyPage deep link', () => {
     render(<MemoryRouter initialEntries={['/tally?game=nope']}><TallyPage /></MemoryRouter>);
     expect((await screen.findByRole('alert')).textContent).toContain('Row not found');
     fireEvent.click(screen.getByRole('button', { name: '← Games' }));
-    expect(await screen.findByText('Open games')).toBeTruthy();
+    expect(await screen.findByText('Out list')).toBeTruthy();
   });
 
   it('says a verified game, not a session, is closed to tallying', async () => {
@@ -229,6 +245,15 @@ describe('TallyPage board', () => {
     await board();
     expect(screen.getByText('Hold a stat to take one off.')).toBeTruthy();
   });
+
+  it('shows a tap on the board at once, before it is saved', async () => {
+    // X3 guard: the count and the pill change in the tap's own render, with no save in between (round 2 item 4).
+    await board();
+    fireEvent.click(screen.getByRole('button', { name: /^A0, Goal: 0\./ }));
+    expect(screen.getByRole('button', { name: /^A0, Goal: 1\./ })).toBeTruthy();
+    expect(screen.getByText('Saving · 1 unsaved')).toBeTruthy();
+    expect(api.saveTaps).not.toHaveBeenCalled();
+  });
 });
 
 describe('TallyPage Out toggle', () => {
@@ -314,12 +339,12 @@ describe('TallyPage bright board (t330)', () => {
 
   it('leaves the games list and every other page as they were', async () => {
     render(<MemoryRouter initialEntries={['/tally']}><TallyPage /></MemoryRouter>);
-    await screen.findByText('Open games');
+    await screen.findByText('Out list');
     expect(tally()).toBeUndefined();
     cleanup();
     await open();
     fireEvent.click(screen.getByRole('button', { name: '← Games' }));
-    await screen.findByText('Open games');
+    await screen.findByText('Out list');
     expect(tally()).toBeUndefined();
     cleanup();
     await open();

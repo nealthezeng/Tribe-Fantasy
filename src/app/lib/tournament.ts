@@ -93,6 +93,13 @@ export function toTournamentInput(rows: TournamentRows, now: number): Tournament
 /** A verified game this league was paired in (a bye counts), so Place / Record / Points mean something (before that they're all T1 / 0–0 / 0). */
 export const anyCounted = (y: Pick<LeagueTournament, 'result'>): boolean => y.result.games.some((g) => g.status === 'final' && g.matchups.length > 0);
 
+/**
+ * The games of the tournament being played (`currentStageId`), none between tournaments (X1). Player views take their
+ * game from here, so an earlier tournament's game left live (or not verified) never stands in for today's.
+ */
+export const currentGames = (y: Pick<LeagueTournament, 'result' | 'input'>): GameOutcome[] =>
+  y.result.games.filter((g) => g.game.stageId === y.input.currentStageId);
+
 export interface LeagueTournament {
   settings: SeasonSettings;
   input: TournamentInput;
