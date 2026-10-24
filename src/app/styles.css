@@ -90,8 +90,8 @@ button, .button {
   background: var(--gold); color: var(--on-gold); cursor: pointer; text-decoration: none; touch-action: manipulation;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
-/* Button lettering (tokens --font-button etc.). Text links, menu items and tally tiles keep their own lettering. */
-:is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
+/* Button lettering (tokens --font-button etc.). Text links, menu items, tally tiles and the voice mic keep their own lettering. */
+:is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, .voice-mic, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
   font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
   text-transform: var(--button-case); letter-spacing: var(--button-track);
 }
@@ -238,6 +238,32 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .tally-count { font-size: var(--fs-count); font-weight: var(--fw-bold); line-height: 1.1; font-variant-numeric: tabular-nums; }
 .tally-w { font-size: var(--fs-3xs); font-weight: var(--fw-medium); color: var(--muted); }
 .tally-buttons button:active:not(:disabled) .tally-w { color: inherit; }
+/* Voice tally (M16): the round gold mic floats bottom right, in the same spot whatever shows beside it. Held, a black
+   "Listening…" bar fills the bottom; while stats wait, Discard and Add sit in a bar left of the mic; notes sit above.
+   All fixed, so nothing on the board shifts when they come or go, and nothing moves or fades. */
+.page:has(.voice-mic) { padding-bottom: calc(var(--mic-size) + 2 * var(--s4)); } /* the mic never covers the last card or Finish */
+.voice-mic {
+  position: fixed; z-index: 3; right: var(--gutter); bottom: var(--s4); width: var(--mic-size); height: var(--mic-size);
+  padding: 0; border: 2px solid var(--bar); border-radius: 50%; font-size: var(--fs-xs);
+  touch-action: none; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; /* a hold never scrolls, selects or opens a menu */
+}
+.voice-mic svg { width: 32px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.voice-mic.on { box-shadow: 0 0 0 4px var(--gold); }
+.voice-mic[aria-disabled='true'], .voice-mic[aria-disabled='true']:is(:hover, :active) { background: var(--surface-2); color: var(--muted); border-color: var(--line-strong); }
+:is(.voice-listen, .voice-bar) {
+  position: fixed; z-index: 3; inset: auto 0 0; margin: 0; min-height: calc(var(--mic-size) + 2 * var(--s4));
+  padding: var(--s3) calc(var(--mic-size) + var(--gutter) + var(--s3)) var(--s3) var(--gutter); /* the mic's column stays clear */
+}
+.voice-listen { display: flex; align-items: center; background: var(--bar); color: var(--bar-fg); box-shadow: inset 0 0 0 3px var(--gold); font-size: var(--fs-lead); font-weight: var(--fw-bold); }
+.voice-bar { display: grid; grid-template-columns: 1fr 2fr; gap: var(--s2); align-items: center; background: var(--bg); border-top: 1px solid var(--line); }
+.voice-bar button { min-height: var(--tap-lg); padding-inline: var(--s2); } /* "Discard" fits its third at 375px */
+.voice-bar .secondary, .voice-bar .secondary:hover:not(:disabled) { border-color: var(--line-strong); } /* an edge on the white bright board */
+.voice-note {
+  position: fixed; z-index: 3; inset: auto var(--gutter) calc(var(--mic-size) + 2 * var(--s4) + var(--s2)); margin: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s3); padding: var(--s2) 14px; min-height: var(--tap-lg);
+  background: var(--bar); color: var(--bar-fg); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-weight: var(--fw-semi);
+}
+.voice-note .linklike { color: inherit; }
 
 /* Signed-out landing: the one page that has to sell, so it gets the team colours at full strength. */
 .hero { border: 1px solid var(--pane-border); position: relative; overflow: hidden; isolation: isolate; background: var(--score-bg); box-shadow: var(--score-shadow); color: var(--bar-fg); border-radius: var(--radius); --hero-x: var(--s5); padding: var(--s6) var(--hero-x); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s4); justify-items: start; }

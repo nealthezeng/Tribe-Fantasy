@@ -104,6 +104,11 @@
   --tap: 44px;        /* the minimum for anything you can press */
   --tap-lg: 48px;     /* tabs and menu items */
   --tap-tally: 76px;  /* tally stat buttons */
+  --mic-size: 72px;   /* the tally board's round hold-to-talk mic (M16) */
+
+  /* Voice tally (M16): stats heard but not added yet. Baby blue, so they never read as a gold action or a press. */
+  --waiting: var(--link);   /* resolves to the light and bright boards' --link too */
+  --on-waiting: #111111;    /* text on --waiting */
 
   /* Motion, only without reduced motion. Colour fades, the sliding tab marker, button press and lift.
      The tally board never animates. */
@@ -163,6 +168,7 @@
   --line: #dbe2ea;
   --line-strong: #8795a3;   /* input borders: 3:1 against white */
   --link: #0b5d99;          /* gold and baby blue aren't readable as text on white */
+  --on-waiting: #ffffff;    /* on the dark blue --waiting, about 7:1 */
   --check: #0b5d99;         /* gold is ~1.7:1 on a white pane */
   --gold-text: #8a6400;     /* readable gold on white, about 5:1 */
   --focus: #0b5d99;
