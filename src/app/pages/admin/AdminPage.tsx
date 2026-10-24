@@ -27,8 +27,8 @@ const GROUPS: [string, [Tab, string][]][] = [
   ['People', [['users', 'Accounts'], ['athletes', 'Players']]],
   ['More', [['settings', 'Settings'], ['history', 'History'], ['backup', 'Backup'], ['season', 'Season']]],
 ];
-/** The admin scrolling by hand: the page stops following a loading section back to its saved spot. */
-const INPUT = ['wheel', 'touchstart', 'keydown'] as const;
+/** The admin scrolling by hand, or pressing a mouse anywhere: the page stops following a loading section back to its saved spot. */
+const INPUT = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
 
 export function AdminPage() {
   const { isAdmin, loading } = useAuth();

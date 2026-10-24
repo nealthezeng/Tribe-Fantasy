@@ -116,6 +116,11 @@ describe('AdminPage (P9 ruling 17)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tournaments' }));
     fireEvent.wheel(window);
     expect(disconnect).toHaveBeenCalledTimes(1);
+    away();
+    disconnect.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Tournaments' }));
+    fireEvent.pointerDown(window); // a mouse press (opening a row, dragging the scrollbar) stops it too
+    expect(disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('manages the season picked in More › Season, and the newest again once the picked one is deleted', async () => {
