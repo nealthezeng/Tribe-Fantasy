@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/rpc';
@@ -81,6 +81,19 @@ const staleAndCurrent = (): TournamentRows => {
       ...r.games],
     pairings: [{ game_id: 'g0', home: 'm1', away: 'm2' }, ...r.pairings],
     sessions: [{ id: 'p0', verified_at: null }, ...r.sessions],
+  };
+};
+/** Between tournaments: Fall beta is buying (not settled), with no games or pairings yet; only Feasterns' game 4 is live. */
+const staleBetween = (): TournamentRows => {
+  const r = staleAndCurrent();
+  return {
+    ...r,
+    stages: [r.stages[0], { ...r.stages[1], bid_close_at: '2026-11-10T00:00:00Z', auction_run_at: null }],
+    games: r.games.filter((g) => g.stage_id === 'S0'),
+    pairings: r.pairings.filter((p) => p.game_id === 'g0'),
+    sessions: r.sessions.filter((s) => s.id === 'p0'),
+    picks: [],
+    taps: [],
   };
 };
 
@@ -635,6 +648,22 @@ describe('TournamentCard', () => {
         expect(document.querySelector('.score .pts')?.textContent).toBe('6'); // Ash's 2 goals
       });
 
+      it('says Bye for the current live game, not a game an earlier tournament left live (what users saw)', async () => {
+        const r = staleAndCurrent();
+        // Three teams: Zeal has the bye in Fall beta's live game 1, Flow plays Huck.
+        await show({
+          ...r,
+          members: [...r.members, { id: 'm3', team_name: 'Huck', created_at: '2026-10-01T00:00:00Z', removed_at: null }],
+          slots: [...r.slots, ...roster('m3', ['c1'])],
+          athletes: [...r.athletes, { id: 'c1', name: 'Cy' }],
+          pairings: r.pairings.flatMap((p) => (p.game_id === 'g1' ? [{ ...p, away: null }, { game_id: 'g1', home: 'm2', away: 'm3' }] : [p])),
+        });
+        expect(strip()).toContain('Game 1');
+        expect(strip()).toContain('Bye');
+        expect(strip()).not.toContain('Game 4');
+        expect(document.querySelector('.score')).toBeNull();
+      });
+
       it('folds the earlier tournament under Earlier, not into the current games', async () => {
         await show(staleAndCurrent());
         expect(heads()).toEqual(['Fall beta', 'Earlier']);
@@ -643,17 +672,7 @@ describe('TournamentCard', () => {
       });
 
       it('shows no game in the strip between tournaments', async () => {
-        const r = staleAndCurrent();
-        // Fall beta is buying (not settled), with no games or pairings yet.
-        await show({
-          ...r,
-          stages: [r.stages[0], { ...r.stages[1], bid_close_at: '2026-11-10T00:00:00Z', auction_run_at: null }],
-          games: r.games.filter((g) => g.stage_id === 'S0'),
-          pairings: r.pairings.filter((p) => p.game_id === 'g0'),
-          sessions: r.sessions.filter((s) => s.id === 'p0'),
-          picks: [],
-          taps: [],
-        });
+        await show(staleBetween());
         expect(strip()).toContain('League A');
         expect(strip()).toContain('2 teams');
         expect(strip()).not.toContain('Game');
@@ -856,6 +875,17 @@ describe('TournamentCard', () => {
         vi.mocked(loadLeagueTournament).mockClear();
         await show(base());
         await vi.advanceTimersByTimeAsync(30_000);
+        expect(loadLeagueTournament).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('never polls for a game an earlier tournament left live (X1)', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        await show(staleBetween());
+        await act(() => vi.advanceTimersByTimeAsync(30_000)); // a reload the poll asked for would land in here
         expect(loadLeagueTournament).toHaveBeenCalledTimes(1);
       } finally {
         vi.useRealTimers();

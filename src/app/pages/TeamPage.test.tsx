@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
@@ -8,7 +8,7 @@ import { TeamPage } from './TeamPage';
 
 const db = vi.hoisted(() => ({
   queried: [] as string[], row: null as unknown, y: null as unknown, mine: [] as unknown[], isAdmin: false, isKeeper: false,
-  loadArgs: [] as unknown[], fail: false,
+  loadArgs: [] as unknown[], fail: false, loads: 0,
 }));
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({ session: { user: { id: 'u1' } }, loading: false, isAdmin: db.isAdmin, isKeeper: db.isKeeper }),
@@ -19,7 +19,7 @@ vi.mock('../lib/supabase', () => {
 });
 vi.mock('../lib/tournament', async (orig) => ({
   ...(await orig<typeof import('../lib/tournament')>()),
-  loadLeagueTournament: (...args: unknown[]) => { db.loadArgs = args; return db.fail ? Promise.reject(new Error('offline')) : Promise.resolve(db.y); },
+  loadLeagueTournament: (...args: unknown[]) => { db.loadArgs = args; db.loads++; return db.fail ? Promise.reject(new Error('offline')) : Promise.resolve(db.y); },
 }));
 vi.mock('./HomePage', () => ({ loadMyTeams: () => Promise.resolve(db.mine) }));
 
@@ -54,7 +54,7 @@ const visit = (id: string) => render(
 );
 
 beforeEach(() => {
-  db.queried = []; db.row = row(); db.y = tournament(); db.mine = [member('L1')]; db.isAdmin = false; db.isKeeper = false; db.loadArgs = []; db.fail = false;
+  db.queried = []; db.row = row(); db.y = tournament(); db.mine = [member('L1')]; db.isAdmin = false; db.isKeeper = false; db.loadArgs = []; db.fail = false; db.loads = 0;
 });
 afterEach(cleanup);
 
@@ -100,6 +100,28 @@ describe('TeamPage', () => {
     const row = document.querySelector('.row-link')!;
     expect(row.getAttribute('href')).toBe('/stats/p1');
     expect(row.textContent).toMatch(/^Game 1/);
+  });
+
+  it("polls for the current tournament's live game, never for one an earlier tournament left live (X1)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const stale = game(4, 'live', { game: { id: 'g0', stageId: 'S0', number: 4, opponent: null, sessionId: 'p0' } });
+      db.y = tournament({ result: { games: [stale, game(1, 'live')], next: { stageId: 'S1', number: 2, sides: [side(ID2)] } } });
+      visit(ID2);
+      await screen.findByText('Finn Garza');
+      await vi.advanceTimersByTimeAsync(15_000);
+      await waitFor(() => expect(db.loads).toBe(2));
+      cleanup();
+      db.loads = 0;
+      // Between tournaments: only the earlier tournament's game is live.
+      db.y = tournament({ input: { currentStageId: null }, result: { games: [stale], next: null } });
+      visit(ID2);
+      await screen.findByText(/^No tournament on/);
+      await act(() => vi.advanceTimersByTimeAsync(30_000)); // a reload the poll asked for would land in here
+      expect(db.loads).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('shows the next game as the row when nothing is live, with the real opponent once a keeper sets it', async () => {

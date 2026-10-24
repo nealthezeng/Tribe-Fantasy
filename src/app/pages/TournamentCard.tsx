@@ -354,8 +354,8 @@ function GameList({ y, membershipId, teamName }: { y: LeagueTournament; membersh
   const started = games.filter((g) => g.status !== 'upcoming');
   const stages = [...new Set(started.map((g) => g.game.stageId))].sort((a, b) => day(b).localeCompare(day(a)));
   /** The tournament being played; between tournaments only Earlier (X1). */
-  const current = y.input.currentStageId ?? undefined;
-  const lines = games.filter((g) => g.game.stageId === current).sort(byNumber);
+  const current = y.input.currentStageId;
+  const lines = currentGames(y).sort(byNumber);
   const earlier = stages.filter((s) => s !== current)
     .map((s) => started.filter((g) => g.game.stageId === s).sort(byNumber))
     .filter((t) => t.some((g) => opponentIn(g, membershipId) !== undefined));
