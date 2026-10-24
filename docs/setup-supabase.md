@@ -556,7 +556,9 @@ changes in the database: the on/off switch lives in the season settings.
 5. One practice before Nov 6: a keeper on an iPhone **in the installed app** and one on Android each try about ten
    calls (single stats, "A to B", a count, a shared first name, one nonsense call) and add them. Check the counts, and
    that another keeper's taps on the same plays counted once. **Edge Functions → voice → Logs** show one
-   `{ms, status}` line per call.
+   `{ms, status, groq}` line per call (never what was said). `groq` is Groq's HTTP status, `"secret"` when
+   `GROQ_API_KEY` is missing, `"network"` when Groq couldn't be reached, or `null` when the call stopped before Groq
+   (not a keeper, or a bad upload). `groq: 401` means the key is wrong: paste it again in step 1.
 6. Rollback: Admin → Settings, turn **Voice tally: mic on the tally board** off; the mic goes the next time a board
    loads or refreshes. Turning it off stores `voice_tally` in the season settings, and a phone still on a pre-M16
    build can't load the season then (it refuses unknown settings) until it updates. Or revert the deploy; if voice

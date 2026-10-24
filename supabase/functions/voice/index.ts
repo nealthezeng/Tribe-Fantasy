@@ -30,15 +30,19 @@ Deno.serve(async (req) => {
   const headers = SITE.test(origin) ? { ...cors, 'Access-Control-Allow-Origin': origin } : cors;
   if (req.method === 'OPTIONS') return new Response('ok', { headers });
   const t0 = performance.now();
+  const log: Log = { groq: null };
   // Anything that throws (a network error, a reply that isn't JSON) is an upstream failure, still with CORS.
-  const [status, body] = await answer(req).catch((): Answer => [502, { error: 'UPSTREAM' }]);
-  console.log(JSON.stringify({ ms: Math.round(performance.now() - t0), status }));
+  const [status, body] = await answer(req, log).catch((): Answer => [502, { error: 'UPSTREAM' }]);
+  console.log(JSON.stringify({ ms: Math.round(performance.now() - t0), status, groq: log.groq }));
   return new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 });
 
 type Answer = [number, { text: string } | { error: string }];
+// What Groq did, for the log: its HTTP status, 'secret' (GROQ_API_KEY missing), 'network' (no answer), or null when
+// the request never got that far. Never Groq's body or the transcript.
+type Log = { groq: number | 'secret' | 'network' | null };
 
-async function answer(req: Request): Promise<Answer> {
+async function answer(req: Request, log: Log): Promise<Answer> {
   // Keepers only, before anything reaches Groq. Asked of the database with the caller's own token, so it holds
   // whether or not "Verify JWT" is on.
   const keeper = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/rpc/is_keeper`, {
@@ -61,8 +65,18 @@ async function answer(req: Request): Promise<Answer> {
   }
 
   const key = Deno.env.get('GROQ_API_KEY');
-  if (!key) return [502, { error: 'UPSTREAM' }];
-  const r = await transcribe(audio, prompt, key);
+  if (!key) {
+    log.groq = 'secret';
+    return [502, { error: 'UPSTREAM' }];
+  }
+  let r: Response;
+  try {
+    r = await transcribe(audio, prompt, key);
+  } catch {
+    log.groq = 'network';
+    return [502, { error: 'UPSTREAM' }];
+  }
+  log.groq = r.status;
   if (r.status === 429) return [429, { error: 'BUSY' }];
   if (!r.ok) return [502, { error: 'UPSTREAM' }];
   return [200, { text: ((await r.json()) as { text?: string }).text ?? '' }];
