@@ -62,10 +62,10 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
       ledger: (ledger.data ?? []) as LedgerRow[],
     };
   }, [seasonId, leagueId, membershipId]);
-  useReloadOnShow(reload); // no poll here: back from another app, a credited donation or a close shows (X11)
-
   // Re-render while buying is open so the countdown moves and the card flips to "closed" on time.
   const [now, setNow] = useState(Date.now);
+  // No poll here: back from another app, a credited donation or a close (even one passed while away) shows at once (X11).
+  useReloadOnShow(() => { setNow(Date.now()); reload(); });
   const closeAt = data && !data.stage.auction_run_at ? data.stage.bid_close_at : null;
   useEffect(() => {
     if (!closeAt) return;
@@ -106,7 +106,8 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
   if (phase !== 'open') return null;
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);
-  // Back-to-back picks score less (X4): the reason to buy a full roster, until you have one. No list = no tiredness.
+  // Back-to-back picks score less (X4): the reason to buy a full roster, until you have one. No list = no tiredness;
+  // picks a game = roster size leaves nothing to rotate.
   const tired = settings.tiredness_multipliers[0] ?? 1;
   const picks = settings.picks_per_game;
 
@@ -145,16 +146,16 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
           )}
         </div>
       </div>
-      <p className="hint">{`${starts ? `${starts} ` : ''}Picks for game 1 open here once shares are settled.`}</p>
-      {tired < 1 && mine.length < rosterSize && (
-        <p className="hint">
-          {`You pick ${picks} player${picks === 1 ? '' : 's'} a game, and a player you picked for the game before scores `
-            + `${fraction(tired)}. Buying ${rosterSize} lets you rotate them.`}
-        </p>
-      )}
       {total > balance && (
         <p className="notice" role="alert">
           Buys are {credits(total - balance)} over your balance.
+        </p>
+      )}
+      <p className="hint">{`${starts ? `${starts} ` : ''}Picks for game 1 open here once shares are settled.`}</p>
+      {tired < 1 && picks < rosterSize && mine.length < rosterSize && (
+        <p className="hint">
+          {`You pick ${picks} player${picks === 1 ? '' : 's'} a game, and a player you picked for the game before scores `
+            + `${fraction(tired)}. Buying ${rosterSize} lets you rotate them.`}
         </p>
       )}
       <BidList open={mine.length === 0} loud={mine.length === 0}
@@ -179,7 +180,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
                   <span className="meta">
                     {form ? <Link className="title" to={`/player/${a.id}?t=${form.stageId}`}>{a.name}</Link> : <span className="title">{a.name}</span>}
                     {factor < 1 && (
-                      <span className="pill warn" aria-label={`started in an earlier tournament: ${pct(factor)}`}>×{factor}</span>
+                      <span className="pill warn" aria-label={`picked in an earlier tournament: ${pct(factor)}`}>×{factor}</span>
                     )}
                     {out.has(a.id) && <span className="pill bad">Out</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}

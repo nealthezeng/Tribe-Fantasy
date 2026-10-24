@@ -190,7 +190,7 @@ describe('AuctionCard', () => {
     expect(screen.getByRole('link', { name: 'Get more credits' }).className).toBe('button'); // 5 left of 115
   });
 
-  it('chips a player you started in an earlier tournament with the repeat factor; ×1 shows nothing', async () => {
+  it('chips a player you picked in an earlier tournament with the repeat factor; ×1 shows nothing', async () => {
     vi.mocked(loadLeagueTournament).mockResolvedValue(tournament({ result: { games: [], startedIn: { [pairKey('m1', 'a')]: ['s0'] } } }));
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('a', 'Ari Banks') as unknown as Row, athlete('b', 'Bo Castellanos') as unknown as Row];
@@ -198,7 +198,7 @@ describe('AuctionCard', () => {
     await screen.findByText(/^Closes in/);
     const row = (n: string) => within(screen.getByText(n).closest('li')!);
     // The repeat data loads apart from the buy list: wait for it.
-    expect((await row('Ari Banks').findByText('×0.9')).getAttribute('aria-label')).toBe('started in an earlier tournament: 90%');
+    expect((await row('Ari Banks').findByText('×0.9')).getAttribute('aria-label')).toBe('picked in an earlier tournament: 90%');
     expect(row('Bo Castellanos').queryByText(/^×/)).toBeNull();
   });
 
@@ -297,7 +297,10 @@ describe('AuctionCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     const msg = await screen.findByText('Not enough credits for that.');
     expect(msg.closest('li')!.textContent).toContain('Alice');
-    await screen.findByText('Buys are 10 credits over your balance.');
+    const over = await screen.findByText('Buys are 10 credits over your balance.');
+    // The error sits right under the header, before the advice (ruling 83).
+    expect(over.previousElementSibling!.className).toContain('bid-header');
+    expect(over.nextElementSibling!.textContent).toBe('Picks for game 1 open here once shares are settled.');
   });
 
   const player = (i: number, name = `P${i}`) => athlete(`p${i}`, name) as unknown as Row;
@@ -412,6 +415,14 @@ describe('AuctionCard', () => {
     renderCard();
     await screen.findByText(/^Closes in/);
     expect(screen.queryByText(/a player you picked/)).toBeNull();
+
+    // As many picks a game as players: nothing to rotate.
+    db.seasons = [{ settings: { roster_size: 2 } }];
+    cleanup();
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    expect(document.body.textContent).toContain('0 of 2 players');
+    expect(screen.queryByText(/a player you picked/)).toBeNull();
   });
 
   it('shows the most of a player each buy can own', async () => {
@@ -459,6 +470,21 @@ describe('AuctionCard', () => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
     document.dispatchEvent(new Event('visibilitychange'));
     await waitFor(() => expect(document.body.textContent).toContain('credits left of 115'));
+  });
+
+  it('shows a close that passed while the app was away as soon as it comes back', async () => {
+    db.stages = [openStage as unknown as Row];
+    renderCard();
+    await screen.findByText(/^Closes in/);
+    vi.useFakeTimers({ toFake: ['Date'] }); // only the clock jumps; waitFor keeps real timers
+    try {
+      vi.setSystemTime(Date.now() + 2 * 3_600_000); // past bid_close_at, well before the next 15 s tick
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(await screen.findByText(/^Buying closed for Fall\./)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('has no player-facing bid or auction wording while open', async () => {
