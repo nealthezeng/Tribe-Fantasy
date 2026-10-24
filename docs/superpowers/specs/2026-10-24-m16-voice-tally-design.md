@@ -22,7 +22,7 @@ Findings this rests on (voice-test work, 2026-10-22/23, branch `voice-test`):
 - Cost is pennies a tournament; Groq has a free tier.
 - **Not yet tried:** recording on any phone. Every try so far ran on a desktop against the local simulation (a phone
   can't reach it: recording needs HTTPS). Whether the iPhone installed app records, and keeps recording after it
-  has been in the background, is the biggest unknown (§8 open question).
+  has been in the background, is the biggest unknown. It is first tried at the practice before Nov 6 (§8).
 
 ## 2. Goals
 
@@ -256,8 +256,10 @@ Picked in the browser mockups (option "3A", user 2026-10-23): the stats are fixe
 
 ## 8. Tasks (one phase, tag `m16-voice`)
 
-**Open question for the user (blocks the plan):** an early "phone check" push before the board work, so the iPhone
-installed app is tried days before Nov 4 rather than at the last practice, and what to ship if it can't record.
+**No early phone check (user, 2026-10-24):** the whole board feature is built first and tried on phones at the
+practice before Nov 6 (§7 step 5). What ships if the iPhone installed app can't record is decided then. Until then
+the board already copes (my call): if the microphone can't be opened or the clip comes back empty twice in a row, the
+mic says "Voice can't use the microphone here. Try Safari, or tap." and the buttons carry on as normal.
 
 1. Parser: copy from `voice-test`, made-up names in tests, plurals and counts (§5.3).
 2. Edge Function `voice` + runbook section (§5.2, §7); sim endpoint renamed to match.
