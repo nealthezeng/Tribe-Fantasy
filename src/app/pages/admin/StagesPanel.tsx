@@ -1,5 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { Fragment, useState, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { Loading } from '../../components/Loading';
+import { loadLateJoiners } from '../../lib/adminWarnings';
 import { auctionPhase, formatWhen, pickPlayingStage } from '../../lib/auction';
 import { errorMessage } from '../../lib/errors';
 import { api } from '../../lib/rpc';
@@ -7,233 +9,263 @@ import { supabase } from '../../lib/supabase';
 import { formatDay, todayLocal } from '../../lib/stats';
 import { useLoad } from '../../lib/useLoad';
 import {
-  checkPairing, describePairings, GAME_COLUMNS, seasonPairings, seasonRanks, type GameRow, type GamePairing, type LeaguePairingInput,
+  checkPairing, describePairings, GAME_COLUMNS, rowsOf, seasonPairings, seasonRanks, type GameRow, type GamePairing, type LeaguePairingInput,
 } from '../../lib/tournament';
 
 interface StageRow {
   id: string; name: string; starts_on: string; ends_on: string;
   bid_close_at: string | null; auction_run_at: string | null;
 }
-const EMPTY = { id: null as string | null, name: '', starts_on: '', ends_on: '' };
+/** Runs an admin action, then reloads; its message shows in the tournament it was made in (`at`; null = under the list). */
+type Run = (at: string | null, action: () => Promise<string | void>) => void;
+type Step = 'credits' | 'buying' | 'settle' | 'start';
+const EMPTY = { name: '', starts_on: '', ends_on: '' };
+type Fields = typeof EMPTY;
+const days = (s: StageRow) => (s.starts_on === s.ends_on ? formatDay(s.starts_on) : `${formatDay(s.starts_on)} – ${formatDay(s.ends_on)}`);
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * P9 admin Tournaments: the tournament in progress is a card with its steps in one line and the one gold button due
+ * now; later and earlier tournaments are one row each that opens to the same steps (never gold) and rows.
+ */
 export function StagesPanel({ seasonId }: { seasonId: string }) {
-  const [form, setForm] = useState(EMPTY);
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const stages = useLoad(async () => {
-    const { data, error } = await supabase!
-      .from('stages').select('id, name, starts_on, ends_on, bid_close_at, auction_run_at').eq('season_id', seasonId).order('starts_on');
-    if (error) throw error;
-    return (data ?? []) as StageRow[];
+  const [note, setNote] = useState<{ at: string | null; text: string; bad?: boolean } | null>(null);
+  // Everything at once, so a row never opens onto an empty box while its games load.
+  const data = useLoad(async () => {
+    const sb = supabase!;
+    const stages = (await rowsOf<StageRow>(sb.from('stages').select('id, name, starts_on, ends_on, bid_close_at, auction_run_at').eq('season_id', seasonId)))
+      .sort((a, b) => b.starts_on.localeCompare(a.starts_on)); // newest first
+    const ids = stages.map((s) => s.id);
+    const games = await rowsOf<GameRow>(ids.length ? sb.from('games').select(GAME_COLUMNS).in('stage_id', ids).order('number') : null);
+    const granted = await rowsOf<{ stage_id: string }>(ids.length
+      ? sb.from('credit_ledger').select('stage_id').in('stage_id', ids).eq('kind', 'allowance') : null);
+    return { stages, games, granted: new Set(granted.map((r) => r.stage_id)), late: await loadLateJoiners(seasonId) };
   }, [seasonId]);
 
-  async function run(action: () => Promise<string | void>) {
-    setStatus(null);
-    setError(null);
-    try {
-      const done = await action();
-      if (done) setStatus(done);
-      stages.reload();
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }
+  const run: Run = (at, action) => {
+    setNote(null);
+    void action().then(
+      (text) => { if (text) setNote({ at, text }); void data.reload(); },
+      (err: unknown) => setNote({ at, text: errorMessage(err), bad: true }),
+    );
+  };
+  const noteAt = (at: string | null) => note?.at === at
+    && <p className={note.bad ? 'error' : 'success'} role={note.bad ? 'alert' : 'status'}>{note.text}</p>;
 
-  function save(e: FormEvent) {
-    e.preventDefault();
-    void run(async () => {
-      if (form.id) await api.updateStage(form.id, form.name, form.starts_on, form.ends_on);
-      else await api.createStage(seasonId, form.name, form.starts_on, form.ends_on);
-      setForm(EMPTY);
-    });
-  }
-
-  const current = pickPlayingStage(stages.data ?? [], todayLocal());
-  const set = (key: keyof typeof EMPTY) => (e: { target: { value: string } }) => setForm({ ...form, [key]: e.target.value });
-
-  return (
-    <div className="card">
-      <h2>Tournaments</h2>
-      {!stages.data && !stages.error && <Loading />}
-      {/* The real order of a tournament; game 1 is paired by the standings, and keepers run games from Tally. */}
-      <ol className="steps" aria-label="Each tournament, in order">
-        <li>Grant allowance</li><li>Open share buying</li><li>Settle shares</li><li>Open tournament</li>
-      </ol>
-      <ul className="list">
-        {stages.data?.map((s) => (
+  if (!data.data) return data.error ? <p className="error" role="alert">{data.error}</p> : <Loading />;
+  const { stages, games, granted, late } = data.data;
+  const today = todayLocal();
+  const playing = pickPlayingStage(stages, today)?.id;
+  const of = (s: StageRow) => games.filter((g) => g.stage_id === s.id);
+  // Over: its last day has passed, or every game it has is finished. The earliest one not over is in progress.
+  const over = (s: StageRow) => s.ends_on < today || (of(s).length > 0 && of(s).every((g) => g.finished_at !== null));
+  const current = stages.filter((s) => !over(s)).at(-1);
+  const body = (s: StageRow, gold: boolean) => (
+    <Tournament s={s} games={of(s)} granted={granted.has(s.id)} late={late?.stage.id === s.id ? late.teams.length : 0}
+      playing={s.id === playing} gold={gold} seasonId={seasonId} run={run} note={noteAt(s.id)} />
+  );
+  const rows = (list: StageRow[]) => (
+    <ul className="list">
+      {list.map((s) => {
+        const live = of(s).find((g) => g.started_at !== null && g.finished_at === null);
+        return (
           <li key={s.id}>
-            <span>
-              <span className="title">{s.name}</span><br />
-              <small>{formatDay(s.starts_on)} – {formatDay(s.ends_on)}</small><br />
-              <small>{auctionStatus(s)}</small>
-            </span>
-            <span className="meta">
-              <button className="secondary" onClick={() => setForm({
-                id: s.id, name: s.name, starts_on: s.starts_on, ends_on: s.ends_on,
-              })}>Edit</button>
-              <button onClick={() => void run(async () => {
-                const { ranks, unsettled } = await seasonRanks(seasonId, s.id);
-                if (unsettled > 0 && !window.confirm(
-                  `${unsettled} earlier ${unsettled === 1 ? 'game is' : 'games are'} not final yet, so the standings may still change. Grant anyway?`)) return;
-                const n = await api.grantStageAllowance(s.id, ranks);
-                return `${s.name}: credited ${n} ${n === 1 ? 'team' : 'teams'}.`;
-              })}>
-                Grant allowance
-              </button>
-            </span>
-            <AuctionControls stage={s} run={run} />
-            <TournamentControls stage={s} current={current?.id === s.id} seasonId={seasonId} run={run} />
+            <details>
+              <summary className="row-link">
+                <span className="who"><b>{s.name}</b><small>{days(s)}</small></span>
+                {over(s) && (live ? <span className="pill warn">Game {live.number} live</span> : <span className="muted">Finished</span>)}
+              </summary>
+              {body(s, false)}
+            </details>
           </li>
-        ))}
+        );
+      })}
+    </ul>
+  );
+  const later = stages.filter((s) => s !== current && !over(s));
+  const earlier = stages.filter(over);
+  return (
+    <>
+      {current && (
+        // Keyed: when the next tournament takes the card, its fields start empty, not with the last one's typing.
+        <article key={current.id} className="card">
+          <div className="head"><h2>{current.name}</h2><span className="muted">{days(current)}</span></div>
+          {body(current, true)}
+        </article>
+      )}
+      {later.length > 0 && <><h2>Later</h2>{rows(later)}</>}
+      {earlier.length > 0 && <><h2>Earlier</h2>{rows(earlier)}</>}
+      <AddTournament seasonId={seasonId} run={run} cls={current ? 'secondary' : undefined} first={stages.length === 0} />
+      {noteAt(null)}
+      {data.error && <p className="error" role="alert">{data.error}</p>}
+    </>
+  );
+}
+
+/** One tournament: its steps in one line, the action due now (gold only on the card, P9 rule 2), then its rows. */
+function Tournament({ s, games, granted, late, playing, gold, seasonId, run, note }: {
+  s: StageRow; games: GameRow[]; granted: boolean; late: number; playing: boolean; gold: boolean; seasonId: string; run: Run; note: ReactNode;
+}) {
+  const phase = auctionPhase(s);
+  const now = games.find((g) => g.finished_at === null); // the current game; none = every game is finished
+  const when = s.bid_close_at ? formatWhen(s.bid_close_at) : '';
+  // The step at hand: credits while shares aren't settled (late joiners too, ruling 12), then buying, settling, starting.
+  const at: Step = phase !== 'run' && (!granted || late > 0) ? 'credits' : phase === 'closed' ? 'settle' : phase === 'run' ? 'start' : 'buying';
+  const steps: [Step, string][] = [
+    ['credits', late > 0 ? `${plural(late, 'team has', 'teams have')} no ${s.name} credits` : granted ? 'Allowance given' : 'Allowance'],
+    ...(phase === 'run' ? [] : [['buying', { not_open: 'Buying', open: `Buying open, closes ${when}`, closed: `Buying closed ${when}` }[phase]] as [Step, string]]),
+    ['settle', phase === 'run' ? 'Shares settled' : 'Settle'],
+    ['start', now ? `Game ${now.number} of ${games.length} ${now.started_at ? 'live' : 'next'}` : games.length ? `Finished after game ${games.length}` : 'Start'],
+  ];
+  const cls = (step: Step) => (gold && step === at ? undefined : 'secondary');
+
+  // Grant only credits teams without this allowance, so the same call gives late joiners theirs.
+  const grant = () => run(s.id, async () => {
+    const { ranks, unsettled } = await seasonRanks(seasonId, s.id);
+    if (unsettled > 0 && !window.confirm(
+      `${unsettled} earlier ${unsettled === 1 ? 'game is' : 'games are'} not final yet, so the standings may still change. Grant anyway?`)) return;
+    const n = await api.grantStageAllowance(s.id, ranks);
+    return `${s.name}: credited ${plural(n, 'team')}.`;
+  });
+  const closeNow = () => {
+    if (!window.confirm(`Close buying for ${s.name} now? Teams can't buy or change shares after this, and it can't be reopened.`)) return;
+    run(s.id, async () => { await api.closeShareBuying(s.id); return `${s.name}: share buying closed.`; });
+  };
+  const settle = () => {
+    if (!window.confirm(`Settle ${s.name} shares? Every team gets its players now. This runs once; you can still fix a team's shares by hand.`)) return;
+    run(s.id, async () => {
+      const r = await api.runAuction(s.id);
+      return `${s.name} shares settled: every team has its players (${plural(r.by_bid, 'buy')}).`;
+    });
+  };
+  return (
+    <div className="stack">
+      <p className="steps">
+        {steps.map(([k, w], i) => <Fragment key={k}>{i > 0 && ' · '}<span className={k === at ? 'now' : undefined}>{w}</span></Fragment>)}
+      </p>
+      {(!granted || late > 0) && <button className={cls('credits')} onClick={grant}>{granted ? 'Give them their credits' : 'Grant allowance'}</button>}
+      {phase === 'open' && <button className={cls('buying')} onClick={closeNow}>Close buying now</button>}
+      {(phase === 'not_open' || phase === 'open') && <CloseTime s={s} cls={phase === 'open' ? 'secondary' : cls('buying')} run={run} />}
+      {phase === 'closed' && <button className={cls('settle')} onClick={settle}>Settle shares</button>}
+      {/* Game 1 is paired by the standings, and keepers run games from Tally. */}
+      {phase === 'run' && games.length === 0 && playing && <OpenTournament s={s} cls={cls('start')} seasonId={seasonId} run={run} />}
+      {note}
+      <ul className="list">
+        {games.length > 0 && <GamesRow s={s} games={games} playing={playing} seasonId={seasonId} run={run} />}
+        {games.length > 0 && <PairingsRow s={s} games={games} run={run} />}
+        <NameRow s={s} run={run} />
       </ul>
-      {stages.data?.length === 0 && <p className="muted">None yet.</p>}
-      {/* Used once a tournament: folded away, and opened by Edit. */}
-      {/* Keyed by the tournament being edited, so Edit on another one reopens it even after a manual collapse. */}
-      <details key={form.id ?? 'new'} className="section" open={form.id ? true : undefined}>
-        <summary>{form.id ? 'Edit tournament' : 'Add a tournament'}</summary>
-        <form onSubmit={save} className="row">
-          <label>Name<input required maxLength={60} value={form.name} onChange={set('name')} placeholder="Fall beta" /></label>
-          <label>Starts<input type="date" required value={form.starts_on} onChange={set('starts_on')} /></label>
-          <label>Ends<input type="date" required value={form.ends_on} onChange={set('ends_on')} /></label>
-          <button>{form.id ? 'Save tournament' : 'Add tournament'}</button>
-          {form.id && <button type="button" className="secondary" onClick={() => setForm(EMPTY)}>Cancel</button>}
-          {form.id && <button type="button" className="secondary" onClick={() => {
-            const id = form.id!;
-            if (!window.confirm(`Delete ${form.name}? Its games and their stats, rosters and shares are deleted for good. `
-              + 'Credits spent on its shares go back to the teams; allowances stay, so granting an allowance again to a '
-              + 're-created tournament would credit everyone twice. Take a backup first if you might want it back.')) return;
-            void run(async () => {
-              await api.deleteStage(id);
-              setForm(EMPTY);
-              return `${form.name} deleted.`;
-            });
-          }}>Delete tournament</button>}
-        </form>
-      </details>
-      {status && <p className="success" role="status">{status}</p>}
-      {(error || stages.error) && <p className="error" role="alert">{error ?? stages.error}</p>}
     </div>
   );
 }
 
-function auctionStatus(s: StageRow): string {
-  switch (auctionPhase(s)) {
-    case 'not_open': return 'Share buying not open';
-    case 'open': return `Share buying open · closes ${formatWhen(s.bid_close_at!)}`;
-    case 'closed': return `Share buying closed ${formatWhen(s.bid_close_at!)} · ready to settle`;
-    case 'run': return `Shares settled ${formatWhen(s.auction_run_at!)}`;
-  }
-}
-
-function AuctionControls({ stage, run }: { stage: StageRow; run: (action: () => Promise<string | void>) => Promise<void> }) {
+/** Open share buying with its closing time, or move that time while open. A past time is refused before any confirm. */
+function CloseTime({ s, cls, run }: { s: StageRow; cls: string | undefined; run: Run }) {
   const [closeAt, setCloseAt] = useState('');
-  const phase = auctionPhase(stage);
-  if (phase === 'run') return null;
-  if (phase === 'closed') {
-    return (
-      <div className="row">
-        <button onClick={() => {
-          if (!window.confirm(`Settle ${stage.name} shares? It can only run once.`)) return;
-          void run(async () => {
-            const r = await api.runAuction(stage.id);
-            return `${stage.name}: ${r.by_bid} ${r.by_bid === 1 ? 'buy' : 'buys'} settled, ${r.empty} ${r.empty === 1 ? 'spot' : 'spots'} empty.`;
-          });
-        }}>Settle shares</button>
-      </div>
-    );
-  }
+  const open = auctionPhase(s) === 'open';
   return (
     <form className="row" onSubmit={(e) => {
       e.preventDefault();
-      const closeIso = new Date(closeAt).toISOString();
-      const prompt = phase === 'open'
-        ? `Move the ${stage.name} close time to ${formatWhen(closeIso)}?`
-        : `Open share buying for ${stage.name}? It closes ${formatWhen(closeIso)}. It can't be cancelled.`;
-      if (!window.confirm(prompt)) return;
-      void run(async () => {
-        await api.openAuction(stage.id, closeIso);
+      const close = new Date(closeAt);
+      if (close.getTime() <= Date.now()) return run(s.id, () => Promise.reject(new Error('INVALID_CLOSE_TIME')));
+      const closeIso = close.toISOString();
+      if (!window.confirm(open ? `Move the ${s.name} close time to ${formatWhen(closeIso)}?`
+        : `Open share buying for ${s.name}? It closes ${formatWhen(closeIso)}. It can't be cancelled.`)) return;
+      run(s.id, async () => {
+        await api.openAuction(s.id, closeIso);
         setCloseAt('');
-        return `${stage.name}: share buying closes ${formatWhen(closeIso)}.`;
+        return `${s.name}: share buying closes ${formatWhen(closeIso)}.`;
       });
     }}>
       <label>Buying closes<input type="datetime-local" required value={closeAt} onChange={(e) => setCloseAt(e.target.value)} /></label>
-      <button>{phase === 'open' ? 'Change close time' : 'Open share buying'}</button>
+      <button className={cls}>{open ? 'Change close time' : 'Open share buying'}</button>
     </form>
+  );
+}
+
+/** Opens the settled tournament with its game count. Never disabled: the required field stops an empty one. */
+function OpenTournament({ s, cls, seasonId, run }: { s: StageRow; cls: string | undefined; seasonId: string; run: Run }) {
+  const [count, setCount] = useState('');
+  return (
+    <form className="row" onSubmit={(e) => {
+      e.preventDefault();
+      run(s.id, async () => {
+        const p = await seasonPairings(seasonId);
+        if (!window.confirm(`Open the ${s.name} tournament with ${count} ${count === '1' ? 'game' : 'games'}? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
+        await api.openTournament(s.id, p.pairings, Number(count));
+        return `${s.name}: game 1 is paired. Keepers start it from Stats → Tally.`;
+      });
+    }}>
+      <label>Games<input type="number" required min={1} max={20} value={count} onChange={(e) => setCount(e.target.value)} /></label>
+      <button className={cls}>Open tournament</button>
+    </form>
+  );
+}
+
+/** The game count (on the tournament being played), where opponents are set, and Undo game last. */
+function GamesRow({ s, games, playing, seasonId, run }: { s: StageRow; games: GameRow[]; playing: boolean; seasonId: string; run: Run }) {
+  const [count, setCount] = useState<string | null>(null); // the Games field: an edit of the current count (null = untouched)
+  const total = games.length;
+  const now = games.find((g) => g.finished_at === null);
+  const minCount = Math.max(1, ...games.filter((g) => g.started_at !== null).map((g) => g.number));
+  const unset = games.filter((g) => !g.opponent).length;
+  // Raising a finished tournament pairs the new game now (spec §5.9), so show those pairings first; anything else needs no confirm.
+  const saveCount = (e: FormEvent) => {
+    e.preventDefault();
+    const n = Number(count ?? total);
+    run(s.id, async () => {
+      if (n === total) return;
+      if (n > total && !now) {
+        const p = await seasonPairings(seasonId);
+        if (!window.confirm(`Raise ${s.name} to ${n} games? Game ${total + 1}: ${describePairings(p.pairings, p.team)}.`)) return;
+        await api.setGameCount(s.id, n, p.pairings, p.provisional);
+      } else await api.setGameCount(s.id, n);
+      setCount(null);
+      return `${s.name}: ${plural(n, 'game')}.`;
+    });
+  };
+  // Undo = reset the newest started game (spec §3): its stats and the next game it created go; it can be replayed.
+  // A past tournament has no Start game, so there is nothing to replay: Undo only on the one that can still be played.
+  const played = playing ? games.filter((g) => g.started_at !== null).at(-1) : undefined;
+  const undo = (g: GameRow) => {
+    if (!window.confirm(`Undo game ${g.number} of ${s.name}? Its stats are deleted, the game after it is unpaired, `
+      + `and game ${g.number} can be started again. Take a backup first if you might want it back.`)) return;
+    run(s.id, async () => {
+      await api.resetGame(g.id);
+      return `${s.name}: game ${g.number} undone. Keepers can start it again from Stats → Tally.`;
+    });
+  };
+  return (
+    <li>
+      <details>
+        <summary className="row-link">
+          <span className="who"><b>Games and count</b><small>{`${plural(total, 'game')}${unset > 0 ? ` · ${plural(unset, 'opponent')} not set` : ''}`}</small></span>
+        </summary>
+        <div className="stack">
+          {playing && (
+            <form className="row" onSubmit={saveCount}>
+              <label>Games<input type="number" required min={minCount} max={20} value={count ?? String(total)} onChange={(e) => setCount(e.target.value)} /></label>
+              <button className="secondary">Save count</button>
+            </form>
+          )}
+          {/* Round 1's admin found no place for opponents: keepers set them on the tally hub (ruling 59). */}
+          <p><Link className="more" to="/tally">Opponents are set on Tally</Link></p>
+          {played && <button className="danger-link" onClick={() => undo(played)}>Undo game {played.number}</button>}
+        </div>
+      </details>
+    </li>
   );
 }
 
 interface FinishAudit { entity_id: string; details: { pairings: GamePairing[]; provisional: LeaguePairingInput[] } }
 
-/** Open the stage's tournament once its shares are settled; then staff can re-check every Swiss pairing a keeper made. */
-function TournamentControls({ stage, current, seasonId, run }: {
-  stage: StageRow; current: boolean; seasonId: string; run: (action: () => Promise<string | void>) => Promise<void>;
-}) {
+/** Re-checks every Swiss pairing a keeper's Finish made, against the standings it was made from. */
+function PairingsRow({ s, games, run }: { s: StageRow; games: GameRow[]; run: Run }) {
   const [checks, setChecks] = useState<{ id: string; text: string }[] | null>(null);
-  const [count, setCount] = useState<string | null>(null); // the Games field: the count to open with, or an edit of the current one (null = untouched)
-  const games = useLoad(async () => {
-    const { data, error } = await supabase!.from('games').select(GAME_COLUMNS).eq('stage_id', stage.id).order('number');
-    if (error) throw error;
-    return (data ?? []) as GameRow[];
-  }, [stage.id]);
-  if (!stage.auction_run_at) return null;
-  if (games.error) return <p className="error" role="alert">{games.error}</p>;
-  if (!games.data) return null;
-
-  if (games.data.length === 0) {
-    if (!current) return null;
-    return (
-      <form className="row" onSubmit={(e) => {
-        e.preventDefault();
-        void run(async () => {
-          const p = await seasonPairings(seasonId);
-          if (!window.confirm(`Open the ${stage.name} tournament with ${count} ${count === '1' ? 'game' : 'games'}? Game 1: ${describePairings(p.pairings, p.team)}.`)) return;
-          await api.openTournament(stage.id, p.pairings, Number(count));
-          setCount(null);
-          games.reload();
-          return `${stage.name}: game 1 is paired. Keepers start it from Stats → Tally.`;
-        });
-      }}>
-        <label>Games<input type="number" required min={1} max={20} value={count ?? ''} onChange={(e) => setCount(e.target.value)} /></label>
-        <button disabled={!count}>Open tournament</button>
-      </form>
-    );
-  }
-
-  const total = games.data.length;
-  const now = games.data.find((g) => g.finished_at === null); // the current game; none = every game is finished
-  const minCount = Math.max(1, ...games.data.filter((g) => g.started_at !== null).map((g) => g.number));
-  // Raising a finished tournament pairs the new game now (spec §5.9), so show those pairings first; anything else needs no confirm.
-  const saveCount = (e: FormEvent) => {
-    e.preventDefault();
-    const n = Number(count ?? total);
-    void run(async () => {
-      if (n === total) return;
-      if (n > total && !now) {
-        const p = await seasonPairings(seasonId);
-        if (!window.confirm(`Raise ${stage.name} to ${n} games? Game ${total + 1}: ${describePairings(p.pairings, p.team)}.`)) return;
-        await api.setGameCount(stage.id, n, p.pairings, p.provisional);
-      } else await api.setGameCount(stage.id, n);
-      setCount(null);
-      games.reload();
-      return `${stage.name}: ${n} ${n === 1 ? 'game' : 'games'}.`;
-    });
-  };
-  // Undo = reset the newest started game (spec §3): its stats and the next game it created go; it can be replayed.
-  // A past tournament has no Start game, so there is nothing to replay: Undo only on the one that can still be played.
-  const played = current ? games.data.filter((g) => g.started_at !== null).at(-1) : undefined;
-  const undo = (g: GameRow) => {
-    if (!window.confirm(`Undo game ${g.number} of ${stage.name}? Its stats are deleted, the game after it is unpaired, `
-      + `and game ${g.number} can be started again. Take a backup first if you might want it back.`)) return;
-    void run(async () => {
-      await api.resetGame(g.id);
-      games.reload();
-      return `${stage.name}: game ${g.number} undone. Keepers can start it again from Stats → Tally.`;
-    });
-  };
-  const number = new Map(games.data.map((g) => [g.id, g.number]));
-  const check = () => void run(async () => {
+  const number = new Map(games.map((g) => [g.id, g.number]));
+  const check = () => run(s.id, async () => {
     const { data, error } = await supabase!.from('audit_log').select('entity_id, details')
-      .eq('action', 'finish_game').in('entity_id', games.data!.map((g) => g.id)).order('at');
+      .eq('action', 'finish_game').in('entity_id', games.map((g) => g.id)).order('at');
     if (error) throw error;
     // An undo + replay finishes a game twice: keep only the latest row per game (oldest first, so later ones overwrite).
     // The last game's finish pairs nothing (saved as null, not typed): nothing to re-check, so skip those rows.
@@ -244,27 +276,75 @@ function TournamentControls({ stage, current, seasonId, run }: {
       : "doesn't match a Swiss re-run. Look at this finish_game row in the audit log."}` })));
   });
   return (
-    <details className="section">
-      <summary>Tournament <span className="muted">· {now
-        ? `game ${now.number} ${now.started_at ? 'live' : 'next'} of ${total}` : `over after game ${total}`}</span></summary>
-      <div className="stack">
-        {current && (
-          <form className="row" onSubmit={saveCount}>
-            <label>Games<input type="number" required min={minCount} max={20} value={count ?? String(total)} onChange={(e) => setCount(e.target.value)} /></label>
-            <button className="secondary">Save count</button>
-          </form>
-        )}
-        <div className="row">
+    <li>
+      <details>
+        <summary className="row-link"><span className="who"><b>Pairings</b></span></summary>
+        <div className="stack">
           <button className="secondary" onClick={check}>Check pairings</button>
-          {played && <button className="secondary" onClick={() => undo(played)}>Undo game {played.number}</button>}
+          {checks && (
+            <ul className="list">
+              {checks.length === 0 && <li className="muted">No game has finished yet.</li>}
+              {checks.map((c) => <li key={c.id}>{c.text}</li>)}
+            </ul>
+          )}
         </div>
-        {checks && (
-          <ul className="list">
-            {checks.length === 0 && <li className="muted">No game has finished yet.</li>}
-            {checks.map((c) => <li key={c.id}>{c.text}</li>)}
-          </ul>
-        )}
-      </div>
+      </details>
+    </li>
+  );
+}
+
+/** Name and dates, edited in place; Delete tournament last, in red words, its confirm word for word. */
+function NameRow({ s, run }: { s: StageRow; run: Run }) {
+  const [f, setF] = useState<Fields>({ name: s.name, starts_on: s.starts_on, ends_on: s.ends_on });
+  const del = () => {
+    if (!window.confirm(`Delete ${s.name}? Its games and their stats, rosters and shares are deleted for good. `
+      + 'Credits spent on its shares go back to the teams; allowances stay, so granting an allowance again to a '
+      + 're-created tournament would credit everyone twice. Take a backup first if you might want it back.')) return;
+    run(null, async () => { await api.deleteStage(s.id); return `${s.name} deleted.`; });
+  };
+  return (
+    <li>
+      <details>
+        <summary className="row-link"><span className="who"><b>Name and dates</b></span></summary>
+        <div className="stack">
+          <form className="row" onSubmit={(e) => {
+            e.preventDefault();
+            run(s.id, async () => { await api.updateStage(s.id, f.name, f.starts_on, f.ends_on); return 'Saved.'; });
+          }}>
+            <StageFields f={f} setF={setF} />
+            <button className="secondary">Save tournament</button>
+          </form>
+          <button className="danger-link" onClick={del}>Delete tournament</button>
+        </div>
+      </details>
+    </li>
+  );
+}
+
+/** Used once a tournament: folded away, open while the season has none; gold only when no tournament is in progress. */
+function AddTournament({ seasonId, run, cls, first }: { seasonId: string; run: Run; cls: string | undefined; first: boolean }) {
+  const [f, setF] = useState(EMPTY);
+  return (
+    <details className="section" open={first || undefined}>
+      <summary>Add a tournament</summary>
+      <form className="row" onSubmit={(e) => {
+        e.preventDefault();
+        run(null, async () => { await api.createStage(seasonId, f.name, f.starts_on, f.ends_on); setF(EMPTY); });
+      }}>
+        <StageFields f={f} setF={setF} />
+        <button className={cls}>Add tournament</button>
+      </form>
     </details>
+  );
+}
+
+function StageFields({ f, setF }: { f: Fields; setF: (f: Fields) => void }) {
+  const set = (key: keyof Fields) => (e: { target: { value: string } }) => setF({ ...f, [key]: e.target.value });
+  return (
+    <>
+      <label>Name<input required maxLength={60} value={f.name} onChange={set('name')} placeholder="Fall beta" /></label>
+      <label>Starts<input type="date" required value={f.starts_on} onChange={set('starts_on')} /></label>
+      <label>Ends<input type="date" required value={f.ends_on} onChange={set('ends_on')} /></label>
+    </>
   );
 }

@@ -129,9 +129,10 @@ label.check input { width: 22px; height: 22px; min-height: 0; accent-color: var(
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
 .list li { background: var(--pane-bg); border: 1px solid var(--pane-border); box-shadow: var(--pane-highlight), var(--pane-shadow); border-radius: var(--radius-sm); padding: 10px 14px; min-height: 56px; display: flex; justify-content: space-between; align-items: center; gap: var(--s2) var(--s3); flex-wrap: wrap; }
 .list li select { width: auto; max-width: 100%; }
-.card .list { gap: 0; }
-.card .list li { background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: var(--s2) 0; box-shadow: none; }
-.card .list li:first-child { border-top: 0; }
+/* A list opened inside a page row (admin's earlier tournaments) divides like one in a card. */
+.card .list, .list .list { gap: 0; }
+:is(.card, .list) .list li { background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: var(--s2) 0; box-shadow: none; }
+:is(.card, .list) .list li:first-child { border-top: 0; }
 .list .title { font-weight: var(--fw-semi); }
 .list a.title { color: var(--fg); text-decoration: none; display: inline-flex; align-items: center; min-height: var(--tap); }
 .list a.title:hover { text-decoration: underline; }
@@ -320,10 +321,10 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .help-pop { padding: var(--s3); background: var(--card-solid); color: var(--fg); border: 1px solid var(--pane-border); border-radius: var(--radius-sm); box-shadow: var(--pane-highlight), var(--pane-shadow); font-size: var(--fs-sm); max-width: min(20rem, calc(100vw - 2 * var(--gutter))); }
 /* Past tournaments: dates and the waiting pill drop under a long name instead of squeezing it. */
 .past details > summary { flex-wrap: wrap; }
-/* A real sequence, numbered: the steps of a tournament in admin. */
-.steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); font-size: var(--fs-sm); color: var(--muted); }
-.steps li { counter-increment: step; display: inline-flex; align-items: center; gap: var(--s2); }
-.steps li::before { content: counter(step); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); color: var(--fg); font-weight: var(--fw-bold); font-size: var(--fs-xs); }
+/* P9 rule 2: a tournament's steps in admin as one line of words ("Allowance given · Buying open, closes … · Settle ·
+   Start"); the step at hand is bold, and its one gold button sits under the line. */
+.steps { font-size: var(--fs-sm); color: var(--muted); }
+.steps .now { color: var(--fg); font-weight: var(--fw-semi); }
 /* The first-visit guide (and the top of Rules): plain numbered steps inside a notice. */
 .guide { display: grid; gap: var(--s3); }
 .guide-steps { margin: 0; padding-left: var(--s5); display: grid; gap: var(--s2); }
