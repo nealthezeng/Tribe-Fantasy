@@ -96,6 +96,21 @@ describe('VoiceMic (M16 §5.1, §5.4–5.6)', () => {
     expect(onNote).not.toHaveBeenCalled();
   });
 
+  it('cannot be held again while it is hearing (pointer or key)', async () => {
+    let answer!: (h: Heard) => void;
+    vi.mocked(hearClip).mockReturnValueOnce(new Promise((done) => { answer = done; }));
+    render(<Board />);
+    fireEvent.pointerDown(mic());
+    fireEvent.pointerUp(mic());
+    const busy = screen.getByRole('button', { name: 'Hearing…' });
+    fireEvent.pointerDown(busy); // React and most browsers still deliver pointerdown to a disabled button
+    fireEvent.keyDown(busy, { key: ' ' });
+    expect(rec.starts).toBe(1);
+    expect(screen.queryByText(LISTENING)).toBeNull();
+    await act(async () => answer({ text: 'Bo gets a D' }));
+    expect(hearClip).toHaveBeenCalledTimes(1);
+  });
+
   it('holds on Space too, without restarting on key repeat', async () => {
     vi.mocked(hearClip).mockResolvedValueOnce({ text: 'Bo gets a D' });
     render(<Board />);

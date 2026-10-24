@@ -67,6 +67,7 @@ function Mic({ names, online, waiting, note, onNote, onHeard, onAdd, onDiscard }
   }, [note]);
 
   const press = () => {
+    if (hearing) return; // `disabled` doesn't stop pointerdown (React and browsers still deliver it)
     if (online) start();
     else onNote({ text: 'Voice needs signal. The buttons still work.' });
   };
