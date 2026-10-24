@@ -76,6 +76,32 @@ describe('WalletsPanel (P9 T18)', () => {
     expect(within(row('Gimp Zeal')).queryByText(/credits$/, { selector: '.pill' })).toBeNull();
   });
 
+  it('lists teams by name within each league', async () => {
+    DB.leagues = [{ ...(DB.leagues[0] as object), memberships: [...(DB.leagues[0] as { memberships: unknown[] }).memberships].reverse() }, DB.leagues[1]];
+    render(<WalletsPanel seasonId="s1" />);
+    await screen.findByText('Gimp Zeal');
+    expect([...document.querySelectorAll('summary.row-link b')].map((b) => b.textContent)).toEqual(['Gimp Zeal', 'Money (removed)', 'Late Larks']);
+  });
+
+  it('still shows every wallet and its forms when the late-joiner check fails (it is only a warning)', async () => {
+    vi.mocked(loadLateJoiners).mockRejectedValue({ message: 'FORBIDDEN' });
+    render(<WalletsPanel seasonId="s1" />);
+    const larks = await openRow('Late Larks');
+    expect(larks.getByRole('button', { name: 'Save for Late Larks' })).toBeTruthy();
+    expect(larks.getByRole('button', { name: 'Record donation for Late Larks' })).toBeTruthy();
+    expect(document.querySelector('.pill')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('names each form control after its team, visible words unchanged', async () => {
+    render(<WalletsPanel seasonId="s1" />);
+    const zeal = await openRow('Gimp Zeal');
+    expect(zeal.getAllByRole('button').map((b) => [b.textContent, b.getAttribute('aria-label')]))
+      .toEqual([['Save', 'Save for Gimp Zeal'], ['Record donation', 'Record donation for Gimp Zeal']]);
+    expect(zeal.getAllByRole('textbox').concat(zeal.getAllByRole('spinbutton')).map((i) => i.getAttribute('aria-label')).sort()).toEqual([
+      'Credits (+/−) for Gimp Zeal', 'Dollars donated to the team for Gimp Zeal', "Note on Gimp Zeal's adjustment", "Note on Gimp Zeal's donation"]);
+  });
+
   it('has no pill when no tournament is waiting on credits', async () => {
     vi.mocked(loadLateJoiners).mockResolvedValue(null);
     render(<WalletsPanel seasonId="s1" />);
@@ -100,48 +126,48 @@ describe('WalletsPanel (P9 T18)', () => {
   it("adjusts that team's credits and says so right under its own Save", async () => {
     render(<WalletsPanel seasonId="s1" />);
     const zeal = await openRow('Gimp Zeal');
-    const adjust = formOf(zeal, 'Save');
-    fireEvent.change(adjust.getByLabelText('Credits (+/−)'), { target: { value: '-5' } });
-    fireEvent.change(adjust.getByLabelText('Note'), { target: { value: 'Paid twice' } });
-    fireEvent.click(adjust.getByRole('button', { name: 'Save' }));
+    const adjust = formOf(zeal, 'Save for Gimp Zeal');
+    fireEvent.change(adjust.getByLabelText('Credits (+/−) for Gimp Zeal'), { target: { value: '-5' } });
+    fireEvent.change(adjust.getByLabelText("Note on Gimp Zeal's adjustment"), { target: { value: 'Paid twice' } });
+    fireEvent.click(adjust.getByRole('button', { name: 'Save for Gimp Zeal' }));
     await waitFor(() => expect(api.adjustCredits).toHaveBeenCalledWith('m1', -5, 'Paid twice'));
     const done = await zeal.findByText('Adjusted Gimp Zeal by -5.');
-    expect(done.previousElementSibling).toBe(zeal.getByRole('button', { name: 'Save' }).closest('form'));
-    expect((adjust.getByLabelText('Credits (+/−)') as HTMLInputElement).value).toBe('');
+    expect(done.previousElementSibling).toBe(zeal.getByRole('button', { name: 'Save for Gimp Zeal' }).closest('form'));
+    expect((adjust.getByLabelText('Credits (+/−) for Gimp Zeal') as HTMLInputElement).value).toBe('');
   });
 
   it("says why an adjustment failed in that team's row, and keeps what was typed", async () => {
     vi.mocked(api.adjustCredits).mockRejectedValueOnce({ message: 'FORBIDDEN' });
     render(<WalletsPanel seasonId="s1" />);
     const zeal = await openRow('Gimp Zeal');
-    const adjust = formOf(zeal, 'Save');
-    fireEvent.change(adjust.getByLabelText('Credits (+/−)'), { target: { value: '7' } });
-    fireEvent.click(adjust.getByRole('button', { name: 'Save' }));
+    const adjust = formOf(zeal, 'Save for Gimp Zeal');
+    fireEvent.change(adjust.getByLabelText('Credits (+/−) for Gimp Zeal'), { target: { value: '7' } });
+    fireEvent.click(adjust.getByRole('button', { name: 'Save for Gimp Zeal' }));
     expect((await zeal.findByRole('alert')).textContent).toBe("You don't have permission to do that.");
-    expect((adjust.getByLabelText('Credits (+/−)') as HTMLInputElement).value).toBe('7');
+    expect((adjust.getByLabelText('Credits (+/−) for Gimp Zeal') as HTMLInputElement).value).toBe('7');
   });
 
   it('records a donation to the team from the opened row while donations are on', async () => {
     render(<WalletsPanel seasonId="s1" />);
     const zeal = await openRow('Gimp Zeal');
     expect(zeal.getByText('Only once the treasurer has the money. 2 credits per dollar.')).toBeTruthy();
-    const donate = formOf(zeal, 'Record donation');
-    fireEvent.change(donate.getByLabelText('Dollars donated to the team'), { target: { value: '10' } });
-    fireEvent.change(donate.getByLabelText('Note'), { target: { value: 'Venmo 1234' } });
-    fireEvent.click(donate.getByRole('button', { name: 'Record donation' }));
+    const donate = formOf(zeal, 'Record donation for Gimp Zeal');
+    fireEvent.change(donate.getByLabelText('Dollars donated to the team for Gimp Zeal'), { target: { value: '10' } });
+    fireEvent.change(donate.getByLabelText("Note on Gimp Zeal's donation"), { target: { value: 'Venmo 1234' } });
+    fireEvent.click(donate.getByRole('button', { name: 'Record donation for Gimp Zeal' }));
     await waitFor(() => expect(api.recordDonation).toHaveBeenCalledWith('m1', 10, 'Venmo 1234'));
     expect(await zeal.findByText('Recorded a $10.00 donation to the team from Gimp Zeal.')).toBeTruthy();
     // One gold button per opened row (P9 rule 2): Save; Record donation is secondary.
-    expect(zeal.getByRole('button', { name: 'Record donation' }).className).toBe('secondary');
-    expect(zeal.getByRole('button', { name: 'Save' }).className).toBe('');
+    expect(zeal.getByRole('button', { name: 'Record donation for Gimp Zeal' }).className).toBe('secondary');
+    expect(zeal.getByRole('button', { name: 'Save for Gimp Zeal' }).className).toBe('');
   });
 
   it('has no donation form while donations are off', async () => {
     DB.settings = {};
     render(<WalletsPanel seasonId="s1" />);
     const zeal = await openRow('Gimp Zeal');
-    expect(zeal.getByRole('button', { name: 'Save' })).toBeTruthy();
-    expect(zeal.queryByRole('button', { name: 'Record donation' })).toBeNull();
+    expect(zeal.getByRole('button', { name: 'Save for Gimp Zeal' })).toBeTruthy();
+    expect(zeal.queryByRole('button', { name: 'Record donation for Gimp Zeal' })).toBeNull();
   });
 
   it('says so when the season has no teams', async () => {

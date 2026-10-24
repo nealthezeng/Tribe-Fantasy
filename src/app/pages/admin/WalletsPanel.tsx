@@ -24,7 +24,7 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
       supabase!.from('seasons').select('settings').eq('id', seasonId).single(),
       supabase!.from('leagues').select(`id, name, memberships(id, team_name, removed_at, credit_ledger(${LEDGER_COLUMNS}))`)
         .eq('season_id', seasonId).order('name'),
-      loadLateJoiners(seasonId),
+      loadLateJoiners(seasonId).catch(() => null), // only a warning: Adjust and Record donation work without it
     ]);
     if (season.error) throw season.error;
     if (leagues.error) throw leagues.error;
@@ -33,9 +33,11 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
     return {
       donationsEnabled: settings.donations_enabled === true,
       creditsPerDollar: Number(settings.credits_per_dollar ?? DEFAULT_SETTINGS.credits_per_dollar),
-      wallets: ((leagues.data ?? []) as LeagueRow[]).flatMap((l) => l.memberships.map((m): Wallet => ({
-        id: m.id, team: teamLabel(m), league: l.name, entries: m.credit_ledger, late: lateIds.has(m.id) ? late!.stage.name : null,
-      }))),
+      // Teams A→Z within each league: the flat list has no league headings.
+      wallets: ((leagues.data ?? []) as LeagueRow[]).flatMap((l) => [...l.memberships].sort((a, b) => a.team_name.localeCompare(b.team_name))
+        .map((m): Wallet => ({
+          id: m.id, team: teamLabel(m), league: l.name, entries: m.credit_ledger, late: lateIds.has(m.id) ? late!.stage.name : null,
+        }))),
     };
   }, [seasonId]);
   const d = data.data;
@@ -64,12 +66,12 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
                     </li>
                   ))}
                 </ul>
-                <CreditForm amountLabel="Credits (+/−)" step="1" button="Save" onDone={data.reload}
+                <CreditForm team={w.team} kind="adjustment" amountLabel="Credits (+/−)" step="1" button="Save" onDone={data.reload}
                   submit={async (amount, note) => { await api.adjustCredits(w.id, amount, note); return `Adjusted ${w.team} by ${amount}.`; }} />
                 {d.donationsEnabled && (
                   <>
                     <p className="muted">Only once the treasurer has the money. {d.creditsPerDollar} credits per dollar.</p>
-                    <CreditForm amountLabel="Dollars donated to the team" step="0.01" button="Record donation" quiet onDone={data.reload}
+                    <CreditForm team={w.team} kind="donation" amountLabel="Dollars donated to the team" step="0.01" button="Record donation" quiet onDone={data.reload}
                       submit={async (dollars, note) => {
                         await api.recordDonation(w.id, dollars, note);
                         return `Recorded a $${dollars.toFixed(2)} donation to the team from ${w.team}.`;
@@ -87,8 +89,13 @@ export function WalletsPanel({ seasonId }: { seasonId: string }) {
   );
 }
 
-/** Amount, note and its button for one team; what happened shows right under its own button. */
-function CreditForm({ amountLabel, step, button, quiet = false, submit, onDone }: {
+/**
+ * Amount, note and its button for one team; what happened shows right under its own button. Each control's name says
+ * the team, since several opened rows can show the same words.
+ */
+function CreditForm({ team, kind, amountLabel, step, button, quiet = false, submit, onDone }: {
+  team: string;
+  kind: 'adjustment' | 'donation';
   amountLabel: string;
   step: string;
   button: string;
@@ -124,9 +131,11 @@ function CreditForm({ amountLabel, step, button, quiet = false, submit, onDone }
   return (
     <>
       <form className="row" onSubmit={(e) => void save(e)}>
-        <label>{amountLabel}<input type="number" required step={step} value={amount} onChange={(e) => setAmount(e.target.value)} /></label>
-        <label>Note<input maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-        <button className={quiet ? 'secondary' : undefined} disabled={busy}>{button}</button>
+        <label>{amountLabel}
+          <input type="number" required step={step} aria-label={`${amountLabel} for ${team}`} value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </label>
+        <label>Note<input maxLength={200} aria-label={`Note on ${team}'s ${kind}`} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+        <button className={quiet ? 'secondary' : undefined} disabled={busy} aria-label={`${button} for ${team}`}>{button}</button>
       </form>
       {status && <p className="success" role="status">{status}</p>}
       {error && <p className="error" role="alert">{error}</p>}

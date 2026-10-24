@@ -66,7 +66,7 @@ describe('LeaguesPanel (t215, P9 T18)', () => {
     expect((await openRow('Huck Yeah')).getByText('Zips, Hucks')).toBeTruthy();
     const ghost = await openRow('Ghost League');
     expect(ghost.getByText('Live, Left (removed)')).toBeTruthy();
-    fireEvent.click(ghost.getByRole('button', { name: 'Open league' }));
+    fireEvent.click(ghost.getByRole('button', { name: 'Open league Ghost League' }));
     fireEvent.click(screen.getByRole('button', { name: 'Browser of l3' }));
     expect(await screen.findByText('Huck Yeah')).toBeTruthy(); // Back to the list
   });
@@ -74,9 +74,9 @@ describe('LeaguesPanel (t215, P9 T18)', () => {
   it('adds a password to an open league, with no Remove password there', async () => {
     render(<LeaguesPanel seasonId="s1" />);
     const huck = await openRow('Huck Yeah');
-    expect(huck.queryByRole('button', { name: 'Remove password' })).toBeNull();
-    fireEvent.change(huck.getByLabelText('New password'), { target: { value: ' secret1 ' } });
-    fireEvent.click(huck.getByRole('button', { name: 'Add a password' }));
+    expect(huck.queryByRole('button', { name: 'Remove password for Huck Yeah' })).toBeNull();
+    fireEvent.change(huck.getByLabelText('New password for Huck Yeah'), { target: { value: ' secret1 ' } });
+    fireEvent.click(huck.getByRole('button', { name: 'Add a password for Huck Yeah' }));
     await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l1', ' secret1 '));
     expect(await huck.findByText('Huck Yeah now needs a password.')).toBeTruthy();
   });
@@ -85,11 +85,11 @@ describe('LeaguesPanel (t215, P9 T18)', () => {
     const confirm = vi.spyOn(window, 'confirm');
     render(<LeaguesPanel seasonId="s1" />);
     const ghost = await openRow('Ghost League');
-    expect(ghost.queryByRole('button', { name: 'Add a password' })).toBeNull();
-    fireEvent.change(ghost.getByLabelText('New password'), { target: { value: 'secret22' } });
-    fireEvent.click(ghost.getByRole('button', { name: 'Change password' }));
+    expect(ghost.queryByRole('button', { name: 'Add a password for Ghost League' })).toBeNull();
+    fireEvent.change(ghost.getByLabelText('New password for Ghost League'), { target: { value: 'secret22' } });
+    fireEvent.click(ghost.getByRole('button', { name: 'Change password for Ghost League' }));
     await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l3', 'secret22'));
-    fireEvent.click(ghost.getByRole('button', { name: 'Remove password' }));
+    fireEvent.click(ghost.getByRole('button', { name: 'Remove password for Ghost League' }));
     await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l3', null));
     expect(await ghost.findByText('Anyone can join Ghost League now.')).toBeTruthy();
     expect(confirm).not.toHaveBeenCalled();
@@ -98,16 +98,27 @@ describe('LeaguesPanel (t215, P9 T18)', () => {
   it("keeps both password actions for an older season's league, whose lock is unknown", async () => {
     render(<LeaguesPanel seasonId="s1" />);
     const a = await openRow('League A');
-    expect(a.getByRole('button', { name: 'Add a password' })).toBeTruthy();
-    fireEvent.click(a.getByRole('button', { name: 'Remove password' }));
+    expect(a.getByRole('button', { name: 'Add a password for League A' })).toBeTruthy();
+    fireEvent.click(a.getByRole('button', { name: 'Remove password for League A' }));
     await waitFor(() => expect(api.setLeaguePassword).toHaveBeenCalledWith('l2', null));
+  });
+
+  it("names every action after its league, so rows opened side by side don't repeat the same names (visible words unchanged)", async () => {
+    render(<LeaguesPanel seasonId="s1" />);
+    const huck = await openRow('Huck Yeah');
+    const ghost = await openRow('Ghost League');
+    expect(huck.getAllByRole('button').map((b) => b.getAttribute('aria-label')))
+      .toEqual(['Open league Huck Yeah', 'Add a password for Huck Yeah', 'Delete league Huck Yeah']);
+    expect(ghost.getAllByRole('button').map((b) => b.textContent))
+      .toEqual(['Open league', 'Change password', 'Remove password', 'Delete league']);
+    expect(ghost.getByLabelText('New password for Ghost League')).toBeTruthy();
   });
 
   it('refuses a password of only spaces', async () => {
     render(<LeaguesPanel seasonId="s1" />);
     const a = await openRow('League A');
-    fireEvent.change(a.getByLabelText('New password'), { target: { value: '     ' } });
-    fireEvent.click(a.getByRole('button', { name: 'Add a password' }));
+    fireEvent.change(a.getByLabelText('New password for League A'), { target: { value: '     ' } });
+    fireEvent.click(a.getByRole('button', { name: 'Add a password for League A' }));
     expect((await a.findByRole('alert')).textContent).toMatch(/4–40 characters/);
     expect(api.setLeaguePassword).not.toHaveBeenCalled();
   });
@@ -116,9 +127,9 @@ describe('LeaguesPanel (t215, P9 T18)', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
     render(<LeaguesPanel seasonId="s1" />);
     const huck = await openRow('Huck Yeah');
-    const del = huck.getByRole('button', { name: 'Delete league' });
+    const del = huck.getByRole('button', { name: 'Delete league Huck Yeah' });
     expect(huck.getAllByRole('button').at(-1)).toBe(del);
-    expect(del.className).toBe('danger-link');
+    expect([del.textContent, del.className]).toEqual(['Delete league', 'danger-link']);
     fireEvent.click(del);
     expect(api.deleteLeague).not.toHaveBeenCalled();
     fireEvent.click(del);
@@ -131,7 +142,7 @@ describe('LeaguesPanel (t215, P9 T18)', () => {
     vi.mocked(api.deleteLeague).mockRejectedValueOnce({ message: 'FORBIDDEN' });
     render(<LeaguesPanel seasonId="s1" />);
     const huck = await openRow('Huck Yeah');
-    fireEvent.click(huck.getByRole('button', { name: 'Delete league' }));
+    fireEvent.click(huck.getByRole('button', { name: 'Delete league Huck Yeah' }));
     expect((await huck.findByRole('alert')).textContent).toBe("You don't have permission to do that.");
   });
 });

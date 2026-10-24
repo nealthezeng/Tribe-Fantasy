@@ -86,9 +86,9 @@ function LeagueItem({ league: l, onOpen, onChanged }: { league: League; onOpen: 
         </summary>
         <div className="stack">
           {l.memberships.length > 0 && <p>{l.memberships.map(teamLabel).join(', ')}</p>}
-          <button className="secondary" onClick={onOpen}>Open league</button>
+          <button className="secondary" aria-label={`Open league ${l.name}`} onClick={onOpen}>Open league</button>
           <PasswordForm league={l} onSaved={onChanged} />
-          <button className="danger-link" onClick={() => void remove()}>Delete league</button>
+          <button className="danger-link" aria-label={`Delete league ${l.name}`} onClick={() => void remove()}>Delete league</button>
           {error && <p className="error" role="alert">{error}</p>}
         </div>
       </details>
@@ -120,16 +120,18 @@ function PasswordForm({ league, onSaved }: { league: League; onSaved: () => void
     }
   }
 
+  const submit = league.locked ? 'Change password' : 'Add a password';
   return (
     <>
       <form className="row" onSubmit={(e) => { e.preventDefault(); void save(password, `${league.name} now needs a password.`); }}>
         <label>New password
-          <input maxLength={40} autoComplete="off" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input aria-label={`New password for ${league.name}`} maxLength={40} autoComplete="off" value={password}
+            onChange={(e) => setPassword(e.target.value)} />
         </label>
-        <button className="secondary" disabled={busy}>{league.locked ? 'Change password' : 'Add a password'}</button>
+        <button className="secondary" disabled={busy} aria-label={`${submit} for ${league.name}`}>{submit}</button>
         {/* An older season's lock is unknown, so it keeps Remove password, as it kept Make public before. */}
         {league.locked !== false && (
-          <button type="button" className="secondary" disabled={busy}
+          <button type="button" className="secondary" disabled={busy} aria-label={`Remove password for ${league.name}`}
             onClick={() => void save(null, `Anyone can join ${league.name} now.`)}>Remove password</button>
         )}
       </form>
