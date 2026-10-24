@@ -163,11 +163,30 @@ describe('GameControls', () => {
     fireEvent.change(await screen.findByLabelText('Game 2'), { target: { value: 'Duke' } });
     const save = screen.getByRole('button', { name: 'Save opponents' });
     fireEvent.click(save);
+    const box = screen.getByLabelText('Game 2') as HTMLInputElement;
+    expect(box.disabled).toBe(true); // an edit typed mid-save would be wiped when the drafts clear
     const saved = await screen.findByRole('status');
     expect(saved.outerHTML).toBe('<small class="success" role="status">Opponents saved.</small>');
     expect(save.nextElementSibling).toBe(saved);
-    fireEvent.change(screen.getByLabelText('Game 2'), { target: { value: 'Duke U' } });
+    expect(box.disabled).toBe(false);
+    fireEvent.change(box, { target: { value: 'Duke U' } });
     expect(screen.queryByRole('status')).toBeNull(); // gone at the next edit
+  });
+
+  it('after a partial failure shows the names that saved and keeps the failed box', async () => {
+    state.games = [game(1), game(2), game(3)];
+    vi.mocked(api.setGameOpponent)
+      .mockImplementationOnce(async () => { state.games![0] = game(1, { opponent: 'Pitt' }); })
+      .mockRejectedValueOnce({ message: 'NOT_KEEPER' });
+    const { container } = view(<GameControls season={season} onOpen={vi.fn()} />);
+    fireEvent.change(await screen.findByLabelText('Game 1'), { target: { value: 'Pitt' } });
+    fireEvent.change(screen.getByLabelText('Game 3'), { target: { value: 'Duke' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save opponents' }));
+    await screen.findByRole('alert');
+    await waitFor(() => expect(container.querySelector('.strip')!.textContent).toBe('Fall beta · Game 1 vs PittNot started')); // reloaded
+    expect((screen.getByLabelText('Game 3') as HTMLInputElement).value).toBe('Duke');
+    expect(screen.queryByRole('status')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Save opponents' }) as HTMLButtonElement).disabled).toBe(false); // Game 3 still to save
   });
 
   it('makes Tally the one gold button while a game is live, with no Finish on the list', async () => {
@@ -259,6 +278,7 @@ describe('GameControls', () => {
     const alerts = await screen.findAllByRole('alert');
     expect(alerts).toHaveLength(1);
     expect(alerts[0].closest('details')).toBe(screen.getByText('Opponents').closest('details'));
+    expect((screen.getByLabelText('Game 2') as HTMLInputElement).value).toBe('Duke'); // the draft survives
   });
 
   it('can still finish a game whose session was deleted, from the session list', async () => {
