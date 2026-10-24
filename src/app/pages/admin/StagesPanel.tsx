@@ -21,7 +21,7 @@ type Step = 'credits' | 'buying' | 'settle' | 'start';
 const EMPTY = { name: '', starts_on: '', ends_on: '' };
 type Fields = typeof EMPTY;
 const days = (s: StageRow) => (s.starts_on === s.ends_on ? formatDay(s.starts_on) : `${formatDay(s.starts_on)} – ${formatDay(s.ends_on)}`);
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
 /**
  * P9 admin Tournaments: the tournament in progress is a card with its steps in one line and the one gold button due
@@ -119,10 +119,15 @@ function Tournament({ s, games, granted, playing, gold, seasonId, run, note }: {
   ];
   const cls = (step: Step) => (gold && step === at ? undefined : 'secondary');
 
+  // Off the gold due step (a settled, later or over tournament never granted) one tap credits everyone: confirm first.
   const grant = () => run(s.id, async () => {
     const { ranks, unsettled } = await seasonRanks(seasonId, s.id);
-    if (unsettled > 0 && !window.confirm(
-      `${unsettled} earlier ${unsettled === 1 ? 'game is' : 'games are'} not final yet, so the standings may still change. Grant anyway?`)) return;
+    const ask = [
+      !(gold && at === 'credits') && `Grant the ${s.name} allowance? Every team in the season gets its credits for it now, by the standings. `
+        + 'Undo is Wallets › Adjust, one team at a time.',
+      unsettled > 0 && `${unsettled} earlier ${unsettled === 1 ? 'game is' : 'games are'} not final yet, so the standings may still change. Grant anyway?`,
+    ].filter(Boolean).join(' ');
+    if (ask && !window.confirm(ask)) return;
     const n = await api.grantStageAllowance(s.id, ranks);
     return `${s.name}: credited ${plural(n, 'team')}.`;
   });

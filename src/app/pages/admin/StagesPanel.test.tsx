@@ -130,11 +130,46 @@ describe('StagesPanel', () => {
     show();
     fireEvent.click(await screen.findByRole('button', { name: 'Grant allowance' }));
     await waitFor(() => expect(api.grantStageAllowance).toHaveBeenCalledWith('CCCs', { m1: 1 }));
+    expect(ask).toHaveBeenCalledTimes(1);
     expect(ask).toHaveBeenCalledWith('2 earlier games are not final yet, so the standings may still change. Grant anyway?');
     await screen.findByText('CCCs: credited 1 team.');
     await waitFor(() => expect(steps()).toBe('Allowance given · Buying · Settle · Start')); // reloaded
     expect(screen.queryByRole('button', { name: 'Grant allowance' })).toBeNull();
     expect(gold()).toEqual(['Open share buying']);
+  });
+
+  it('grants the gold due-step allowance with no confirm when the standings are final', async () => {
+    db.stages = [S()];
+    window.confirm = () => { throw new Error('no confirm expected'); };
+    show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant allowance' }));
+    await waitFor(() => expect(api.grantStageAllowance).toHaveBeenCalledWith('CCCs', { m1: 1 }));
+  });
+
+  const offStep = 'Grant the CCCs allowance? Every team in the season gets its credits for it now, by the standings. '
+    + 'Undo is Wallets › Adjust, one team at a time.';
+  it('confirms a Grant that is not the step due now, naming the tournament; Cancel grants nothing', async () => {
+    db.stages = [S({ bid_close_at: PAST, auction_run_at: PAST })]; // settled and never granted: Open tournament is due
+    const ask = vi.fn(() => false);
+    window.confirm = ask;
+    show();
+    const grant = await screen.findByRole('button', { name: 'Grant allowance' });
+    expect(grant.className).toBe('secondary');
+    fireEvent.click(grant);
+    await waitFor(() => expect(ask).toHaveBeenCalledWith(offStep));
+    expect(api.grantStageAllowance).not.toHaveBeenCalled();
+  });
+
+  it('carries both sentences in one confirm when the standings may change too', async () => {
+    db.stages = [S({ bid_close_at: PAST, auction_run_at: PAST })];
+    vi.mocked(seasonRanks).mockResolvedValueOnce({ ranks: { m1: 1 }, unsettled: 2 });
+    const ask = vi.fn(() => true);
+    window.confirm = ask;
+    show();
+    fireEvent.click(await screen.findByRole('button', { name: 'Grant allowance' }));
+    await waitFor(() => expect(api.grantStageAllowance).toHaveBeenCalledWith('CCCs', { m1: 1 }));
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(ask).toHaveBeenCalledWith(`${offStep} 2 earlier games are not final yet, so the standings may still change. Grant anyway?`);
   });
 
   it('closes buying now after the ruling 19 confirm', async () => {
