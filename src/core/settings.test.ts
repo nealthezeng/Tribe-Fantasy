@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, parseSettings, SettingsError } from './settings';
+import { DEFAULT_SETTINGS, parseSettings, SettingsError, storedSettings } from './settings';
 
 describe('parseSettings', () => {
   it('returns the spec defaults for empty input', () => {
@@ -146,5 +146,16 @@ describe('venmo_handle', () => {
     for (const bad of ['@tribe', 'tri be', 'abcd', 'x'.repeat(31), 5]) {
       expect(() => parseSettings({ venmo_handle: bad }), String(bad)).toThrow(/venmo_handle/);
     }
+  });
+});
+
+describe('voice_tally', () => {
+  it('voice tally is on by default and stored only when off (M16 §5.7)', () => {
+    expect(parseSettings({}).voice_tally).toBe(true);
+    expect(parseSettings({ voice_tally: false }).voice_tally).toBe(false);
+    expect(() => parseSettings({ voice_tally: 'yes' })).toThrow(/voice_tally must be true or false/);
+    expect('voice_tally' in storedSettings(parseSettings({}))).toBe(false);
+    expect(storedSettings(parseSettings({ voice_tally: false })).voice_tally).toBe(false);
+    expect(storedSettings(DEFAULT_SETTINGS)).toEqual(Object.fromEntries(Object.entries(DEFAULT_SETTINGS).filter(([k]) => k !== 'voice_tally')));
   });
 });

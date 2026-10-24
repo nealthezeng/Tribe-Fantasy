@@ -22,6 +22,7 @@ function savedOf(data: unknown): Saved {
 const shown = (v: unknown) => (typeof v === 'number' ? String(v) : '');
 const fieldsOf = (s: Saved): Fields => Object.fromEntries([
   ...STATS.map(([k]) => [k, shown(s.stat_weights?.[k])]), ...CREDITS.map(([k]) => [k, shown(s[k])]),
+  ['voice_tally', s.voice_tally === false ? 'off' : 'on'],
 ]);
 
 /** The saved settings with each changed field put in. Only changed ones, so a stat the season has no points for stays
@@ -32,6 +33,7 @@ function withFields(s: Saved, f: Fields, start: Fields): Saved {
   const next: Saved = { ...s };
   if (STATS.some(changed)) next.stat_weights = { ...s.stat_weights, ...Object.fromEntries(STATS.filter(changed).map(([k]) => [k, num(k)])) };
   for (const [k] of CREDITS.filter(changed)) next[k] = num(k);
+  if (changed(['voice_tally'])) next.voice_tally = f.voice_tally === 'on';
   return next;
 }
 
@@ -72,11 +74,11 @@ export function SettingsEditor({ seasonId }: { seasonId: string }) {
     }
   }
 
+  const edit = (k: string, v: string) => { setFields({ ...(fields ?? savedFields), [k]: v }); setText(null); setStatus(null); };
   // Stat points may be fractional (any finite number); the credit, roster and pick settings are whole numbers.
   const field = ([k, label]: string[], step?: string) => (
     <label key={k}>{label}
-      <input type="number" step={step} value={(fields ?? savedFields)[k]}
-        onChange={(e) => { setFields({ ...(fields ?? savedFields), [k]: e.target.value }); setText(null); setStatus(null); }} />
+      <input type="number" step={step} value={(fields ?? savedFields)[k]} onChange={(e) => edit(k, e.target.value)} />
     </label>
   );
 
@@ -90,6 +92,12 @@ export function SettingsEditor({ seasonId }: { seasonId: string }) {
             <div className="fields">{STATS.map((f) => field(f, 'any'))}</div>
             <h2>Credits and picks</h2>
             <div className="fields">{CREDITS.map((f) => field(f))}</div>
+            <h2>Tally</h2>
+            <label className="check">
+              <input type="checkbox" checked={(fields ?? savedFields).voice_tally === 'on'}
+                onChange={(e) => edit('voice_tally', e.target.checked ? 'on' : 'off')} />
+              Voice tally: mic on the tally board
+            </label>
             <details className="section">
               <summary>Advanced (all settings as JSON)</summary>
               <textarea aria-label="Season settings JSON" value={text ?? JSON.stringify(saved, null, 2)} spellCheck={false}

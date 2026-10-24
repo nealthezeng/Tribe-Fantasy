@@ -33,6 +33,8 @@ export interface SeasonSettings {
   default_pick: 'best_unused' | 'forfeit';
   stat_lock_hours: number;
   tap_merge_seconds: number;
+  /** M16: the hold-to-talk mic on the tally board. Stored only when off (storedSettings). */
+  voice_tally: boolean;
 }
 
 export const DEFAULT_SETTINGS: SeasonSettings = {
@@ -66,6 +68,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   default_pick: 'best_unused',
   stat_lock_hours: 48,
   tap_merge_seconds: 10,
+  voice_tally: true,
 };
 
 export class SettingsError extends Error {
@@ -146,6 +149,7 @@ const CHECKS: Record<keyof SeasonSettings, Check> = {
   default_pick: oneOf('best_unused', 'forfeit'),
   stat_lock_hours: num(0, 720),
   tap_merge_seconds: num(0, 60),
+  voice_tally: bool,
 };
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -178,4 +182,10 @@ export function parseSettings(input: unknown): SeasonSettings {
 
   for (const key of Object.keys(merged)) if (!Object.hasOwn(CHECKS, key)) delete merged[key];
   return merged as unknown as SeasonSettings;
+}
+
+/** The settings as stored: voice_tally only when off, because pre-M16 builds' parseSettings refuses unknown keys. */
+export function storedSettings(s: SeasonSettings): Record<string, unknown> {
+  const { voice_tally, ...rest } = s;
+  return voice_tally ? rest : { ...rest, voice_tally };
 }

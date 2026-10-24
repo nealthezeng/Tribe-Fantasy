@@ -1,3 +1,4 @@
+import { storedSettings, type SeasonSettings } from '../../core/settings';
 import type { QueuedTap } from '../tally/queue';
 import { supabase } from './supabase';
 import type { GamePairing, LeaguePairingInput } from './tournament';
@@ -83,9 +84,10 @@ export const api = {
   renameMyTeam: (membershipId: string, name: string) => call<void>('rename_my_team', { p_membership: membershipId, p_name: name }),
   /** Your own team only; refused once it has donated, bid, or played (t217). */
   leaveLeague: (membershipId: string) => call<void>('leave_league', { p_membership: membershipId }),
-  createSeason: (name: string, settings: object) => call<string>('create_season', { p_name: name, p_settings: settings }),
-  updateSeasonSettings: (seasonId: string, settings: object) =>
-    call<void>('update_season_settings', { p_season: seasonId, p_settings: settings }),
+  createSeason: (name: string, settings: SeasonSettings) =>
+    call<string>('create_season', { p_name: name, p_settings: storedSettings(settings) }),
+  updateSeasonSettings: (seasonId: string, settings: SeasonSettings) =>
+    call<void>('update_season_settings', { p_season: seasonId, p_settings: storedSettings(settings) }),
   addAthlete: (seasonId: string, name: string) => call<string>('add_athlete', { p_season: seasonId, p_name: name, p_user: null }),
   setAthleteOptIn: (athleteId: string, optedIn: boolean) =>
     call<void>('set_athlete_opt_in', { p_athlete: athleteId, p_opted_in: optedIn }),

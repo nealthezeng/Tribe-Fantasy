@@ -25,6 +25,7 @@ const STORED = { venmo_handle: 'tribe-fund', allowance_base: 90, stat_weights: {
 const saveCalls = () => vi.mocked(api.updateSeasonSettings).mock.calls;
 const field = (name: string) => screen.getByRole('spinbutton', { name }) as HTMLInputElement;
 const json = () => screen.getByLabelText('Season settings JSON') as HTMLTextAreaElement;
+const voice = () => screen.getByRole('checkbox', { name: 'Voice tally: mic on the tally board' }) as HTMLInputElement;
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } });
 const save = () => fireEvent.click(screen.getByRole('button', { name: 'Save settings' }));
 async function open() {
@@ -123,5 +124,34 @@ describe('SettingsEditor', () => {
     await screen.findByText('Saved.');
     expect(saveCalls()[0][1]).toMatchObject({ stat_weights: { goal: 4, assist: 3, block: 5, turnover: -1 } });
     expect(Object.keys((saveCalls()[0][1] as { stat_weights: object }).stat_weights)).not.toContain('callahan');
+  });
+
+  // Stripping voice_tally while on is api's job (rpc.settings.test.ts); the editor passes the whole parsed object.
+  it('shows the voice tally switch under Tally, on by default, and saves it on (M16 §5.7)', async () => {
+    db.settings = {};
+    await open();
+    expect(screen.getByRole('heading', { name: 'Tally' })).toBeTruthy();
+    expect(voice().checked).toBe(true);
+    save();
+    await screen.findByText('Saved.');
+    expect(saveCalls()).toEqual([['s1', { ...parseSettings({}), voice_tally: true }]]);
+  });
+
+  it('saves voice_tally false once unticked, through the same one-edit-at-a-time rule as the fields', async () => {
+    db.settings = {};
+    await open();
+    const saved = json().value;
+    type(json(), JSON.stringify({ ...parseSettings({}), roster_size: 8 }));
+    fireEvent.click(voice());
+    expect(json().value).toBe(saved);
+    type(json(), JSON.stringify({ ...parseSettings({}), roster_size: 9 }));
+    expect(voice().checked).toBe(true);
+    fireEvent.click(voice());
+    expect(voice().checked).toBe(false);
+    save();
+    await screen.findByText('Saved.');
+    expect(saveCalls()).toEqual([['s1', { ...parseSettings({}), voice_tally: false }]]);
+    await waitFor(() => expect(json().value).toContain('"voice_tally": false'));
+    expect(voice().checked).toBe(false);
   });
 });
