@@ -63,14 +63,14 @@ describe('TeamPage', () => {
     visit(ID2);
     expect(await screen.findByRole('heading', { name: 'Flow' })).toBeTruthy();
     expect(screen.getByText(/Sam Owner/)).toBeTruthy();
-    expect(screen.queryByText(/credit|pick/i)).toBeNull();
+    expect(screen.queryByText(/credit|\bpicks?\b/i)).toBeNull(); // "picked for game 1" is a past pick's tiredness, not a pick
   });
 
   it('lists players as rows with share and tiredness in words, no × chip', async () => {
     visit(ID2);
     const players = within((await screen.findByText('Finn Garza')).closest('ul')!);
     expect(players.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Finn Garza15% · played game 1: half points', 'Rory Vance10% · rested · earlier tournaments: 90%']);
+      'Finn Garza15% · picked for game 1: half points', 'Rory Vance10% · full points · earlier tournaments: 90%']);
     expect(players.getByText('Finn Garza').className).toBe('title');
     expect(document.querySelector('details.factor')).toBeNull();
     expect(players.queryByText(/×/)).toBeNull();

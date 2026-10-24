@@ -6,6 +6,8 @@ import { fraction } from '../lib/words';
 
 /** Rounded as the Rules page does. */
 export const n = (x: number) => +x.toFixed(2);
+/** "+1", "0", "-1.5", as the Rules page does. */
+export const signed = (x: number) => (x > 0 ? `+${n(x)}` : `${n(x)}`);
 
 /** A "?" button (a 44 px target) that opens its text in a native popover: the browser centres it, Esc and tap-outside close it. */
 export function Help({ label, children }: { label: string; children: ReactNode }) {
@@ -38,18 +40,35 @@ const GAMES_BEFORE = ['the game', 'two games', 'three games', 'four games', 'fiv
 /** Beside the pick card and a team's players: share, tired steps and earlier tournaments, in words (rulings 3–4). */
 export function FactorHelp({ settings: S }: { settings: SeasonSettings }) {
   const tired = S.tiredness_multipliers
-    .map((m, i) => (i ? `${GAMES_BEFORE[i]} before, ${fraction(m)}` : `If he started the game before, they count ${fraction(m)}`))
+    .map((m, i) => (i ? `${GAMES_BEFORE[i]} before, ${fraction(m)}` : `If he was picked for the game before, they count ${fraction(m)}`))
     .join('; ');
   // The cut starts after the free (grace) tournaments; no cut at all (no decay, a rate of 1) needs no sentence.
   const g = S.decay_grace_stages;
-  const free = g === 0 ? 'Each earlier tournament you started him in'
-    : g === 1 ? 'The first earlier tournament you started him in is free; each one after'
-    : `The first ${g} earlier tournaments you started him in are free; each one after`;
+  const free = g === 0 ? 'Each earlier tournament he was picked in'
+    : g === 1 ? 'The first earlier tournament he was picked in is free; each one after'
+    : `The first ${g} earlier tournaments he was picked in are free; each one after`;
   const decay = stageMultiplier(g + 1, S) < 1 && `${free} lowers them a little more `
     + `(${pct(stageMultiplier(g + 1, S))}, then ${pct(stageMultiplier(g + 2, S))}, …), never below ${pct(S.decay_floor)}.`;
   return (
     <Help label="How a player's points count">
       {["You score your share of a player's points.", tired && `${tired}.`, decay].filter(Boolean).join(' ')}
+    </Help>
+  );
+}
+
+/**
+ * Beside a standings table (X7): the points a result gives (matchupDeltas), then the order (rankSnapshot): points, then
+ * total score, equal on both = a shared place. With no upset factor a win and a loss are exact, so no "about".
+ */
+export function StandingsHelp({ settings: S }: { settings: SeasonSettings }) {
+  const weighted = S.points_mode === 'rank_weighted' && S.upset_k > 0;
+  const about = weighted ? 'about ' : '';
+  return (
+    <Help label="How the table is ordered">
+      {`A win adds ${about}${n(S.win_points)} standings point${S.win_points === 1 ? '' : 's'} and a loss takes away `
+        + `${about}${n(S.loss_points)}${weighted ? ': beating a team above you adds more, losing to one takes away less' : ''}. `
+        + `A tie gives each team ${signed(S.tie_points)}. Level on points, the team that scored more over all its games goes `
+        + 'first; level on both, they share the place (T2).'}
     </Help>
   );
 }

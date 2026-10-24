@@ -33,19 +33,19 @@ const FRACTION: Record<number, string> = { 0.5: 'half', 0.75: '¾', 0.25: '¼' }
 export const fraction = (x: number): string => FRACTION[x] ?? pctExact(x);
 
 /**
- * A player's rest before game `number`: "rested", or "played game 2: half points". `tiredness_multipliers[i]` is the
- * rest of a player who started i + 1 games before. When the list holds `rest` twice (or not at all) the game is
- * unknown, so the words give the points alone: "half points".
+ * A player's rest before game `number`: "full points", or "picked for game 2: half points" (X5: the fantasy pick, not
+ * the field). `tiredness_multipliers[i]` is the rest of a player who started i + 1 games before. When the list holds
+ * `rest` twice (or not at all) the game is unknown, so the words give the points alone: "half points".
  */
 export function restWords(rest: number, number: number, s: SeasonSettings): string {
-  if (rest === 1) return 'rested';
+  if (rest === 1) return 'full points';
   const points = `${fraction(rest)} points`;
   const i = s.tiredness_multipliers.indexOf(rest);
-  return i === -1 || i !== s.tiredness_multipliers.lastIndexOf(rest) ? points : `played game ${number - 1 - i}: ${points}`;
+  return i === -1 || i !== s.tiredness_multipliers.lastIndexOf(rest) ? points : `picked for game ${number - 1 - i}: ${points}`;
 }
 
 /**
- * What one player counts for in game `number`, in words: "20% · played game 1: ¾ points", plus
+ * What one player counts for in game `number`, in words: "20% · picked for game 1: ¾ points", plus
  * "· earlier tournaments: 90%" when earlier tournaments cut it. Callers add "Your" where it is the viewer's share.
  */
 export const factorWords = (side: Pick<TournamentSide, 'share' | 'rest' | 'decay'>, athleteId: string, number: number, s: SeasonSettings): string =>

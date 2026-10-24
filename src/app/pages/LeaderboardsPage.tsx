@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { StandingsHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { RankList } from '../components/RankList';
 import {
@@ -79,6 +80,7 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
     <article className="card" aria-label="Standings">
       <div className="head">
         <h2>Standings</h2>
+        {started && <StandingsHelp settings={y.settings} />}
         {started && (leagues.data ?? 0) > 1 && (
           <div className="segmented" role="group" aria-label="Standings for">
             <button type="button" aria-pressed={!all} onClick={() => setAll(false)}>{leagueName}</button>

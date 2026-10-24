@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, parseSettings } from '../../core/settings';
-import { FactorHelp, Help, SharesHelp, VerifiedHelp } from './Help';
+import { FactorHelp, Help, SharesHelp, StandingsHelp, VerifiedHelp } from './Help';
 
 afterEach(cleanup);
 const text = (label: string) => screen.getByRole('button', { name: label }).nextElementSibling!.textContent!;
@@ -25,8 +25,8 @@ describe('Help', () => {
     expect(text('How buying shares works')).toBe('Your credits buy a slice of a player. Each player is 100 shares: a credit '
       + 'buys a share. If teams put more than 100 credits on one player, every slice shrinks to fit. Free credits arrive '
       + 'before each tournament; unspent ones carry over.');
-    expect(text("How a player's points count")).toBe("You score your share of a player's points. If he started the game "
-      + 'before, they count 60%. Each earlier tournament you started him in lowers them a little more (90%, then 81%, …), '
+    expect(text("How a player's points count")).toBe("You score your share of a player's points. If he was picked for the "
+      + 'game before, they count 60%. Each earlier tournament he was picked in lowers them a little more (90%, then 81%, …), '
       + 'never below 50%.');
     expect(text('What unofficial and verified mean')).toBe('Keepers tap stats live, so scores move during the game. After '
       + "it, a second keeper checks them: then they're final. A final game can be reopened for 24 hours.");
@@ -46,8 +46,8 @@ describe('Help', () => {
 
   it('says how points count in words at the default settings, with no × to tap', () => {
     render(<FactorHelp settings={DEFAULT_SETTINGS} />);
-    expect(text("How a player's points count")).toBe("You score your share of a player's points. If he started the game "
-      + 'before, they count half; two games before, ¾. Each earlier tournament you started him in lowers them a little '
+    expect(text("How a player's points count")).toBe("You score your share of a player's points. If he was picked for the "
+      + 'game before, they count half; two games before, ¾. Each earlier tournament he was picked in lowers them a little '
       + 'more (90%, then 81%, …), never below 60%.');
     expect(text("How a player's points count")).not.toContain('×');
   });
@@ -63,9 +63,9 @@ describe('Help', () => {
       <FactorHelp settings={{ ...DEFAULT_SETTINGS, decay_grace_stages: 2 }} />
     </>);
     const [one, two] = screen.getAllByRole('button', { name: "How a player's points count" }).map((b) => b.nextElementSibling!.textContent);
-    expect(one).toContain('The first earlier tournament you started him in is free; each one after lowers them a little more '
+    expect(one).toContain('The first earlier tournament he was picked in is free; each one after lowers them a little more '
       + '(90%, then 81%, …), never below 60%.');
-    expect(two).toContain('The first 2 earlier tournaments you started him in are free; each one after lowers them a little '
+    expect(two).toContain('The first 2 earlier tournaments he was picked in are free; each one after lowers them a little '
       + 'more (90%, then 81%, …), never below 60%.');
   });
 
@@ -83,5 +83,28 @@ describe('Help', () => {
   it('steps a linear decay down by the same amount each tournament, never past the floor', () => {
     render(<FactorHelp settings={{ ...DEFAULT_SETTINGS, decay_mode: 'linear', decay_rate: 0.75, decay_floor: 0.6 }} />);
     expect(text("How a player's points count")).toContain('(75%, then 60%, …), never below 60%.');
+  });
+
+  it('says how the table is ordered: upsets weigh more in rank-weighted mode, then total score, then a shared place', () => {
+    render(<StandingsHelp settings={DEFAULT_SETTINGS} />);
+    expect(text('How the table is ordered')).toBe('A win adds about 3 standings points and a loss takes away about 1: '
+      + 'beating a team above you adds more, losing to one takes away less. A tie gives each team +1. Level on points, '
+      + 'the team that scored more over all its games goes first; level on both, they share the place (T2).');
+  });
+
+  it('gives the exact win and loss points when they never change', () => {
+    render(<>
+      <StandingsHelp settings={{ ...DEFAULT_SETTINGS, points_mode: 'fixed' }} />
+      <StandingsHelp settings={{ ...DEFAULT_SETTINGS, upset_k: 0 }} />
+    </>);
+    const fixed = 'A win adds 3 standings points and a loss takes away 1. A tie gives each team +1. Level on points, the '
+      + 'team that scored more over all its games goes first; level on both, they share the place (T2).';
+    expect(screen.getAllByRole('button', { name: 'How the table is ordered' }).map((b) => b.nextElementSibling!.textContent))
+      .toEqual([fixed, fixed]); // rank-weighted with no upset factor weighs nothing either
+  });
+
+  it("takes the season's win, loss and tie points", () => {
+    render(<StandingsHelp settings={{ ...DEFAULT_SETTINGS, points_mode: 'fixed', win_points: 1, loss_points: 0.5, tie_points: 0 }} />);
+    expect(text('How the table is ordered')).toMatch(/^A win adds 1 standings point and a loss takes away 0.5. A tie gives each team 0. /);
   });
 });

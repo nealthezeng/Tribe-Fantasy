@@ -38,13 +38,16 @@ describe('RulesPage', () => {
     expect(text).toContain('Resting a player for 2 games between starts never does.');
     expect(text).toContain('and earlier tournaments (below)');
     // What ships: the pick card says the factors in words; there is no combined factor to tap open.
-    expect(text).toContain('The pick card shows each player\'s share and tiredness in words, e.g. "Your 20% · played game 1: ¾ points".');
+    expect(text).toContain('The pick card shows each player\'s share and tiredness in words, e.g. "Your 20% · picked for game 1: ¾ points".');
     expect(text).not.toContain('combined factor');
     expect(text).not.toMatch(/repeat|Rotating/);
     expect(text).toContain("Other teams can't see your picks until the game starts");
     expect(screen.getByText('2 games before').parentElement?.textContent).toBe('2 games before×0.75');
     // Last beats 1st with upset_k 0.5: 3 × (1 + 0.5) = +4.5 for the winner, −1 × 1.5 = −1.5 for the loser.
     expect(screen.getByText('Last beats 1st').parentElement?.textContent).toBe('Last beats 1st+4.5-1.5');
+    const standings = screen.getByRole('heading', { name: 'Standings points' }).closest('details')!;
+    expect(standings.textContent).toContain('Level on points, the team that scored more over all its games goes first; '
+      + 'level on both, they share the place.');
   });
 
   it('derives the resting sentence from the tiredness steps', async () => {

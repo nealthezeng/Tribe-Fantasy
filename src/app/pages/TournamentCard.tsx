@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
-import { FactorHelp, VerifiedHelp } from '../components/Help';
+import { FactorHelp, StandingsHelp, VerifiedHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { RankList } from '../components/RankList';
 import { errorMessage } from '../lib/errors';
@@ -184,7 +184,7 @@ function LeagueTable({ y, membershipId, leagueName }: { y: LeagueTournament; mem
     <article className="card" aria-label={leagueName}>
       <div className="head">
         <h2>{leagueName}</h2>
-        {started && <Link className="more" to="/leaderboards">Full table</Link>}
+        {started && <><StandingsHelp settings={y.settings} /><Link className="more" to="/leaderboards">Full table</Link></>}
       </div>
       {started ? <RankList rows={mergeStandings([{ name: leagueName, y }])} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} short />
         : <p className="muted">Standings start after the first game.</p>}
@@ -264,7 +264,7 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const picked = saving ?? (held?.over === y ? held.ids : mine.picked);
   const full = picked.length >= n;
   const byName = (a: string, b: string) => name(a).localeCompare(name(b));
-  const lock = `Picks lock when a keeper starts game ${next.number}.`;
+  const lock = `Picks lock when the stat keeper at the field starts game ${next.number}. No set time: pick early.`;
 
   /** Saves the whole set: set_game_pick replaces the team's picks for this game. */
   async function save(athleteIds: string[]) {

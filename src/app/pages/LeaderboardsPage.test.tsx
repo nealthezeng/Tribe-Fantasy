@@ -76,6 +76,18 @@ describe('LeaderboardsPage', () => {
     expect(screen.queryByText('Standings start after the first game.')).toBeNull();
   });
 
+  it('explains how the table is ordered', async () => {
+    show();
+    const card = await standings();
+    const help = card.getByRole('button', { name: 'How the table is ordered' });
+    expect(help.previousElementSibling?.textContent).toBe('Standings'); // beside the heading
+    cleanup();
+    rows.current = base(); // before a game counts: no table, so nothing to explain
+    show();
+    await screen.findByText('Standings start after the first game.');
+    expect(screen.queryByRole('button', { name: 'How the table is ordered' })).toBeNull();
+  });
+
   it("shows the chosen team's league standings with each owner beside the record", async () => {
     show();
     const row = (await screen.findByText('Zeal (you)')).closest('li')!;

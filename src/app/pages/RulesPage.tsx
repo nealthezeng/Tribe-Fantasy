@@ -3,12 +3,10 @@ import { athleteWeekScore } from '../../core/scoring';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import { stageMultiplier } from '../../core/decay';
 import { GuideSteps } from '../components/Guide';
-import { n } from '../components/Help';
+import { n, signed } from '../components/Help';
 import { loadCurrentSeason, statLabel } from '../lib/stats';
 import { useLoad } from '../lib/useLoad';
 import { statWords } from '../lib/words';
-
-const signed = (x: number) => (x > 0 ? `+${n(x)}` : `${n(x)}`);
 
 // The worked example: one player's stats in one game, and how much of him you own.
 const game = { goal: 2 };
@@ -135,7 +133,7 @@ export function RulesPage() {
             <h3>Example</h3>
             <p>A starter earns his game score × three factors: the <strong>share</strong> you own, <strong>tired</strong>{' '}
               (above) and <strong>earlier tournaments</strong> (below). The pick card shows each player's share and tiredness in
-              words, e.g. "Your 20% · played game 1: ¾ points". Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
+              words, e.g. "Your 20% · picked for game 1: ¾ points". Your side's score is its {S.picks_per_game} starters added up, and the higher score wins the
               matchup.</p>
             <p>{statWords(game)} by a player you own half of, started the game before: {n(gameScore)} × {owned * 100}% ×{' '}
               {n(tired)} = <strong>{n(gameScore * owned * tired)}</strong>.</p>
@@ -176,6 +174,8 @@ export function RulesPage() {
             </table>
           </div>
           <p>A tie (scores within {TIE_EPSILON}) gives both teams {signed(S.tie_points)}.</p>
+          <p>Level on points, the team that scored more over all its games goes first; level on both, they share the
+            place.</p>
         </div>
       </details>
 
