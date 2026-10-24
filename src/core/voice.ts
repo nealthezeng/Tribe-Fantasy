@@ -41,10 +41,10 @@ export function parseStats(text: string, roster: { id: string; name: string }[],
   const owners = new Map<string, Set<string>>();
   for (const a of roster) for (const p of words(a.name)) owners.set(sound(p), (owners.get(sound(p)) ?? new Set()).add(a.id));
   const single = new Map([...owners].filter(([, ids]) => ids.size === 1).map(([p, ids]) => [p, [...ids][0]]));
-  const phrases = PHRASES.filter(([, s]) => stats.includes(s));
 
   const fullAt = (i: number) => full.find((a) => a.parts.every((p, k) => said[i + k] !== undefined && sound(said[i + k]) === p));
-  const statAt = (i: number) => phrases.find(([p]) => p.every((w, k) => said[i + k] === w));
+  // Every stat word is read, so "two callahans" is a count even when the season doesn't count Callahans.
+  const statAt = (i: number) => PHRASES.find(([p]) => p.every((w, k) => said[i + k] === w));
 
   const out: VoiceEvent[] = [];
   let cur: string | null = null; // the player the next stat belongs to
@@ -69,7 +69,8 @@ export function parseStats(text: string, roster: { id: string; name: string }[],
     const s = statAt(n ? i + 1 : i);
     if (s) {
       if (cur) {
-        const times = n || (s[1] === last ? 0 : 1); // a count always adds; the stat again without one is not a second
+        // a count always adds; the stat again without one is not a second; a stat the season doesn't count adds nothing
+        const times = !stats.includes(s[1]) ? 0 : n || (s[1] === last ? 0 : 1);
         for (let k = 0; k < times; k++) out.push({ athleteId: cur, stat: s[1] });
         last = s[1];
       }
@@ -93,8 +94,14 @@ export function whisperHint(names: string[]): string {
     + `Players: ${names.join(', ')}.`;
 }
 
-/** Whisper sometimes returns its prompt for a silent clip: a run of 8 or more of the hint's words is that echo. */
+/**
+ * Whisper sometimes returns its prompt for a silent clip: a run of the hint's words that holds "Players" or is longer
+ * than any one made-up call (a real call can be word for word one of them).
+ */
 export function isEcho(text: string, hint: string): boolean {
   const said = words(text);
-  return said.length >= 8 && ` ${words(hint).join(' ')} `.includes(` ${said.join(' ')} `);
+  // Cut where whisperHint ends each call, not at every dot: a name can have dots ("T.J.").
+  const calls = hint.split('Players:')[0].split(/(?<=gets a D|for the goal|turns it over|assist|Callahan)\./);
+  return ` ${words(hint).join(' ')} `.includes(` ${said.join(' ')} `)
+    && (said.includes('players') || said.length > Math.max(...calls.map((c) => words(c).length)));
 }

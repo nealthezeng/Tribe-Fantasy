@@ -41,6 +41,9 @@ describe('parseStats', () => {
   it('reads plurals, ignores what the season does not count, and garbage', () => {
     expect(parse('Bo two dees, Ortiz two throwaways')).toEqual(['bo block', 'bo block', 'maxO turnover', 'maxO turnover']);
     expect(parse('Bo Callahan', ['goal', 'block'])).toEqual([]);
+    // a count before a stat the season doesn't count is still a count, not a pass: both are ignored
+    expect(parse('Bo two callahans, Ortiz D', ['goal', 'assist', 'block', 'turnover'])).toEqual(['maxO block']);
+    expect(parse('Bo 2 Ds, Ortiz turns it over', ['goal', 'assist', 'turnover', 'callahan'])).toEqual(['maxO turnover']);
     expect(parse('Zorba Wadda, Q.Q. Q.Q. Q.Q. Q.Q. Q.Q.')).toEqual([]);
   });
 });
@@ -52,5 +55,10 @@ describe('whisperHint', () => {
       + 'Max Ortiz Callahan. Players: Bo Stone, Max Ortiz.');
     expect(isEcho(' Bo Stone gets a D. Max Ortiz to Bo Stone for the goal.', hint)).toBe(true);
     expect(isEcho('Bo Stone gets a D', hint)).toBe(false); // a real short call matches the hint's start: not an echo
+    expect(isEcho('Bo Stone gets a D and Max Ortiz scores the goal', hint)).toBe(false); // not in the hint
+    expect(isEcho('Players: Bo Stone, Max Ortiz.', hint)).toBe(true);
+    // the hint's longest call, said for real, is not an echo, even with dots in a name
+    expect(isEcho('Max Ortiz to Toby Grant for the goal.', whisperHint(['Bo Stone', 'Max Ortiz', 'Toby Grant']))).toBe(false);
+    expect(isEcho('T.J. Lane to Bo Stone for the goal', whisperHint(['Bo Stone', 'T.J. Lane']))).toBe(false);
   });
 });
