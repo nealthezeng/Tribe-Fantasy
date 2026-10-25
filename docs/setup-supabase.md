@@ -542,8 +542,8 @@ Closing has no undo: `open_auction` refuses a closed stage.
 
 M16 puts a hold-to-talk mic on the tally board. The phone posts the clip, the board's player names and a Whisper
 prompt to the Edge Function `voice`, which answers only signed-in keepers and admins and asks Groq
-`whisper-large-v3` what was said. It writes nothing and logs only timing and status, never what was said. Nothing
-changes in the database: the on/off switch lives in the season settings.
+`whisper-large-v3` what was said. It writes nothing and logs only timing and status, never what was said. No
+migration: the on/off switch lives in the season settings.
 
 1. Groq key (the one from the local tries works) → **Edge Functions → Secrets**: add `GROQ_API_KEY`.
 2. **Edge Functions → Deploy a new function → Via editor**, name it `voice`, paste `supabase/functions/voice/index.ts`.
@@ -555,10 +555,22 @@ changes in the database: the on/off switch lives in the season settings.
 4. Nothing to switch on: voice is on by default.
 5. One practice before Nov 6: a keeper on an iPhone **in the installed app** and one on Android each try about ten
    calls (single stats, "A to B", a count, a shared first name, one nonsense call) and add them. Check the counts, and
-   that another keeper's taps on the same plays counted once. **Edge Functions → voice → Logs** show one
-   `{ms, status, groq}` line per call (never what was said). `groq` is Groq's HTTP status, `"secret"` when
-   `GROQ_API_KEY` is missing, `"network"` when Groq couldn't be reached, or `null` when the call stopped before Groq
-   (not a keeper, or a bad upload). `groq: 401` means the key is wrong: paste it again in step 1.
+   that another keeper's taps on the same plays counted once. Then try what can go wrong, each once:
+   - a pass to a shared first name ("Bo to Max for the score" with two Maxes): should read "Heard … but no player and
+     stat" (nothing for Bo either);
+   - let go and press again at once: never a second hold over the first or a "Listening…" bar that stays (the quick
+     re-press may be ignored: press once more);
+   - take a phone call while on the board, hang up, then call a stat: it should record (the mic reopens by itself);
+   - leave the board (← Games) while the mic says "Hearing…": the games list stays as it is, nothing jumps or shows;
+   - with stats waiting, an admin turns **Voice tally** off and the board refreshes: the mic goes, but Discard and Add
+     stay and still work.
+
+   **Edge Functions → voice → Logs** show one `{ms, status, groq}` line per call (never what was said). `groq` is
+   Groq's HTTP status, `"secret"` when `GROQ_API_KEY` is missing, `"network"` when Groq couldn't be reached, or `null`
+   when the call stopped before Groq. `status: 403, groq: null` is not a keeper (or the keeper check refused the
+   token); `status: 400, groq: null` a bad upload; `status: 502, groq: null` means the database's keeper check failed
+   (`is_keeper` couldn't be reached, or its answer wasn't JSON). `status: 502, groq: 200` means Groq answered but its
+   reply wasn't JSON. `groq: 401` means the key is wrong: paste it again in step 1.
 6. Rollback: Admin → Settings, turn **Voice tally: mic on the tally board** off; the mic goes the next time a board
    loads or refreshes. Turning it off stores `voice_tally` in the season settings, and a phone still on a pre-M16
    build can't load the season then (it refuses unknown settings) until it updates. Or revert the deploy; if voice

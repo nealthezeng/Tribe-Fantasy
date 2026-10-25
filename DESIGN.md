@@ -50,7 +50,7 @@ Neutrals:
 | `--line` | #232c36 | Dividers inside panes |
 | `--line-strong` | #66737f | Input and segmented borders |
 | `--bar` / `--bar-fg` / `--bar-muted` | #05070a / #fff / #9aa6b2 | Top bar; the tally board's listening bar and voice notes |
-| `--scrim` | rgb(0 0 0 / 0.6), every theme | Behind the tally board's leave question |
+| `--scrim` | rgb(0 0 0 / 0.6), every theme | The tally board's leave question's `::backdrop` (set on `::backdrop` too, which inherits nothing before Safari 17.4) |
 
 Status, each with a soft background for pills:
 
@@ -567,17 +567,20 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   earlier-season) board. Nobody marks their own attendance or injury any more; keepers mark Out (M15 P5).
 - **The voice mic** (M16): keepers and admins can call stats out loud. A round gold mic (`.voice-mic`, `--mic-size`
   72px, a black `--bar` ring, a drawn mic icon, its own lettering) floats at the bottom right, `--gutter` from the edge,
-  and the board gets bottom padding so it never covers the last card or Finish. It is there only while the season's
-  `voice_tally` is on (Admin › Settings; the board reads it again on every load), the board is open (not verified, not
-  an earlier season) and has players, and the phone can record; otherwise there is no mic at all. With it, a muted line
-  under the search says "Or hold the mic and say “Toby gets a D”. Nothing is added until you tap Add." (the first name
-  of the first picked player, else of the first player). Its label says "Hold to talk. Say a player and a stat." Hold
-  to talk and let go to send; pointer capture keeps a thumb that slides off from cancelling, holding Space or Enter
-  does the same, and no long-press menu or text selection opens. A hold buzzes once, rings the mic in gold, and fills the bottom of the
-  screen left of the mic with a black "Listening… let go when done" bar (`.voice-listen`, `--fs-lead` bold, a gold
-  inner edge, `role="status"`); it stops by itself at 15 s. While the clip is being heard the mic shows "Hearing…" and
-  can't be held. Offline it is greyed (`--surface-2`, `--muted`, a `--line-strong` ring), and a press says "Voice needs
-  signal. The buttons still work."
+  and the board gets bottom padding so neither it nor the voice bar covers the last card or Finish. It is there only
+  while the season's `voice_tally` is on (Admin › Settings; the board reads it again on every load), the board is open
+  (not verified, not an earlier season) and has players, and the phone can record; otherwise there is no mic at all.
+  If voice goes off or the board closes while stats wait, the mic goes (a hold in progress ends, an answer that lands
+  after is dropped) but the voice bar stays, so they can still be added or dropped. With the mic, a muted line under
+  the search says "Or hold the mic and say “Toby gets a D”. Nothing is added until you tap Add." (the first first name,
+  picked players first, that only one player has, so the example always works; else the first player's). Its label
+  says "Hold to talk. Say a player and a stat." Hold to talk and let go to send; pointer capture keeps a thumb that
+  slides off from cancelling, holding Space or Enter does the same, and no long-press menu or text selection opens. A
+  hold buzzes once, rings the mic in gold, and fills the bottom of the screen left of the mic with a black "Listening…
+  let go when done" bar (`.voice-listen`, `--fs-lead` bold, a gold inner edge, `role="status"`); it stops by itself at
+  15 s. While the clip is being heard the mic shows "Hearing…" and can't be held, nor in the moment between a let go
+  and the recorder stopping. Offline it is greyed (`--surface-2`, `--muted`, a `--line-strong` ring), and a press says
+  "Voice needs signal. The buttons still work."
 - **Heard**: what a call understood becomes waiting stats, never stored on the phone. They move in only when no finger
   is on the player lists and 1 s has passed since the last one lifted, then the board scrolls to the top. Under "Hold a
   stat to take one off." comes the Heard line (`.voice-heard`, `role="status"`): “what was heard” (the latest call)
@@ -604,14 +607,18 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   stats.", "Dropped N stats. Undo", "Didn't hear anything. Hold the button while you talk.", "Heard “…” but no player
   and stat. Try “Toby gets a D”." and "Voice needs signal. The buttons still work." `role="alert"`, when voice can't
   be used: "Hold the button while you talk." (a hold under 0.4 s; nothing is sent), "Allow the microphone for this site
-  to use voice.", "Voice didn't answer. Try again, or tap." (no answer in 10 s), "Voice is busy. Wait a few seconds, or
-  tap.", "Voice isn't working right now. The buttons still work." and, after a second empty clip in a row, "Voice
-  can't use the microphone here. Try Safari, or tap." A call understood in part waits as usual (the Heard line shows
-  all of it); one understood not at all leaves the board as it was.
-- **Leaving** inside the app (← Games, the account menu, Back) while stats Add would send wait asks first: a
-  `role="alertdialog"` at the bottom, over a `--scrim` that keeps the board from taps: "Leave and drop 2 stats you
-  haven't added: Toby Grant Assist, Max Ortiz Goal?" with a secondary "Stay" (focused) and a gold "Drop and leave".
-  Closing or reloading the app drops them without asking.
+  to use voice." (the microphone was refused), "Voice can't use the microphone here. Try Safari, or tap." (it can't be
+  opened for any other reason: in use, missing, unsupported; a kept mic that died is reopened by itself), "Voice didn't
+  answer. Try again, or tap." (no answer in 10 s), "Voice is busy. Wait a few seconds, or tap.", "Voice isn't working
+  right now. The buttons still work." (also when the call fails outright) and, after a second empty clip in a row (a
+  transcript of only punctuation is empty too), "Voice can't use the microphone here. Try Safari, or tap." A note
+  stays after the mic goes (Discard's Undo on a board whose voice went off). A call understood in part waits as usual
+  (the Heard line shows all of it); one understood not at all leaves the board as it was.
+- **Leaving** inside the app (← Games, the account menu, Back) while stats Add would send wait asks first: a modal
+  `<dialog>` (`.voice-leave`, `role="alertdialog"`), full width at the bottom (`--bg`, a `--line` top edge), its
+  `::backdrop` a `--scrim`; the rest of the board is inert and focus stays in the question: "Leave and drop 2 stats you
+  haven't added: Toby Grant Assist, Max Ortiz Goal?" with a secondary "Stay" (focused) and a gold "Drop and leave". Esc
+  is Stay; closing it gives focus back to what asked. Closing or reloading the app drops them without asking.
 - **None of the voice pieces move.** The mic, both bars, the notes and the leave question are `position: fixed`, so
   nothing on the board shifts when they come or go; the mic is a direct child of `section.page`, never inside a pane,
   whose `backdrop-filter` would trap it. Nothing transitions, lifts, squeezes or fades, and the bright board covers

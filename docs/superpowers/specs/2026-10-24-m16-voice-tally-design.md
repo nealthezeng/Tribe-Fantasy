@@ -310,9 +310,9 @@ Made while planning (2026-10-24, the plan's "Rulings made while planning"):
 Made during the build (2026-10-24):
 
 9. **The function cuts the prompt itself.** `voice` slices `prompt` to 700 characters and refuses a request only when
-   `prompt` is missing, not text, or over 4,000 characters. The phone's full hint can pass 700 on a long roster and
-   must still work; 4,000 bounds abuse, and no board gets near it (80 names of at most 60 characters plus the sample
-   calls).
+   `prompt` is missing, not text, or over 6,000 characters. The phone's full hint can pass 700 on a long roster and
+   must still work; 6,000 bounds abuse and is above the longest board's hint (80 names of 60 characters plus the
+   sample calls make about 5,400). Built at 4,000, which that board passed; raised in the final review.
 10. **No mic on an empty board.** The board shows the mic only when it has players, so there are always names to send
     and `whisperHint` needs no empty-roster case. Were it ever reached, `voice` would refuse the empty name list and the
     keeper would see "Voice isn't working right now".
@@ -334,3 +334,22 @@ Made during the build (2026-10-24):
     check doesn't decode the clip a second time.
 15. **The mic sits directly in the board's page.** `VoiceMic` is a direct child of the board's `section.page`, never
     inside a `.card` or pane: an ancestor's `backdrop-filter` would trap its `position: fixed` inside that pane.
+
+Made in the final review (2026-10-24):
+
+16. **The example name always parses** (§5.5, §5.6): the first first name, picked players first, that only one player
+    has, so "Try “… gets a D”" teaches a call that works; else the first player's.
+17. **One message per mic failure** (§5.1): a refusal says "Allow the microphone for this site to use voice."; any
+    other failure to open it (in use, missing, unsupported) says "Voice can't use the microphone here. Try Safari, or
+    tap." A kept mic that has died (its track ended or muted, e.g. by a phone call) is reopened on the next hold,
+    without a prompt. A call that fails outright reads "Voice isn't working right now. The buttons still work.", and
+    a transcript of only punctuation is "Didn't hear anything".
+18. **The mic goes with voice; the bar stays.** The mic shows only while voice is on and the board is open (and has
+    players, and the phone can record). If voice goes off or the board closes while stats wait, a hold in progress
+    ends, an answer that lands after is dropped, and the Discard / Add bar and the notes stay, so the stats can still
+    be added or dropped (Discard keeps its Undo).
+19. **The leave confirm is a native modal `<dialog>`** (amends 4): `role="alertdialog"`, opened with `showModal()`, so
+    the rest of the board is inert and focus stays in it; Esc is Stay, and closing it gives focus back. Its scrim is the
+    dialog's `::backdrop`.
+20. **A stat after a pass to a name the parser can't place is dropped** (§5.3): in "Bo to Max for the score" with two
+    Maxes the goal is the unknown catcher's, so neither Bo nor anyone gets it.
