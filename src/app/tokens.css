@@ -109,6 +109,7 @@
   /* Voice tally (M16): stats heard but not added yet. Baby blue, so they never read as a gold action or a press. */
   --waiting: var(--link);   /* resolves to the light and bright boards' --link too */
   --on-waiting: #111111;    /* text on --waiting */
+  --scrim: rgb(0 0 0 / 0.6); /* behind the tally board's leave question, every theme */
 
   /* Motion, only without reduced motion. Colour fades, the sliding tab marker, button press and lift.
      The tally board never animates. */

@@ -231,7 +231,14 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 }
 .tally-buttons button:active:not(:disabled) { background: var(--gold); color: var(--on-gold); border-color: var(--gold-press); }
 /* Hold to subtract: no long-press menu or text selection, and a distinct flash (inverted, not gold) on −1. */
-.tally-buttons button { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.tally-buttons button { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; position: relative; }
+/* Voice (M16): a stat waiting for Add is outlined in --waiting with a "+N" badge on its corner. The badge floats and
+   the edge is a shadow, so a tile never changes size when its mark comes or goes. Before .minus, so its flash wins. */
+.tally-buttons button.waiting, .tally-buttons button.waiting:hover:not(:disabled) { border-color: var(--waiting); box-shadow: inset 0 0 0 1px var(--waiting); }
+.tally-new {
+  position: absolute; top: calc(-1 * var(--s2)); right: calc(-1 * var(--s1)); padding: 0 5px; border-radius: var(--radius-pill);
+  background: var(--waiting); color: var(--on-waiting); font-size: var(--fs-3xs); font-weight: var(--fw-bold); line-height: 1.5;
+}
 .tally-buttons button.minus, .tally-buttons button.minus:is(:hover, :active):not(:disabled) { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .tally-buttons button.minus .tally-w { color: inherit; }
 .tally-buttons button.neg, .tally-buttons button.neg:hover:not(:disabled) { border-style: dashed; }
@@ -257,13 +264,19 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .voice-listen { display: flex; align-items: center; background: var(--bar); color: var(--bar-fg); box-shadow: inset 0 0 0 3px var(--gold); font-size: var(--fs-lead); font-weight: var(--fw-bold); }
 .voice-bar { display: grid; grid-template-columns: 1fr 2fr; gap: var(--s2); align-items: center; background: var(--bg); border-top: 1px solid var(--line); }
 .voice-bar button { min-height: var(--tap-lg); padding-inline: var(--s2); } /* "Discard" fits its third at 375px */
-.voice-bar .secondary, .voice-bar .secondary:hover:not(:disabled) { border-color: var(--line-strong); } /* an edge on the white bright board */
+:is(.voice-bar, .voice-leave) .secondary, :is(.voice-bar, .voice-leave) .secondary:hover:not(:disabled) { border-color: var(--line-strong); } /* an edge on the white bright board */
 .voice-note {
   position: fixed; z-index: 3; inset: auto var(--gutter) calc(var(--mic-size) + 2 * var(--s4) + var(--s2)); margin: 0;
   display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s3); padding: var(--s2) 14px; min-height: var(--tap-lg);
   background: var(--bar); color: var(--bar-fg); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-weight: var(--fw-semi);
 }
 .voice-note .linklike { color: inherit; }
+/* The Heard group's line: what the last call said, edged in the waiting colour like its stats. */
+.voice-heard { border-left: 3px solid var(--waiting); padding-left: var(--s3); font-weight: var(--fw-semi); }
+/* Leaving with stats waiting: the question sits where the bar was, over a scrim that keeps the board from taps. */
+.voice-leave { position: fixed; z-index: 4; inset: 0; display: grid; align-content: end; background: var(--scrim); }
+.voice-leave > div { padding: var(--s4) var(--gutter); background: var(--bg); border-top: 1px solid var(--line); }
+.voice-leave button { min-height: var(--tap-lg); }
 
 /* Signed-out landing: the one page that has to sell, so it gets the team colours at full strength. */
 .hero { border: 1px solid var(--pane-border); position: relative; overflow: hidden; isolation: isolate; background: var(--score-bg); box-shadow: var(--score-shadow); color: var(--bar-fg); border-radius: var(--radius); --hero-x: var(--s5); padding: var(--s6) var(--hero-x); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s4); justify-items: start; }
