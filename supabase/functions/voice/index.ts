@@ -7,6 +7,8 @@
 declare const Deno: { env: { get(key: string): string | undefined }; serve(handler: (req: Request) => Promise<Response>): void };
 
 const MAX_AUDIO = 2_000_000; // bytes: about a minute of the phone's 16 kHz WAV (the phone stops at 15 s)
+// characters: the phone's whole hint, cut to 700 here. 80 names of 60 characters make about 5,400 (spec §10.9).
+const MAX_PROMPT = 6000;
 const SITE = /^(https:\/\/nealthezeng\.github\.io|http:\/\/localhost:\d+)$/;
 
 const cors = {
@@ -60,7 +62,7 @@ async function answer(req: Request, log: Log): Promise<Answer> {
   const audio = form?.get('audio');
   const prompt = form?.get('prompt');
   if (!(audio instanceof File) || audio.size === 0 || audio.size > MAX_AUDIO || !list(form?.get('names') ?? null)
-    || typeof prompt !== 'string' || prompt.length > 4000) {
+    || typeof prompt !== 'string' || prompt.length > MAX_PROMPT) {
     return [400, { error: 'BAD_REQUEST' }];
   }
 
