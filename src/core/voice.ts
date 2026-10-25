@@ -68,7 +68,7 @@ export function parseStats(text: string, roster: { id: string; name: string }[],
     const n = statAt(i + 1) && COUNTS.get(said[i]); // a count only before a stat: "Bo two Ortiz" is a pass
     const s = statAt(n ? i + 1 : i);
     if (s) {
-      if (cur) {
+      if (cur && !thrower) { // after "Bo to <a name we can't place>" the stat is that catcher's: dropped
         // a count always adds; the stat again without one is not a second; a stat the season doesn't count adds nothing
         const times = !stats.includes(s[1]) ? 0 : n || (s[1] === last ? 0 : 1);
         for (let k = 0; k < times; k++) out.push({ athleteId: cur, stat: s[1] });
@@ -100,8 +100,9 @@ export function whisperHint(names: string[]): string {
  */
 export function isEcho(text: string, hint: string): boolean {
   const said = words(text);
-  // Cut where whisperHint ends each call, not at every dot: a name can have dots ("T.J.").
-  const calls = hint.split('Players:')[0].split(/(?<=gets a D|for the goal|turns it over|assist|Callahan)\./);
+  // Cut where whisperHint ends each call, not at every dot: a name can have dots ("T.J."). No lookbehind: Safari
+  // before 16.4 can't parse one.
+  const calls = hint.split('Players:')[0].replace(/(gets a D|for the goal|turns it over|assist|Callahan)\./g, '$1\n').split('\n');
   return ` ${words(hint).join(' ')} `.includes(` ${said.join(' ')} `)
     && (said.includes('players') || said.length > Math.max(...calls.map((c) => words(c).length)));
 }

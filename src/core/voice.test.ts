@@ -28,6 +28,11 @@ describe('parseStats', () => {
     expect(parse('Bow gets a dee')).toEqual([]); // no typo tolerance
   });
 
+  it('drops a stat after a pass to a catcher it cannot name: it was the catcher’s, not the thrower’s', () => {
+    expect(parse('Bo to Max for the score')).toEqual([]); // two Maxes
+    expect(parse('Bo to Max, drop')).toEqual([]);
+  });
+
   it('counts 1 to 5, always adding', () => {
     expect(parse('Bo gets two Ds')).toEqual(['bo block', 'bo block']);
     expect(parse('Ortiz 2 turnovers, Grant three goals')).toEqual(['maxO turnover', 'maxO turnover', 'toby goal', 'toby goal', 'toby goal']);
