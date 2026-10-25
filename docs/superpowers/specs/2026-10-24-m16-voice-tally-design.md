@@ -2,7 +2,8 @@
 
 Date: 2026-10-24. Base: main `a54f991` (M15 done, P9 round 2 live). Branch: `m16-voice` (worktree
 `Documents/Tribe-Fantasy-voice`).
-Status: agreed in chat 2026-10-23/24, awaiting the user's review of this document. Build plan comes after approval.
+Status: approved by the user 2026-10-24 and built on `m16-voice` (plan `docs/superpowers/plans/2026-10-24-m16-voice-tally.md`);
+rulings made while planning and building are in §10.
 Deadline: live and tried at one practice **before CCCs (Nov 7–8)**: deploy by about **Nov 4**, nothing on the tally
 screen changes Nov 6–8.
 
@@ -276,3 +277,60 @@ mic says "Voice can't use the microphone here. Try Safari, or tap." and the butt
 Exact sizes and tokens for the mic, bar and marks; the mic icon; how the bar sits with `GameControls`; how in-app
 leaving is caught (react-router's blocker or the board's own back handling); message timing; the hook's shape; whether
 the WAV conversion runs before or during the upload; any small wording not quoted above.
+
+## 10. Amendments
+
+Made while planning (2026-10-24, the plan's "Rulings made while planning"):
+
+1. **Counts become repeated stats.** `parseStats` still returns one event per stat, so "two Ds" is two blocks. A number
+   above 5 is ignored and the stat counts once. A stat with a spoken number (1–5) is never merged with the same stat
+   next to it. "A" and "an" are not numbers (one is the default), so "for a score" after a pass is still one goal;
+   §5.3's "a and an are 1" would have counted that goal twice.
+2. **The hint is built on the phone.** `whisperHint(names)` lives in `src/core/voice.ts` and goes to `voice` as
+   `prompt`. Whisper sometimes answers a silent clip with its own prompt; the phone, which holds the hint, spots that
+   echo (`isEcho(text, hint)`) and treats the call as "Didn't hear anything".
+3. **One place keeps `voice_tally` out of storage.** Both admin writers (the Settings editor and creating a season)
+   go through `createSeason` and `updateSeasonSettings` in `src/app/lib/rpc.ts`, which store
+   `storedSettings(...)` from `src/core/settings.ts`: the settings without `voice_tally` while it is on (§5.7's
+   pitfall).
+4. **The leave confirm is in the page.** A small `role="alertdialog"` with **Stay** and **Drop and leave**, since
+   `window.confirm` can't name its buttons. It lives in a `LeaveGuard` component holding react-router's `useBlocker`,
+   which the board mounts only while stats wait, because `useBlocker` needs a data router and the older board tests
+   render in a `MemoryRouter`. As built it mounts only while stats that Add would send wait: with only "Not added"
+   stats waiting, leaving doesn't ask.
+5. **"Quiet" for the move into the Heard group** (§5.4): no finger down on the board's player lists (`ul.list`) and
+   1 s since the last one lifted. The mic's own presses don't count.
+6. **Two empty clips in a row** (§8): two calls in a row that came back unreadable (the WAV conversion failed) or empty
+   (no words, or a prompt echo). The second shows "Voice can't use the microphone here. Try Safari, or tap." and the
+   mic stays usable.
+7. **Notes by the mic** go after 6 s, one with Undo after 5 s. A new note replaces the old one.
+8. **Heard cards for players who can't take stats** (On your team, Out of this game) carry a `pill warn` "Not added".
+   Their waiting stats are left out of **Add N** and out of Finish's unsaved count.
+
+Made during the build (2026-10-24):
+
+9. **The function cuts the prompt itself.** `voice` slices `prompt` to 700 characters and refuses a request only when
+   `prompt` is missing, not text, or over 4,000 characters. The phone's full hint can pass 700 on a long roster and
+   must still work; 4,000 bounds abuse, and no board gets near it (80 names of at most 60 characters plus the sample
+   calls).
+10. **No mic on an empty board.** The board shows the mic only when it has players, so there are always names to send
+    and `whisperHint` needs no empty-roster case. Were it ever reached, `voice` would refuse the empty name list and the
+    keeper would see "Voice isn't working right now".
+11. **What counts as a prompt echo.** A transcript is an echo when, with case and punctuation dropped, it is part of
+    the hint and either contains the word "players" or has more words than the hint's longest sample call (the part
+    before "Players:"). A real call is at most one sample sentence; echoes run across sentences or into the roster.
+    The plan's first rule (eight words or more) dropped a real pass called with full names. The silence check (13)
+    catches silent clips before this; an echo of two short sample calls side by side can still get through and shows
+    as waiting stats the keeper discards.
+12. **What `voice` logs.** One line per request, `{ ms, status, groq }`: the time taken, the status it answered with,
+    and Groq's HTTP status, `secret` (no key), `network` (Groq unreachable) or null (stopped before Groq). Never the
+    request body or the transcript. §5.2 forbids logging what was said, not error codes, and a bad key (Groq's 401) has to be visible at
+    go-live.
+13. **Silence isn't sent.** `hearClip` skips the call and reads the clip as nothing when its loudest sample is below
+    `SILENT_PEAK` (0.01, a calibration constant in `src/app/tally/hear.ts`). Sending silence is what makes Whisper echo
+    its prompt; `isEcho` stays for longer echoes. If very quiet speech reads as "Didn't hear anything", lower the
+    constant.
+14. **`toWav` returns the peak too.** It gives `{ wav, peak }` (peak = the loudest sample, 0 to 1), so the silence
+    check doesn't decode the clip a second time.
+15. **The mic sits directly in the board's page.** `VoiceMic` is a direct child of the board's `section.page`, never
+    inside a `.card` or pane: an ancestor's `backdrop-filter` would trap its `position: fixed` inside that pane.

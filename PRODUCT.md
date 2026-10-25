@@ -10,8 +10,8 @@ web
 
 - **Managers**: members of the college ultimate team who buy credits, buy shares in teammates ("athletes") before each tournament, and manage a fantasy roster across the season.
 - **Athletes**: team members who opt in to be draftable; their tournament game stats drive fantasy scoring.
-- **Stat keepers / coaches**: tap in live stats (goals, assists, blocks, callahans, turnovers) during tournament games via a big-button tally screen; cannot record or verify their own athletes.
-- **Admins**: run seasons/tournaments, settings, deleting leagues, and confirmed-donation bookkeeping (treasurer role).
+- **Stat keepers / coaches**: tap in live stats (goals, assists, blocks, callahans, turnovers) during tournament games via a big-button tally screen, or call them out by voice (hold the mic and say "Toby gets a D"; nothing is added until they tap Add); cannot record or verify their own athletes.
+- **Admins**: run seasons/tournaments, settings (including switching voice tally off), deleting leagues, and confirmed-donation bookkeeping (treasurer role).
 - **League viewers**: see stat lines once verified and league standings.
 
 ## Product Purpose
@@ -35,6 +35,7 @@ Unlike a generic fantasy sports app, the "athletes" are the users' own teammates
 - Auth: magic link or 6-digit code (Supabase, PKCE).
 - Roles enforced server-side via RLS: admin, coach/stat-keeper, player (linked athlete), league member, public.
 - Scoring: each tournament game is a 2-v-2 matchup (each team starts 2 of its up-to-6 players) scored from the starters' verified stat lines, each weighted by the share the team owns (goal 3, assist 3, block 5, callahan 12, turnover -1; no per-point normalisation), rank-weighted win/loss points (underdog wins pay more, curve still being tuned). Two more multipliers on the athlete's score: tiredness within a tournament (x0.5 if they also started the previous game, x0.75 two games back; rotating the roster never tires) and degradation per manager + athlete across tournaments: the more earlier tournaments a manager started that athlete in, the less the athlete scores for them (x0.9 from the first repeat, per tournament, floor 0.6).
+- Voice tally (M16): while a keeper holds the mic on the tally board the phone records; the `voice` Edge Function asks Groq's Whisper (`whisper-large-v3`) what was said, and the phone turns the words into waiting stats the keeper checks on the players' cards. Nothing is added until the keeper taps Add; then they are ordinary taps (verify, hold-to-undo and corrections work as usual). Audio and transcripts are never kept. It needs signal, the buttons work without it, and admins can switch it off per season (Settings).
 - Credits: $1 = 20 credits, 100-credit minimum to play, currently unlimited credits per manager (pay-to-win risk flagged and accepted by the user for now).
 - No athlete trades yet (parked feature); no self-ownership; shared ownership (many managers can own shares of one athlete; a team owns credits ÷ shares, up to 6 athletes per tournament).
 - Roster/athlete data visible only to league members + staff, not the public.

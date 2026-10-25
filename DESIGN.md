@@ -36,6 +36,7 @@ the attribute, so every other page keeps the app's own theme.
 | `--blue` | #8cc8f2 | Info and selection, the disc centre |
 | `--blue-soft` / `--blue-ink` | #16304a / #bfe1fa | `.notice` and `.pill.info` background and text |
 | `--link`, `--focus` | #8cc8f2 | Links and the 3px focus ring |
+| `--waiting` / `--on-waiting` | `--link` / #111111 (light and the bright board: #0b5d99 / #fff, about 7:1) | Voice stats waiting for Add on the tally board (M16): the tile outline, the "+N" mark, the Heard line's edge |
 
 Neutrals:
 
@@ -48,7 +49,8 @@ Neutrals:
 | `--muted` | #9aa6b2 | Secondary text, labels, table headers, placeholders |
 | `--line` | #232c36 | Dividers inside panes |
 | `--line-strong` | #66737f | Input and segmented borders |
-| `--bar` / `--bar-fg` / `--bar-muted` | #05070a / #fff / #9aa6b2 | Top bar |
+| `--bar` / `--bar-fg` / `--bar-muted` | #05070a / #fff / #9aa6b2 | Top bar; the tally board's listening bar and voice notes |
+| `--scrim` | rgb(0 0 0 / 0.6), every theme | Behind the tally board's leave question |
 
 Status, each with a soft background for pills:
 
@@ -113,7 +115,8 @@ Radii: `--radius` 14px for cards and the hero, `--radius-sm` 10px for buttons, i
 `--radius-xs` 8px for account menu items, `--radius-pill` for pills and admin's group chips. Shadows belong to the pane
 system (`--pane-shadow`, `--score-shadow`, see Depth) plus the gold hover glow `--shadow-lift`.
 
-Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 76px stat buttons. Motion:
+Touch: `--tap` 44px minimum, `--tap-lg` 48px tabs and menu items, `--tap-tally` 76px stat buttons, `--mic-size` 72px
+the tally board's voice mic. Motion:
 `--dur` 150ms with `--ease`, and `--dur-flash` 400ms for the over-budget flash; `--dur-menu` 200ms for menus and
 opened sections dropping in, `--dur-fade` 300ms for loaded content fading in, `--dur-rest` 1.6s for a loading
 skeleton's slow breathing, `--dur-count` 600ms for a score counting up to its new value.
@@ -562,10 +565,60 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   "Clear out". A player who is out of this game folds to that one line, with no stat buttons (clear the Out to tally
   him); one marked "Out from game N" for a later game keeps his buttons. It is hidden on a closed (verified or
   earlier-season) board. Nobody marks their own attendance or injury any more; keepers mark Out (M15 P5).
+- **The voice mic** (M16): keepers and admins can call stats out loud. A round gold mic (`.voice-mic`, `--mic-size`
+  72px, a black `--bar` ring, a drawn mic icon, its own lettering) floats at the bottom right, `--gutter` from the edge,
+  and the board gets bottom padding so it never covers the last card or Finish. It is there only while the season's
+  `voice_tally` is on (Admin › Settings; the board reads it again on every load), the board is open (not verified, not
+  an earlier season) and has players, and the phone can record; otherwise there is no mic at all. With it, a muted line
+  under the search says "Or hold the mic and say “Toby gets a D”. Nothing is added until you tap Add." (the first name
+  of the first picked player, else of the first player). Its label says "Hold to talk. Say a player and a stat." Hold
+  to talk and let go to send; pointer capture keeps a thumb that slides off from cancelling, holding Space or Enter
+  does the same, and no long-press menu or text selection opens. A hold buzzes once, rings the mic in gold, and fills the bottom of the
+  screen left of the mic with a black "Listening… let go when done" bar (`.voice-listen`, `--fs-lead` bold, a gold
+  inner edge, `role="status"`); it stops by itself at 15 s. While the clip is being heard the mic shows "Hearing…" and
+  can't be held. Offline it is greyed (`--surface-2`, `--muted`, a `--line-strong` ring), and a press says "Voice needs
+  signal. The buttons still work."
+- **Heard**: what a call understood becomes waiting stats, never stored on the phone. They move in only when no finger
+  is on the player lists and 1 s has passed since the last one lifted, then the board scrolls to the top. Under "Hold a
+  stat to take one off." comes the Heard line (`.voice-heard`, `role="status"`): “what was heard” (the latest call)
+  with a 3px `--waiting` edge on its left, then the Heard group: a `.list` of the players with waiting stats, in the
+  order first named, with no heading and not filtered by the search. Those players leave "Picked this game" and
+  "Everyone else" until Add or Discard, and the group never regroups while the keeper taps (ruling 15). Under it the
+  muted line "Not added yet. Tap a stat to add one, hold to take one off." On a Heard card each tile shows the count
+  the player will have after Add (the waiting stats merged with the board's taps, so a play another keeper already
+  tapped isn't shown one too high). A tile with waiting stats is outlined in `--waiting` with a "+N" mark on its top
+  right corner (`.tally-new`); the outline is an inset shadow and the mark floats, so the tile never changes size. Tap
+  adds a waiting stat; hold (or minus, Delete, Backspace) takes one off, never a saved one, and with none left the
+  board's notice says "Nothing waiting to take off." A player the keeper can't tally (On your team, or Out of this
+  game) still shows, with a `.pill.warn` "Not added", and his stats aren't counted. Another call adds to the same set:
+  new players join the end of the group and the Heard line shows the new call. The rest of the board taps as normal.
+- **The voice bar**: while anything waits, a bar along the bottom (`.voice-bar`, `--bg` with a `--line` top edge)
+  holds a secondary "Discard" (a `--line-strong` edge, for the white board) and a gold "Add 3 stats" ("Add 1 stat"; off
+  at 0, counting only players who can be added), both 48px tall, in a third and two thirds of the room left of the
+  mic, which stays in the same spot. Add queues ordinary taps timed at the start of the call that put the player in the group, so they
+  merge with another keeper's taps of the same play; the group goes and "Added 3 stats." shows. Discard drops them:
+  "Dropped 3 stats." with Undo, which puts them back exactly. Finish stays off while stats Add would send wait.
+- **Notes by the mic** (`.voice-note`): a black `--bar` panel with a `--line-strong` edge, semibold, just above the
+  mic's row, one at a time (a new one replaces the old), gone after 6 s, or 5 s with Undo. `role="status"`: "Added N
+  stats.", "Dropped N stats. Undo", "Didn't hear anything. Hold the button while you talk.", "Heard “…” but no player
+  and stat. Try “Toby gets a D”." and "Voice needs signal. The buttons still work." `role="alert"`, when voice can't
+  be used: "Hold the button while you talk." (a hold under 0.4 s; nothing is sent), "Allow the microphone for this site
+  to use voice.", "Voice didn't answer. Try again, or tap." (no answer in 10 s), "Voice is busy. Wait a few seconds, or
+  tap.", "Voice isn't working right now. The buttons still work." and, after a second empty clip in a row, "Voice
+  can't use the microphone here. Try Safari, or tap." A call understood in part waits as usual (the Heard line shows
+  all of it); one understood not at all leaves the board as it was.
+- **Leaving** inside the app (← Games, the account menu, Back) while stats Add would send wait asks first: a
+  `role="alertdialog"` at the bottom, over a `--scrim` that keeps the board from taps: "Leave and drop 2 stats you
+  haven't added: Toby Grant Assist, Max Ortiz Goal?" with a secondary "Stay" (focused) and a gold "Drop and leave".
+  Closing or reloading the app drops them without asking.
+- **None of the voice pieces move.** The mic, both bars, the notes and the leave question are `position: fixed`, so
+  nothing on the board shifts when they come or go; the mic is a direct child of `section.page`, never inside a pane,
+  whose `backdrop-filter` would trap it. Nothing transitions, lifts, squeezes or fades, and the bright board covers
+  every piece at daylight contrast.
 - **Finish** sits at the end of the live game's board, after the players, as a quiet secondary "Finish game 4"
-  (off while this phone has unsent taps). For a game before the last it opens a question in place: "Finish game 4 vs Wake
-  Forest? Game 5 gets paired; an admin can undo it." with a closed "Game 5 pairings" fold, then gold "Finish game 4" and
-  Cancel. The last game asks "Finish game 6? It's the last game: CCCs ends." Neither the button nor its fold moves
+  (off while this phone has unsent taps, voice stats Add would send included). For a game before the last it opens a question in
+  place: "Finish game 4 vs Wake Forest? Game 5 gets paired; an admin can undo it." with a closed "Game 5 pairings"
+  fold, then gold "Finish game 4" and Cancel. The last game asks "Finish game 6? It's the last game: CCCs ends." Neither the button nor its fold moves
   (`tokens.test.ts`).
 
 ## Admin
@@ -656,7 +709,9 @@ a time (M15 P9 Round 2).
 - **More › Settings** (`SettingsEditor`): labelled number fields in two groups, `h2` "Points for stats" (Goal, Assist,
   Block, Callahan, Turnover; fractions allowed) and `h2` "Credits and picks" ("Credits for the team in first"
   (`allowance_base`), "Extra for the last-placed team", "Players a team can own", "Picks each game"; whole numbers),
-  two to a row on phones. Every setting stays editable as JSON in the "Advanced (all settings as JSON)" fold. One gold
+  two to a row on phones, then `h2` "Tally" with one checkbox, "Voice tally: mic on the tally board" (M16; on by
+  default, and stored only when off, so phones on an older build keep loading the season until an admin turns it off).
+  Every setting stays editable as JSON in the "Advanced (all settings as JSON)" fold. One gold
   "Save settings" checks with `parseSettings` and lists what's wrong; a field edit and a JSON edit are never both
   pending (editing one puts the other back to the saved value).
 - **More › History** (`HistoryPanel`): a `.card` "History": an Action filter (All actions, or one by its plain name:
