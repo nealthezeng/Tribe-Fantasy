@@ -76,7 +76,16 @@ vi.mock('../lib/supabase', () => ({
 }));
 
 let scrollTo: ReturnType<typeof vi.spyOn>;
-beforeEach(() => { scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {}); });
+const showModal = vi.fn(function (this: HTMLDialogElement) { this.setAttribute('open', ''); });
+const close = vi.fn(function (this: HTMLDialogElement) { this.removeAttribute('open'); });
+beforeEach(() => {
+  scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  // jsdom has no modal dialogs: these only open and close it
+  for (const [k, f] of [['showModal', showModal], ['close', close]] as const) {
+    Object.defineProperty(HTMLDialogElement.prototype, k, { configurable: true, value: f });
+    f.mockClear();
+  }
+});
 afterEach(() => {
   vi.useRealTimers();
   Object.assign(db, { settings: {}, athletes: null, starters: [], owned: false, verified: false, taps: [], can: true, controls: null });
@@ -203,6 +212,28 @@ describe('TallyBoard voice', () => {
     expect(note(d)).toBe('Heard “nice huck” but no player and stat. Try “Toby gets a D”.'); // the first picked
   });
 
+  it('teaches a call that parses: the first player whose first name is his alone', async () => {
+    db.athletes = [{ id: 'l', name: 'Max Lowe' }, { id: 'm', name: 'Max Ortiz' }, { id: 't', name: 'Toby Grant' }];
+    const c = await board('Max Lowe');
+    expect(screen.getByText('Or hold the mic and say “Toby gets a D”. Nothing is added until you tap Add.')).toBeTruthy();
+    hear('nice huck');
+    expect(note(c)).toBe('Heard “nice huck” but no player and stat. Try “Toby gets a D”.');
+  });
+
+  it('a finger lost as the app hides never holds a call back', async () => {
+    const c = await board();
+    fireEvent.pointerDown(screen.getByText('Bo Stone').closest('li')!); // its pointerup never comes
+    hear('Ortiz gets a D');
+    expect(c.querySelector('.voice-heard')).toBeNull();
+    const seen = (state: string) => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+      act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    };
+    seen('hidden');
+    expect(order(c)[0]).toBe('“Ortiz gets a D”');
+    seen('visible');
+  });
+
   it('waits for a quiet board before the Heard group moves in, then scrolls to the top', async () => {
     db.starters = ['t'];
     const c = await board();
@@ -234,6 +265,24 @@ describe('TallyBoard voice', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Drop and leave' }));
     expect(await screen.findByText('Out list')).toBeTruthy();
     expect(loadQueue('k1', 'game')).toEqual([]);
+  });
+
+  it('Esc on the leave question is Stay: a modal dialog that closes, keeping the stats and the board', async () => {
+    await board();
+    hear('Ortiz gets a D');
+    fireEvent.click(screen.getByRole('button', { name: '← Games' }));
+    const ask = await screen.findByRole('alertdialog');
+    expect(ask.tagName).toBe('DIALOG');
+    expect(showModal).toHaveBeenCalledTimes(1); // the rest of the page inert, focus kept in the question
+    const esc = new Event('cancel', { cancelable: true });
+    fireEvent(ask, esc);
+    expect(esc.defaultPrevented).toBe(true);
+    expect(close).toHaveBeenCalledTimes(1); // closed before it goes, so focus goes back
+    expect(ask.isConnected).toBe(false);
+    expect(shows('Max Ortiz', 'D')).toEqual(['1', '+1']);
+    fireEvent.click(screen.getByRole('button', { name: '← Games' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Drop and leave' }));
+    expect(await screen.findByText('Out list')).toBeTruthy();
   });
 
   it('names the stats top to bottom, as the Heard group shows them', async () => {

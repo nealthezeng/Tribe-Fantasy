@@ -109,7 +109,6 @@
   /* Voice tally (M16): stats heard but not added yet. Baby blue, so they never read as a gold action or a press. */
   --waiting: var(--link);   /* resolves to the light and bright boards' --link too */
   --on-waiting: #111111;    /* text on --waiting */
-  --scrim: rgb(0 0 0 / 0.6); /* behind the tally board's leave question, every theme */
 
   /* Motion, only without reduced motion. Colour fades, the sliding tab marker, button press and lift.
      The tally board never animates. */
@@ -154,6 +153,10 @@
   /* Buttons are flat and crisp: plain fills, a 1px lift on hover (gold adds --shadow-lift), a squeeze on press. */
   --chip-bg: rgb(255 255 255 / 0.07);  /* admin tab chips: a soft fill the gliding pill shows through */
 }
+
+/* Behind the tally board's leave question (a modal dialog's ::backdrop), every theme. Set on ::backdrop too: before
+   Safari 17.4 and Chrome 122 a backdrop inherits nothing, so a token only on :root never reaches it. */
+:root, ::backdrop { --scrim: rgb(0 0 0 / 0.6); }
 
 /* Light mode: only what differs from dark. The bright tally board (t330) starts from it. */
 :root[data-theme='light'],

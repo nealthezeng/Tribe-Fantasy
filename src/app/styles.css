@@ -273,9 +273,12 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .voice-note .linklike { color: inherit; }
 /* The Heard group's line: what the last call said, edged in the waiting colour like its stats. */
 .voice-heard { border-left: 3px solid var(--waiting); padding-left: var(--s3); font-weight: var(--fw-semi); }
-/* Leaving with stats waiting: the question sits where the bar was, over a scrim that keeps the board from taps. */
-.voice-leave { position: fixed; z-index: 4; inset: 0; display: grid; align-content: end; background: var(--scrim); }
-.voice-leave > div { padding: var(--s4) var(--gutter); background: var(--bg); border-top: 1px solid var(--line); }
+/* Leaving with stats waiting: a modal <dialog> where the bar was, full width; its backdrop keeps the board from taps. */
+.voice-leave {
+  inset: auto 0 0; width: auto; max-width: none; height: auto; max-height: none; margin: 0;
+  padding: var(--s4) var(--gutter); background: var(--bg); color: var(--fg); border: 0; border-top: 1px solid var(--line);
+}
+.voice-leave::backdrop { background: var(--scrim); }
 .voice-leave button { min-height: var(--tap-lg); }
 
 /* Signed-out landing: the one page that has to sell, so it gets the team colours at full strength. */

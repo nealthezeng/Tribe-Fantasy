@@ -265,7 +265,12 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   useEffect(() => {
     const up = () => { setOnline(true); void flush(); };
     const down = () => setOnline(false);
-    const hidden = () => { if (document.visibilityState === 'hidden') void flush(); };
+    const hidden = () => {
+      if (document.visibilityState !== 'hidden') return;
+      void flush();
+      fingers.current.clear(); // a pointerup lost as the app went would hold every call back for the visit
+      reveal();
+    };
     window.addEventListener('online', up);
     window.addEventListener('offline', down);
     document.addEventListener('visibilitychange', hidden);
@@ -274,7 +279,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       window.removeEventListener('offline', down);
       document.removeEventListener('visibilitychange', hidden);
     };
-  }, [flush]);
+  }, [flush, reveal]);
 
   const saved = useMemo(() => (data.data?.taps ?? []).map(rowToTap), [data.data]);
   const savedIds = useMemo(() => new Set(saved.map((t) => t.id)), [saved]);
@@ -314,7 +319,9 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   const headed = !query && groups[0][1].length > 0;
   // Whisper's hint and the example name: picked players first (their names survive a long roster's prompt cut).
   const names = [...athletes.filter((a) => picked?.has(a.id)), ...athletes.filter((a) => !picked?.has(a.id))].map((a) => a.name);
-  const first = names[0]?.split(' ')[0];
+  // The example must be a call that parses: the first first name only one player has, else the first player's.
+  const firsts = names.map((n) => n.split(' ')[0]);
+  const first = firsts.find((f) => parseStats(`${f} gets a D`, athletes, ['block']).length) ?? firsts[0];
   const voiceOn = voice && !closed && athletes.length > 0; // an empty board has no names to send (ruling T1a)
   const isOut = (id: string) => { // Out of this game; Out from a later game still plays this one
     const from = outs.get(id);
@@ -488,17 +495,28 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
 function LeaveGuard({ ask, onDrop }: { ask: string; onDrop: () => void }) {
   const blocker = useBlocker(true);
   const id = useId();
-  if (blocker.state !== 'blocked') return null;
+  const box = useRef<HTMLDialogElement>(null);
+  const blocked = blocker.state === 'blocked';
+  useEffect(() => {
+    if (!blocked) return;
+    // Modal: the rest of the page goes inert and focus stays in here; Esc is Stay (onCancel). Stay is focused after
+    // showModal, not by autoFocus, so the dialog remembers the button that asked and close() gives focus back to it.
+    box.current?.showModal();
+    box.current?.querySelector('button')?.focus();
+  }, [blocked]);
+  if (!blocked) return null;
+  const stay = () => { box.current?.close(); blocker.reset(); };
   return (
-    <div className="voice-leave" role="alertdialog" aria-modal="true" aria-labelledby={id}>
+    <dialog ref={box} className="voice-leave" role="alertdialog" aria-labelledby={id}
+      onCancel={(e) => { e.preventDefault(); stay(); }}>
       <div className="stack">
         <p id={id}>{ask}</p>
         <div className="row">
-          <button className="secondary" autoFocus onClick={() => blocker.reset()}>Stay</button>
+          <button className="secondary" onClick={stay}>Stay</button>
           <button onClick={() => { blocker.proceed(); onDrop(); }}>Drop and leave</button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 
