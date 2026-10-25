@@ -10,8 +10,11 @@ const PRESS = '2026-11-07T15:00:00.000Z';
 const LABEL = 'Hold to talk. Say a player and a stat.';
 const LISTENING = 'Listening… let go when done';
 
-// The recorder stands in for the microphone: stop() hands over a clip pressed at PRESS, raise() is its error.
-const rec = vi.hoisted(() => ({ can: true, starts: 0, on: false, raise: (() => {}) as (error: string) => void }));
+// The recorder stands in for the microphone: stop() hands over a clip pressed at PRESS, raise() is its error. With
+// `late`, stop() leaves the hand-over (and the end of listening) to finish(), as a real recorder's stop event comes later.
+const rec = vi.hoisted(() => ({
+  can: true, starts: 0, on: false, late: false, finish: () => {}, raise: (() => {}) as (error: string) => void,
+}));
 vi.mock('../tally/useRecorder', async () => {
   const { useState: state } = await import('react');
   return {
@@ -26,8 +29,8 @@ vi.mock('../tally/useRecorder', async () => {
         stop: () => {
           if (!rec.on) return;
           rec.on = false;
-          setListening(false);
-          onClip(new Blob(['sound']), PRESS);
+          rec.finish = () => { setListening(false); onClip(new Blob(['sound']), PRESS); };
+          if (!rec.late) rec.finish();
         },
       };
     },
@@ -41,10 +44,10 @@ const onAdd = vi.fn();
 const onDiscard = vi.fn();
 
 /** The board's side of it: holds the note VoiceMic asks for and shows it back. */
-function Board({ online = true, waiting = null }: { online?: boolean; waiting?: number | null }) {
+function Board({ online = true, waiting = null, talk = true }: { online?: boolean; waiting?: number | null; talk?: boolean }) {
   const [note, setNote] = useState<VoiceNote | null>(null);
   return (
-    <VoiceMic names={['Bo Stone', 'Max Ortiz']} online={online} waiting={waiting} note={note}
+    <VoiceMic names={['Bo Stone', 'Max Ortiz']} talk={talk} online={online} waiting={waiting} note={note}
       onNote={(n) => { onNote(n); setNote(n); }} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />
   );
 }
@@ -63,6 +66,7 @@ beforeEach(() => {
   rec.can = true;
   rec.starts = 0;
   rec.on = false;
+  rec.late = false;
   vi.mocked(hearClip).mockReset();
   for (const f of [onNote, onHeard, onAdd, onDiscard]) f.mockReset();
   Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', { configurable: true, value: vi.fn() });
@@ -109,6 +113,50 @@ describe('VoiceMic (M16 §5.1, §5.4–5.6)', () => {
     expect(screen.queryByText(LISTENING)).toBeNull();
     await act(async () => answer({ text: 'Bo gets a D' }));
     expect(hearClip).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['pointerUp', 'pointerCancel'] as const)(
+    'after a %s, a press before the recorder has stopped starts no second hold',
+    async (end) => {
+      rec.late = true;
+      vi.mocked(hearClip).mockResolvedValueOnce({ text: 'Bo gets a D' });
+      render(<Board />);
+      fireEvent.pointerDown(mic());
+      fireEvent[end](mic());
+      fireEvent.pointerDown(mic()); // still listening: the recorder hasn't sent its stop event
+      expect(rec.starts).toBe(1);
+      act(() => rec.finish());
+      await act(async () => {});
+      expect(hearClip).toHaveBeenCalledTimes(1);
+      expect(onHeard).toHaveBeenCalledWith('Bo gets a D', PRESS);
+      expect(screen.queryByText(LISTENING)).toBeNull();
+    },
+  );
+
+  it('a call that fails outright says voice is not working, and the mic works again', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.mocked(hearClip).mockRejectedValueOnce(new Error('offline'));
+    render(<Board />);
+    fireEvent.pointerDown(mic());
+    fireEvent.pointerUp(mic());
+    await act(async () => {});
+    expect(screen.getByRole('alert').textContent).toBe("Voice isn't working right now. The buttons still work.");
+    expect(mic().disabled).toBe(false);
+    await call({ text: 'Bo gets a D' });
+    expect(onHeard).toHaveBeenCalledWith('Bo gets a D', PRESS);
+    log.mockRestore();
+  });
+
+  it.each([{ text: 'Bo gets a D' }, { error: 'busy' }] as Heard[])('an answer (%o) after the board has gone does nothing', async (heard) => {
+    let answer!: (h: Heard) => void;
+    vi.mocked(hearClip).mockReturnValueOnce(new Promise((done) => { answer = done; }));
+    const { unmount } = render(<Board />);
+    fireEvent.pointerDown(mic());
+    fireEvent.pointerUp(mic());
+    unmount();
+    await act(async () => answer(heard));
+    expect(onHeard).not.toHaveBeenCalled();
+    expect(onNote).not.toHaveBeenCalled();
   });
 
   it('holds on Space too, without restarting on key repeat', async () => {
@@ -185,12 +233,28 @@ describe('VoiceMic (M16 §5.1, §5.4–5.6)', () => {
     expect(mic()).toBeTruthy();
   });
 
+  it('without talk (voice off, or the board closed) no mic shows and a hold ends, but the waiting bar stays', () => {
+    vi.mocked(hearClip).mockResolvedValueOnce({ text: 'Bo gets a D' });
+    const { rerender } = render(<Board waiting={2} />);
+    fireEvent.pointerDown(mic());
+    expect(screen.getByText(LISTENING)).toBeTruthy();
+    rerender(<Board waiting={2} talk={false} />);
+    expect(screen.queryByText(LISTENING)).toBeNull();
+    expect(rec.on).toBe(false);
+    expect(screen.queryByRole('button', { name: LABEL })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hearing…' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Add 2 stats' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onDiscard).toHaveBeenCalledTimes(1);
+  });
+
   it('a note clears itself after 6 s, and a new board render does not restart the clock', () => {
     const note = { text: 'Added 2 stats.' };
-    const { rerender } = render(<VoiceMic names={[]} online waiting={null} note={note} onNote={onNote} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
+    const { rerender } = render(<VoiceMic names={[]} talk online waiting={null} note={note} onNote={onNote} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
     expect(screen.getByRole('status').textContent).toBe('Added 2 stats.');
     act(() => { vi.advanceTimersByTime(3000); });
-    rerender(<VoiceMic names={[]} online waiting={null} note={note} onNote={(n) => onNote(n)} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
+    rerender(<VoiceMic names={[]} talk online waiting={null} note={note} onNote={(n) => onNote(n)} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
     act(() => { vi.advanceTimersByTime(2999); });
     expect(onNote).not.toHaveBeenCalled();
     act(() => { vi.advanceTimersByTime(1); });
@@ -200,13 +264,13 @@ describe('VoiceMic (M16 §5.1, §5.4–5.6)', () => {
   it('a note with Undo shows the button and clears after 5 s', () => {
     const undo = vi.fn();
     const note = { text: 'Dropped 2 stats.', undo };
-    const { rerender } = render(<VoiceMic names={[]} online waiting={null} note={note} onNote={onNote} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
+    const { rerender } = render(<VoiceMic names={[]} talk online waiting={null} note={note} onNote={onNote} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
     act(() => { vi.advanceTimersByTime(4999); });
     expect(onNote).not.toHaveBeenCalled();
     act(() => { vi.advanceTimersByTime(1); });
     expect(onNote).toHaveBeenCalledWith(null);
     onNote.mockReset();
-    rerender(<VoiceMic names={[]} online waiting={null} note={{ ...note }} onNote={onNote} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
+    rerender(<VoiceMic names={[]} talk online waiting={null} note={{ ...note }} onNote={onNote} onHeard={onHeard} onAdd={onAdd} onDiscard={onDiscard} />);
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(undo).toHaveBeenCalledTimes(1);
     expect(onNote).toHaveBeenCalledWith(null);

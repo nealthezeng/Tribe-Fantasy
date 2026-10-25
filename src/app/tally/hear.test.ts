@@ -69,5 +69,7 @@ describe('hearClip', () => {
     expect(await hearClip(clip, names)).toEqual({ text: '' });
     invoke.mockResolvedValueOnce({ data: { text: '' }, error: null });
     expect(await hearClip(clip, names)).toEqual({ text: '' });
+    invoke.mockResolvedValueOnce({ data: { text: ' . ' }, error: null }); // no letter or digit: nothing said
+    expect(await hearClip(clip, names)).toEqual({ text: '' });
   });
 });

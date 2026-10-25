@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseSettings } from '../../core/settings';
 import { loadQueue, storeQueue, type QueuedTap } from '../tally/queue';
 import { TallyPage } from './TallyPage';
 
-// Voice on the tally board (M16 §5.4–5.8). The mic is a stub: "Hear" hands the board a call that started at AT.
+// Voice on the tally board (M16 §5.4–5.8). The mic is a stub: "Hear" hands the board a call that started at AT (an
+// answer can land whether or not the mic shows); "Mic" stands for the mic button, shown only with `talk`.
 const AT = '2026-11-07T15:00:00.000Z';
 type MicProps = Parameters<typeof import('./VoiceMic').VoiceMic>[0];
 type ControlProps = { sessionId?: string; unsaved?: Map<string, number> };
@@ -33,11 +34,12 @@ vi.mock('./OutList', () => ({ OutList: () => <p>Out list</p> }));
 vi.mock('../lib/rpc', () => ({ api: { setOut: vi.fn(), clearOut: vi.fn(), saveTaps: vi.fn(() => new Promise(() => {})) } }));
 vi.mock('../tally/useRecorder', () => ({ canRecord: () => db.can }));
 vi.mock('./VoiceMic', () => ({
-  VoiceMic: ({ names, waiting, note, onNote, onHeard, onAdd, onDiscard }: MicProps) => {
+  VoiceMic: ({ names, talk, waiting, note, onNote, onHeard, onAdd, onDiscard }: MicProps) => {
     db.mic.names = names;
     return (
       <div>
         <button onClick={() => onHeard(db.mic.say, AT)}>Hear</button>
+        {talk && <p>Mic</p>}
         {waiting !== null && <p>Bar {waiting}</p>}
         <button onClick={onAdd}>Add</button>
         <button onClick={onDiscard}>Discard</button>
@@ -259,6 +261,28 @@ describe('TallyBoard voice', () => {
     expect(db.controls!.unsaved!.get('game')).toBe(1);
     hear('Ortiz gets a D and Bo gets a D');
     expect(db.controls!.unsaved!.get('game')).toBe(3);
+  });
+
+  it.each([
+    ['switched off', () => { db.settings = { voice_tally: false }; }],
+    ['verified', () => { db.verified = true; }],
+  ])('a board %s while stats wait keeps the bar but not the mic, drops a late answer, and still adds', async (_, change) => {
+    const c = await board();
+    hear('Ortiz gets a D');
+    expect(screen.getByText('Mic')).toBeTruthy();
+    change();
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Bo Stone out from the next game' })); // reloads the board
+    await waitFor(() => expect(screen.queryByText(/^Or hold the mic/)).toBeNull());
+    expect(screen.queryByText('Mic')).toBeNull();
+    expect(screen.getByText('Bar 1')).toBeTruthy();
+    hear('Bo gets a D'); // an answer that lands after the mic went
+    expect(order(c)).toEqual(['“Ortiz gets a D”', 'Max Ortiz', 'Bo Stone', 'Toby Grant']);
+    expect(note(c)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(note(c)).toBe('Dropped 1 stat.');
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    expect(loadQueue('k1', 'game').map((t) => [t.athlete_id, t.stat])).toEqual([['m', 'block']]);
   });
 
   it('says how to use the mic under the search box when voice is on', async () => {

@@ -38,5 +38,6 @@ export async function hearClip(clip: Blob, names: string[]): Promise<Heard> {
     return { error: 'broken' };
   }
   const text = (answer.data as { text?: unknown } | null)?.text;
-  return { text: typeof text === 'string' && !isEcho(text, prompt) ? text.trim() : '' };
+  // Only punctuation (Whisper's "." for a near-silent clip) is nothing said, too.
+  return { text: typeof text === 'string' && /[a-z0-9]/i.test(text) && !isEcho(text, prompt) ? text.trim() : '' };
 }

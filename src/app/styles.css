@@ -248,7 +248,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 /* Voice tally (M16): the round gold mic floats bottom right, in the same spot whatever shows beside it. Held, a black
    "Listening…" bar fills the bottom; while stats wait, Discard and Add sit in a bar left of the mic; notes sit above.
    All fixed, so nothing on the board shifts when they come or go, and nothing moves or fades. */
-.page:has(.voice-mic) { padding-bottom: calc(var(--mic-size) + 2 * var(--s4)); } /* the mic never covers the last card or Finish */
+.page:has(.voice-mic, .voice-bar) { padding-bottom: calc(var(--mic-size) + 2 * var(--s4)); } /* the mic or the bar never covers the last card or Finish */
 .voice-mic {
   position: fixed; z-index: 3; right: var(--gutter); bottom: var(--s4); width: var(--mic-size); height: var(--mic-size);
   padding: 0; border: 2px solid var(--bar); border-radius: 50%; font-size: var(--fs-xs);

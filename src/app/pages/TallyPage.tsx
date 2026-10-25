@@ -349,6 +349,7 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
   }
 
   function onHeard(text: string, at: string) {
+    if (!voiceOn) return; // an answer landing after voice went off or the board closed
     const events = parseStats(text, athletes, stats);
     if (events.length === 0) {
       setNote({ text: `Heard “${text}” but no player and stat. Try “${first} gets a D”.` });
@@ -463,11 +464,12 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
       ))}
       {/* Finish stays off while stats wait (§5.4): it pairs the next game from this one's results. */}
       <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length + adds.length]])} />
-      {/* A direct child of the page: inside a .card's backdrop-filter its position: fixed would be trapped (T6a). Kept
-          while stats wait even if the board closes or voice goes off, so they can still be added or dropped. */}
-      {(voiceOn || waiting !== null) && (
-        <VoiceMic names={names} online={online} waiting={waiting ? adds.length : null} note={note} onNote={setNote}
-          onHeard={onHeard} onAdd={addWaiting} onDiscard={discard} />
+      {/* A direct child of the page: inside a .card's backdrop-filter its position: fixed would be trapped (T6a). The
+          mic only while voice is on (`talk`); the Discard / Add bar stays while stats wait even if the board closes or
+          voice goes off, so they can still be added or dropped (T7a), and so does a note (Discard's Undo). */}
+      {(voiceOn || waiting !== null || note !== null) && (
+        <VoiceMic names={names} talk={voiceOn} online={online} waiting={waiting ? adds.length : null} note={note}
+          onNote={setNote} onHeard={onHeard} onAdd={addWaiting} onDiscard={discard} />
       )}
       {waiting && adds.length > 0 && (
         <LeaveGuard onDrop={() => setWaiting(null)} ask={`Leave and drop ${nStats(adds.length)} you haven't added: ${listStats(

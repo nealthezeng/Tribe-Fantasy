@@ -5,21 +5,25 @@ import { useRecorder } from './useRecorder';
 
 class FakeRecorder {
   static made: FakeRecorder[] = [];
+  static late = false; // stop() leaves the stop event to finish(), as a real recorder sends it a moment later
   state: 'inactive' | 'recording' = 'inactive';
   mimeType = 'audio/webm';
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null;
   constructor(readonly stream: unknown) { FakeRecorder.made.push(this); }
   start() { this.state = 'recording'; }
-  stop() { this.state = 'inactive'; this.ondataavailable?.({ data: new Blob(['sound']) }); this.onstop?.(); }
+  stop() { this.state = 'inactive'; if (!FakeRecorder.late) this.finish(); }
+  finish() { this.ondataavailable?.({ data: new Blob(['sound']) }); this.onstop?.(); }
 }
 
 const PRESS = '2026-11-16T18:00:00.000Z';
-let streams: { tracks: { stop: () => void }[] }[];
+type Track = { stop: () => void; readyState: 'live' | 'ended'; muted: boolean };
+let streams: { tracks: Track[] }[];
 const newStream = () => {
-  const s = { tracks: [{ stop: vi.fn() }, { stop: vi.fn() }] };
+  const tracks: Track[] = [{ stop: vi.fn(), readyState: 'live', muted: false }, { stop: vi.fn(), readyState: 'live', muted: false }];
+  const s = { tracks, getTracks: () => tracks, getAudioTracks: () => tracks };
   streams.push(s);
-  return { getTracks: () => s.tracks };
+  return s;
 };
 const getUserMedia = vi.fn();
 const vibrate = vi.fn();
@@ -45,6 +49,7 @@ describe('useRecorder', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(PRESS));
     FakeRecorder.made = [];
+    FakeRecorder.late = false;
     streams = [];
     getUserMedia.mockReset().mockImplementation(async () => newStream());
     vi.stubGlobal('MediaRecorder', FakeRecorder);
@@ -107,6 +112,48 @@ describe('useRecorder', () => {
     await hold(500);
     expect(getUserMedia).toHaveBeenCalledTimes(2);
     expect(onClip).toHaveBeenCalledTimes(1);
+  });
+
+  it("says when the microphone can't be used for any other reason, and asks again", async () => {
+    getUserMedia.mockRejectedValueOnce(new DOMException('in use', 'NotReadableError'));
+    const { onClip, hold, result } = setup();
+    await act(async () => { result.current.start(); });
+    expect(result.current.error).toBe("Voice can't use the microphone here. Try Safari, or tap.");
+    await hold(500);
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(onClip).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens a fresh mic, without a prompt, when the kept one has died, and that hold records', async () => {
+    const { onClip, hold } = setup();
+    await hold(500);
+    for (const t of streams[0].tracks) t.readyState = 'ended'; // e.g. a phone call took the mic
+    await hold(500);
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(tracksStopped(0)).toBe(true);
+    expect(FakeRecorder.made.map((r) => r.stream)).toEqual([streams[0], streams[1]]);
+    expect(onClip).toHaveBeenCalledTimes(2);
+    for (const t of streams[1].tracks) t.muted = true; // a muted mic is no use either
+    await hold(500);
+    expect(getUserMedia).toHaveBeenCalledTimes(3);
+    expect(onClip).toHaveBeenCalledTimes(3);
+  });
+
+  it('starts no new hold until the last one has stopped, so its stop event never ends the new one', async () => {
+    FakeRecorder.late = true;
+    const { onClip, result } = setup();
+    await act(async () => { result.current.start(); });
+    act(() => { vi.advanceTimersByTime(500); });
+    act(() => { result.current.stop(); });
+    await act(async () => { result.current.start(); }); // pressed again before the recorder sent its stop event
+    expect(FakeRecorder.made).toHaveLength(1);
+    act(() => { FakeRecorder.made[0].finish(); });
+    expect(result.current.listening).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(onClip).toHaveBeenCalledTimes(1);
+    await act(async () => { result.current.start(); });
+    expect(FakeRecorder.made).toHaveLength(2);
+    expect(result.current.listening).toBe(true);
   });
 
   it('records nothing when let go during the permission prompt, then records the next hold', async () => {

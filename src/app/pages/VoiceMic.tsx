@@ -5,6 +5,7 @@ import type { VoiceNote } from '../tally/waiting';
 
 interface Props {
   names: string[]; // the board's players, picked ones first
+  talk: boolean; // voice is on and the board open: the mic shows (else only the Discard / Add bar, while stats wait)
   online: boolean;
   waiting: number | null; // null: nothing waits; else how many Add would send
   note: VoiceNote | null;
@@ -26,13 +27,19 @@ export function VoiceMic(props: Props) {
   return canRecord() ? <Mic {...props} /> : null;
 }
 
-function Mic({ names, online, waiting, note, onNote, onHeard, onAdd, onDiscard }: Props) {
+function Mic({ names, talk, online, waiting, note, onNote, onHeard, onAdd, onDiscard }: Props) {
   const [hearing, setHearing] = useState(false);
   const empties = useRef(0); // empty or unreadable calls in a row (ruling 6)
   const latest = useRef({ names, onNote, onHeard });
   useEffect(() => { latest.current = { names, onNote, onHeard }; });
+  const gone = useRef(false); // the board has gone: a late answer does nothing
+  useEffect(() => {
+    gone.current = false; // StrictMode mounts twice
+    return () => { gone.current = true; };
+  }, []);
 
   const answered = (heard: Heard, startedAt: string) => {
+    if (gone.current) return;
     setHearing(false);
     const { onNote, onHeard } = latest.current;
     if ('text' in heard && heard.text) {
@@ -50,8 +57,12 @@ function Mic({ names, online, waiting, note, onNote, onHeard, onAdd, onDiscard }
   };
   const { listening, error, start, stop, clearError } = useRecorder((clip, startedAt) => {
     setHearing(true);
-    void hearClip(clip, latest.current.names).then((heard) => answered(heard, startedAt));
+    void hearClip(clip, latest.current.names)
+      // A throw reads as "not working", never a mic stuck on Hearing… for the visit.
+      .catch((e: unknown): Heard => { console.error('voice', e); return { error: 'broken' }; })
+      .then((heard) => answered(heard, startedAt));
   });
+  useEffect(() => { if (!talk) stop(); }, [talk, stop]); // the mic went (voice off, board verified) mid-hold
 
   useEffect(() => {
     if (!error) return;
@@ -67,7 +78,9 @@ function Mic({ names, online, waiting, note, onNote, onHeard, onAdd, onDiscard }
   }, [note]);
 
   const press = () => {
-    if (hearing) return; // `disabled` doesn't stop pointerdown (React and browsers still deliver it)
+    // `disabled` doesn't stop pointerdown (React and browsers still deliver it); still listening = the last hold's
+    // recorder hasn't stopped yet.
+    if (hearing || listening) return;
     if (online) start();
     else onNote({ text: 'Voice needs signal. The buttons still work.' });
   };
@@ -86,8 +99,8 @@ function Mic({ names, online, waiting, note, onNote, onHeard, onAdd, onDiscard }
         </div>
       )}
       {listening && <p className="voice-listen" role="status">Listening… let go when done</p>}
-      {/* Last and always here, so the bar coming or going never remounts it mid-hold. */}
-      <button className={listening ? 'voice-mic on' : 'voice-mic'} disabled={hearing} aria-disabled={!online || undefined}
+      {/* Last, so the bar coming or going never remounts it mid-hold. */}
+      {talk && <button className={listening ? 'voice-mic on' : 'voice-mic'} disabled={hearing} aria-disabled={!online || undefined}
         aria-label={hearing ? undefined : 'Hold to talk. Say a player and a stat.'}
         onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); press(); }}
         onPointerUp={stop} onPointerCancel={stop} onContextMenu={(e) => e.preventDefault()}
@@ -103,7 +116,7 @@ function Mic({ names, online, waiting, note, onNote, onHeard, onAdd, onDiscard }
             <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />
           </svg>
         )}
-      </button>
+      </button>}
     </>
   );
 }
