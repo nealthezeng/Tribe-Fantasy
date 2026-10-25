@@ -595,8 +595,9 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
 - **The voice bar**: while anything waits, a bar along the bottom (`.voice-bar`, `--bg` with a `--line` top edge)
   holds a secondary "Discard" (a `--line-strong` edge, for the white board) and a gold "Add 3 stats" ("Add 1 stat"; off
   at 0, counting only players who can be added), both 48px tall, in a third and two thirds of the room left of the
-  mic, which stays in the same spot. Add queues ordinary taps timed at the start of the call that put the player in the group, so they
-  merge with another keeper's taps of the same play; the group goes and "Added 3 stats." shows. Discard drops them:
+  mic, which stays in the same spot. Add queues ordinary taps, each timed at the start of the call that named it (a
+  stat tapped on a Heard card takes the start of the call that first named the player), so they merge with another
+  keeper's taps of the same play; the group goes and "Added 3 stats." shows. Discard drops them:
   "Dropped 3 stats." with Undo, which puts them back exactly. Finish stays off while stats Add would send wait.
 - **Notes by the mic** (`.voice-note`): a black `--bar` panel with a `--line-strong` edge, semibold, just above the
   mic's row, one at a time (a new one replaces the old), gone after 6 s, or 5 s with Undo. `role="status"`: "Added N
