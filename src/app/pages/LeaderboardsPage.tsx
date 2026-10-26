@@ -5,7 +5,7 @@ import { StandingsHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { RankList } from '../components/RankList';
 import {
-  anyCounted, countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, pastTournaments, type LeagueTournament,
+  countLeagues, loadLeagueTournament, loadSeasonStandings, mergeStandings, pastTournaments, type LeagueTournament,
 } from '../lib/tournament';
 import { formatDay } from '../lib/stats';
 import { useLoad } from '../lib/useLoad';
@@ -70,7 +70,6 @@ function PastTournaments({ y, membershipId }: { y: LeagueTournament; membershipI
 function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
   y: LeagueTournament; membershipId: string; leagueId: string; leagueName: string; seasonId: string;
 }) {
-  const started = anyCounted(y);
   const [all, setAll] = useState(false);
   const [wanted, setWanted] = useState(false); // stays true once asked for, so toggling back doesn't refetch
   const leagues = useLoad(() => countLeagues(seasonId), [seasonId]);
@@ -80,16 +79,15 @@ function Standings({ y, membershipId, leagueId, leagueName, seasonId }: {
     <article className="card" aria-label="Standings">
       <div className="head">
         <h2>Standings</h2>
-        {started && <StandingsHelp settings={y.settings} />}
-        {started && (leagues.data ?? 0) > 1 && (
+        <StandingsHelp settings={y.settings} />
+        {(leagues.data ?? 0) > 1 && (
           <div className="segmented" role="group" aria-label="Standings for">
             <button type="button" aria-pressed={!all} onClick={() => setAll(false)}>{leagueName}</button>
             <button type="button" aria-pressed={all} onClick={() => { setAll(true); setWanted(true); }}>All leagues</button>
           </div>
         )}
       </div>
-      {!started ? <p className="muted">Standings start after the first game.</p>
-        : rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} linkable={new Set(y.team.keys())} />
+      {rows ? <RankList key={String(all)} rows={rows} membershipId={membershipId} showLeague={all} linkable={new Set(y.team.keys())} />
         : season.error ? <p className="error" role="alert">{season.error}</p> : <Loading />}
     </article>
   );

@@ -68,7 +68,7 @@ export function RulesPage() {
             <li>You buy shares by putting credits on players. Each roster holds up to {S.roster_size} players, and the
               minimum is {S.min_bid} credit. Your buys together can't be more than your credits: the app won't take one
               that goes over.</li>
-            <li>Buys are sealed: nobody sees anyone's buys until buying closes. Then every buy is shown to the league.</li>
+            <li>Buys are sealed: while buying is open, each player shows only his total shares (never under {S.min_shares}), not who bought. Once buying closes, every buy is shown to the league.</li>
             <li>Every credit you put in is spent. A player has {S.min_shares} shares, or one per credit if the league puts
               more than that on him. You own your credits' worth. Put 100 credits on Sam while another team puts 50, and he
               has {pool} shares: you own {pct(100)}%, they own {pct(50)}%{unowned > 0 && <>, and the other {unowned}% scores

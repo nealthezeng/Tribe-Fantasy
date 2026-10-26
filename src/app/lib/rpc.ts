@@ -131,6 +131,9 @@ export const api = {
   closeShareBuying: (stageId: string) => call<void>('close_share_buying', { p_stage: stageId }),
   placeBid: (stageId: string, membershipId: string, athleteId: string, amount: number) =>
     call<void>('place_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId, p_amount: amount }),
+  /** Each bought player's max(min_shares, credits on him) in one league's tournament; buyers stay sealed. */
+  shareTotals: (stageId: string, leagueId: string) =>
+    call<Record<string, number>>('share_totals', { p_stage: stageId, p_league: leagueId }),
   deleteBid: (stageId: string, membershipId: string, athleteId: string) =>
     call<void>('delete_bid', { p_stage: stageId, p_membership: membershipId, p_athlete: athleteId }),
   runAuction: (stageId: string) =>

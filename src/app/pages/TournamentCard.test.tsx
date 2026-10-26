@@ -130,7 +130,7 @@ describe('TournamentCard', () => {
     await show(afterGame1());
     const hrefs = (name: string) => screen.getAllByRole('link', { name }).map((a) => a.getAttribute('href'));
     expect(hrefs('Zeal')).toEqual(['/team/m1']);
-    expect(hrefs('Flow')).toEqual(['/team/m2', '/team/m2']); // headline, "You play"
+    expect(hrefs('Flow')).toEqual(['/team/m2', '/team/m2', '/team/m2']); // headline, "You play", league table
     expect(picks().getByRole('link', { name: 'Flow' }).getAttribute('href')).toBe('/team/m2');
   });
 
@@ -450,11 +450,10 @@ describe('TournamentCard', () => {
       expect(screen.queryByText('Record')).toBeNull();
     });
 
-    it('says standings start after the first game before any game counts', async () => {
+    it('shows the league table before any game counts', async () => {
       await show(afterGame1()); // game 1 finished, not verified: nothing counts yet
-      expect(table().getByText('Standings start after the first game.')).toBeTruthy();
-      expect(table().queryByRole('list')).toBeNull();
-      expect(table().queryByRole('link', { name: 'Full table' })).toBeNull(); // nothing to open yet
+      expect(table().getByText('Zeal (you)')).toBeTruthy();
+      expect(table().getByRole('link', { name: 'Full table' }).getAttribute('href')).toBe('/leaderboards');
       // After the pick card, before the games.
       const [next, league, games] = [screen.getByRole('article', { name: 'Next game' }), screen.getByRole('article', { name: 'League A' }),
         screen.getByRole('region', { name: 'Zeal games' })];
@@ -463,8 +462,8 @@ describe('TournamentCard', () => {
     });
 
     it('explains how the league table is ordered beside it', async () => {
-      await show(afterGame1()); // nothing counts yet: no rows, nothing to explain
-      expect(table().queryByRole('button', { name: 'How the table is ordered' })).toBeNull();
+      await show(afterGame1()); // nothing counts yet: still a table, still explained
+      expect(table().getByRole('button', { name: 'How the table is ordered' })).toBeTruthy();
       cleanup();
       await show(finalGame1());
       const help = table().getByRole('button', { name: 'How the table is ordered' });

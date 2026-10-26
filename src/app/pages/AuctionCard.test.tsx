@@ -19,6 +19,8 @@ const db = vi.hoisted(() => ({
   outs: [] as Row[],
   bids: [] as Row[],
   credit_ledger: [] as Row[],
+  /** share_totals' answer; null = the call fails (the card falls back to "up to"). */
+  totals: null as Record<string, number> | null,
 }));
 /** Tables whose rows the card has read, in the order it read them. */
 const served = vi.hoisted(() => [] as string[]);
@@ -26,7 +28,7 @@ const served = vi.hoisted(() => [] as string[]);
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: (table: string) => {
-      const rows = () => (db as Record<string, Row[]>)[table] ?? [];
+      const rows = () => (db as unknown as Record<string, Row[]>)[table] ?? [];
       const builder = {
         select: () => builder,
         eq: () => builder,
@@ -52,6 +54,7 @@ vi.mock('../lib/rpc', () => ({
       if (i >= 0) db.bids[i] = row; else db.bids.push(row);
     }),
     deleteBid: vi.fn(async () => {}),
+    shareTotals: vi.fn(async () => { if (!db.totals) throw new Error('offline'); return db.totals; }),
   },
 }));
 
@@ -70,6 +73,7 @@ afterEach(cleanup);
 
 beforeEach(() => {
   served.length = 0;
+  db.totals = null;
   db.stages = [];
   db.seasons = [{ settings: {} }];
   db.athletes = [];
@@ -435,6 +439,21 @@ describe('AuctionCard', () => {
     const row = (n: string) => screen.getByText(n).closest('li')!;
     expect(within(row('P1')).getByText('You own up to 20%').tagName).toBe('SMALL');
     expect(within(row('P2')).getByText('You own up to 100%')).toBeTruthy();
+    expect(row('P3').textContent).not.toContain('You own');
+  });
+
+  it("shows each player's live share total, never under min_shares, and your slice of it", async () => {
+    db.stages = [openStage as unknown as Row];
+    db.athletes = [player(1), player(2), player(3)];
+    db.bids = [buy(1, 40), buy(2, 250)];
+    db.totals = { p1: 200, p2: 500 }; // others put 250 on P2
+    renderCard();
+    const row = (n: string) => screen.getByText(n).closest('li')!;
+    await screen.findByText('500 shares');
+    expect(within(row('P1')).getByText('200 shares').tagName).toBe('SMALL');
+    expect(within(row('P1')).getByText('You own about 20%')).toBeTruthy();
+    expect(within(row('P2')).getByText('You own about 50%')).toBeTruthy();
+    expect(within(row('P3')).getByText('200 shares')).toBeTruthy(); // no buys yet: the floor
     expect(row('P3').textContent).not.toContain('You own');
   });
 

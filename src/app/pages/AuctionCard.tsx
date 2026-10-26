@@ -12,7 +12,7 @@ import { api } from '../lib/rpc';
 import { fmt, lastTournamentForm, loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
 import { formatDay, todayLocal } from '../lib/stats';
 import { supabase } from '../lib/supabase';
-import { useLoad, useReloadOnShow } from '../lib/useLoad';
+import { useLoad, usePoll, useReloadOnShow } from '../lib/useLoad';
 import { balance as sumLedger, credits, pct, type LedgerEntry } from '../lib/wallet';
 import { fraction } from '../lib/words';
 
@@ -73,6 +73,12 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
     return () => clearInterval(id);
   }, [closeAt]);
 
+  // The league's live share totals while buying is open: polled, so others' buys show within 15 s.
+  const stageId = data?.stage.id ?? null;
+  const buying = !!data && auctionPhase(data.stage, now) === 'open';
+  const shares = useLoad(async () => (stageId && buying ? api.shareTotals(stageId, leagueId) : null), [stageId, leagueId, buying]);
+  usePoll(() => void shares.reload(), buying);
+
   // Over-budget feedback: each bump re-keys the credits number, restarting its flash; 0 = not flashing.
   const [flash, setFlash] = useState(0);
   const flashTimer = useRef<number | undefined>(undefined);
@@ -123,6 +129,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
       setError({ athleteId, text: errorMessage(err, String(rosterSize)) });
     }
     reload();
+    void shares.reload();
   }
 
   return (
@@ -173,6 +180,7 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
               .sort((a, b) => Number(!!pinned?.has(b.id)) - Number(!!pinned?.has(a.id)))
               .map((a) => {
               const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
+              const pool = shares.data ? shares.data[a.id] ?? settings.min_shares : null;
               // Rounded as the Rules page does; no chip until (or unless) the tournament has loaded.
               const perGame = form?.perGame.get(a.id);
               const factor = tournament ? +repeatFactor(tournament.result, membershipId, a.id, stage.id, settings).toFixed(2) : 1;
@@ -186,8 +194,10 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
                     {out.has(a.id) && <span className="pill bad">Out</span>}
                     {!a.opted_in && <span className="pill">Opted out</span>}
                     {perGame !== undefined && <small>{fmt(perGame)} a game</small>}
-                    {/* "up to": you see only your own buys, and more than min_shares on him shrinks every slice (X4). */}
-                    {bid !== null && <small>You own up to {pct(Math.min(1, bid / settings.min_shares))}</small>}
+                    {pool !== null && <small>{pool} shares</small>}
+                    {/* "about": the live total can still grow before buying closes, and every slice shrinks with it (X4). */}
+                    {bid !== null && (pool !== null ? <small>You own about {pct(Math.min(1, bid / pool))}</small>
+                      : <small>You own up to {pct(Math.min(1, bid / settings.min_shares))}</small>)}
                   </span>
                   {a.user_id === userId ? <span className="muted">That's you</span> : (
                     <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}

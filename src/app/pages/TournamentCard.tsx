@@ -179,15 +179,13 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
 
 /** The league's short table (layout A, ruling 8): the top 3 and your neighbours. "Full table" opens Leaderboards. */
 function LeagueTable({ y, membershipId, leagueName }: { y: LeagueTournament; membershipId: string; leagueName: string }) {
-  const started = anyCounted(y);
   return (
     <article className="card" aria-label={leagueName}>
       <div className="head">
         <h2>{leagueName}</h2>
-        {started && <><StandingsHelp settings={y.settings} /><Link className="more" to="/leaderboards">Full table</Link></>}
+        <StandingsHelp settings={y.settings} /><Link className="more" to="/leaderboards">Full table</Link>
       </div>
-      {started ? <RankList rows={mergeStandings([{ name: leagueName, y }])} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} short />
-        : <p className="muted">Standings start after the first game.</p>}
+      <RankList rows={mergeStandings([{ name: leagueName, y }])} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} short />
     </article>
   );
 }

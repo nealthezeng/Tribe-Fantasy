@@ -150,3 +150,21 @@ describe('0023 on a live database', () => {
     expect((await db.query(`select to_regclass('public.bench_swaps') as t`)).rows).toEqual([{ t: null }]);
   });
 });
+
+describe('share_totals', () => {
+  it('shows each bought player at max(min_shares, credits) to league members only', async () => {
+    const f = await auctionFixture(8, { min_shares: 100 });
+    const [alice, am] = await member(f.db, 'alice');
+    const [bob, bm] = await member(f.db, 'bob');
+    await grant(f);
+    await openAuction(f);
+    const [a0, a1] = f.athletes;
+    await bid(f, alice, am, a0, 80);
+    await bid(f, bob, bm, a0, 70);
+    await bid(f, bob, bm, a1, 5);
+    const totals = (uid: string) => as(f.db, uid, (tx) => rpc(tx, 'share_totals', { p_stage: f.stage, p_league: f.league }));
+    expect(await totals(alice)).toEqual({ [a0]: 150, [a1]: 100 });
+    const stranger = await createUser(f.db, 'eve@x.test');
+    await expect(totals(stranger)).rejects.toThrow('FORBIDDEN');
+  });
+});

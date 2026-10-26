@@ -6,7 +6,7 @@ import { as, createUser, freshDb, makeAdmin, rpc } from './helpers';
 import { makeKeeper, tap } from './stats-fixture';
 
 /** Read-only helpers used by RLS policies; they write nothing, so no audit row. */
-const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues',
+const READ_HELPERS = ['can_read_league_data', 'has_role', 'is_admin', 'is_keeper', 'is_my_athlete', 'is_season_athlete', 'list_leagues', 'share_totals',
   'donation_leaderboard', 'my_donate_anonymously',
   // league-data read, checks can_read_league_data
   'live_game_taps'];

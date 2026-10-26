@@ -59,13 +59,13 @@ const show = () => render(<MemoryRouter><LeaderboardsPage /></MemoryRouter>);
 const standings = async () => within(await screen.findByRole('article', { name: 'Standings' }));
 
 describe('LeaderboardsPage', () => {
-  it('hides the standings until a game counts', async () => {
+  it('shows every team tied before a game counts', async () => {
     rows.current = base();
     overall.leagues = 2;
-    const { container } = show();
-    expect(await screen.findByText('Standings start after the first game.')).toBeTruthy();
-    expect(container.querySelector('.ranks')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'All leagues' })).toBeNull();
+    show();
+    expect(await screen.findByText('Zeal (you)')).toBeTruthy();
+    expect(document.querySelectorAll('.ranks li').length).toBe(2);
+    expect(await screen.findByRole('button', { name: 'All leagues' })).toBeTruthy();
   });
 
   it('shows the standings once a game counts', async () => {
@@ -73,7 +73,6 @@ describe('LeaderboardsPage', () => {
     await standings();
     expect(await screen.findByText('Zeal (you)')).toBeTruthy();
     expect(document.querySelectorAll('.ranks li').length).toBe(2);
-    expect(screen.queryByText('Standings start after the first game.')).toBeNull();
   });
 
   it('explains how the table is ordered', async () => {
@@ -82,10 +81,10 @@ describe('LeaderboardsPage', () => {
     const help = card.getByRole('button', { name: 'How the table is ordered' });
     expect(help.previousElementSibling?.textContent).toBe('Standings'); // beside the heading
     cleanup();
-    rows.current = base(); // before a game counts: no table, so nothing to explain
+    rows.current = base(); // before a game counts: still a table, still explained
     show();
-    await screen.findByText('Standings start after the first game.');
-    expect(screen.queryByRole('button', { name: 'How the table is ordered' })).toBeNull();
+    await screen.findByText('Zeal (you)');
+    expect(screen.getByRole('button', { name: 'How the table is ordered' })).toBeTruthy();
   });
 
   it("shows the chosen team's league standings with each owner beside the record", async () => {
