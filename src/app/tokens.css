@@ -1,7 +1,8 @@
 /* Design tokens: every colour, font, size and spacing value the app uses. Change the look here.
    styles.css only reads these; components never hard-code a colour or font.
    Three places can't read CSS and repeat the values by hand: the favicon and theme-color in index.html, the manifest's
-   theme_color and background_color, and the background of the icons in public/.
+   theme_color and background_color, and the background of the icons in public/. Avatar part colors in lib/avatar.ts are
+   art data, not tokens, so a theme change does not recolor anyone.
    Dark is the base (M9): the scoreboard's world of smoked glass, gold glow and white type. Light mode (t118) is the
    block at the bottom: white glass on a pale page; the top bar, hero and scoreboard stay black. An inline script in
    index.html sets data-theme on <html> before first paint (saved choice, else the phone's setting); the avatar
@@ -104,6 +105,11 @@
   --tap: 44px;        /* the minimum for anything you can press */
   --tap-lg: 48px;     /* tabs and menu items */
   --tap-tally: 76px;  /* tally stat buttons */
+
+  /* Avatars: a sticker figure beside a name */
+  --avatar: 48px;       /* standings rows, the matchup header */
+  --avatar-team: 96px;  /* a team page's header */
+  --avatar-big: 160px;  /* the picker's preview */
   --mic-size: 72px;   /* the tally board's round hold-to-talk mic (M16) */
 
   /* Voice tally (M16): stats heard but not added yet. Baby blue, so they never read as a gold action or a press. */

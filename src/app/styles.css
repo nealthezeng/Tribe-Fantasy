@@ -42,6 +42,9 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
   .tabs a { min-height: var(--bar-height); }
 }
 
+/* Avatars. overflow: visible so the figure can break past its box. */
+.figure { display: block; width: var(--avatar); height: var(--avatar); flex: none; overflow: visible; }
+
 /* Account menu: avatar button, native popover (Esc and tap-outside close it). */
 .account { grid-area: account; }
 .account-button, .account-button:hover:not(:disabled), .account-button:active:not(:disabled) {
