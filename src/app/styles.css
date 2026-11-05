@@ -45,10 +45,13 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 /* Avatars. overflow: visible so the figure can break past its box. */
 .figure { display: block; width: var(--avatar); height: var(--avatar); flex: none; overflow: visible; }
 
-/* The picker on Me. The preview stays in sight while the rows scroll under it: color rows only show a swatch. */
-.avatar-stage { position: sticky; top: var(--bar-height); z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); padding-block: var(--s2); background: var(--card-solid); }
-.avatar-stage .figure { width: var(--avatar-big); height: var(--avatar-big); }
-.avatar-actions { display: grid; gap: var(--s2); flex: 1 1 8rem; }
+/* The picker on Me. The figure scrolls with the page. */
+.avatar-stage { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--s2); text-align: center; }
+.avatar-stage .figure { --size: min(var(--avatar-big), calc(100vw - 200px)); width: var(--size); height: var(--size); } /* 200px: the gutters, the gaps and Shuffle's width each side, so a phone under 360px fits them */
+.avatar-stage > button { padding-inline: var(--s2); justify-self: start; }
+.avatar-stage > button:first-child { justify-self: end; }
+.avatar-stage > :is(.success, .error) { grid-column: 1 / -1; margin: 0; }
+.avatar-me { grid-column: 2; display: grid; justify-items: center; }
 .avatar-slot { border: 0; margin: 0; padding: 0; min-width: 0; }
 .avatar-slot legend { padding: 0; font-weight: var(--fw-semi); }
 .avatar-options { display: flex; gap: var(--s2); overflow-x: auto; padding: var(--s1) 2px var(--s2); scroll-snap-type: x proximity; }

@@ -523,7 +523,8 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
 
 Each person has one sticker figure, shown on all their teams: flat color, a white die-cut edge, two dot eyes, no glow.
 It breaks out of a colored circle, which players see as **Background color**. Never call that circle a disc: the frisbee
-is the disc people mean. Built on Me (`AvatarPicker`), drawn by `Avatar`; the parts live in `lib/avatar.ts`.
+is the disc people mean. Built on Me (`AvatarPicker`: the figure tops the page, centered with no card, Edit avatar drops the
+selector down, and Save collapses it), drawn by `Avatar`; the parts live in `lib/avatar.ts`.
 
 - **Sizes:** `--avatar` 48px in standings rows and the matchup header, `--avatar-team` 96px on a team page,
   `--avatar-big` 160px in the picker. The top bar fits its 34px circle.

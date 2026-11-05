@@ -550,7 +550,7 @@ Closing has no undo: `open_auction` refuses a closed stage.
 3. Push (deploy).
 4. Anon probe (publishable key, no sign-in), **42501**:
    `curl -X POST "$URL/rest/v1/rpc/set_avatar" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_avatar":null}'`
-5. Signed in: Me shows Your avatar, and a saved figure shows in League standings.
+5. Signed in: Me shows your figure with Edit avatar under it, and a saved figure shows in League standings.
 6. Rollback: revert the code and push. The column can stay; the old bundle ignores it. Leave it in place: an installed
    app keeps the new build until its second return, and that build's League, Team and Leaderboards need the column. To
    remove it after that, run the rollback lines at the top of `0031_avatars.sql` (saved avatars are lost).
