@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../core/settings';
+import { resolveAvatar } from '../lib/avatar';
 import type { MembershipRow } from './HomePage';
 import { TeamPage } from './TeamPage';
 
@@ -39,6 +40,7 @@ const game = (number: number, status: string, over: Record<string, unknown> = {}
 const tournament = (over: Record<string, unknown> = {}) => ({
   team: new Map([[ID2, 'Flow'], [ID3, 'Gimp Zeal'], [ID4, 'Old (removed)']]),
   owner: new Map([[ID2, 'Sam Owner']]),
+  avatar: new Map([[ID2, resolveAvatar({ hat: 'crown' }, ID2)]]),
   stage: new Map([['S1', 'Fall beta']]),
   settings: DEFAULT_SETTINGS,
   athlete: new Map([['a', 'Finn Garza'], ['b', 'Rory Vance']]),
@@ -59,6 +61,12 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('TeamPage', () => {
+  it("shows the team's figure in the header", async () => {
+    visit(ID2);
+    await screen.findByRole('heading', { name: 'Flow' });
+    expect(document.querySelectorAll('.figure-team')).toHaveLength(1);
+  });
+
   it('shows the team and its owner, never credits or picks', async () => {
     visit(ID2);
     expect(await screen.findByRole('heading', { name: 'Flow' })).toBeTruthy();

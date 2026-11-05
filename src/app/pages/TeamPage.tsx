@@ -1,6 +1,7 @@
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import type { GameOutcome } from '../../core/tournament';
 import { useAuth } from '../auth/AuthProvider';
+import { Avatar } from '../components/Avatar';
 import { FactorHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { supabase } from '../lib/supabase';
@@ -60,8 +61,10 @@ export function TeamPage() {
   const live = currentGames(y).find((g) => g.status === 'live' && g.matchups.some((m) => m.home.membershipId === membershipId || m.away?.membershipId === membershipId));
   const focus = live ?? games.find((g) => g.game.stageId === next?.stageId && g.game.number === next?.number);
   const number = live?.game.number ?? next?.number;
+  const choice = y.avatar.get(membershipId);
   return (
     <section className="page">
+      {choice && <Avatar choice={choice} className="figure-team" />}
       <div className="head">
         <h1>{y.team.get(membershipId)}</h1>
         {back}

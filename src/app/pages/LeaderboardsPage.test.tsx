@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { HashRouter, MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveAvatar } from '../lib/avatar';
 import { buildLeagueTournament, type OverallStanding, type TournamentRows } from '../lib/tournament';
 import type { MembershipRow } from './HomePage';
 import { LeaderboardsPage } from './LeaderboardsPage';
@@ -144,8 +145,8 @@ describe('team links', () => {
     expect(screen.getByRole('link', { name: 'Zeal (you)' }).getAttribute('href')).toBe('#/team/m1');
     overall.leagues = 2;
     overall.current = [
-      { membershipId: 'm2', team: 'Flow', owner: '', league: 'League A', points: 5, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 1, tied: false },
-      { membershipId: 'b1', team: 'Team a', owner: '', league: 'League B', points: 4, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 2, tied: false },
+      { membershipId: 'm2', avatar: resolveAvatar(null, 'm2'), team: 'Flow', owner: '', league: 'League A', points: 5, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 1, tied: false },
+      { membershipId: 'b1', avatar: resolveAvatar(null, 'b1'), team: 'Team a', owner: '', league: 'League B', points: 4, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 2, tied: false },
     ];
     cleanup();
     render(<HashRouter><LeaderboardsPage /></HashRouter>);
@@ -161,8 +162,8 @@ describe('team links', () => {
     expect(screen.getByRole('link', { name: 'Zeal (you)' }).closest('li')!.classList.contains('row-target')).toBe(true);
     overall.leagues = 2;
     overall.current = [
-      { membershipId: 'm2', team: 'Flow', owner: '', league: 'League A', points: 5, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 1, tied: false },
-      { membershipId: 'b1', team: 'Team a', owner: '', league: 'League B', points: 4, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 2, tied: false },
+      { membershipId: 'm2', avatar: resolveAvatar(null, 'm2'), team: 'Flow', owner: '', league: 'League A', points: 5, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 1, tied: false },
+      { membershipId: 'b1', avatar: resolveAvatar(null, 'b1'), team: 'Team a', owner: '', league: 'League B', points: 4, totalScore: 0, wins: 1, losses: 0, ties: 0, place: 2, tied: false },
     ];
     cleanup();
     render(<HashRouter><LeaderboardsPage /></HashRouter>);
@@ -209,7 +210,7 @@ describe('past tournaments', () => {
 
 describe('Standings toggle (t226)', () => {
   const row = (membershipId: string, team: string, league: string, place: number, tied = false, owner = ''): OverallStanding =>
-    ({ membershipId, team, owner, league, points: 10 - place, totalScore: 0, wins: 2, losses: 1, ties: 0, place, tied });
+    ({ membershipId, avatar: resolveAvatar(null, membershipId), team, owner, league, points: 10 - place, totalScore: 0, wins: 2, losses: 1, ties: 0, place, tied });
   const items = async () => (await standings()).getAllByRole('listitem');
   const allLeagues = async () => fireEvent.click(await screen.findByRole('button', { name: 'All leagues' }));
 

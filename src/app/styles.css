@@ -69,6 +69,8 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: var(--on-gold); font-weight: var(--fw-bold); font-size: var(--fs-md); line-height: 1; }
 .avatar.has-figure { background: none; }
 .avatar .figure { width: 34px; height: 34px; }
+.figure-team { width: var(--avatar-team); height: var(--avatar-team); }
+.display .side .figure { margin-bottom: var(--s1); }
 .account-button[aria-current='page'] .avatar { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px var(--blue); }
 .account-menu {
   position: absolute; inset: auto; top: calc(var(--bar-height) - 2px); right: max(var(--gutter), calc((100% - var(--shell)) / 2 + var(--gutter)));
@@ -431,7 +433,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .money [role='status']:empty { margin-top: calc(-1 * var(--s3)); } /* the copy message's live region waits, taking no room */
 /* t226: standings as a ranked list: place, team (league and record under it), points; your place in gold. */
 .ranks { list-style: none; margin: 0; padding: 0; display: grid; }
-.ranks li { display: grid; grid-template-columns: 2.75rem minmax(0, 1fr) auto; align-items: center; gap: var(--s3); min-height: 56px; padding: var(--s2) 0; border-top: 1px solid var(--line); }
+.ranks li { display: grid; grid-template-columns: 2.25rem var(--avatar) minmax(0, 1fr) auto; align-items: center; gap: var(--s2); min-height: 56px; padding: 6px 0; border-top: 1px solid var(--line); } /* 6px: a 48px figure leaves a normal row no taller than two lines of text did */
 .ranks li:first-child { border-top: 0; }
 .ranks :is(.rank, .points) { font-family: var(--font-display); font-weight: var(--fw-display); letter-spacing: var(--display-track); font-variant-numeric: tabular-nums; font-size: var(--fs-xl); line-height: 1; }
 .ranks .rank { color: var(--muted); }

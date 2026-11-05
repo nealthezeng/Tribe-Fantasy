@@ -117,6 +117,11 @@ const show = async (r: TournamentRows) => {
 const picks = () => within(screen.getByRole('article', { name: 'Next game' }));
 
 describe('TournamentCard', () => {
+  it("shows both teams' figures in the matchup header", async () => {
+    await show(afterGame1());
+    expect(document.querySelectorAll('.matchup .figure')).toHaveLength(2);
+  });
+
   it('names games after the real opponent once a keeper sets it (t123)', async () => {
     const r = afterGame1();
     r.games = r.games.map((g) => (g.id === 'g1' ? { ...g, opponent: 'UNC' } : { ...g, opponent: 'Duke' }));
@@ -385,7 +390,7 @@ describe('TournamentCard', () => {
     expect(picks().queryByText(/If you don't pick/)).toBeNull();
   });
 
-  const owners = () => [...document.querySelectorAll('.display .side')].map((el) => [el.firstChild?.textContent, el.querySelector('.owner')?.textContent ?? null]);
+  const owners = () => [...document.querySelectorAll('.display .side')].map((el) => [el.querySelector('.team-link')?.textContent, el.querySelector('.owner')?.textContent ?? null]);
 
   it('puts each owner under its own team name in the headline', async () => {
     await show({ ...afterGame1(), members: [{ ...base().members[0], user_id: 'u1' }, { ...base().members[1], user_id: 'u2' }],

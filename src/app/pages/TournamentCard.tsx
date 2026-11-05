@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
+import { Avatar } from '../components/Avatar';
 import { FactorHelp, StandingsHelp, VerifiedHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { RankList } from '../components/RankList';
+import type { AvatarChoice } from '../lib/avatar';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
@@ -80,8 +82,8 @@ function focusGame(y: LeagueTournament, membershipId: string) {
 }
 
 /** A team name in the headline, its owner in small text under it (nothing when the account has no profile). */
-const HeadSide = ({ id, name, owner }: { id: string; name?: string; owner?: string }) => (
-  <span className="side"><Link className="team-link" to={`/team/${id}`}>{name}</Link>{owner && <> <small className="owner">{owner}</small></>}</span>
+const HeadSide = ({ id, name, owner, choice }: { id: string; name?: string; owner?: string; choice?: AvatarChoice }) => (
+  <span className="side">{choice && <Avatar choice={choice} />}<Link className="team-link" to={`/team/${id}`}>{name}</Link>{owner && <> <small className="owner">{owner}</small></>}</span>
 );
 
 const RESULT = { W: 'Won', L: 'Lost', T: 'Tied' } as const;
@@ -127,9 +129,9 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
       <div className="matchup">
         <h2 className="display">
           {them ? <>
-            <HeadSide id={membershipId} name={teamName} owner={y.owner.get(membershipId)} />
+            <HeadSide id={membershipId} name={teamName} owner={y.owner.get(membershipId)} choice={y.avatar.get(membershipId)} />
             {' '}<span className="vs">vs</span>{' '}
-            <HeadSide id={them.membershipId} name={y.team.get(them.membershipId)} owner={y.owner.get(them.membershipId)} />
+            <HeadSide id={them.membershipId} name={y.team.get(them.membershipId)} owner={y.owner.get(them.membershipId)} choice={y.avatar.get(them.membershipId)} />
           </> : teamName}
         </h2>
         <p className="strip">

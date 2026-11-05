@@ -6,6 +6,7 @@ import {
 } from '../../core/tournament';
 import { rowToTap, type StatTapRow } from '../tally/queue';
 import { AUCTION_STAGE_COLUMNS, auctionPhase, pickAuctionStage, pickPlayingStage, type AuctionStage } from './auction';
+import { resolveAvatar, type AvatarChoice } from './avatar';
 import { api } from './rpc';
 import { todayLocal } from './stats';
 import { supabase } from './supabase';
@@ -35,7 +36,7 @@ export interface TournamentRows {
   pairings: { game_id: string; home: string; away: string | null }[];
   members: { id: string; team_name: string; created_at: string; removed_at: string | null; user_id?: string | null }[];
   /** The members' accounts' names. */
-  profiles?: { id: string; display_name: string }[];
+  profiles?: { id: string; display_name: string; avatar?: unknown }[];
   slots: { stage_id: string; membership_id: string; athlete_id: string; price: number; share: number; from_game: number; until_game: number | null }[];
   picks: { stage_id: string; game_number: number; membership_id: string; athlete_id: string }[];
   /** Every session a game links to: a game whose session is missing is void. */
@@ -109,6 +110,8 @@ export interface LeagueTournament {
   team: Map<string, string>;
   /** membershipId → the owner's display name: "Removed user" once the account is gone, "" without a profile. */
   owner: Map<string, string>;
+  /** membershipId → the figure to draw beside the team. */
+  avatar: Map<string, AvatarChoice>;
   athlete: Map<string, string>;
   stage: Map<string, string>;
   /** Each stage's dates, for the League header. */
@@ -131,6 +134,7 @@ export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): L
     })),
   }]));
   const names = new Map((rows.profiles ?? []).map((p) => [p.id, p.display_name]));
+  const avatars = new Map((rows.profiles ?? []).map((p) => [p.id, p.avatar]));
   return {
     settings: input.settings,
     input,
@@ -138,6 +142,7 @@ export function buildLeagueTournament(rows: TournamentRows, now = Date.now()): L
     unofficial,
     team: new Map(rows.members.map((m) => [m.id, teamLabel(m)])),
     owner: new Map(rows.members.map((m) => [m.id, m.user_id === null ? 'Removed user' : names.get(m.user_id ?? '') ?? ''])),
+    avatar: new Map(rows.members.map((m) => [m.id, resolveAvatar(m.user_id ? avatars.get(m.user_id) : null, m.user_id ?? m.id)])),
     athlete: new Map(rows.athletes.map((a) => [a.id, a.name])),
     stage: new Map(rows.stages.map((x) => [x.id, x.name])),
     stageDates: new Map(rows.stages.map((x) => [x.id, { starts_on: x.starts_on, ends_on: x.ends_on }])),
@@ -207,7 +212,7 @@ export async function loadLeagueRows(seasonId: string, leagueId: string, { taps 
     rowsOf<TournamentRows['pairings'][number]>(gameIds.length
       ? sb.from('game_pairings').select('game_id, home, away').eq('league_id', leagueId).in('game_id', gameIds) : null),
     rowsOf<TournamentRows['sessions'][number]>(sessionIds.length ? sb.from('sessions').select('id, verified_at').in('id', sessionIds) : null),
-    rowsOf<NonNullable<TournamentRows['profiles']>[number]>(userIds.length ? sb.from('profiles').select('id, display_name').in('id', userIds) : null),
+    rowsOf<NonNullable<TournamentRows['profiles']>[number]>(userIds.length ? sb.from('profiles').select('id, display_name, avatar').in('id', userIds) : null),
   ]);
   const open = sessions.filter((s) => s.verified_at === null).map((s) => s.id);
   const [lines, tapRows] = await Promise.all([
@@ -333,7 +338,7 @@ export async function seasonRanks(seasonId: string, stageId: string): Promise<{ 
 }
 
 export interface OverallStanding {
-  membershipId: string; team: string; owner: string; league: string;
+  membershipId: string; team: string; owner: string; league: string; avatar: AvatarChoice;
   points: number; totalScore: number; wins: number; losses: number; ties: number; place: number; tied: boolean;
 }
 
@@ -341,9 +346,9 @@ export interface OverallStanding {
  * Leagues' standings as one ranked list, by the leagues' own rule: points, then total score; equal on both = tied.
  * Tied teams list by name, so one league's Standings and the all-leagues view order them alike (t226).
  */
-export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament, 'result' | 'team' | 'owner'> }[]): OverallStanding[] {
+export function mergeStandings(leagues: { name: string; y: Pick<LeagueTournament, 'result' | 'team' | 'owner' | 'avatar'> }[]): OverallStanding[] {
   const rows = leagues.flatMap(({ name, y }) => y.result.standings.map(({ membershipId, points, totalScore, wins, losses, ties }) =>
-    ({ membershipId, team: y.team.get(membershipId) ?? '', owner: y.owner.get(membershipId) ?? '', league: name, points, totalScore, wins, losses, ties })));
+    ({ membershipId, team: y.team.get(membershipId) ?? '', owner: y.owner.get(membershipId) ?? '', avatar: y.avatar.get(membershipId) ?? resolveAvatar(null, membershipId), league: name, points, totalScore, wins, losses, ties })));
   const ahead = (o: typeof rows[number], r: typeof rows[number]) =>
     o.points > r.points || (o.points === r.points && o.totalScore > r.totalScore);
   return rows.map((r) => ({
@@ -375,7 +380,7 @@ export interface PastTournament { stageId: string; name: string; starts_on: stri
  * final games gave (byes included; a team that joined later is absent), ties by total score. `waiting`: a game still
  * live or pending.
  */
-export function pastTournaments(y: Pick<LeagueTournament, 'result' | 'team' | 'owner' | 'stage' | 'stageDates'>): PastTournament[] {
+export function pastTournaments(y: Pick<LeagueTournament, 'result' | 'team' | 'owner' | 'avatar' | 'stage' | 'stageDates'>): PastTournament[] {
   const byStage = new Map<string, GameOutcome[]>();
   for (const g of y.result.games) {
     if (g.status !== 'upcoming' && g.game.stageId !== y.result.next?.stageId) byStage.set(g.game.stageId, [...(byStage.get(g.game.stageId) ?? []), g]);
@@ -397,7 +402,7 @@ export function pastTournaments(y: Pick<LeagueTournament, 'result' | 'team' | 'o
       }
     }
     // mergeStandings only reads the standings rows and the name maps.
-    const rows = mergeStandings([{ name: '', y: { result: { standings: [...table.values()] } as unknown as TournamentResult, team: y.team, owner: y.owner } }]);
+    const rows = mergeStandings([{ name: '', y: { result: { standings: [...table.values()] } as unknown as TournamentResult, team: y.team, owner: y.owner, avatar: y.avatar } }]);
     return { stageId, name: y.stage.get(stageId) ?? '', ...y.stageDates.get(stageId)!, rows,
       waiting: games.some((g) => g.status === 'live' || g.status === 'pending') };
   }).sort((a, b) => b.starts_on.localeCompare(a.starts_on));

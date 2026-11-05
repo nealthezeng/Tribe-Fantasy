@@ -232,6 +232,11 @@ describe('TallyPage board', () => {
     expect(screen.getByText('A1').closest('li')!.querySelector('.tally-buttons')).toBeTruthy();
   });
 
+  it('draws no avatar on the board', async () => {
+    const { container } = await board();
+    expect(container.querySelector('.figure')).toBeNull();
+  });
+
   it('puts Finish game at the end of the board, not in the bar', async () => {
     const { container } = await board();
     const finish = screen.getByRole('button', { name: 'Finish game 2' });

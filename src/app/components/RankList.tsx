@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { fmt, record, shortRows, type OverallStanding } from '../lib/tournament';
+import { Avatar } from './Avatar';
 
 /**
- * Ranked rows: place, team (league, owner and record under it), points; all tied at first is fine here (t239), since the card only shows rows once a game counts (t323).
+ * Ranked rows: place, figure, team (league, owner and record under it), points; all tied at first is fine here (t239), since the card only shows rows once a game counts (t323).
  * A long list shows the top 5 (with everyone tied with 5th) and your row, if that hides at least 4 teams. `short` (the
  * League tab's table): the top 3 and your neighbours (ruling 8), never a Show all. Each run of hidden rows is one gap row.
  */
@@ -30,6 +31,7 @@ export function RankList({ rows, membershipId, showLeague, linkable, short = fal
           return (
             <li key={r.membershipId} className={link ? 'row-target' : undefined} aria-current={me ? 'true' : undefined}>
               <span className="rank">{r.tied ? 'T' : ''}{r.place}</span>
+              <Avatar choice={r.avatar} />
               <span className="who">
                 <strong>
                   {link ? <Link className="team-link" to={`/team/${r.membershipId}`}>{r.team}{me && ' (you)'}</Link> : <>{r.team}{me && ' (you)'}</>}
