@@ -70,7 +70,6 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .avatar.has-figure { background: none; }
 .avatar .figure { width: 34px; height: 34px; }
 .figure-team { width: var(--avatar-team); height: var(--avatar-team); }
-.display .side .figure { margin-bottom: var(--s1); }
 .account-button[aria-current='page'] .avatar { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px var(--blue); }
 .account-menu {
   position: absolute; inset: auto; top: calc(var(--bar-height) - 2px); right: max(var(--gutter), calc((100% - var(--shell)) / 2 + var(--gutter)));
@@ -336,7 +335,10 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .display { overflow-wrap: anywhere; font-family: var(--font-display); font-weight: var(--fw-display); text-transform: var(--display-case); letter-spacing: var(--display-track); font-stretch: normal; font-size: var(--fs-matchup); line-height: 0.9; }
 .vs { font-family: var(--font-sans); font-weight: var(--fw-semi); font-size: var(--fs-sm); text-transform: lowercase; letter-spacing: normal; color: var(--muted); }
 .display .vs { vertical-align: 0.6em; padding-inline: var(--s1); }
-.display .side { display: inline-block; vertical-align: top; }
+.display .side { display: inline-grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: var(--s2); max-width: 100%; vertical-align: top; } /* the figure beside the name and owner, so the stacked headline stays short on a phone */
+.display .side .figure { grid-row: span 2; }
+.display .side > * { grid-column: 2; }
+.display .side > .figure { grid-column: 1; }
 /* A team name that links to its page reads as a name: same colour and weight, underlined only on hover or focus. In the
    matchup headline a quiet line shows the names open their teams; it goes solid on hover or focus. */
 .team-link { color: inherit; font-weight: inherit; text-decoration: none; }
