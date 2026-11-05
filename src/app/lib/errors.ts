@@ -9,6 +9,7 @@ const MESSAGES: Record<string, string> = {
   ATHLETE_EXISTS: 'An athlete with that name is already in this season.',
   ATHLETE_IN_USE: "This player has stats, shares or picks, so they weren't removed. Opt them out instead.",
   NO_PROFILE: 'Set your display name first.',
+  BAD_AVATAR: "That avatar couldn't be saved. Reload the page and try again.",
   INVALID_TEAM_NAME: 'Team names must be 1–40 characters.',
   ALREADY_MEMBER: "You're already in this league.",
   TEAM_NAME_TAKEN: 'Another team in this league already has that name.',

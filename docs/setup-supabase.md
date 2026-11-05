@@ -538,6 +538,25 @@ reopening).
 What admins can do: everything as before, plus close a tournament's share buying early (the button comes in Round 2).
 Closing has no undo: `open_auction` refuses a closed stage.
 
+## Avatars (after 0001-0030)
+
+`0031_avatars.sql` is additive. It adds `profiles.avatar` (null = the generated figure) and the RPCs `set_avatar` and
+`admin_reset_avatar`.
+
+1. Paste BEFORE the push: the new build selects `profiles.avatar`, so League, Team and Leaderboards fail on a database
+   without it. Backup first (Admin -> Backup).
+2. SQL Editor: paste and run `supabase/migrations/0031_avatars.sql`. If the editor offers "Run and enable RLS", choose
+   **Run without RLS** (no new table). The old site ignores the new column, so it keeps working until the push.
+3. Push (deploy).
+4. Anon probe (publishable key, no sign-in), **42501**:
+   `curl -X POST "$URL/rest/v1/rpc/set_avatar" -H "apikey: $ANON" -H "Content-Type: application/json" -d '{"p_avatar":null}'`
+5. Signed in: Me shows Your avatar, and a saved figure shows in League standings.
+6. Rollback: revert the code and push. The column can stay; the old bundle ignores it. To remove it afterward, run the
+   rollback lines at the top of `0031_avatars.sql` (saved avatars are lost).
+
+What admins can do: reset anyone's avatar to their generated figure (Admin -> People, opened row, Reset avatar, with a
+confirmation). It is audited with the old value.
+
 ## Voice tally (Edge Function `voice`, no migration)
 
 M16 puts a hold-to-talk mic on the tally board. The phone posts the clip, the board's player names and a Whisper

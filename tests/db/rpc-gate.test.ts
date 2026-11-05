@@ -24,6 +24,8 @@ const MEMBER_CALLABLE = [
   'rename_my_team',
   // Donors list (Credits page): your own profile only.
   'set_donate_anonymously',
+  // Avatars: your own profile only.
+  'set_avatar',
 ];
 /** Keepers (and admins) may call these; every other staff RPC is admin-only. */
 const KEEPER_CALLABLE = [
@@ -72,6 +74,7 @@ describe('RPC gate', () => {
       ['set_display_name', player, () => ({ p_name: 'Pat' })],
       ['set_notify_email', player, () => ({ p_on: false })],
       ['set_donate_anonymously', player, () => ({ p_on: true })],
+      ['set_avatar', player, () => ({ p_avatar: { hat: 'crown' } })],
       ['create_season', admin, () => ({ p_name: 'Gate', p_settings: {} }), (r) => (c.season = r as string)],
       ['update_season_settings', admin, () => ({ p_season: c.season, p_settings: { donations_enabled: true, roster_size: 1, allow_self_ownership: true } })],
       ['create_league', admin, () => ({ p_season: c.season, p_name: 'L' }), (r) => (c.league = r as string)],
@@ -126,6 +129,7 @@ describe('RPC gate', () => {
       ['admin_set_share', admin, () => ({ p_stage: c.stage, p_membership: c.membership, p_athlete: c.athlete, p_percent: 30 })],
       ['admin_rename_team', admin, () => ({ p_membership: c.membership, p_name: 'Pats II' })],
       ['admin_set_display_name', admin, () => ({ p_user: player, p_name: 'Pat Two' })],
+      ['admin_reset_avatar', admin, () => ({ p_user: player })],
       ['admin_remove_user', admin, () => ({ p_user: c.spareUser })],
       ['delete_stage', admin, () => ({ p_stage: c.stage })],
       ['rename_season', admin, () => ({ p_season: c.season, p_name: 'Gate season' })],

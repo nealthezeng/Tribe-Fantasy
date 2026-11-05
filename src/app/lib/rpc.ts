@@ -55,6 +55,7 @@ async function call<T>(fn: string, args: Record<string, unknown>): Promise<T> {
 export const api = {
   setDisplayName: (name: string) => call<void>('set_display_name', { p_name: name }),
   setNotifyEmail: (on: boolean) => call<void>('set_notify_email', { p_on: on }),
+  setAvatar: (avatar: Record<string, string>) => call<void>('set_avatar', { p_avatar: avatar }),
   setDonateAnonymously: (on: boolean) => call<void>('set_donate_anonymously', { p_on: on }),
   /** Whether you can read league data such as stats: in a league, or staff. False for an athlete-only account. */
   canReadLeagueData: () => call<boolean>('can_read_league_data', {}),
@@ -98,6 +99,7 @@ export const api = {
   /** Admin: every account with email, roles, teams, linked player and donation totals. */
   listUsers: () => call<UserRow[]>('list_users', {}),
   adminSetDisplayName: (userId: string, name: string) => call<void>('admin_set_display_name', { p_user: userId, p_name: name }),
+  adminResetAvatar: (userId: string) => call<void>('admin_reset_avatar', { p_user: userId }),
   /** Admin: the account can't sign in; its teams stay marked removed. Can't be undone. */
   adminRemoveUser: (userId: string) => call<{ teams: number; donations: number }>('admin_remove_user', { p_user: userId }),
   linkAthleteUser: (athleteId: string, userId: string | null) =>
