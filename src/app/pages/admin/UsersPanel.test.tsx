@@ -5,6 +5,10 @@ import { api } from '../../lib/rpc';
 import { removeMessage, UsersPanel, type UserRow } from './UsersPanel';
 
 vi.mock('../../auth/AuthProvider', () => ({ useAuth: () => ({ session: { user: { id: 'me' } }, loading: false }) }));
+const saved = vi.hoisted(() => ({ rows: [] as { id: string; avatar: unknown }[], fail: false }));
+vi.mock('../../lib/supabase', () => ({ supabase: { from: () => ({
+  select: () => Promise.resolve(saved.fail ? { data: null, error: new Error('offline') } : { data: saved.rows, error: null }),
+}) } }));
 
 const ALEX: UserRow = {
   id: 'u1', email: 'alex@x.test', display_name: 'Alex Kim', roles: ['stat_keeper'],
@@ -25,10 +29,11 @@ vi.mock('../../lib/rpc', () => ({ api: {
   grantRole: vi.fn(() => Promise.resolve()),
   revokeRole: vi.fn(() => Promise.resolve()),
   adminSetDisplayName: vi.fn(() => Promise.resolve()),
+  adminResetAvatar: vi.fn(() => Promise.resolve()),
   adminRemoveUser: vi.fn(() => Promise.resolve({ teams: 1, donations: 2 })),
 } }));
 
-afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.clearAllMocks(); saved.rows = []; saved.fail = false; });
 /** A person's row: the summary that opens their actions. */
 const row = async (name: string) => (await screen.findByText(name)).closest('summary') as HTMLElement;
 /** Opens a person's row; their actions, inside the row's details. */
@@ -63,6 +68,56 @@ describe('removeMessage', () => {
   it('never says forfeit (the core has no forfeit rule)', () => {
     expect(removeMessage(ALEX)).not.toMatch(/forfeit/i);
     expect(removeMessage(JO)).not.toMatch(/forfeit/i);
+  });
+});
+
+describe('UsersPanel avatars', () => {
+  const RESET = "Reset Alex Kim's avatar to a random one? They can pick a new one any time.";
+
+  it("shows the person's figure in their opened row", async () => {
+    render(<UsersPanel />);
+    await open('Alex Kim');
+    expect((await screen.findByText('Alex Kim')).closest('details')!.querySelector('.figure')).not.toBeNull();
+  });
+
+  it('offers Reset avatar only when they saved one', async () => {
+    saved.rows = [{ id: 'u1', avatar: { hat: 'crown' } }, { id: 'u4', avatar: null }];
+    render(<UsersPanel />);
+    expect(await (await open('Alex Kim')).findByRole('button', { name: 'Reset avatar' })).toBeTruthy();
+    expect((await open('Jo Park')).queryByRole('button', { name: 'Reset avatar' })).toBeNull();
+  });
+
+  it('confirms with the exact message, then resets and reloads', async () => {
+    saved.rows = [{ id: 'u1', avatar: { hat: 'crown' } }];
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<UsersPanel />);
+    const person = await open('Alex Kim');
+    const callsBefore = vi.mocked(api.listUsers).mock.calls.length;
+    fireEvent.click(await person.findByRole('button', { name: 'Reset avatar' }));
+    expect(confirm).toHaveBeenCalledWith(RESET);
+    expect(api.adminResetAvatar).toHaveBeenCalledWith('u1');
+    await waitFor(() => expect(vi.mocked(api.listUsers).mock.calls.length).toBeGreaterThan(callsBefore));
+  });
+
+  it('does nothing when the confirm is declined', async () => {
+    saved.rows = [{ id: 'u1', avatar: { hat: 'crown' } }];
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<UsersPanel />);
+    fireEvent.click(await (await open('Alex Kim')).findByRole('button', { name: 'Reset avatar' }));
+    expect(api.adminResetAvatar).not.toHaveBeenCalled();
+  });
+
+  it('still lists everyone when avatars fail to load, with no reset to offer', async () => {
+    saved.fail = true;
+    render(<UsersPanel />);
+    const person = await open('Alex Kim');
+    expect(person.queryByRole('button', { name: 'Reset avatar' })).toBeNull();
+  });
+
+  it('draws nothing for an account with no profile yet', async () => {
+    render(<UsersPanel />);
+    await open('bo@x.test');
+    expect((await screen.findByText('bo@x.test')).closest('details')!.querySelector('.figure')).toBeNull();
   });
 });
 

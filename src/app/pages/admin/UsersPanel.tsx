@@ -1,8 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
+import { Avatar } from '../../components/Avatar';
 import { Loading } from '../../components/Loading';
+import { resolveAvatar } from '../../lib/avatar';
 import { errorMessage } from '../../lib/errors';
 import { api, type Role, type UserRow } from '../../lib/rpc';
+import { supabase } from '../../lib/supabase';
 import { useLoad } from '../../lib/useLoad';
 import { usd } from '../Credits';
 
@@ -38,6 +41,13 @@ export function removeMessage(u: UserRow): string {
 export function UsersPanel() {
   const [search, setSearch] = useState('');
   const users = useLoad(() => api.listUsers(), []);
+  // Admins can read every profile, so list_users needn't carry the avatars. If this fails, people still list, with nothing to reset.
+  const avatars = useLoad(async () => {
+    const r = await supabase!.from('profiles').select('id, avatar');
+    if (r.error) throw r.error;
+    return new Map((r.data as { id: string; avatar: unknown }[]).map((p) => [p.id, p.avatar]));
+  }, []);
+  const reload = () => Promise.all([users.reload(), avatars.reload()]);
 
   const q = search.trim().toLowerCase();
   const shown = users.data?.filter((u) => !q || `${u.display_name ?? ''} ${u.email}`.toLowerCase().includes(q));
@@ -48,13 +58,13 @@ export function UsersPanel() {
       {users.error && <p className="error" role="alert">{users.error}</p>}
       {!users.data && !users.error && <Loading />}
       <ul className="list">
-        {shown?.map((u) => <Person key={u.id} u={u} reload={users.reload} />)}
+        {shown?.map((u) => <Person key={u.id} u={u} avatar={avatars.data?.get(u.id)} reload={reload} />)}
       </ul>
     </div>
   );
 }
 
-function Person({ u, reload }: { u: UserRow; reload: () => Promise<unknown> }) {
+function Person({ u, avatar, reload }: { u: UserRow; avatar: unknown; reload: () => Promise<unknown> }) {
   const { session } = useAuth();
   const [name, setName] = useState(u.display_name ?? '');
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +102,10 @@ function Person({ u, reload }: { u: UserRow; reload: () => Promise<unknown> }) {
     if (window.confirm(removeMessage(u))) void run(() => api.adminRemoveUser(u.id));
   }
 
+  function resetAvatar() {
+    if (window.confirm(`Reset ${who(u)}'s avatar to a random one? They can pick a new one any time.`)) void run(() => api.adminResetAvatar(u.id));
+  }
+
   return (
     <li>
       <details name="account">
@@ -115,6 +129,12 @@ function Person({ u, reload }: { u: UserRow; reload: () => Promise<unknown> }) {
               <label>Name<input required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} /></label>
               <button className="secondary">Save name</button>
             </form>
+          )}
+          {u.display_name !== null && (
+            <div className="row">
+              <Avatar choice={resolveAvatar(avatar, u.id)} />
+              {avatar !== undefined && avatar !== null && <button type="button" className="secondary" disabled={busy} onClick={resetAvatar}>Reset avatar</button>}
+            </div>
           )}
           {error && <p className="error" role="alert">{error}</p>}
           <button className="danger-link" aria-label={`Remove account ${who(u)}`} disabled={u.id === session?.user.id} onClick={remove}>Remove account</button>
