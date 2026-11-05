@@ -7,6 +7,7 @@ interface AuthState {
   session: Session | null;
   loading: boolean;
   displayName: string | null | undefined; // undefined = not loaded yet for this user; null = has no name
+  avatar: unknown; // the stored parts; undefined = not loaded yet for this user; null = none saved
   isAdmin: boolean;
   isKeeper: boolean; // stat_keeper or admin
   authError: string | null;
@@ -20,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(Boolean(supabase)); // no client: nothing to wait for
   const [displayName, setDisplayName] = useState<string | null | undefined>(undefined);
+  const [avatar, setAvatar] = useState<unknown>(undefined);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isKeeper, setIsKeeper] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (loadedFor.current === uid) return;
     loadedFor.current = uid;
     setDisplayName(undefined);
+    setAvatar(undefined);
     setIsAdmin(false);
     setIsKeeper(false);
   }, []);
@@ -39,13 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetForUser(uid);
     if (!supabase || !s || !uid) return;
     const [profile, roles] = await Promise.all([
-      supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle(),
+      supabase.from('profiles').select('display_name, avatar').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
     ]);
     // A failed fetch (e.g. on an hourly token refresh) keeps what we knew: it mustn't drop a keeper out of tallying.
     if (profile.error || roles.error) return;
     if (loadedFor.current !== uid) return; // a newer sign-in or sign-out happened meanwhile
     setDisplayName(profile.data?.display_name ?? null);
+    setAvatar(profile.data?.avatar ?? null);
     const roleNames = (roles.data ?? []).map((r: { role: string }) => r.role);
     setIsAdmin(roleNames.includes('admin'));
     setIsKeeper(roleNames.includes('admin') || roleNames.includes('stat_keeper'));
@@ -88,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
   return (
-    <AuthContext.Provider value={{ session, loading, displayName, isAdmin, isKeeper, authError, clearAuthError, refresh }}>
+    <AuthContext.Provider value={{ session, loading, displayName, avatar, isAdmin, isKeeper, authError, clearAuthError, refresh }}>
       {children}
     </AuthContext.Provider>
   );

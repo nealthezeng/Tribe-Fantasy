@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
+import { resolveAvatar } from '../lib/avatar';
+import { Avatar } from './Avatar';
 import { errorMessage } from '../lib/errors';
 import { isIos, isStandalone, promptInstall, useCanInstall } from '../lib/pwa';
 import { api } from '../lib/rpc';
@@ -19,7 +21,7 @@ function DiscMark() {
 }
 
 /** Avatar button that opens Me, My credits, Rules, Admin, Install app and Sign out. A native popover handles Esc, tap-outside and focus. */
-function AccountMenu({ name, email, isAdmin }: { name: string | null; email: string | undefined; isAdmin: boolean }) {
+function AccountMenu({ name, email, isAdmin, uid, avatar }: { name: string | null; email: string | undefined; isAdmin: boolean; uid: string; avatar: unknown }) {
   const menu = useRef<HTMLDivElement>(null);
   const path = useLocation().pathname;
   const onMenuPage = path === '/me' || path === '/credits' || path.startsWith('/admin');
@@ -46,7 +48,10 @@ function AccountMenu({ name, email, isAdmin }: { name: string | null; email: str
     <div className="account">
       <button className="account-button" popoverTarget="account-menu" aria-label="Account menu"
         aria-current={onMenuPage ? 'page' : undefined}>
-        <span className="avatar" aria-hidden="true">{initial}</span>
+        {/* The initial until the profile has loaded, so nobody's generated figure flashes before their saved one. */}
+        {avatar === undefined
+          ? <span className="avatar" aria-hidden="true">{initial}</span>
+          : <span className="avatar has-figure"><Avatar choice={resolveAvatar(avatar, uid)} /></span>}
       </button>
       <div id="account-menu" className="account-menu" popover="auto" ref={menu}>
         <p className="account-who">
@@ -107,7 +112,7 @@ const tabOf = (path: string) =>
   path === '/' ? '/' : /^\/(stats|player|tally)(\/|$)/.test(path) ? '/stats' : /^\/(leaderboards|team)(\/|$)/.test(path) ? '/leaderboards' : null;
 
 export function Layout() {
-  const { session, isAdmin, displayName, loading, authError, clearAuthError } = useAuth();
+  const { session, isAdmin, displayName, avatar, loading, authError, clearAuthError } = useAuth();
   const path = useLocation().pathname;
   const tab = tabOf(path);
   const tabs = useInk<HTMLElement>(`${path} ${Boolean(session)}`);
@@ -125,7 +130,7 @@ export function Layout() {
             </nav>
           )}
           {session
-            ? <AccountMenu name={displayName ?? null} email={session.user.email} isAdmin={isAdmin} />
+            ? <AccountMenu name={displayName ?? null} email={session.user.email} isAdmin={isAdmin} uid={session.user.id} avatar={avatar} />
             : <NavLink to="/login" className="signin">Sign in</NavLink>}
         </div>
       </header>

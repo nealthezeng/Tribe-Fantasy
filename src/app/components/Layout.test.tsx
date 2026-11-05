@@ -5,10 +5,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { startPwa } from '../lib/pwa';
 import { Layout } from './Layout';
 
-const auth = vi.hoisted(() => ({ isAdmin: false, displayName: 'Pat' as string | null | undefined }));
+const auth = vi.hoisted(() => ({ isAdmin: false, displayName: 'Pat' as string | null | undefined, avatar: undefined as unknown }));
 vi.mock('../auth/AuthProvider', () => ({
   useAuth: () => ({
-    session: { user: { id: 'u1', email: 'pat@x.test' } }, isAdmin: auth.isAdmin, isKeeper: true, displayName: auth.displayName,
+    session: { user: { id: 'u1', email: 'pat@x.test' } }, isAdmin: auth.isAdmin, isKeeper: true, displayName: auth.displayName, avatar: auth.avatar,
     loading: false, authError: null, clearAuthError: () => {},
   }),
 }));
@@ -20,9 +20,25 @@ const adminLinks = () => screen.queryAllByRole('link', { name: /admin/i, hidden:
 afterEach(() => {
   cleanup();
   auth.displayName = 'Pat';
+  auth.avatar = undefined;
 });
 
 describe('Layout', () => {
+  it('shows the initial until the avatar has loaded', () => {
+    renderLayout();
+    const button = screen.getByRole('button', { name: 'Account menu' });
+    expect(button.textContent).toContain('P');
+    expect(button.querySelector('.figure')).toBeNull();
+  });
+
+  it('shows the figure once the avatar has loaded, saved or not', () => {
+    auth.avatar = null;
+    renderLayout();
+    const button = screen.getByRole('button', { name: 'Account menu' });
+    expect(button.querySelector('.figure')).not.toBeNull();
+    expect(button.textContent).not.toContain('P');
+  });
+
   it('puts Admin in the account menu for an admin, never in the tab bar', () => {
     auth.isAdmin = true;
     renderLayout();

@@ -45,6 +45,20 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 /* Avatars. overflow: visible so the figure can break past its box. */
 .figure { display: block; width: var(--avatar); height: var(--avatar); flex: none; overflow: visible; }
 
+/* The picker on Me. The preview stays in sight while the rows scroll under it: color rows only show a swatch. */
+.avatar-stage { position: sticky; top: var(--bar-height); z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); padding-block: var(--s2); background: var(--card-solid); }
+.avatar-stage .figure { width: var(--avatar-big); height: var(--avatar-big); }
+.avatar-actions { display: grid; gap: var(--s2); flex: 1 1 8rem; }
+.avatar-slot { border: 0; margin: 0; padding: 0; min-width: 0; }
+.avatar-slot legend { padding: 0; font-weight: var(--fw-semi); }
+.avatar-options { display: flex; gap: var(--s2); overflow-x: auto; padding: var(--s1) 2px var(--s2); scroll-snap-type: x proximity; }
+.avatar-option { position: relative; flex: none; display: grid; justify-items: center; align-content: start; gap: var(--s1); width: 76px; min-height: var(--tap); padding: var(--s2) var(--s1); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--fs-2xs); font-weight: var(--fw-regular); line-height: 1.2; text-align: center; cursor: pointer; scroll-snap-align: start; }
+.avatar-option input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
+.avatar-option:has(input:checked) { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+.avatar-option:has(input:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.avatar-option .figure { width: var(--avatar); height: var(--avatar); }
+.avatar-swatch { width: 36px; height: 36px; border-radius: var(--radius-pill); border: 2px solid var(--line-strong); }
+
 /* Account menu: avatar button, native popover (Esc and tap-outside close it). */
 .account { grid-area: account; }
 .account-button, .account-button:hover:not(:disabled), .account-button:active:not(:disabled) {
@@ -53,6 +67,8 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .account-button:hover:not(:disabled) { background: var(--bar-hover); color: var(--bar-fg); }
 .account-button::after { content: ''; width: 7px; height: 7px; margin: -4px 2px 0; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: var(--on-gold); font-weight: var(--fw-bold); font-size: var(--fs-md); line-height: 1; }
+.avatar.has-figure { background: none; }
+.avatar .figure { width: 34px; height: 34px; }
 .account-button[aria-current='page'] .avatar { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px var(--blue); }
 .account-menu {
   position: absolute; inset: auto; top: calc(var(--bar-height) - 2px); right: max(var(--gutter), calc((100% - var(--shell)) / 2 + var(--gutter)));
