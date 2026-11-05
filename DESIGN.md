@@ -519,6 +519,21 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   P9 R2-extra: a home-screen app back from another app shows fresh data without a tab change), and so does the Buy
   shares card, which never polls (`useReloadOnShow`). There is no "Updated" label.
 
+## Avatars
+
+Each person has one sticker figure, shown on all their teams: flat color, a white die-cut edge, two dot eyes, no glow.
+It breaks out of a colored circle, which players see as **Background color**. Never call that circle a disc: the frisbee
+is the disc people mean. Built on Me (`AvatarPicker`), drawn by `Avatar`; the parts live in `lib/avatar.ts`.
+
+- **Sizes:** `--avatar` 48px in standings rows and the matchup header, `--avatar-team` 96px on a team page,
+  `--avatar-big` 160px in the picker. The top bar fits its 34px circle.
+- **Never** on the tally board, game lists, the buy list or Join a league. The figure is decoration beside a name, so it
+  is hidden from screen readers. It never animates.
+- **Colors are art data**, not tokens: a theme change does not recolor anyone. No skin tones: these are little creatures,
+  not portraits.
+- **A stored value is only a lookup key.** `resolveAvatar` falls back part by part, so nothing stored can reach the SVG
+  and nobody is ever blank. Adding a part needs no migration; cutting one sends anyone wearing it to their generated part.
+
 ## Tally board
 
 - **The games list** (`/tally`, keepers; it keeps the app's own theme), top to bottom. The tournament card
