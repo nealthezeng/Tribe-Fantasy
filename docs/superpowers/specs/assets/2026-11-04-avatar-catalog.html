@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avatar parts</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..700&family=Big+Shoulders+Display:wght@800&display=swap" rel="stylesheet">
+<style>
+  :root { --gold:#f5b700; --on-gold:#111; --blue:#8cc8f2; --bg:#080b0f; --fg:#e8edf2; --muted:#9aa6b2; --line:#232c36;
+    --pane:radial-gradient(420px 240px at 0 0, rgb(245 183 0 / .10), transparent 70%), linear-gradient(180deg, rgb(255 255 255 / .06), rgb(255 255 255 / 0) 120px), rgb(13 17 22 / .8); }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(900px 520px at 0% -8%, rgb(245 183 0 / .09), transparent 62%), radial-gradient(800px 560px at 105% 10%, rgb(140 200 242 / .10), transparent 60%), var(--bg); background-attachment:fixed; color:var(--fg); font:400 16px/1.45 Archivo, system-ui, sans-serif; padding:16px 16px 64px; }
+  main { max-width:760px; margin:0 auto; display:grid; gap:16px; }
+  h1 { font:800 40px/1 'Big Shoulders Display', sans-serif; text-transform:uppercase; margin:0; }
+  .lede { color:var(--muted); margin:6px 0 0; max-width:62ch; font-size:14px; }
+  svg { overflow:visible; display:block; }
+  .pane { background:var(--pane); border:1px solid rgb(255 255 255 / .07); border-radius:14px; padding:12px; box-shadow:inset 0 1px 0 rgb(255 255 255 / .1), 0 22px 44px -20px rgb(0 0 0 / .95); }
+  .stage { position:sticky; top:8px; z-index:2; display:flex; align-items:center; gap:16px; background:#0d1116; }
+  .stage .big { width:112px; flex:none; }
+  .stage ol { list-style:none; margin:0; padding:0; flex:1; min-width:0; }
+  .stage li { display:flex; align-items:center; gap:10px; min-height:56px; }
+  .stage li + li { border-top:1px solid var(--line); }
+  .stage strong { font-weight:600; }
+  .stage small { display:block; font-size:13px; color:var(--muted); }
+  button { font:inherit; color:inherit; }
+  .shuffle { font:700 14px Archivo; font-stretch:78%; text-transform:uppercase; letter-spacing:.06em; background:var(--gold); color:var(--on-gold); border:0; border-radius:10px; min-height:44px; padding:0 14px; cursor:pointer; flex:none; }
+  h2 { font:700 20px Archivo; margin:0; }
+  .hint { color:var(--muted); font-size:13px; margin:2px 0 10px; }
+  .grid { display:grid; gap:8px; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); }
+  .grid.tight { grid-template-columns:repeat(auto-fill, minmax(84px, 1fr)); }
+  .tile { position:relative; background:rgb(255 255 255 / .03); border:1px solid var(--line); border-radius:10px; padding:6px 6px 4px; display:grid; gap:2px; justify-items:center; }
+  .tile.on { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold); }
+  .tile.cut { opacity:.35; }
+  .pickbtn { background:none; border:0; padding:0; cursor:pointer; width:100%; display:grid; justify-items:center; gap:2px; }
+  .thumbs { display:flex; align-items:flex-end; justify-content:center; gap:4px; width:100%; }
+  .thumbs .lg { width:62px; }
+  .thumbs .sm { width:28px; }
+  .thumb { width:64px; }
+  .swatch { width:40px; height:40px; border-radius:50%; border:2px solid #fff; margin:6px 0; }
+  .name { font-size:12px; text-align:center; line-height:1.2; }
+  .cutbtn { background:none; border:0; color:var(--muted); font-size:11px; cursor:pointer; min-height:24px; padding:0 8px; text-decoration:underline; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>After your cuts</h1>
+    <p class="lede">Your cuts are gone and the frisbee is solid. Tap anything to try it on the figure at the top, and tap "cut" under anything else you want gone.</p>
+  </header>
+  <div class="pane stage" id="stage"></div>
+  <div id="sections" style="display:grid;gap:16px"></div>
+</main>
+<script>
+const circle = (x, y, rx, ry = rx) => `M${x - rx} ${y}a${rx} ${ry} 0 1 0 ${rx * 2} 0a${rx} ${ry} 0 1 0 ${-rx * 2} 0Z`;
+const line = (d, stroke, w, cap) => ({ d, stroke, w, cap });
+const solid = (d, fill, w = 1.5, stroke = fill, rot) => ({ d, fill, stroke, w, rot });
+
+// Limbs are thick round lines. disc = [x, y, rx, ry, rotation]. props sit behind the head, over sits on top of it.
+const POSES = {
+  forehand: { name:'Forehand', head:[46,27,16], torso:'M46 46L46 64', arms:['M42 50L22 60','M50 50L78 44'], legs:['M43 68L28 90','M50 68L66 76L68 90'], disc:[86,42,11,5,-10] },
+  layout: { name:'Layout', head:[70,38,15], torso:'M56 48L34 56', arms:['M60 56L72 68','M62 47L90 34'], legs:['M34 54L10 46','M32 60L14 72'], disc:[94,30,10,5,-20] },
+  sky: { name:'Skying it', head:[50,40,16], torso:'M50 58L50 72', arms:['M44 56L34 26','M56 56L66 26'], legs:['M46 76L36 86L42 94','M54 76L64 84L60 94'], disc:[57,13,14,6.5,-16] },
+  spin: { name:'Finger spin', head:[50,42,16], torso:'M50 60L50 74', arms:['M43 60L32 68L42 74','M57 58L70 30'], legs:['M46 78L42 94','M54 78L58 94'], disc:[70,22,15,6,0] },
+  trophy: { name:'Trophy', head:[50,46,15], torso:'M50 64L50 76', arms:['M44 62L38 32','M56 62L62 32'], legs:['M46 80L42 94','M54 80L58 94'], props:[line('M50 24L50 30','#c99400',5), line('M40 31L60 31','#c99400',5), line('M38 10Q28 10 34 18','#f5b700',3), line('M62 10Q72 10 66 18','#f5b700',3), solid('M38 5h24v9a12 12 0 0 1-24 0Z','#f5b700')] },
+  cheer: { name:'Cheering', head:[50,34,16], torso:'M50 52L50 70', arms:['M43 50L24 26','M57 50L76 26'], legs:['M45 74L40 92','M55 74L60 92'] },
+  shrug: { name:'Shrug', head:[50,34,16], torso:'M50 52L50 70', arms:['M43 52L28 58L22 44','M57 52L72 58L78 44'], legs:['M45 74L42 92','M55 74L58 92'] },
+  drink: { name:'Water break', head:[48,34,16], torso:'M48 52L48 72', arms:['M42 56L34 68','M54 56L72 50L70 32'], legs:['M44 76L40 92','M52 76L56 92'], props:[line('M62 36L78 22','#8cc8f2',8), line('M62 36L58 39','#ffffff',4)] },
+  tired: { name:'Winded', head:[62,38,15], torso:'M50 48L34 60', arms:['M52 52L62 74','M56 50L68 72'], legs:['M32 64L28 92','M38 64L46 92'], props:[solid('M84 24q5 7 0 10q-5-3 0-10Z','#8cc8f2',1)] },
+  peek: { name:'Peeking', head:[50,42,22], torso:null, arms:[], legs:[], peek:true },
+};
+
+const BODY = { gold:['Gold','#f5b700'], baby:['Baby blue','#8cc8f2'], chalk:['Chalk','#e8edf2'], mint:['Mint','#9fe3b4'], coral:['Coral','#ff9d8a'], lilac:['Lilac','#c5b4f5'], butter:['Butter','#ffd76a'], tang:['Tangerine','#ff8a3d'] };
+const DISC = { deep:['Deep blue','#0b5d99'], baby:['Baby blue','#8cc8f2'], gold:['Gold','#f5b700'], lilac:['Lilac','#c5b4f5'], coral:['Coral','#ff9d8a'], mint:['Mint','#9fe3b4'], navy:['Navy','#16304a'], char:['Charcoal','#2a333d'] };
+const JERSEY = { deep:['Deep blue','#0b5d99'], gold:['Gold','#f5b700'], white:['White','#ffffff'], char:['Charcoal','#1a2129'], baby:['Baby blue','#8cc8f2'], red:['Red','#d9534f'], green:['Green','#2f9e6e'], purple:['Purple','#7a5fd0'] };
+const BOTTOM_C = { char:['Charcoal','#1a2129'], white:['White','#ffffff'], gold:['Gold','#f5b700'], deep:['Deep blue','#0b5d99'] };
+const FRISBEE = { red:['Red','#d9534f','#9c2f2b'], tang:['Tangerine','#ff8a3d','#c25a14'], gold:['Gold','#f5b700','#a87d00'], deep:['Deep blue','#0b5d99','#07406b'], green:['Green','#2f9e6e','#1d6b49'], purple:['Purple','#7a5fd0','#533e9c'], char:['Charcoal','#2a333d','#12171c'] };
+const TOPS = { tee:'Tee', tank:'Tank', long:'Long sleeve', hoodie:'Hoodie' };
+const BOTTOMS = { shorts:'Shorts', pants:'Long pants', tutu:'Tutu' };
+const HATS = { none:'None', band:'Headband', cap:'Cap', back:'Backward cap', bucket:'Bucket hat', beanie:'Beanie', visor:'Visor', crown:'Crown', cone:'Traffic cone', prop:'Propeller' };
+const FACES = { none:'Just eyes', shades:'Shades', glasses:'Glasses', eyeblack:'Eye black', blush:'Blush', stache:'Mustache' };
+const EXTRAS = { none:'None', medal:'Medal', scarf:'Scarf', cape:'Cape' };
+
+function hat(kind, [x, y, r], color) {
+  const top = y - r * .25;
+  const dome = `M${x - r} ${top}A${r} ${r} 0 0 1 ${x + r} ${top}Z`;
+  switch (kind) {
+    case 'band': return [line(`M${x - r * .98} ${y - r * .3}Q${x} ${y - r * .55} ${x + r * .98} ${y - r * .3}`, color, r * .32, 'butt'), line(`M${x - r} ${y - r * .35}L${x - r * 1.45} ${y - r * .1}`, color, r * .2)];
+    case 'cap': return [solid(dome, color, 1), line(`M${x + r * .3} ${top}L${x + r * 1.55} ${top + 1}`, color, r * .26)];
+    case 'back': return [solid(dome, color, 1), line(`M${x - r * .3} ${top}L${x - r * 1.5} ${top + 3}`, color, r * .26)];
+    case 'bucket': return [solid(`M${x - r * .95} ${top}L${x - r * .7} ${y - r * 1.05}L${x + r * .7} ${y - r * 1.05}L${x + r * .95} ${top}Z`, color, 2), line(`M${x - r * 1.4} ${top + r * .12}L${x + r * 1.4} ${top + r * .12}`, color, r * .24)];
+    case 'beanie': return [solid(dome, color, 1), line(`M${x - r * 1.02} ${top}L${x + r * 1.02} ${top}`, color, r * .32), solid(circle(x, y - r * 1.15, r * .22), '#ffffff', 0)];
+    case 'visor': return [line(`M${x - r * .98} ${top}L${x + r * .98} ${top}`, color, r * .26, 'butt'), line(`M${x + r * .1} ${top + 1}L${x + r * 1.5} ${top + 2}`, color, r * .24)];
+    case 'crown': return [solid(`M${x - r * .75} ${y - r * .55}L${x - r * .85} ${y - r * 1.4}L${x - r * .35} ${y - r * .95}L${x} ${y - r * 1.55}L${x + r * .35} ${y - r * .95}L${x + r * .85} ${y - r * 1.4}L${x + r * .75} ${y - r * .55}Z`, '#f5b700', 1.5, '#c99400')];
+    case 'cone': return [solid(`M${x - r * .7} ${y - r * .6}L${x} ${y - r * 1.9}L${x + r * .7} ${y - r * .6}Z`, '#ff8a3d', 2), line(`M${x - r * .4} ${y - r * 1.1}L${x + r * .4} ${y - r * 1.1}`, '#ffffff', r * .2, 'butt')];
+    case 'prop': return [solid(dome, color, 1), line(`M${x} ${y - r}L${x} ${y - r * 1.3}`, '#111111', r * .1), line(`M${x - r * .7} ${y - r * 1.34}L${x + r * .7} ${y - r * 1.26}`, '#d9534f', r * .2)];
+    default: return [];
+  }
+}
+function face(kind, [x, y, r]) {
+  const ey = y + r * .08, dot = (cx, cy, s) => `<circle cx="${cx}" cy="${cy}" r="${s}" fill="#111"/>`;
+  const eyes = dot(x - r * .38, ey, r * .13) + dot(x + r * .38, ey, r * .13);
+  const stroke = (d, c, w, cap = 'round') => `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="${cap}"/>`;
+  switch (kind) {
+    case 'shades': return stroke(`M${x - r * .7} ${ey}L${x - r * .12} ${ey}M${x + r * .12} ${ey}L${x + r * .7} ${ey}`, '#111', r * .38) + stroke(`M${x - r} ${ey - r * .06}L${x + r} ${ey - r * .06}`, '#111', r * .08, 'butt');
+    case 'glasses': return eyes + `<circle cx="${x - r * .38}" cy="${ey}" r="${r * .28}" fill="none" stroke="#111" stroke-width="${r * .08}"/><circle cx="${x + r * .38}" cy="${ey}" r="${r * .28}" fill="none" stroke="#111" stroke-width="${r * .08}"/>` + stroke(`M${x - r * .1} ${ey}L${x + r * .1} ${ey}`, '#111', r * .08);
+    case 'eyeblack': return eyes + stroke(`M${x - r * .58} ${ey + r * .3}L${x - r * .18} ${ey + r * .3}M${x + r * .18} ${ey + r * .3}L${x + r * .58} ${ey + r * .3}`, '#111', r * .14, 'butt');
+    case 'blush': return eyes + `<circle cx="${x - r * .62}" cy="${ey + r * .3}" r="${r * .18}" fill="#ff6f91" opacity=".75"/><circle cx="${x + r * .62}" cy="${ey + r * .3}" r="${r * .18}" fill="#ff6f91" opacity=".75"/>`;
+    case 'stache': return eyes + `<path d="M${x} ${ey + r * .32}Q${x - r * .3} ${ey + r * .22} ${x - r * .55} ${ey + r * .5}Q${x - r * .2} ${ey + r * .55} ${x} ${ey + r * .42}Q${x + r * .2} ${ey + r * .55} ${x + r * .55} ${ey + r * .5}Q${x + r * .3} ${ey + r * .22} ${x} ${ey + r * .32}Z" fill="#111"/>`;
+    default: return eyes;
+  }
+}
+
+function build(s) {
+  const p = POSES[s.pose], body = BODY[s.body][1], top = JERSEY[s.jersey][1], bottom = BOTTOM_C[s.bottomColor][1], limb = 10, list = [];
+  const hatColor = s.jersey === 'char' ? '#f5b700' : top;
+  const [hx, hy, hr] = p.head;
+  const sleeve = s.top === 'tank' ? null : s.top === 'long' || s.top === 'hoodie' ? '' : '38 200';
+  const legDash = s.bottom === 'pants' ? '' : '30 200';
+  const disc = () => { if (!p.disc) return []; const [x, y, rx, ry, a] = p.disc, [c, dark] = FRISBEE[s.frisbee].slice(1), rot = `rotate(${a} ${x} ${y})`; return [{ ...solid(circle(x, y + 2, rx, ry), dark, 1), rot }, { ...solid(circle(x, y, rx, ry), c, 1), rot }, { d:circle(x, y, rx * .55, ry * .55), stroke:dark, w:1, rot }]; };
+  const arm = a => { list.push(line(a, body, limb)); if (sleeve !== null) list.push({ ...line(a, top, limb), dash:sleeve }); };
+  let g = null;
+  if (p.torso) {
+    const [sx, sy, ex, ey] = p.torso.match(/[\d.]+/g).map(Number), len = Math.hypot(ex - sx, ey - sy), dx = (ex - sx) / len, dy = (ey - sy) / len;
+    g = { sx, sy, ex, ey, dx, dy, px:-dy, py:dx };
+  }
+  if (g && s.extra === 'cape') list.push(solid(`M${g.sx + g.px * 9} ${g.sy + g.py * 9}L${g.ex + g.px * 18 + g.dx * 12} ${g.ey + g.py * 18 + g.dy * 12}L${g.ex - g.px * 18 + g.dx * 12} ${g.ey - g.py * 18 + g.dy * 12}L${g.sx - g.px * 9} ${g.sy - g.py * 9}Z`, '#d9534f', 2));
+  if (p.disc && !p.discFront) list.push(...disc());
+  (p.props || []).forEach(x => list.push(x));
+  if (p.arms[0]) arm(p.arms[0]);
+  for (const l of p.legs) { list.push(line(l, body, limb + 1)); list.push({ ...line(l, bottom, limb + 1), dash:legDash }); }
+  if (g) {
+    list.push(line(p.torso, top, 23));
+    if (s.top === 'stripes') list.push({ ...line(p.torso, s.jersey === 'white' ? '#1a2129' : '#ffffff', 23, 'butt'), dash:'22 22' });
+    list.push({ ...line(p.torso, bottom, 23), dash:'22 200', off:-78 });
+    if (s.bottom === 'kilt') list.push(line(`M${g.ex} ${g.ey}L${g.ex + g.dx * 12} ${g.ey + g.dy * 12}`, bottom, 27, 'butt'));
+    if (s.bottom === 'tutu') { const a = Math.atan2(g.dy, g.dx) * 180 / Math.PI + 90; list.push({ ...solid(circle(g.ex + g.dx * 6, g.ey + g.dy * 6, 20, 6), bottom, 1), rot:`rotate(${a} ${g.ex + g.dx * 6} ${g.ey + g.dy * 6})` }); }
+  }
+  if (p.disc && p.discFront) list.push(...disc());
+  if (p.arms[1]) arm(p.arms[1]);
+  if (g && s.extra === 'medal') { const c = [g.sx + g.dx * 8, g.sy + g.dy * 8]; list.push(line(`M${g.sx + g.px * 6} ${g.sy + g.py * 6}L${c[0]} ${c[1]}L${g.sx - g.px * 6} ${g.sy - g.py * 6}`, '#8cc8f2', 2.5), solid(circle(c[0], c[1], 5), '#f5b700', 1, '#c99400')); }
+  if (s.top === 'hoodie') list.push(solid(circle(hx, hy + hr * .3, hr * 1.2), top, 0));
+  const headShape = solid(circle(hx, hy, hr * 1.04, hr * .96), body, 0);
+  list.push(headShape);
+  if (g && s.extra === 'scarf') list.push(line(`M${g.sx + g.px * 9} ${g.sy + g.py * 9 - 2}L${g.sx - g.px * 9} ${g.sy - g.py * 9 - 2}`, '#d9534f', 6), line(`M${g.sx - g.px * 6} ${g.sy - g.py * 6}L${g.sx - g.px * 6 + g.dx * 12} ${g.sy - g.py * 6 + g.dy * 12}`, '#d9534f', 5));
+  const over = p.peek ? [solid('M8 62h84v22a8 8 0 0 1-8 8h-68a8 8 0 0 1-8-8Z', top, 1), line('M24 58L24 64', body, 11), line('M76 58L76 64', body, 11)] : [];
+  return { list, over, hats:hat(s.hat, p.head, hatColor), head:p.head };
+}
+const attrs = s => `${s.fill ? `fill="${s.fill}"` : 'fill="none"'} stroke="${s.stroke || 'none'}" stroke-width="${s.w || 0}" stroke-linecap="${s.cap || 'round'}" stroke-linejoin="round"${s.dash ? ` pathLength="100" stroke-dasharray="${s.dash}"` : ''}${s.off ? ` stroke-dashoffset="${s.off}"` : ''}${s.rot ? ` transform="${s.rot}"` : ''}`;
+const paint = list => list.map(s => `<path d="${s.d}" ${attrs(s)}/>`).join('');
+const edge = list => list.map(s => `<path d="${s.d}" fill="${s.fill ? '#fff' : 'none'}" stroke="#fff" stroke-width="${(s.w || 0) + 5}" stroke-linecap="round" stroke-linejoin="round"${s.rot ? ` transform="${s.rot}"` : ''}/>`).join('');
+function art(s) {
+  const { list, over, hats, head } = build(s);
+  return { fig:`${edge([...list, ...over, ...hats])}${paint(list)}${face(s.face, head)}${paint(over)}${paint(hats)}`, head };
+}
+// The chosen framing: figure breaking out of the disc.
+const avatar = s => `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="52" r="42" fill="${DISC[s.disc][1]}"/><g transform="translate(-2 0) scale(1.04)">${art(s).fig}</g></svg>`;
+const headshot = s => { const { fig, head:[x, y, r] } = art(s), m = r * 2.3; return `<svg viewBox="${x - m} ${y - m * 1.05} ${m * 2} ${m * 2}" aria-hidden="true" style="overflow:hidden">${fig}</svg>`; };
+
+let state = { pose:'forehand', body:'baby', disc:'deep', top:'tee', jersey:'gold', bottom:'shorts', bottomColor:'char', hat:'cap', face:'none', extra:'none', frisbee:'red' };
+const cuts = {};
+const SECTIONS = [
+  { slot:'pose', title:'Poses', hint:'Your 10 left after the cuts. Forehand, layout, skying it and finger spin hold the frisbee.', items:Object.fromEntries(Object.entries(POSES).map(([k, v]) => [k, v.name])), kind:'pose' },
+  { slot:'frisbee', title:'Frisbee colors', hint:'Solid now, with a darker rim for thickness. Keep one if you want every frisbee the same, or several to make it a choice.', items:FRISBEE, kind:'fig' },
+  { slot:'hat', title:'Hats', hint:'A hat takes the jersey color, so there is one less thing to choose. Crown and cone keep their own.', items:HATS, kind:'head' },
+  { slot:'face', title:'Faces', items:FACES, kind:'head' },
+  { slot:'extra', title:'Extras', items:EXTRAS, kind:'fig' },
+  { slot:'top', title:'Tops', items:TOPS, kind:'fig' },
+  { slot:'jersey', title:'Top colors', items:JERSEY, kind:'color' },
+  { slot:'bottom', title:'Bottoms', items:BOTTOMS, kind:'fig' },
+  { slot:'bottomColor', title:'Bottom colors', items:BOTTOM_C, kind:'color' },
+  { slot:'body', title:'Body colors', hint:'No skin tones on purpose: like a Smiski, they read as little creatures, not as a portrait of anyone.', items:BODY, kind:'color' },
+  { slot:'disc', title:'Disc colors', items:DISC, kind:'color' },
+];
+function tile(sec, key, label) {
+  const on = state[sec.slot] === key, try_ = { ...state, [sec.slot]:key, ...(sec.slot === 'frisbee' && !POSES[state.pose].disc ? { pose:'forehand' } : {}) }, cut = cuts[`${sec.slot}.${key}`];
+  let pic;
+  if (sec.kind === 'pose') pic = `<div class="thumbs"><div class="lg">${avatar(try_)}</div><div class="sm" style="width:48px">${avatar(try_)}</div></div>`;
+  else if (sec.kind === 'head') pic = `<div class="thumb">${headshot(try_)}</div>`;
+  else if (sec.kind === 'fig') pic = `<div class="thumb">${avatar(try_)}</div>`;
+  else pic = `<div class="swatch" style="background:${label[1]}"></div>`;
+  const name = Array.isArray(label) ? label[0] : label;
+  return `<div class="tile${on ? ' on' : ''}${cut ? ' cut' : ''}"><button class="pickbtn" type="button" data-slot="${sec.slot}" data-key="${key}" aria-pressed="${on}">${pic}<span class="name">${name}</span></button><button class="cutbtn" type="button" data-cut="${sec.slot}.${key}" data-name="${name}">${cut ? 'keep' : 'cut'}</button></div>`;
+}
+function render() {
+  document.getElementById('stage').innerHTML = `<div class="big">${avatar(state)}</div><ol><li><span style="width:48px;flex:none">${avatar(state)}</span><span><strong>Huck Norris</strong><small>48px, standings</small></span></li><li><span style="width:32px;flex:none">${avatar(state)}</span><span><strong>Huck Norris</strong><small>32px, tight spots</small></span></li></ol><button class="shuffle" id="shuffle" type="button">Shuffle</button>`;
+  document.getElementById('sections').innerHTML = SECTIONS.map(sec => `<section class="pane"><h2>${sec.title}</h2><p class="hint">${sec.hint || ''}</p><div class="grid${sec.kind === 'color' ? ' tight' : ''}"${sec.kind === 'pose' ? ' style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr))"' : ''}>${Object.entries(sec.items).map(([k, v]) => tile(sec, k, v)).join('')}</div></section>`).join('');
+}
+const send = o => { if (window.brainstorm) window.brainstorm.send(o); };
+document.addEventListener('click', e => {
+  const cut = e.target.closest('[data-cut]');
+  if (cut) { const k = cut.dataset.cut; cuts[k] = !cuts[k]; send({ type:'click', choice:(cuts[k] ? 'cut:' : 'keep:') + k, text:cut.dataset.name }); render(); return; }
+  const pick = e.target.closest('[data-slot]');
+  if (pick) { state = { ...state, [pick.dataset.slot]:pick.dataset.key }; render(); return; }
+  if (e.target.id === 'shuffle') {
+    const next = {};
+    for (const sec of SECTIONS) { const ok = Object.keys(sec.items).filter(k => !cuts[`${sec.slot}.${k}`]); next[sec.slot] = ok[Math.floor(Math.random() * ok.length)] || state[sec.slot]; }
+    state = next; render();
+  }
+});
+render();
+</script>
+</body>
+</html>
