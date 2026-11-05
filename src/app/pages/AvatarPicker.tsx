@@ -39,14 +39,15 @@ export function AvatarPicker({ uid }: { uid: string }) {
       <div className="avatar-stage">
         <Avatar choice={choice} />
         <div className="avatar-actions">
-          <button type="button" className="secondary" onClick={() => change(randomAvatar())}>Shuffle</button>
+          <button type="button" className="secondary" disabled={busy} onClick={() => change(randomAvatar())}>Shuffle</button>
           <button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'Saving…' : 'Save avatar'}</button>
           {saved && <small className="success" role="status">Saved.</small>}
+          {/* Here and not under the card's heading: Save stays in sight as the rows scroll, so its answer has to as well. */}
+          {error && <p className="error" role="alert">{error}</p>}
         </div>
       </div>
-      {error && <p className="error" role="alert">{error}</p>}
       {SLOTS.filter((s) => shown.includes(s.slot)).map(({ slot, label, parts }) => (
-        <fieldset key={slot} className="avatar-slot">
+        <fieldset key={slot} className="avatar-slot" disabled={busy}>
           <legend>{label}</legend>
           <div className="avatar-options">
             {parts.map((p) => <Option key={p.key} slot={slot} part={p} choice={choice} onPick={change} />)}

@@ -94,7 +94,7 @@ A new card on the Me page, above Your name.
   Peeking hides the body, so it hides Top, Bottom, Bottom color and Extra, but keeps Top color because the ledge it
   peeks over takes that color.
 - Hidden parts keep their value, so switching pose and back loses nothing.
-- Options are real radio inputs in labelled groups, with visible focus and tap targets of at least `--tap`.
+- Options are real radio inputs in labeled groups, with visible focus and tap targets of at least `--tap`.
 - Leaving without saving drops the preview. No warning, since nothing lost is hard to redo.
 
 ### Where it shows

@@ -69,6 +69,7 @@ small { font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--mu
 .avatar { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: var(--on-gold); font-weight: var(--fw-bold); font-size: var(--fs-md); line-height: 1; }
 .avatar.has-figure { background: none; }
 .avatar .figure { width: 34px; height: 34px; }
+.row > .figure { flex: none; }
 .figure-team { width: var(--avatar-team); height: var(--avatar-team); }
 .account-button[aria-current='page'] .avatar { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px var(--blue); }
 .account-menu {

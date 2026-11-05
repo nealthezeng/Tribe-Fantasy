@@ -130,10 +130,10 @@ function Person({ u, avatar, reload }: { u: UserRow; avatar: unknown; reload: ()
               <button className="secondary">Save name</button>
             </form>
           )}
-          {u.display_name !== null && (
+          {avatar !== undefined && avatar !== null && (
             <div className="row">
               <Avatar choice={resolveAvatar(avatar, u.id)} />
-              {avatar !== undefined && avatar !== null && <button type="button" className="secondary" disabled={busy} onClick={resetAvatar}>Reset avatar</button>}
+              <button type="button" className="secondary" disabled={busy} onClick={resetAvatar}>Reset avatar</button>
             </div>
           )}
           {error && <p className="error" role="alert">{error}</p>}

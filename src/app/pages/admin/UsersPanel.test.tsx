@@ -74,10 +74,19 @@ describe('removeMessage', () => {
 describe('UsersPanel avatars', () => {
   const RESET = "Reset Alex Kim's avatar to a random one? They can pick a new one any time.";
 
-  it("shows the person's figure in their opened row", async () => {
+  it("shows the person's saved figure with the reset, so the admin sees what they are resetting", async () => {
+    saved.rows = [{ id: 'u1', avatar: { background: 'lilac' } }];
     render(<UsersPanel />);
-    await open('Alex Kim');
-    expect((await screen.findByText('Alex Kim')).closest('details')!.querySelector('.figure')).not.toBeNull();
+    await (await open('Alex Kim')).findByRole('button', { name: 'Reset avatar' });
+    expect(screen.getByText('Alex Kim').closest('details')!.querySelector('.figure')!.innerHTML).toContain('#c5b4f5');
+  });
+
+  it('draws no figure where no reset is offered', async () => {
+    saved.rows = [{ id: 'u4', avatar: null }];
+    render(<UsersPanel />);
+    await open('Jo Park');
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+    expect(screen.getByText('Jo Park').closest('details')!.querySelector('.figure')).toBeNull();
   });
 
   it('offers Reset avatar only when they saved one', async () => {
@@ -114,11 +123,6 @@ describe('UsersPanel avatars', () => {
     expect(person.queryByRole('button', { name: 'Reset avatar' })).toBeNull();
   });
 
-  it('draws nothing for an account with no profile yet', async () => {
-    render(<UsersPanel />);
-    await open('bo@x.test');
-    expect((await screen.findByText('bo@x.test')).closest('details')!.querySelector('.figure')).toBeNull();
-  });
 });
 
 describe('UsersPanel (M15 P9 T17)', () => {

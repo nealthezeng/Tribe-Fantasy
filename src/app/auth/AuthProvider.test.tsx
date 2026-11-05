@@ -66,6 +66,19 @@ describe('AuthProvider avatar', () => {
     expect(a.getByTestId('avatar').textContent).toBe('{"hat":"crown"}');
   });
 
+  it('keeps names and roles working when only the avatar fails, as on a database without the column', async () => {
+    mock.getSession.mockResolvedValue({ data: { session: session('u1') } });
+    mock.from.mockImplementation((table: string) => (table === 'profiles'
+      ? { select: (cols: string) => ({ eq: () => ({ maybeSingle: async () => (cols.includes('avatar')
+        ? { data: null, error: new Error('column profiles.avatar does not exist') }
+        : { data: { display_name: 'Pat' }, error: null }) }) }) }
+      : { select: () => ({ eq: async () => ({ data: [{ role: 'admin' }], error: null }) }) }));
+    const a = mountAvatar();
+    await waitFor(() => expect(auth.displayName).toBe('Pat'));
+    expect(auth.isAdmin).toBe(true);
+    expect(a.getByTestId('avatar').textContent).toBe('unknown');
+  });
+
   it("never shows the last user's figure after a sign-in as someone else", async () => {
     mock.getSession.mockResolvedValue({ data: { session: session('u1') } });
     let row = { data: { display_name: 'A', avatar: { hat: 'crown' } } as unknown, error: null as unknown };

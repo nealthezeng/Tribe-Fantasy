@@ -41,15 +41,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const uid = s?.user.id ?? null;
     resetForUser(uid);
     if (!supabase || !s || !uid) return;
-    const [profile, roles] = await Promise.all([
-      supabase.from('profiles').select('display_name, avatar').eq('id', uid).maybeSingle(),
+    const [profile, roles, saved] = await Promise.all([
+      supabase.from('profiles').select('display_name').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
+      // On its own: a failure here must not cost anyone their name or roles.
+      supabase.from('profiles').select('avatar').eq('id', uid).maybeSingle(),
     ]);
     // A failed fetch (e.g. on an hourly token refresh) keeps what we knew: it mustn't drop a keeper out of tallying.
     if (profile.error || roles.error) return;
     if (loadedFor.current !== uid) return; // a newer sign-in or sign-out happened meanwhile
     setDisplayName(profile.data?.display_name ?? null);
-    setAvatar(profile.data?.avatar ?? null);
+    if (!saved.error) setAvatar(saved.data?.avatar ?? null);
     const roleNames = (roles.data ?? []).map((r: { role: string }) => r.role);
     setIsAdmin(roleNames.includes('admin'));
     setIsKeeper(roleNames.includes('admin') || roleNames.includes('stat_keeper'));

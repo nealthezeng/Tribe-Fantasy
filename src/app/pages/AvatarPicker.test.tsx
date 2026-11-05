@@ -100,6 +100,25 @@ describe('AvatarPicker', () => {
     expect(h.refresh).not.toHaveBeenCalled();
   });
 
+  it('shows a failed save beside the Save button, which stays in sight while the rows scroll', async () => {
+    h.setAvatar.mockRejectedValue(new Error('BAD_AVATAR'));
+    render(<AvatarPicker uid="u1" />);
+    fireEvent.click(save());
+    expect((await screen.findByRole('alert')).closest('.avatar-stage')).not.toBeNull();
+  });
+
+  it('holds every choice while saving, so "Saved." always describes what is on screen', async () => {
+    let finish = () => {};
+    h.setAvatar.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+    render(<AvatarPicker uid="u1" />);
+    fireEvent.click(save());
+    expect((group('Hat') as HTMLFieldSetElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Shuffle' }) as HTMLButtonElement).disabled).toBe(true);
+    finish();
+    await screen.findByText('Saved.');
+    expect((group('Hat') as HTMLFieldSetElement).disabled).toBe(false);
+  });
+
   it('a second tap while saving sends nothing', async () => {
     let finish = () => {};
     h.setAvatar.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
