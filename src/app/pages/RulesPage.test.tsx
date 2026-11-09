@@ -20,8 +20,8 @@ describe('RulesPage', () => {
     // Allowance: 100 for first, 130 for last. Example: 2 goals = 6, a half share, picked for the game before (×0.25).
     expect(text).toContain('100 for the team in first, up to 130 for the team in last');
     expect(text).toContain('2 goals by a player you own half of, picked for the game before: 6 × 50% × 0.25 = 0.75');
-    // Split example under the 200-share floor: 100 + 50 credits leave a quarter of the player unowned.
-    expect(text).toContain('he has 200 shares: you own 50%, they own 25%, and the other 25% scores for nobody.');
+    // Split example over the 100-share floor: 100 + 50 credits make 150 shares, all owned.
+    expect(text).toContain('he has 150 shares: you own 67%, they own 33%.');
     // Stat points are the weights as stored: a goal is +3, a block (D) +5, a turnover −1.
     expect(screen.getByText('Goal').parentElement?.textContent).toBe('Goal+3');
     expect(screen.getByText('Block (D)').parentElement?.textContent).toBe('Block (D)+5');

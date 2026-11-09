@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   allowance_gap: 30,
   max_members: 12,
   roster_size: 6,
-  min_shares: 200,
+  min_shares: 100, // user 2026-11-09 (was 200; 2026-10-19 sweep: 100 still beats chance for the sharp reader)
   picks_per_game: 2,
   min_bid: 1,
   allow_self_ownership: false,

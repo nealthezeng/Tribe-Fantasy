@@ -23,8 +23,8 @@ export function Help({ label, children }: { label: string; children: ReactNode }
 
 export function SharesHelp({ settings: S }: { settings: SeasonSettings }) {
   const m = S.min_shares;
-  // The worked example only holds at the default 200 shares.
-  const example = m === 200 ? '40 credits buys 40 of them, so you own 20% and score 20% of his points' : 'a credit buys a share';
+  // A fifth of the player (40 credits at 200 shares, 20 at 100); a floor that doesn't split into fifths gets the plain rule.
+  const example = m % 5 === 0 ? `${m / 5} credits buys ${m / 5} of them, so you own 20% and score 20% of his points` : 'a credit buys a share';
   return (
     <Help label="How buying shares works">
       {`Your credits buy a slice of a player. Each player is ${m} shares: ${example}. If teams put more than ${m} credits `

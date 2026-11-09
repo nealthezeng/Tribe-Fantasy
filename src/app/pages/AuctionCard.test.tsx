@@ -140,8 +140,8 @@ describe('AuctionCard', () => {
     renderCard();
     const help = await screen.findByRole('button', { name: 'How buying shares works' });
     expect(help.closest('.head')).toBeTruthy();
-    expect(help.nextElementSibling!.textContent).toBe('Your credits buy a slice of a player. Each player is 200 shares: '
-      + '40 credits buys 40 of them, so you own 20% and score 20% of his points. If teams put more than 200 credits on one '
+    expect(help.nextElementSibling!.textContent).toBe('Your credits buy a slice of a player. Each player is 100 shares: 20 '
+      + 'credits buys 20 of them, so you own 20% and score 20% of his points. If teams put more than 100 credits on one '
       + 'player, every slice shrinks to fit. Free credits arrive before each tournament; unspent ones carry over.');
   });
 
@@ -431,6 +431,7 @@ describe('AuctionCard', () => {
   });
 
   it('shows the most of a player each buy can own', async () => {
+    db.seasons = [{ settings: { min_shares: 200 } }]; // the numbers below are at a 200-share floor
     db.stages = [openStage as unknown as Row];
     db.athletes = [player(1), player(2), player(3)];
     db.bids = [buy(1, 40), buy(2, 250)];
@@ -443,6 +444,7 @@ describe('AuctionCard', () => {
   });
 
   it("shows each player's live share total, never under min_shares, and your slice of it", async () => {
+    db.seasons = [{ settings: { min_shares: 200 } }]; // the numbers below are at a 200-share floor
     db.stages = [openStage as unknown as Row];
     db.athletes = [player(1), player(2), player(3)];
     db.bids = [buy(1, 40), buy(2, 250)];

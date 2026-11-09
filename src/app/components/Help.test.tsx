@@ -20,10 +20,11 @@ describe('Help', () => {
   });
 
   it('says the share, tired and lock numbers of the season', () => {
-    const S = parseSettings({ min_shares: 100, tiredness_multipliers: [0.6], decay_floor: 0.5, stat_lock_hours: 24 });
+    // 101 doesn't split into fifths: the plain rule, no worked example.
+    const S = parseSettings({ min_shares: 101, tiredness_multipliers: [0.6], decay_floor: 0.5, stat_lock_hours: 24 });
     render(<><SharesHelp settings={S} /><FactorHelp settings={S} /><VerifiedHelp hours={S.stat_lock_hours} /></>);
-    expect(text('How buying shares works')).toBe('Your credits buy a slice of a player. Each player is 100 shares: a credit '
-      + 'buys a share. If teams put more than 100 credits on one player, every slice shrinks to fit. Free credits arrive '
+    expect(text('How buying shares works')).toBe('Your credits buy a slice of a player. Each player is 101 shares: a credit '
+      + 'buys a share. If teams put more than 101 credits on one player, every slice shrinks to fit. Free credits arrive '
       + 'before each tournament; unspent ones carry over.');
     expect(text("How a player's points count")).toBe("You score your share of a player's points. If he was picked for the "
       + 'game before, they count 60%. Each earlier tournament he was picked in lowers them a little more (90%, then 81%, …), '
@@ -32,10 +33,10 @@ describe('Help', () => {
       + "it, a second keeper checks them: then they're final. A final game can be reopened for 24 hours.");
   });
 
-  it('gives the 40-credit example at the default 200 shares', () => {
+  it('gives a fifth-of-a-player example at the default 100 shares', () => {
     render(<SharesHelp settings={DEFAULT_SETTINGS} />);
-    expect(text('How buying shares works')).toBe('Your credits buy a slice of a player. Each player is 200 shares: 40 '
-      + 'credits buys 40 of them, so you own 20% and score 20% of his points. If teams put more than 200 credits on one '
+    expect(text('How buying shares works')).toBe('Your credits buy a slice of a player. Each player is 100 shares: 20 '
+      + 'credits buys 20 of them, so you own 20% and score 20% of his points. If teams put more than 100 credits on one '
       + 'player, every slice shrinks to fit. Free credits arrive before each tournament; unspent ones carry over.');
   });
 
