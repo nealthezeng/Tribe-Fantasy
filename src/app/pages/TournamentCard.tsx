@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Avatar } from '../components/Avatar';
+import { Factor } from '../components/Factor';
 import { FactorHelp, StandingsHelp, VerifiedHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { RankList } from '../components/RankList';
@@ -12,7 +13,7 @@ import { changes, readSeen, seenKey, writeSeen } from '../lib/seen';
 import type { Seen } from '../lib/seen';
 import { anyCounted, currentGames, fmt, loadLeagueTournament, mergeStandings, record, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
-import { factorWords, gameName, heldNote, pctExact, statusWord, statWords } from '../lib/words';
+import { gameName, heldNote, pctExact, statusWord, statWords } from '../lib/words';
 
 const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${fmt(Math.abs(n))}`;
 /** An athlete's name, or `none` when nobody plays. */
@@ -118,8 +119,10 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
     if (!key || !mine || !them) return;
     const cur: Seen = { mine: mine.score, them: them.score, points: { mine: mine.points ?? {}, them: them.points ?? {} } };
     const prev = readSeen(key);
-    const chips = changes(prev, cur);
-    if (prev && chips) setSince({ key, chips, from: prev }); // no change: the chips from the last change stay
+    // First look at this game: count up from nothing (no +N chips, as nothing was seen to change).
+    const from = prev ?? { mine: 0, them: 0, points: { mine: {}, them: {} } };
+    const chips = changes(from, cur);
+    if (chips) setSince({ key, chips, from }); // no change: the chips from the last change stay
     writeSeen(key, cur);
   }, [key, mine, them]);
   const now = since?.key === key ? since : null;
@@ -169,10 +172,10 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
       {mine && !upcoming && them === null && <Notice y={y} side={mine} played />}
       {shown && them && mine && !upcoming && (
         <section className="card starters" aria-label="Starters">
-          <StarterSide y={y} g={shown} side={mine} name={teamName} since={now?.chips.mine}>
+          <StarterSide y={y} g={shown} side={mine} name={teamName} since={now?.chips.mine} from={now?.from.points.mine}>
             <Notice y={y} side={mine} played />
           </StarterSide>
-          <StarterSide y={y} g={shown} side={them} name={y.team.get(them.membershipId) ?? 'A team'} since={now?.chips.them} />
+          <StarterSide y={y} g={shown} side={them} name={y.team.get(them.membershipId) ?? 'A team'} since={now?.chips.them} from={now?.from.points.them} />
         </section>
       )}
     </>
@@ -205,7 +208,7 @@ function CountUp({ value, from }: { value: number; from: number | null }) {
     let frame = 0;
     const step = (t: number) => {
       const k = Math.min(1, (t - t0) / ms);
-      setShown(from + (value - from) * k);
+      setShown(from + (value - from) * (1 - (1 - k) ** 3)); // ease-out: fast, then settles on the number
       if (k < 1) frame = requestAnimationFrame(step);
     };
     setShown(from);
@@ -302,14 +305,17 @@ function PickGame({ y, next, membershipId, onSaved }: {
           const on = picked.includes(id);
           const out = y.out.has(id);
           return (
-            <button key={id} className="pick-row" aria-pressed={on} disabled={!on && (full || out)}
-              onClick={() => { if (!saving) void save(on ? picked.filter((a) => a !== id) : [...picked, id]); }}>
-              <span className="who">
-                <b>{name(id)}{out && <> <span className="pill bad">Out</span></>}</b>{' '}
-                <small>Your {factorWords(mine, id, next.number, y.settings)}</small>
-              </span>
-              <span className="ring" aria-hidden="true" />
-            </button>
+            <div key={id} className="pick-item">
+              <button className="pick-row" aria-pressed={on} disabled={!on && (full || out)}
+                onClick={() => { if (!saving) void save(on ? picked.filter((a) => a !== id) : [...picked, id]); }}>
+                <span className="who">
+                  <b>{name(id)}{out && <> <span className="pill bad">Out</span></>}</b>
+                  <span className="factor-room" aria-hidden="true" />
+                </span>
+                <span className="ring" aria-hidden="true" />
+              </button>
+              <Factor side={mine} athleteId={id} />
+            </div>
           );
         })}
       </div>
@@ -484,8 +490,10 @@ function statsOf(y: LeagueTournament, g: GameOutcome, a: string) {
  * The matchup's starters for one team: its name and score, then each starter's line (ruling 10) "Finn · 1 goal ·
  * 6 × 12.5%" and points, then `children`. A starter who scored 0 has nothing to multiply: the line ends at the stats.
  */
-function StarterSide({ y, g, side, name, since, children }: {
-  y: LeagueTournament; g: GameOutcome; side: TournamentSide; name: string; since?: Record<string, number>; children?: ReactNode;
+function StarterSide({ y, g, side, name, since, from, children }: {
+  y: LeagueTournament; g: GameOutcome; side: TournamentSide; name: string; since?: Record<string, number>;
+  /** Each starter's points this device last saw (missing = 0): they count up from there. */
+  from?: Record<string, number>; children?: ReactNode;
 }) {
   return (
     <div className="stack">
@@ -497,8 +505,8 @@ function StarterSide({ y, g, side, name, since, children }: {
         <ul className="list">
           {side.athleteIds.map((a) => (
             <li key={a}>
-              <small>{athleteName(y, a)} · {statsOf(y, g, a)}{side.athleteScores?.[a] ? ` · ${fmt(side.athleteScores[a])} × ${pctExact(side.factor[a])}` : ''}</small>
-              {side.points && <strong className="num">{since?.[a] != null && <span className={since[a] > 0 ? 'since up' : 'since down'}>{signed(since[a])}<span className="sr-only"> since you last looked, now </span></span>}{fmt(side.points[a])}</strong>}
+              <span className="factor-line"><small>{athleteName(y, a)} · {statsOf(y, g, a)}</small>{' '}<Factor side={side} athleteId={a} /></span>
+              {side.points && <strong className="num">{since?.[a] != null && <span className={since[a] > 0 ? 'since up' : 'since down'}>{signed(since[a])}<span className="sr-only"> since you last looked, now </span></span>}<CountUp value={side.points[a]} from={from ? from[a] ?? 0 : null} /></strong>}
             </li>
           ))}
         </ul>

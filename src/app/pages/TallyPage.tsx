@@ -446,6 +446,8 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
           </label>
         </div>
       </div>
+      {/* Finish first (user, 2026-11-09). It stays off while stats wait (§5.4): it pairs the next game from this one's results. */}
+      <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length + adds.length]])} />
       {verified && <p className="notice">This game is verified, so tallying is closed. <Link to={`/stats/${sessionId}`}>View it</Link>.</p>}
       {closed && !verified && <p className="notice">Earlier season: tallying closed.</p>}
       {!stored && <p className="error" role="alert">This phone won't store taps. Keep this page open until it says Saved.</p>}
@@ -469,8 +471,6 @@ function TallyBoard({ season, sessionId, keeperId, onBack }: {
           <ul className="list" onPointerDown={touch}>{list.map((a) => card(a))}</ul>
         </Fragment>
       ))}
-      {/* Finish stays off while stats wait (§5.4): it pairs the next game from this one's results. */}
-      <GameControls season={season} sessionId={sessionId} unsaved={new Map([[sessionId, queue.length + adds.length]])} />
       {/* A direct child of the page: inside a .card's backdrop-filter its position: fixed would be trapped (T6a). The
           mic only while voice is on (`talk`); the Discard / Add bar stays while stats wait even if the board closes or
           voice goes off, so they can still be added or dropped (T7a), and so does a note (Discard's Undo). */}

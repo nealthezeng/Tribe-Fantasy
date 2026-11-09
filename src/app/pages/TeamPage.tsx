@@ -2,12 +2,13 @@ import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-route
 import type { GameOutcome } from '../../core/tournament';
 import { useAuth } from '../auth/AuthProvider';
 import { Avatar } from '../components/Avatar';
+import { Factor } from '../components/Factor';
 import { FactorHelp } from '../components/Help';
 import { Loading } from '../components/Loading';
 import { supabase } from '../lib/supabase';
 import { currentGames, fmt, loadLeagueTournament, type LeagueTournament } from '../lib/tournament';
 import { useLoad, usePoll } from '../lib/useLoad';
-import { factorWords, gameName, statusWord } from '../lib/words';
+import { gameName, statusWord } from '../lib/words';
 import { loadMyTeams } from './HomePage';
 import { Status } from './StatTable';
 
@@ -83,7 +84,7 @@ export function TeamPage() {
               {[...side.players].sort((a, b) => name(a).localeCompare(name(b))).map((id) => (
                 <li key={id}>
                   <span className="title">{name(id)}</span>
-                  <small>{factorWords(side, id, next.number, y.settings)}</small>
+                  <span className="factor-line"><Factor side={side} athleteId={id} /></span>
                 </li>
               ))}
             </ul>

@@ -141,6 +141,9 @@ describe('TournamentCard', () => {
 
   /** A player's row in the pick card: the whole row is the toggle button. */
   const pickRow = (name: string) => picks().getByRole('button', { name: new RegExp(`^${name}\\b`) }) as HTMLButtonElement;
+  /** A pick row's multiplier bubble (its own button beside the row's) and the parts its popover holds. */
+  const bubble = (name: string) => pickRow(name).parentElement!.querySelector('.factor')!;
+  const parts = (name: string) => pickRow(name).parentElement!.querySelector('[popover]')?.textContent;
   /** "true" from a tap until the reload after its save lands: taps meanwhile are held. */
   const rowsBusy = () => screen.getByRole('article', { name: 'Next game' }).querySelector('[aria-busy]')?.getAttribute('aria-busy');
 
@@ -209,8 +212,12 @@ describe('TournamentCard', () => {
     const ash = pickRow('Ash');
     expect(ash.matches('button.pick-row[aria-pressed="false"]')).toBe(true);
     expect([...ash.children].map((el) => el.className)).toEqual(['who', 'ring']);
-    expect(ash.querySelector('.who > small')?.textContent).toBe('Your 100% · picked for game 1: ¼ points'); // base fixture shares are 1
-    expect(pickRow('Alex').textContent).toContain('Your 100% · full points'); // Avery was game 1's auto-pick, so tired too
+    expect(ash.textContent).toBe('Ash'); // just the name: no words under it
+    expect(bubble('Ash').textContent).toBe('×0.25'); // base fixture shares are 1: share 1 × tired ¼, blue from ×0.25
+    expect(bubble('Ash').className).toBe('factor mid');
+    expect(bubble('Ash').getAttribute('aria-label')).toBe('Points ×0.25: show the parts');
+    expect(parts('Ash')).toBe('Tired 0.25 × earlier tournaments 1.00 × owned 1.00 = 0.25');
+    expect(parts('Alex')).toBe('Tired 1.00 × earlier tournaments 1.00 × owned 1.00 = 1.00'); // Avery was game 1's auto-pick
   });
 
   it('toggles a pick by tapping the row, and keeps an Out pick clearable', async () => {
@@ -271,7 +278,7 @@ describe('TournamentCard', () => {
     expect(picks().getAllByRole('button', { pressed: true }).map((b) => b.querySelector('b')?.textContent)).toEqual(['Alex', 'Ash']);
   });
 
-  it("shows each player's share, tiredness and earlier tournaments in words (decision 11)", async () => {
+  it("shows each player's tired, earlier tournaments and share as decimals behind the bubble (decision 11)", async () => {
     const r = afterGame1();
     // An earlier tournament where Zeal started Ash: with no grace, Ash carries x0.9 into this one.
     const S0 = { ...r.stages[0], id: 'S0', name: 'Opener', starts_on: '2026-10-03', ends_on: '2026-10-04' };
@@ -287,17 +294,18 @@ describe('TournamentCard', () => {
       picks: [{ stage_id: 'S0', game_number: 1, membership_id: 'm1', athlete_id: 'a1' }, ...r.picks],
       sessions: [{ id: 'p0', verified_at: '2026-10-03T16:00:00Z' }, ...r.sessions],
     });
-    const words = (name: string) => pickRow(name).querySelector('small')?.textContent;
     // Ash: half of him, started last game (x0.25), started in the opener (x0.9).
-    expect(words('Ash')).toBe('Your 50% · picked for game 1: ¼ points · earlier tournaments: 90%');
-    expect(words('Arlo')).toBe('Your 100% · full points'); // x1 earlier tournaments is left out
-    expect(words('Alex')).toBe('Your 40% · full points');
+    expect(parts('Ash')).toBe('Tired 0.25 × earlier tournaments 0.90 × owned 0.50 = 0.11');
+    expect(bubble('Ash').className).toBe('factor low');
+    expect(parts('Arlo')).toBe('Tired 1.00 × earlier tournaments 1.00 × owned 1.00 = 1.00');
+    expect(parts('Alex')).toBe('Tired 1.00 × earlier tournaments 1.00 × owned 0.40 = 0.40');
   });
 
   it("words a half share of last game's starter as both parts", async () => {
     const r = afterGame1();
     await show({ ...r, slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 1, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])] });
-    expect(pickRow('Ash').textContent).toContain('Your 50% · picked for game 1: ¼ points');
+    expect(parts('Ash')).toBe('Tired 0.25 × earlier tournaments 1.00 × owned 0.50 = 0.13');
+    expect(bubble('Ash').textContent).toBe('×0.13');
   });
 
   it('names who plays for an Out pick, and says when an Out pick still plays', async () => {
@@ -412,7 +420,7 @@ describe('TournamentCard', () => {
     expect(screen.getByRole('heading', { name: 'Pick 2 for game 2' })).toBeTruthy();
     expect(screen.getByText(/^You play/).textContent).toBe('You play Flow.');
     expect(picks().getByText('Picks lock when the stat keeper at the field starts game 2. No set time: pick early.')).toBeTruthy();
-    expect(pickRow('Ash').textContent).toContain('picked for game 1: ¼ points');
+    expect(parts('Ash')).toContain('Tired 0.25');
     // The header leads with the next matchup; neither side's picks are set, and theirs read as hidden.
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
     expect(screen.getByText('No picks yet')).toBeTruthy();
@@ -708,7 +716,7 @@ describe('TournamentCard', () => {
     await show({ ...r, games: r.games.map((g) => (g.id === 'g1' ? { ...g, session_id: null } : g)), sessions: [] });
     expect(document.querySelector('.game-line .state')?.textContent).toBe("Doesn't count");
     // A void start doesn't tire anyone.
-    expect(pickRow('Ash').textContent).toContain('Your 100% · full points');
+    expect(parts('Ash')).toContain('Tired 1.00');
   });
 
   describe('matchup header', () => {
@@ -822,10 +830,13 @@ describe('TournamentCard', () => {
       return [li.querySelector('small')?.textContent, li.querySelector('strong')?.textContent];
     };
 
-    it('writes starter lines as stats in words and base × exact share', async () => {
+    it('writes starter lines as stats in words with the multiplier bubble', async () => {
       await show(liveGame1());
-      expect(starter('Ash')).toEqual(['Ash · 2 goals · 6 × 100%', '6']);
-      expect(starter('Bea')).toEqual(['Bea · 1 block · 5 × 100%', '5']);
+      expect(starter('Ash')).toEqual(['Ash · 2 goals', '6']);
+      expect(starter('Bea')).toEqual(['Bea · 1 block', '5']);
+      const ash = [...document.querySelectorAll('.starters li')].find((x) => x.textContent?.startsWith('Ash'))!;
+      expect(ash.querySelector('.factor')?.textContent).toBe('×1.00');
+      expect(ash.querySelector('.factor')?.className).toBe('factor high');
     });
 
     it('says no stats yet for a starter nobody has tapped', async () => {

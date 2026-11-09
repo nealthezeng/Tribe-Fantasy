@@ -244,6 +244,13 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   does (`upsetsWeigh`) and ends with the order: "Level on points, the team that scored more over all its games goes
   first; level on both, they share the place."
 - **Banners**: the first-visit guide shows only on the League page, never on task screens like Tally.
+- **`.factor`** (`components/Factor.tsx`, user 2026-11-09): a player's points multiplier for a game, share × tired ×
+  earlier tournaments (the core's `factor`), as one number in a pill-shaped bubble, "×0.38" (2 significant figures).
+  Its colour steps with the value on the status pairs: `.high` ≥ 0.5 `--ok`, `.mid` ≥ 0.25 `--blue-ink`, `.low` ≥ 0.1
+  `--warn`, `.min` under 0.1 `--error`, each on its `-soft`. On pick rows, the team page's players and the starters,
+  with no words beside it. It is a button: tapping opens its parts in a native popover (`.help-pop`, as the `?` helps),
+  in decimals: "Tired 0.25 × earlier tournaments 0.90 × owned 0.30 = 0.068" (`dec`: 2 places, 2 significant figures
+  under 0.1). A 12px `::after` widens its tap target.
 - **`.pill`**: a rounded label that always carries its own words. Variants: plain (neutral), `.ok`, `.info`,
   `.warn`, `.bad`.
 - **`.notice`**: an info pane, the same glass as every box but glowing blue (`--notice-bg`), for information and next
@@ -294,8 +301,7 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   read "Hidden" until the start), `--fs-score` numbers after (the unofficial numbers while the game is live or not
   verified), the losing side muted; your side's label and names turn green (`--ok-on-bar`) once your picks are set.
   Once the game has started, a `section.card.starters` lists each side: a `.head` with the team (`.by`) and its score,
-  then one row per starter, "Finn Garza · 1 goal, 1 assist · 6 × 12.5%" with his points (a base of 0 stops after the
-  stats), and under your side the `.hint` lines on who the app started for you. A chip `.since.up` (gold) or
+  then one row per starter, "Finn Garza · 1 goal, 1 assist" and his `.factor` bubble "×0.13" with his points, and under your side the `.hint` lines on who the app started for you. A chip `.since.up` (gold) or
   `.since.down` (`--error`) "+3" / "−2" shows on a row whose points changed since this device last looked, and stays
   until the next change (the sign carries the meaning, not the colour). A verified game shows the same block without
   "unofficial". A side with no starters reads "No starters" (the scoreboard too), or "No players" when the team has no
@@ -313,8 +319,8 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   when the game before it finishes): the line is only the hint, "You'll see who you play once game 2 ends. Picks lock
   when the stat keeper at the field starts game 3. No set time: pick early." (game 1 has just the lock sentences). Then
   every roster player A→Z as a `button.pick-row`, the whole row the toggle (`aria-pressed`): the name (an Out
-  `.pill.bad` if a keeper marked him out), under it small "Your 20% · picked for game 1: ¾ points" (`factorWords`, from
-  the core's numbers, never the UI's), and a drawn ring at the end
+  `.pill.bad` if a keeper marked him out), under it the `.factor` bubble (its own button beside the row's in a
+  `.pick-item` grid cell, never a button in a button; the row keeps `.factor-room` for it), and a drawn ring at the end
   that fills green (`--ok`, the name too) when picked; tap again to clear. With every slot full the other rows are off
   (muted) and a `.hint` says "You have 2 picks. Clear one to change."; an unpicked Out player's row is off too (a
   picked one stays on, so you can clear him). A save holds further taps until its reload lands and shows the new set as
@@ -354,8 +360,8 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   nothing for a player with no lines, never "0").
 - **League table** (`LeagueTable`; rule 6, show the league): an `article.card` titled with the league's name, the `?`
   "How the table is ordered" and a "Full table" `.more` link to Leaderboards, and the short ranked list (`RankList short`, the `.ranks` look below): the top 3,
-  plus your row and the rows just above and below it; each skipped run is one gap row "N more teams". Every row opens
-  its team. Before any game counts the card shows only "Standings start after the first game." (no rows, no `?`, no
+  plus your row and the rows just above and below it; each skipped run is one gap row, a link-coloured button "N more
+  teams" that shows every row in place (user, 2026-11-09). Every row opens its team. Before any game counts the card shows only "Standings start after the first game." (no rows, no `?`, no
   Full table).
   It replaced the Place / Record / Points tiles.
 - **Games** (`GameList`; rule 4, one line per game, grouped by tournament): a `section.card` with `h2` "Games". First
@@ -639,7 +645,8 @@ selector down, and Save collapses it), drawn by `Avatar`; the parts live in `lib
   nothing on the board shifts when they come or go; the mic is a direct child of `section.page`, never inside a pane,
   whose `backdrop-filter` would trap it. Nothing transitions, lifts, squeezes or fades, and the bright board covers
   every piece at daylight contrast.
-- **Finish** sits at the end of the live game's board, after the players, as a quiet secondary "Finish game 4"
+- **Finish** sits at the top of the live game's board, under the sticky bar and above the players (user, 2026-11-09;
+  it was at the end), as a quiet secondary "Finish game 4"
   (off while this phone has unsent taps, voice stats Add would send included). For a game before the last it opens a question in
   place: "Finish game 4 vs Wake Forest? Game 5 gets paired; an admin can undo it." with a closed "Game 5 pairings"
   fold, then gold "Finish game 4" and Cancel. The last game asks "Finish game 6? It's the last game: CCCs ends." Neither the button nor its fold moves
@@ -784,8 +791,10 @@ a time (M15 P9 Round 2).
   (`--dur`), every button squeezes to 95% while pressed (`--dur-press`), gold buttons rise 1px with a gold
   `--shadow-lift` on hover, and tab markers glide (`--dur-slide`, `--ease-glide`). The account menu and every opened
   `details` drop 8px in and fade (`--dur-menu`; closing is instant), page content fades in as it arrives
-  (`--dur-fade`), and loading skeletons breathe (`--dur-rest`). On the League matchup the scoreboard numbers count up to a new
-  value (`--dur-count`; the starters' team scores stay plain) and a "since you last looked" chip pops in; with reduced motion
+  (`--dur-fade`), and loading skeletons breathe (`--dur-rest`). On the League matchup the scoreboard numbers and each
+  starter's points count up (ease-out) to a new value (`--dur-count`; the starters' team scores stay plain): from what this
+  device last saw, or from 0 the first time it sees that game (CCCs feedback: nobody saw it). A "since you last looked"
+  chip pops in only on a real change since an earlier look; with reduced motion
   both just appear. The tally board never moves: no transitions, no press
   scale, no lift, no fade-in, and a fold opened on it doesn't drop in (`tokens.test.ts` guards all three).
 - **Focus is always visible**: a 3px ring in `--focus`, offset 2px.

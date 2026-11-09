@@ -74,14 +74,14 @@ describe('TeamPage', () => {
     expect(screen.queryByText(/credit|\bpicks?\b/i)).toBeNull(); // "picked for game 1" is a past pick's tiredness, not a pick
   });
 
-  it('lists players as rows with share and tiredness in words, no × chip', async () => {
+  it('lists players as rows with the multiplier bubble, its parts as decimals behind it', async () => {
     visit(ID2);
     const players = within((await screen.findByText('Finn Garza')).closest('ul')!);
-    expect(players.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Finn Garza15% · picked for game 1: ¼ points', 'Rory Vance10% · full points · earlier tournaments: 90%']);
     expect(players.getByText('Finn Garza').className).toBe('title');
-    expect(document.querySelector('details.factor')).toBeNull();
-    expect(players.queryByText(/×/)).toBeNull();
+    expect([...document.querySelectorAll('.factor')].map((x) => [x.textContent, x.className])).toEqual([
+      ['×0.037', 'factor min'], ['×0.09', 'factor min']]);
+    expect([...document.querySelectorAll('li [popover]')].map((x) => x.textContent)).toEqual([
+      'Tired 0.25 × earlier tournaments 1.00 × owned 0.15 = 0.037', 'Tired 1.00 × earlier tournaments 0.90 × owned 0.10 = 0.09']);
   });
 
   it("shows the team's live game as a row", async () => {

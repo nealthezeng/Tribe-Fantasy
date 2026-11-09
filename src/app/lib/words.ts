@@ -1,7 +1,5 @@
-import type { SeasonSettings } from '../../core/settings';
-import type { GameOutcome, GameStatus, TournamentSide } from '../../core/tournament';
+import type { GameOutcome, GameStatus } from '../../core/tournament';
 import type { LeagueTournament } from './tournament';
-import { pct } from './wallet';
 
 // Every player-facing game name, stat sentence, rest phrase and status word (P9 rulings 1–4, 10).
 
@@ -31,26 +29,6 @@ const FRACTION: Record<number, string> = { 0.5: 'half', 0.75: '¾', 0.25: '¼' }
 
 /** A tired step the way people say it: 0.5 → "half", 0.75 → "¾", 0.25 → "¼", else "60%". */
 export const fraction = (x: number): string => FRACTION[x] ?? pctExact(x);
-
-/**
- * A player's rest before game `number`: "full points", or "picked for game 2: half points" (X5: the fantasy pick, not
- * the field). `tiredness_multipliers[i]` is the rest of a player who started i + 1 games before. When the list holds
- * `rest` twice (or not at all) the game is unknown, so the words give the points alone: "half points".
- */
-export function restWords(rest: number, number: number, s: SeasonSettings): string {
-  if (rest === 1) return 'full points';
-  const points = `${fraction(rest)} points`;
-  const i = s.tiredness_multipliers.indexOf(rest);
-  return i === -1 || i !== s.tiredness_multipliers.lastIndexOf(rest) ? points : `picked for game ${number - 1 - i}: ${points}`;
-}
-
-/**
- * What one player counts for in game `number`, in words: "20% · picked for game 1: ¾ points", plus
- * "· earlier tournaments: 90%" when earlier tournaments cut it. Callers add "Your" where it is the viewer's share.
- */
-export const factorWords = (side: Pick<TournamentSide, 'share' | 'rest' | 'decay'>, athleteId: string, number: number, s: SeasonSettings): string =>
-  [pct(side.share[athleteId]), restWords(side.rest[athleteId], number, s),
-    side.decay[athleteId] < 1 && `earlier tournaments: ${pct(side.decay[athleteId])}`].filter(Boolean).join(' · ');
 
 export type StatusWord = 'Not started' | 'Live' | 'Finished · not verified' | 'Final' | "Doesn't count";
 

@@ -40,7 +40,7 @@ describe('RulesPage', () => {
     expect(text).not.toMatch(/Leaving a player out|you start/);
     expect(text).toContain('and earlier tournaments (below)');
     // What ships: the pick card says the factors in words; there is no combined factor to tap open.
-    expect(text).toContain('The pick card shows each player\'s share and tiredness in words, e.g. "Your 20% · picked for game 1: half points".');
+    expect(text).toContain('The pick card shows them multiplied into one number per player, e.g. ×0.27; tap it to see the three parts.');
     expect(text).not.toContain('combined factor');
     expect(text).not.toMatch(/repeat|Rotating/);
     expect(text).toContain("Other teams can't see your picks until the game starts");

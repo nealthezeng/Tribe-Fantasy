@@ -237,13 +237,13 @@ describe('TallyPage board', () => {
     expect(container.querySelector('.figure')).toBeNull();
   });
 
-  it('puts Finish game at the end of the board, not in the bar', async () => {
+  it('puts Finish game at the top of the board, above the players, not in the bar', async () => {
     const { container } = await board();
     const finish = screen.getByRole('button', { name: 'Finish game 2' });
     expect(finish.closest('.tally-bar')).toBeNull();
     const lists = container.querySelectorAll('ul.list');
     expect(lists.length).toBeGreaterThan(0);
-    expect(lists[lists.length - 1].compareDocumentPosition(finish) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(lists[0].compareDocumentPosition(finish) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it('says "Hold a stat to take one off."', async () => {

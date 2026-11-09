@@ -115,7 +115,7 @@ button, .button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
 /* Button lettering (tokens --font-button etc.). Text links, menu items, tally tiles and the voice mic keep their own lettering. */
-:is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, .voice-mic, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
+:is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .pick-row, .voice-mic, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
   font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
   text-transform: var(--button-case); letter-spacing: var(--button-track);
 }
@@ -372,15 +372,31 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
    drawn ring that fills green when picked. An Out player who isn't picked is off and greyed. */
 .pick-row { display: flex; width: 100%; justify-content: space-between; gap: var(--s3); padding: var(--s2) 0; border: 0; border-radius: 0; color: var(--fg); font-weight: var(--fw-regular); text-align: left; }
 .pick-row, .pick-row:is(:hover, :active):not(:disabled) { background: none; }
-.pick-row + .pick-row { border-top: 1px solid var(--line); }
+/* A pick row and its multiplier bubble share one grid cell: the bubble is its own button (never inside the row's),
+   sitting under the name in the room `.factor-room` keeps for it. */
+.pick-item { display: grid; }
+.pick-item > :not([popover]) { grid-area: 1 / 1; }
+.pick-item > .factor { align-self: end; justify-self: start; margin-bottom: var(--s2); }
+.factor-room { display: block; height: 1.6em; }
+.pick-item + .pick-item { border-top: 1px solid var(--line); }
 .pick-row:disabled { opacity: 1; color: var(--muted); }
-[aria-busy='true'] > .pick-row { cursor: progress; } /* a save is reloading: taps are held until it lands */
+[aria-busy='true'] .pick-row { cursor: progress; } /* a save is reloading: taps are held until it lands */
 .pick-row .who { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 .pick-row .who b { font-weight: var(--fw-semi); }
 .pick-row[aria-pressed='true'] .who b { color: var(--ok); }
 .pick-row .ring { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--line-strong); border-radius: 50%; }
 .pick-row[aria-pressed='true'] .ring { border-color: var(--ok); }
 .pick-row[aria-pressed='true'] .ring::after { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--ok); }
+/* A player's points multiplier (share × tired × earlier tournaments) as one number in a bubble; its colour steps with
+   the value (Factor.tsx: green from ×0.5, blue from ×0.25, amber from ×0.1, red under). Tapping it opens the parts. */
+.factor { position: relative; display: inline-block; min-height: 0; padding: 0 var(--s2); border: 0; border-radius: var(--radius-pill); font-size: var(--fs-xs); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; line-height: 1.6; white-space: nowrap; cursor: pointer; }
+.factor::after { content: ''; position: absolute; inset: -12px -6px; } /* a bigger tap target than the 21px bubble */
+.factor.high { background: var(--ok-soft); color: var(--ok); }
+.factor.mid { background: var(--blue-soft); color: var(--blue-ink); }
+.factor.low { background: var(--warn-soft); color: var(--warn); }
+.factor.min { background: var(--error-soft); color: var(--error); }
+.factor-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); }
+.factor-line small { color: var(--muted); }
 .calc { white-space: nowrap; }
 .hint { font-size: var(--fs-sm); color: var(--muted); }
 /* t321: a "?" help. A 44 px target around a 22 px circle; its text is a native popover (the browser centres it; Esc and tap-outside close it). */
@@ -448,6 +464,8 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .ranks .who strong { font-weight: var(--fw-semi); }
 .ranks li[aria-current] .who strong { font-weight: var(--fw-bold); }
 .ranks li.gap { grid-template-columns: auto; justify-content: center; min-height: 0; color: var(--muted); }
+/* On the League tab a gap opens the whole table in place. */
+.ranks li.gap button { min-height: 44px; padding: 0 var(--s3); border: 0; background: none; color: var(--link); font-weight: var(--fw-semi); }
 
 /* Admin (P9 rulings 17, 67): four group chips at their own width (the pressed one filled like a .segmented button),
    one row at 375px, and for a group of more than one section its text tabs with the gold underline on the current one.
@@ -503,13 +521,13 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
      Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
      moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
      tokens.test.ts fails if a lift or squeeze rule forgets it. */
-  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .danger-link, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .danger-link, .account-button, .help, .factor, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly, and nothing on the board fades (buttons, pills, links), the bright/dark switch
