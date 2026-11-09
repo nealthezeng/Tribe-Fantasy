@@ -66,7 +66,7 @@ describe('HomePage with several teams (t229, t240)', () => {
 
 describe('Rename your team from League settings (t311)', () => {
   // listLeagues is [] here, so there is no listing: no manage or leave, and the rename form must still show.
-  const open = async () => { show(); fireEvent.click(await screen.findByText('League settings')); };
+  const open = async () => { show(); fireEvent.click(await screen.findByRole('button', { name: 'League settings' })); };
   const rename = (v: string) => {
     fireEvent.change(screen.getByLabelText('Team name'), { target: { value: v } });
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }));

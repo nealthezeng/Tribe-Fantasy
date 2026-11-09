@@ -133,10 +133,10 @@ export function HomePage() {
   // A keeper's live game to tally; a failed load shows no card (Stats still opens the game).
   const live = useLoad(() => (isKeeper ? loadLiveGame() : Promise.resolve(null)), [isKeeper]);
   usePoll(live.reload, !!live.data); // while it shows, so it stops saying Live once the game ends
-  // For League settings (its creator, or an admin: older leagues have no creator) and the create limit (t215).
+  // For League settings: its creator, or an admin (older leagues have no creator), manages it.
   const listed = useLoad(async () => (uid ? api.listLeagues() : undefined), [uid]);
-  const canCreate = isAdmin || !listed.data?.some((l) => l.is_creator);
   const [m, pick] = useTeamChoice(data);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (loading) return <Loading />;
   if (!session) {
@@ -183,15 +183,21 @@ export function HomePage() {
           </div>
         </div>
       )}
-      {data && data.length > 1 && <TeamSwitch teams={data} current={m} onPick={pick} />}
-      {m && <Team key={m.id} m={m} uid={uid!} />}
-      {data && data.length > 0 && (
-        <p className="meta">
-          <Link to="/leagues" className="more">Join another league</Link>
-          {canCreate && <Link to="/leagues/new" className="more">Create a league</Link>}
-        </p>
+      {/* The league bar (user, 2026-11-09: option A): your leagues, + Join (its page links Create), and the gear that
+          opens this league's settings under the bar. It shows with one league too, so Join and settings are always on top. */}
+      {data && m && (
+        <div className="league-bar">
+          <TeamSwitch teams={data} current={m} onPick={pick} />
+          <Link to="/leagues" className="join">+ Join</Link>
+          <button type="button" className="gear" aria-label="League settings" aria-expanded={settingsOpen}
+            aria-controls="league-settings" onClick={() => setSettingsOpen((o) => !o)}><GearIcon /></button>
+        </div>
       )}
-      {m && <LeagueSettings key={`settings-${m.id}`} m={m} isAdmin={isAdmin} listed={listed.data} onChanged={() => { reload(); listed.reload(); }} />}
+      {m && settingsOpen && (
+        <LeagueSettings key={`settings-${m.id}`} m={m} isAdmin={isAdmin} listed={listed.data}
+          onChanged={() => { reload(); listed.reload(); }} onClose={() => setSettingsOpen(false)} />
+      )}
+      {m && <Team key={m.id} m={m} uid={uid!} />}
     </section>
   );
 }
@@ -259,19 +265,32 @@ function RenameTeam({ m, onChanged }: { m: MembershipRow; onChanged: () => void 
   );
 }
 
-/** Rename your team; plus rename / password / delete for the league's creator or an admin, and Leave: rare, so folded at the bottom (t227). */
-function LeagueSettings({ m, isAdmin, listed, onChanged }: { m: MembershipRow; isAdmin: boolean; listed?: LeagueListing[]; onChanged: () => void }) {
+/** A gear, drawn (no icon font): the league bar's settings button. */
+const GearIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </svg>
+);
+
+/** Under the league bar, from its gear: rename your team; plus rename / password / delete for the league's creator or an admin, and Leave. */
+function LeagueSettings({ m, isAdmin, listed, onChanged, onClose }: {
+  m: MembershipRow; isAdmin: boolean; listed?: LeagueListing[]; onChanged: () => void; onClose: () => void;
+}) {
   const listing = listed?.find((l) => l.id === m.league_id);
   const donated = m.credit_ledger.some((e) => e.kind === 'donation');
   const leave = listing && !donated ? <LeagueLeave membershipId={m.id} league={listing} onLeft={onChanged} /> : null;
   const manage = listing && (listing.is_creator || isAdmin);
   return (
-    <details className="settings">
-      <summary>League settings</summary>
+    <section className="card" id="league-settings" aria-label="League settings">
+      <div className="head">
+        <h2>{m.leagues?.name ?? 'League'} settings</h2>
+        <button type="button" className="linklike" onClick={onClose}>Done</button>
+      </div>
       <div className="stack">
         <RenameTeam m={m} onChanged={onChanged} />
         {manage ? <ManageLeague league={listing} onChanged={onChanged}>{leave}</ManageLeague> : leave}
       </div>
-    </details>
+    </section>
   );
 }

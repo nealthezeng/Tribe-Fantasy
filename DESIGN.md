@@ -267,10 +267,12 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   as background). Used for the Standings league / All leagues toggle (Leaderboards) and the team switcher.
 - **`.subnav`**: Admin's group chips and sub-tabs (see Admin).
 - **League tab** (`HomePage.tsx`, `TournamentCard.tsx`; layout A, M15 P9): top to bottom, the first-visit guide, a
-  keeper's live-game card, the team switcher (2+ teams), then for the chosen team the matchup headline and strip, the
-  scoreboard and starters, the pick card, the Buy shares card, the league's short table and the games; then the "Join
-  another league" / "Create a league" `.more` links, and last a muted `details.settings` "League settings" fold. That
-  fold always renders for your team and opens with Rename team first (`rename_my_team`: 1–40 characters, unique in the
+  keeper's live-game card, the `.league-bar` (user, 2026-11-09, option A: Join and settings had sat unnoticed at the
+  page's end): the team switcher (even with one team), a dashed `--link` "+ Join" to Join a league (its page links
+  Create a league), and a round 44px `.gear` button (a drawn gear, `aria-expanded`, blue while open) that opens a
+  `section.card#league-settings` "League A settings" with a Done link right under the bar; then for the chosen team
+  the matchup headline and strip, the scoreboard and starters, the pick card, the Buy shares card, the league's short
+  table and the games. The settings card opens with Rename team first (`rename_my_team`: 1–40 characters, unique in the
   league), then Manage league (Rename league, the password form, then Leave and, while yours is the only team, a red
   `.danger-link` "Delete league" last, its confirm unchanged; with other teams, "Delete it from Admin › Teams ›
   Leagues." for an admin) or, for anyone else, Leave. With no team this season, a keeper (admins included) sees the quiet line "You
@@ -389,7 +391,8 @@ row names the fantasy team it plays in its title ("Game 2 vs Gimp Zeal") and giv
   guide stays hidden after that; existing players see it once too. Blocked storage (private mode) shows it every visit and "Got it"
   hides it for this visit only, with no error. "Got it" moves focus to the page `h1` (even when it is `.sr-only`). The Rules page
   always opens with the same steps, so there is no "show again". The pick count comes from the season's settings.
-- **Team switcher** (`.segmented.team-switch`): with 2+ teams this season, one team at a time; each button is named by
+- **Team switcher** (`.segmented.team-switch`): in the League tab's `.league-bar` always (one team: one pressed
+  button), on Credits with 2+ teams this season; one team at a time; each button is named by
   its **league** (the team name is the headline below). The choice is remembered on the device and shared with the
   Credits page. Long rows scroll sideways rather than squeeze. Only the current season's teams are listed (all of them
   if none are this season's, t240). A gold `.needs` dot marks a team that needs you: fewer picks than a game takes (2, or your whole roster if smaller)

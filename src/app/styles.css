@@ -115,7 +115,7 @@ button, .button {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
 }
 /* Button lettering (tokens --font-button etc.). Text links, menu items, tally tiles and the voice mic keep their own lettering. */
-:is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .pick-row, .voice-mic, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
+:is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, .voice-mic, :where(.tally-buttons, .tally-head, .tally-bar, .account-menu) *) {
   font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button); font-stretch: var(--button-stretch);
   text-transform: var(--button-case); letter-spacing: var(--button-track);
 }
@@ -422,6 +422,12 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 
 /* t229: with 2+ teams, one team at a time. Long names scroll sideways rather than squeeze. */
 .team-switch-wrap { position: relative; justify-self: start; max-width: 100%; min-width: 0; }
+/* The League tab's league bar (option A, 2026-11-09): the switch scrolls, + Join and the gear stay put at the end. */
+.league-bar { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.league-bar .join { flex: none; display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 var(--s3); border: 1px dashed var(--link); border-radius: var(--radius-sm); color: var(--link); font-weight: var(--fw-semi); white-space: nowrap; text-decoration: none; }
+.league-bar .gear { flex: none; display: grid; place-items: center; width: var(--tap); height: var(--tap); min-height: 0; margin-left: auto; padding: 0; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--surface-2); color: var(--fg); }
+.league-bar .gear:hover { background: var(--line); }
+.league-bar .gear[aria-expanded='true'] { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-ink); }
 .team-switch { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .team-switch button { flex: none; white-space: nowrap; }
 /* A team that needs you (no pick, or no bid in an open auction). */
@@ -521,13 +527,13 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
      Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
      moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
      tokens.test.ts fails if a lift or squeeze rule forgets it. */
-  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .danger-link, .account-button, .help, .factor, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly, and nothing on the board fades (buttons, pills, links), the bright/dark switch
