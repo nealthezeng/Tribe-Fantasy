@@ -122,7 +122,7 @@ describe('dry run: one tournament, six managers', () => {
     expect(a0).toEqual([['Ava', 50, 0.25], ['Cal', 25, 0.125]]);
     expect(slots.filter((x) => x.membership_id === teams[1].mid).map((x) => x.athlete_id).sort())
       .toEqual([f.athletes[1], f.athletes[4]].sort());
-    expect(slots.find((x) => x.athlete_id === f.athletes[3])?.share).toBe(10 / 200); // a lone buy under min_shares (default 200)
+    expect(slots.find((x) => x.athlete_id === f.athletes[3])?.share).toBe(10 / 200); // a lone buy under min_shares (the SQL fallback, 200: this season stores no settings)
     const balances = await q<{ membership_id: string; b: number }>(
       'select membership_id, sum(amount)::int as b from public.credit_ledger group by 1');
     for (const r of balances) {
@@ -163,7 +163,7 @@ describe('dry run: one tournament, six managers', () => {
     expect(cal.replacements.map((r) => r.why)).toEqual(['missed', 'missed']);
     expect(cal.athleteIds).toHaveLength(2);
     const dee = sideOf(2, teams[3].mid);
-    for (const a of dee.athleteIds) expect(dee.rest[a]).toBe(0.5);
+    for (const a of dee.athleteIds) expect(dee.rest[a]).toBe(DEFAULT_SETTINGS.tiredness_multipliers[0]);
   });
 
   it('scores each side as the sum of score × share × tiredness × degradation', () => {

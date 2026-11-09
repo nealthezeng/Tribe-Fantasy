@@ -141,6 +141,8 @@ describe('pick notices', () => {
   });
 
   it('opening with 3 games mails game 1 only; the last game finish tells nobody; raising an over tournament mails the new game', async () => {
+    // The fixture's stage ended 2026-11-08: keep it running so raising the count isn't TOURNAMENT_ENDED.
+    await f.db.query(`update public.stages set ends_on = (now() at time zone 'America/New_York')::date + 30 where id = $1`, [f.stage]);
     const g1 = await open(pairings(), 3);
     expect((await outbox()).map((r) => r.ref)).toEqual([g1, g1]);
     await start(g1);

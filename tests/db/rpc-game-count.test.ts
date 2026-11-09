@@ -130,6 +130,8 @@ describe('set_game_count', () => {
   });
 
   it('raises the count; an over tournament needs the new game paired, within its dates', async () => {
+    // The fixture's stage ended 2026-11-08: keep it running so raising the count isn't TOURNAMENT_ENDED.
+    await f.db.query(`update public.stages set ends_on = ${today} + 30 where id = $1`, [f.stage]);
     const g1 = await open(1);
     await start(g1);
     await finish(g1, []);
