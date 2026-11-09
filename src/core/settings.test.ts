@@ -84,7 +84,7 @@ describe('parseSettings', () => {
     expect(DEFAULT_SETTINGS).toMatchObject({ roster_size: 6, max_members: 12, min_shares: 200, picks_per_game: 2 });
     expect(DEFAULT_SETTINGS).not.toHaveProperty('bench_size');
     expect(DEFAULT_SETTINGS).not.toHaveProperty('exclusive_ownership');
-    expect(DEFAULT_SETTINGS.tiredness_multipliers).toEqual([0.5, 0.75]);
+    expect(DEFAULT_SETTINGS.tiredness_multipliers).toEqual([0.25, 0.5]);
   });
 
   it('takes a tiredness list of up to 10 factors in [0, 1]', () => {

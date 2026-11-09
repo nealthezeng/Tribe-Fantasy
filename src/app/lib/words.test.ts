@@ -19,8 +19,8 @@ describe('words', () => {
 
   it('says rest as the game he was picked for and the part of the points it keeps', () => {
     const s = DEFAULT_SETTINGS;
-    expect(restWords(0.5, 3, s)).toBe('picked for game 2: half points');
-    expect(restWords(0.75, 3, s)).toBe('picked for game 1: ¾ points');
+    expect(restWords(0.25, 3, s)).toBe('picked for game 2: ¼ points');
+    expect(restWords(0.5, 3, s)).toBe('picked for game 1: half points');
     expect(restWords(1, 3, s)).toBe('full points');
     expect(restWords(0.25, 4, { ...s, tiredness_multipliers: [0.25, 0.6] })).toBe('picked for game 3: ¼ points');
     expect(restWords(0.6, 4, { ...s, tiredness_multipliers: [0.25, 0.6] })).toBe('picked for game 2: 60% points');
@@ -32,8 +32,8 @@ describe('words', () => {
   });
 
   it("says a player's share, rest and earlier tournaments for one game", () => {
-    const side = { share: { a: 0.2, b: 1 }, rest: { a: 0.75, b: 1 }, decay: { a: 0.9, b: 1 } };
-    expect(factorWords(side, 'a', 3, DEFAULT_SETTINGS)).toBe('20% · picked for game 1: ¾ points · earlier tournaments: 90%');
+    const side = { share: { a: 0.2, b: 1 }, rest: { a: 0.5, b: 1 }, decay: { a: 0.9, b: 1 } };
+    expect(factorWords(side, 'a', 3, DEFAULT_SETTINGS)).toBe('20% · picked for game 1: half points · earlier tournaments: 90%');
     expect(factorWords(side, 'b', 3, DEFAULT_SETTINGS)).toBe('100% · full points'); // no cut, no words for it
   });
 

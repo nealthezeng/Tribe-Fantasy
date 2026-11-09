@@ -47,7 +47,7 @@ describe('Help', () => {
   it('says how points count in words at the default settings, with no × to tap', () => {
     render(<FactorHelp settings={DEFAULT_SETTINGS} />);
     expect(text("How a player's points count")).toBe("You score your share of a player's points. If he was picked for the "
-      + 'game before, they count half; two games before, ¾. Each earlier tournament he was picked in lowers them a little '
+      + 'game before, they count ¼; two games before, half. Each earlier tournament he was picked in lowers them a little '
       + 'more (90%, then 81%, …), never below 60%.');
     expect(text("How a player's points count")).not.toContain('×');
   });

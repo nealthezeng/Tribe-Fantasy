@@ -399,7 +399,7 @@ describe('AuctionCard', () => {
     expect((screen.getByLabelText('Credits for shares in Alice') as HTMLInputElement).value).toBe('20');
   });
 
-  const TIRED = 'You pick 2 players a game, and a player you picked for the game before scores half. Buying 6 lets you rotate them.';
+  const TIRED = 'You pick 2 players a game, and a player you picked for the game before scores ¼. Buying 6 lets you rotate them.';
 
   it('says why to buy a full roster while you have fewer than 6', async () => {
     db.stages = [openStage as unknown as Row];

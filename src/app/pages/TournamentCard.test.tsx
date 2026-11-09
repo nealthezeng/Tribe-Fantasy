@@ -209,7 +209,7 @@ describe('TournamentCard', () => {
     const ash = pickRow('Ash');
     expect(ash.matches('button.pick-row[aria-pressed="false"]')).toBe(true);
     expect([...ash.children].map((el) => el.className)).toEqual(['who', 'ring']);
-    expect(ash.querySelector('.who > small')?.textContent).toBe('Your 100% · picked for game 1: half points'); // base fixture shares are 1
+    expect(ash.querySelector('.who > small')?.textContent).toBe('Your 100% · picked for game 1: ¼ points'); // base fixture shares are 1
     expect(pickRow('Alex').textContent).toContain('Your 100% · full points'); // Avery was game 1's auto-pick, so tired too
   });
 
@@ -288,8 +288,8 @@ describe('TournamentCard', () => {
       sessions: [{ id: 'p0', verified_at: '2026-10-03T16:00:00Z' }, ...r.sessions],
     });
     const words = (name: string) => pickRow(name).querySelector('small')?.textContent;
-    // Ash: half of him, started last game (x0.5), started in the opener (x0.9).
-    expect(words('Ash')).toBe('Your 50% · picked for game 1: half points · earlier tournaments: 90%');
+    // Ash: half of him, started last game (x0.25), started in the opener (x0.9).
+    expect(words('Ash')).toBe('Your 50% · picked for game 1: ¼ points · earlier tournaments: 90%');
     expect(words('Arlo')).toBe('Your 100% · full points'); // x1 earlier tournaments is left out
     expect(words('Alex')).toBe('Your 40% · full points');
   });
@@ -297,7 +297,7 @@ describe('TournamentCard', () => {
   it("words a half share of last game's starter as both parts", async () => {
     const r = afterGame1();
     await show({ ...r, slots: [...roster('m1', ['a1', 'a2', 'a3', 'a4'], [0.5, 1, 1, 1]), ...roster('m2', ['b1', 'b2', 'b3', 'b4'])] });
-    expect(pickRow('Ash').textContent).toContain('Your 50% · picked for game 1: half points');
+    expect(pickRow('Ash').textContent).toContain('Your 50% · picked for game 1: ¼ points');
   });
 
   it('names who plays for an Out pick, and says when an Out pick still plays', async () => {
@@ -412,7 +412,7 @@ describe('TournamentCard', () => {
     expect(screen.getByRole('heading', { name: 'Pick 2 for game 2' })).toBeTruthy();
     expect(screen.getByText(/^You play/).textContent).toBe('You play Flow.');
     expect(picks().getByText('Picks lock when the stat keeper at the field starts game 2. No set time: pick early.')).toBeTruthy();
-    expect(pickRow('Ash').textContent).toContain('picked for game 1: half points');
+    expect(pickRow('Ash').textContent).toContain('picked for game 1: ¼ points');
     // The header leads with the next matchup; neither side's picks are set, and theirs read as hidden.
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
     expect(screen.getByText('No picks yet')).toBeTruthy();
@@ -802,7 +802,7 @@ describe('TournamentCard', () => {
   it('explains how points count on the pick card', async () => {
     await show(afterGame1());
     const help = picks().getByRole('button', { name: "How a player's points count" });
-    expect(help.nextElementSibling!.textContent).toContain('If he was picked for the game before, they count half');
+    expect(help.nextElementSibling!.textContent).toContain('If he was picked for the game before, they count ¼');
   });
 
   describe('live scores (t317)', () => {

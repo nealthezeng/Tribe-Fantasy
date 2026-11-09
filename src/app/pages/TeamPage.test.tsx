@@ -27,9 +27,9 @@ vi.mock('./HomePage', () => ({ loadMyTeams: () => Promise.resolve(db.mine) }));
 const ID2 = '00000000-0000-4000-8000-000000000002', ID3 = '00000000-0000-4000-8000-000000000003';
 const ID4 = '00000000-0000-4000-8000-000000000004', ID9 = '00000000-0000-4000-8000-000000000009';
 const member = (league_id: string) => ({ id: 'mine', league_id }) as MembershipRow;
-/** Finn: 15%, started the game before (half points); Rory: 10%, rested, cut to 90% by earlier tournaments. */
+/** Finn: 15%, started the game before (¼ points); Rory: 10%, rested, cut to 90% by earlier tournaments. */
 const side = (membershipId: string, over: Record<string, unknown> = {}) => ({
-  membershipId, players: ['b', 'a'], share: { a: 0.15, b: 0.1 }, rest: { a: 0.5, b: 1 }, decay: { a: 1, b: 0.9 }, factor: { a: 0.075, b: 0.09 },
+  membershipId, players: ['b', 'a'], share: { a: 0.15, b: 0.1 }, rest: { a: 0.25, b: 1 }, decay: { a: 1, b: 0.9 }, factor: { a: 0.0375, b: 0.09 },
   score: null, ...over,
 });
 /** Game `number` of Fall beta, Flow against Gimp Zeal; a started game has its session `p{number}`. */
@@ -78,7 +78,7 @@ describe('TeamPage', () => {
     visit(ID2);
     const players = within((await screen.findByText('Finn Garza')).closest('ul')!);
     expect(players.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'Finn Garza15% · picked for game 1: half points', 'Rory Vance10% · full points · earlier tournaments: 90%']);
+      'Finn Garza15% · picked for game 1: ¼ points', 'Rory Vance10% · full points · earlier tournaments: 90%']);
     expect(players.getByText('Finn Garza').className).toBe('title');
     expect(document.querySelector('details.factor')).toBeNull();
     expect(players.queryByText(/×/)).toBeNull();

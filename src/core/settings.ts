@@ -64,7 +64,7 @@ export const DEFAULT_SETTINGS: SeasonSettings = {
   decay_grace_stages: 0,
   decay_rate: 0.9,
   decay_floor: 0.6,
-  tiredness_multipliers: [0.5, 0.75],
+  tiredness_multipliers: [0.25, 0.5], // CCCs (2026-11-09): at [0.5, 0.75] 2-player rosters beat full ones; this makes 5-6 best
   default_pick: 'best_unused',
   stat_lock_hours: 48,
   tap_merge_seconds: 10,

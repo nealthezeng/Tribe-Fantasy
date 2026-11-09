@@ -5,9 +5,9 @@ import { tirednessMultiplier } from './tiredness';
 const s = parseSettings({});
 
 describe('tirednessMultiplier', () => {
-  it('is ×0.5 right after a start, ×0.75 two games on, then fully rested', () => {
-    expect(tirednessMultiplier(1, s)).toBe(0.5);
-    expect(tirednessMultiplier(2, s)).toBe(0.75);
+  it('is ×0.25 right after a start, ×0.5 two games on, then fully rested', () => {
+    expect(tirednessMultiplier(1, s)).toBe(0.25);
+    expect(tirednessMultiplier(2, s)).toBe(0.5);
     expect(tirednessMultiplier(3, s)).toBe(1);
     expect(tirednessMultiplier(10, s)).toBe(1);
   });
