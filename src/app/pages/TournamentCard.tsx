@@ -52,8 +52,9 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
     return (
       <BuyingContext.Provider value={setBuying}>
         <div className="matchup"><h2 className="display">{teamName}</h2><p className="strip">{subtitle}</p></div>
-        {children}
-        {error ? <p className="error" role="alert">{error}</p> : <Loading />}
+        {/* Buying stays usable if the league fails to load; while it loads, only the skeleton shows, so the buy
+            card isn't mounted here and again in its room (which would load it twice). */}
+        {error ? <>{children}<p className="error" role="alert">{error}</p></> : <Loading />}
       </BuyingContext.Provider>
     );
   }

@@ -457,8 +457,6 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .ranks .who strong { font-weight: var(--fw-semi); }
 .ranks li[aria-current] .who strong { font-weight: var(--fw-bold); }
 .ranks li.gap { grid-template-columns: auto; justify-content: center; min-height: 0; color: var(--muted); }
-/* On the League tab a gap opens the whole table in place. */
-.ranks li.gap button { min-height: 44px; padding: 0 var(--s3); border: 0; background: none; color: var(--link); font-weight: var(--fw-semi); }
 
 /* Admin (P9 rulings 17, 67): four group chips at their own width (the pressed one filled like a .segmented button),
    one row at 375px, and for a group of more than one section its text tabs with the gold underline on the current one.
@@ -580,7 +578,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
    .rooms: Now / Roster / Table / Games, a .segmented row filling the width; a gold dot marks a room that needs you. */
 .track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s1); }
 .track button, .track button:is(:hover, :active):not(:disabled) {
-  display: grid; justify-items: start; align-content: start; gap: 0; width: 100%; padding: var(--s2) 0 0; border: 0; border-top: 3px solid var(--line-strong);
+  display: grid; justify-content: stretch; justify-items: start; align-content: start; gap: 0; width: 100%; padding: var(--s2) 0 0; border: 0; border-top: 3px solid var(--line-strong);
   border-radius: 0; background: none; color: var(--muted); text-align: left;
 }
 .track small { color: inherit; font-family: var(--font-sans); font-size: var(--fs-2xs); font-stretch: normal; text-transform: none; letter-spacing: normal; }
@@ -613,8 +611,9 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .picks .pick-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; min-height: 84px; padding: var(--s3) 0; }
 .picks .pick-row .who { grid-row: span 2; }
 .picks .pips { align-self: end; justify-self: end; }
-.picks .pick-item > .factor { margin-bottom: var(--s3); margin-left: var(--s3); }
+.picks .pick-item > .factor { margin-bottom: var(--s3); }
 .cards li { display: grid; gap: var(--s2); align-content: space-between; min-height: 76px; padding-block: var(--s3); overflow-wrap: anywhere; }
+.card > ul.cards { padding-left: 0; } /* not the bulleted list a card's plain ul is */
 .cards li.off { color: var(--muted); }
 .cards .own .bar { flex: 1 1 auto; width: auto; }
 .count.full { color: var(--ok); }
