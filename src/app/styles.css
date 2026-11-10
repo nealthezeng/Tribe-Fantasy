@@ -418,7 +418,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .team-switch { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .team-switch button { flex: none; white-space: nowrap; }
 /* A team that needs you (no pick, or no bid in an open auction). */
-.team-switch .needs, .rooms .needs { display: inline-block; width: 8px; height: 8px; margin-left: var(--s2); border-radius: 50%; background: var(--gold); vertical-align: middle; }
+.needs { display: inline-block; width: 8px; height: 8px; margin-left: var(--s2); border-radius: 50%; background: var(--gold); vertical-align: middle; }
 /* A team that needs you is scrolled out of sight: that edge of the switch glows gold, pulsing unless motion is reduced. */
 .team-switch-wrap::before, .team-switch-wrap::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 44px; pointer-events: none; opacity: 0; transition: opacity var(--dur) var(--ease);
@@ -565,6 +565,15 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
   /* t319: a "since you last looked" chip pops in; the score counts up in script (CountUp), also only without reduced motion. */
   .since { animation: since-in var(--dur-pop) var(--ease-spring); }
 }
+
+/* Install app, on the website only: a glowing gold dot on the avatar (until the menu is opened once) and on the menu's
+   first item. The glow is a still halo; it pulses outward unless motion is reduced. */
+.needs.glow { box-shadow: 0 0 6px 1px var(--gold); }
+.account-button { position: relative; }
+.account-button > .needs { position: absolute; top: 2px; left: 28px; margin: 0; width: 12px; height: 12px; border: 2px solid var(--bar); }
+.account-menu .install, .account-menu .install:is(:hover, :active):not(:disabled) { grid-auto-flow: column; justify-content: start; align-items: center; color: var(--gold-text); }
+@keyframes dot-glow { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 75%, transparent); } to { box-shadow: 0 0 0 9px transparent; } }
+@media (prefers-reduced-motion: no-preference) { .needs.glow { animation: dot-glow var(--dur-pulse) var(--ease) infinite; } }
 
 /* Refresh (2026-11-10): the League tab says what is going on with marks, not sentences.
    .track: the tournament's three steps (Buy, Pick, Play) as a line of bars; the step to do is gold, a done one green.

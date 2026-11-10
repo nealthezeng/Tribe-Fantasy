@@ -20,6 +20,8 @@ function DiscMark() {
   );
 }
 
+const INSTALL_SEEN = 'tribe.install.seen';
+
 /** Avatar button that opens Me, My credits, Rules, Admin, Install app and Sign out. A native popover handles Esc, tap-outside and focus. */
 function AccountMenu({ name, email, isAdmin, uid, avatar }: { name: string | null; email: string | undefined; isAdmin: boolean; uid: string; avatar: unknown }) {
   const menu = useRef<HTMLDivElement>(null);
@@ -44,6 +46,14 @@ function AccountMenu({ name, email, isAdmin, uid, avatar }: { name: string | nul
   const install = () => {
     if (canPrompt) { close(); promptInstall(); } else setHint(true);
   };
+  // On the website (not inside the installed app) where it can be installed: Install app leads the menu with a glowing
+  // gold dot, and the avatar carries the same dot until the menu has been opened once on this device.
+  const canInstall = !isStandalone() && (canPrompt || isIos());
+  const [nudge, setNudge] = useState(() => { try { return localStorage.getItem(INSTALL_SEEN) !== '1'; } catch { return true; } });
+  const opened = () => {
+    setNudge(false);
+    try { localStorage.setItem(INSTALL_SEEN, '1'); } catch { /* shows again next visit */ }
+  };
   return (
     <div className="account">
       <button className="account-button" popoverTarget="account-menu" aria-label="Account menu"
@@ -52,19 +62,20 @@ function AccountMenu({ name, email, isAdmin, uid, avatar }: { name: string | nul
         {avatar === undefined
           ? <span className="avatar" aria-hidden="true">{initial}</span>
           : <span className="avatar has-figure"><Avatar choice={resolveAvatar(avatar, uid)} /></span>}
+        {canInstall && nudge && <span className="needs glow"><span className="sr-only"> (you can install the app)</span></span>}
       </button>
-      <div id="account-menu" className="account-menu" popover="auto" ref={menu}>
+      <div id="account-menu" className="account-menu" popover="auto" ref={menu} onToggle={(e) => { if (canInstall && e.newState === 'open') opened(); }}>
         <p className="account-who">
           <strong>{name || 'No name yet'}</strong>
           <small>{email}</small>
         </p>
+        {hint
+          ? <p className="account-hint" tabIndex={-1} ref={hintRef}>Tap Share, then Add to Home Screen.</p>
+          : canInstall && <button type="button" className="install" onClick={install}>Install app<span className="needs glow" aria-hidden="true" /></button>}
         <NavLink to="/me" onClick={close}>Me</NavLink>
         <NavLink to="/credits" onClick={close}>My credits</NavLink>
         <NavLink to="/rules" onClick={close}>Rules</NavLink>
         {isAdmin && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
-        {hint
-          ? <p className="account-hint" tabIndex={-1} ref={hintRef}>Tap Share, then Add to Home Screen.</p>
-          : !isStandalone() && (canPrompt || isIos()) && <button type="button" onClick={install}>Install app</button>}
         <button type="button" onClick={flipTheme}>{theme === 'light' ? 'Dark mode' : 'Light mode'}</button>
         <button type="button" onClick={() => { close(); void supabase?.auth.signOut(); }}>Sign out</button>
       </div>

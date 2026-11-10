@@ -130,11 +130,25 @@ describe('Install app (t328)', () => {
     const item = installItem()!;
     expect(menu().contains(item)).toBe(true);
     expect([...menu().querySelectorAll('a, button')].map((el) => el.textContent).slice(0, 5))
-      .toEqual(['Me', 'My credits', 'Rules', 'Admin', 'Install app']); // then the theme item
+      .toEqual(['Install app', 'Me', 'My credits', 'Rules', 'Admin']); // first, so nobody misses it
     fireEvent.click(item);
     expect(hide).toHaveBeenCalled();
     expect(e.prompt).toHaveBeenCalledTimes(1);
     expect(installItem()).toBeNull(); // single use
+  });
+
+  it('glows a dot on the avatar until the menu is opened once, and keeps one on Install app', () => {
+    localStorage.removeItem('tribe.install.seen');
+    renderLayout();
+    const avatarDot = () => screen.getByRole('button', { name: /^Account menu/ }).querySelector('.needs.glow');
+    expect(avatarDot()).toBeNull(); // nothing to install yet
+    offer();
+    expect(avatarDot()).toBeTruthy();
+    expect(installItem()!.querySelector('.needs.glow')).toBeTruthy();
+    act(() => { menu().dispatchEvent(Object.assign(new Event('toggle'), { newState: 'open' })); });
+    expect(avatarDot()).toBeNull(); // seen: the avatar goes quiet
+    expect(installItem()!.querySelector('.needs.glow')).toBeTruthy(); // the item keeps its dot
+    expect(localStorage.getItem('tribe.install.seen')).toBe('1');
   });
 
   it('tells iPhone users how to add it to the home screen, in any iPhone browser (not only Safari)', () => {
