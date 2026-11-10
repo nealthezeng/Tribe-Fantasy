@@ -17,12 +17,11 @@ function setup(available: number, bid: number | null = null) {
 }
 
 describe('BidControl', () => {
-  it('locks the row with a hint when the team already holds the most players', () => {
+  it('locks the row when the team already holds the most players', () => {
     render(<BidControl athlete={athlete} bid={null} minBid={1} available={50} cap={6} onOverBudget={vi.fn()}
       onSave={async () => {}} onRemove={async () => {}} />);
     expect((screen.getByLabelText('Credits for shares in Sam') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Buy' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('Up to 6 players. Remove one first.')).toBeTruthy();
   });
 
   it('shows the saved line it is given, in green words under the row', () => {

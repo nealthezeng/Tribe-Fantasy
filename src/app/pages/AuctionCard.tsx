@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { parseSettings } from '../../core/settings';
 import { repeatFactor } from '../../core/tournament';
@@ -10,18 +10,17 @@ import { SharesHelp } from '../components/Help';
 import { errorMessage } from '../lib/errors';
 import { api } from '../lib/rpc';
 import { fmt, lastTournamentForm, loadLeagueTournament, loadOpenOuts, type LeagueTournament } from '../lib/tournament';
-import { formatDay, todayLocal } from '../lib/stats';
 import { supabase } from '../lib/supabase';
 import { useLoad, usePoll, useReloadOnShow } from '../lib/useLoad';
 import { balance as sumLedger, credits, pct, type LedgerEntry } from '../lib/wallet';
-import { fraction } from '../lib/words';
+import { BuyingContext, Own } from './TournamentCard';
 
 interface Athlete { id: string; name: string; user_id: string | null; opted_in: boolean }
 type LedgerRow = Pick<LedgerEntry, 'amount'>;
 
 /**
- * Share buying for one team, in the stage pickAuctionStage chooses: a card with a sticky header (players, credits
- * left) while buying is open, nothing otherwise.
+ * Share buying for one team, in the stage pickAuctionStage chooses: a card with a sticky header (roster slots, credits
+ * left) over the player list while buying is open, nothing otherwise. It tells the League tab (BuyingContext) while open.
  */
 export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName, getCredits }: {
   membershipId: string; leagueId: string; seasonId: string; userId: string;
@@ -79,6 +78,13 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
   const shares = useLoad(async () => (stageId && buying ? api.shareTotals(stageId, leagueId) : null), [stageId, leagueId, buying]);
   usePoll(() => void shares.reload(), buying);
 
+  // The League tab's Buy step and Roster dot: time left, and whether the roster still has room.
+  const report = useContext(BuyingContext);
+  const left = buying && data.stage.bid_close_at ? timeLeft(data.stage.bid_close_at, now) : null;
+  const need = !!data && data.bids.filter((b) => b.membership_id === membershipId).length < data.rosterSize;
+  useEffect(() => { report(left ? { left, need } : null); }, [report, left, need]);
+  useEffect(() => () => report(null), [report]);
+
   // Over-budget feedback: each bump re-keys the credits number, restarting its flash; 0 = not flashing.
   const [flash, setFlash] = useState(0);
   const flashTimer = useRef<number | undefined>(undefined);
@@ -101,23 +107,10 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
   const { stage, settings, minBid, rosterSize, athletes, out, bids, ledger } = data;
   const balance = sumLedger(ledger);
   const phase = auctionPhase(stage, now);
-  const today = todayLocal();
-  const starts = stage.starts_on >= today ? `${stage.name} starts ${stage.starts_on === today ? 'today' : formatDay(stage.starts_on)}.` : null;
-  if (phase === 'closed') {
-    return (
-      <p className="notice">
-        {`Buying closed for ${stage.name}. Once shares are settled, your players and game 1 picks show here.${starts ? ` ${starts}` : ''}`}
-      </p>
-    );
-  }
+  if (phase === 'closed') return <p className="notice">{stage.name}: buying closed</p>;
   if (phase !== 'open') return null;
   const mine = bids.filter((b) => b.membership_id === membershipId);
   const total = mine.reduce((s, b) => s + b.amount, 0);
-  // Back-to-back picks score less (X4): the reason to buy a full roster, until you have one. No list = no tiredness;
-  // picks a game = roster size leaves nothing to rotate.
-  const tired = settings.tiredness_multipliers[0] ?? 1;
-  const picks = settings.picks_per_game;
-
   async function act(athleteId: string, action: () => Promise<void>, done?: string) {
     setError(null);
     setSaved(null);
@@ -140,11 +133,20 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
           <SharesHelp settings={settings} />
           <span className="pill info">Closes {timeLeft(stage.bid_close_at!, now)}</span>
         </div>
+        {/* The sentences are for screen readers; the eye gets the slots, the number and the bar. */}
+        <span className="sr-only">{mine.length} of {rosterSize} players</span>
+        <div className="slots" aria-hidden="true">
+          {Array.from({ length: Math.max(rosterSize, mine.length) }, (_, i) => {
+            const a = mine[i] && athletes.find((x) => x.id === mine[i].athlete_id);
+            return <span key={i} className={mine[i] ? 'slot on' : 'slot'}>{a ? initials(a.name) : mine[i] ? '?' : ''}</span>;
+          })}
+        </div>
         <div className="bid-sums">
-          <p><strong className="big">{mine.length}</strong> <span>of {rosterSize} players</span></p>
           <p>
-            <strong key={flash} className={flash ? 'big flash-bad' : 'big'}>{balance - total}</strong>{' '}
-            <span>{balance - total === 1 ? 'credit' : 'credits'} left of {balance}</span>
+            <span className="sr-only">{credits(balance - total)} left of {balance}</span>
+            <strong key={flash} className={flash ? 'big flash-bad' : 'big'} aria-hidden="true">{balance - total}</strong>
+            <span className="bar" aria-hidden="true"><i style={{ width: `${balance > 0 ? Math.max(0, Math.min(100, ((balance - total) / balance) * 100)) : 0}%` }} /></span>
+            <span aria-hidden="true">{balance}</span>
           </p>
           {getCredits && (
             // Running low (under 10% of your balance, or 2 minimum buys): the way to more credits turns gold (t234).
@@ -159,64 +161,53 @@ export function AuctionCard({ membershipId, leagueId, seasonId, userId, teamName
           Buys are {credits(total - balance)} over your balance.
         </p>
       )}
-      <p className="hint">{`${starts ? `${starts} ` : ''}Picks for game 1 open here once shares are settled.`}</p>
-      {tired < 1 && picks < rosterSize && mine.length < rosterSize && (
-        <p className="hint">
-          {`You pick ${picks} player${picks === 1 ? '' : 's'} a game, and a player you picked for the game before scores `
-            + `${fraction(tired)}. Buying ${rosterSize} lets you rotate them.`}
-        </p>
-      )}
-      <BidList open={mine.length === 0} loud={mine.length === 0}
-        summary={<>Buy shares <span className="muted">· {athletes.filter((a) => a.opted_in && a.user_id !== userId).length} players</span></>}>
-        <WithTournament seasonId={seasonId} leagueId={leagueId}>{(tournament) => {
-          const form = tournament ? lastTournamentForm(tournament, stage.id) : null;
-          return (
-          <>
-          {form && <p className="hint">Points a game at {form.name}, the last tournament. Tap a name for game by game.</p>}
+      <WithTournament seasonId={seasonId} leagueId={leagueId}>{(tournament) => {
+        const form = tournament ? lastTournamentForm(tournament, stage.id) : null;
+        return (
           <ul className="list">
             {/* Players you've bought first, so your buys are findable among the rest (t237). A player who opted out
                 after you bought stays until you remove him: he still counts toward the limit. */}
             {athletes.filter((a) => a.opted_in || mine.some((b) => b.athlete_id === a.id))
               .sort((a, b) => Number(!!pinned?.has(b.id)) - Number(!!pinned?.has(a.id)))
               .map((a) => {
-              const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
-              const pool = shares.data ? shares.data[a.id] ?? settings.min_shares : null;
-              // Rounded as the Rules page does; no chip until (or unless) the tournament has loaded.
-              const perGame = form?.perGame.get(a.id);
-              const factor = tournament ? +repeatFactor(tournament.result, membershipId, a.id, stage.id, settings).toFixed(2) : 1;
-              return (
-                <li key={a.id} className="bid-row">
-                  <span className="meta">
-                    {form ? <Link className="title" to={`/player/${a.id}?t=${form.stageId}`}>{a.name}</Link> : <span className="title">{a.name}</span>}
-                    {factor < 1 && (
-                      <span className="pill warn" aria-label={`picked in an earlier tournament: ${pct(factor)}`}>×{factor}</span>
+                const bid = mine.find((b) => b.athlete_id === a.id)?.amount ?? null;
+                const pool = shares.data ? shares.data[a.id] ?? settings.min_shares : null;
+                // Rounded as the Rules page does; no number until (or unless) the tournament has loaded.
+                const perGame = form?.perGame.get(a.id);
+                const factor = tournament ? +repeatFactor(tournament.result, membershipId, a.id, stage.id, settings).toFixed(2) : 1;
+                // "about": the live total can still grow before buying closes, and every slice shrinks with it (X4).
+                const own = bid === null ? null : Math.min(1, bid / (pool ?? settings.min_shares));
+                return (
+                  <li key={a.id} className="bid-row">
+                    <span className="meta">
+                      {form ? <Link className="title" to={`/player/${a.id}?t=${form.stageId}`}>{a.name}</Link> : <span className="title">{a.name}</span>}
+                      {factor < 1 && (
+                        <span className="pill warn" aria-label={`picked in an earlier tournament: ${pct(factor)}`}>×{factor}</span>
+                      )}
+                      {out.has(a.id) && <span className="pill bad">Out</span>}
+                      {!a.opted_in && <span className="pill">Opted out</span>}
+                      {own !== null && <Own share={own} label={`You own ${pool !== null ? 'about' : 'up to'} ${pct(own)}`} />}
+                      {/* The pool only shows once the league has put more on a player than the floor: your slice is shrinking. */}
+                      {pool !== null && pool > settings.min_shares && <small>{pool} shares</small>}
+                      {/* A phone has no room for a points column beside the buy controls: the number sits under the name. */}
+                      {perGame !== undefined && <small title={form?.name}>{fmt(perGame)} pts/g</small>}
+                    </span>
+                    {a.user_id === userId ? <span className="muted">You</span> : (
+                      <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}
+                        cap={bid === null && mine.length >= rosterSize ? rosterSize : undefined}
+                        available={balance - total + (bid ?? 0)} onOverBudget={overBudget}
+                        error={error?.athleteId === a.id ? error.text : null}
+                        saved={saved?.athleteId === a.id ? saved.text : null}
+                        onSave={(amount) => act(a.id, () => api.placeBid(stage.id, membershipId, a.id, amount),
+                          `Saved: ${credits(amount)} on ${a.name}.`)}
+                        onRemove={() => act(a.id, () => api.deleteBid(stage.id, membershipId, a.id))} />
                     )}
-                    {out.has(a.id) && <span className="pill bad">Out</span>}
-                    {!a.opted_in && <span className="pill">Opted out</span>}
-                    {perGame !== undefined && <small>{fmt(perGame)} a game</small>}
-                    {pool !== null && <small>{pool} shares</small>}
-                    {/* "about": the live total can still grow before buying closes, and every slice shrinks with it (X4). */}
-                    {bid !== null && (pool !== null ? <small>You own about {pct(Math.min(1, bid / pool))}</small>
-                      : <small>You own up to {pct(Math.min(1, bid / settings.min_shares))}</small>)}
-                  </span>
-                  {a.user_id === userId ? <span className="muted">That's you</span> : (
-                    <BidControl key={`${a.id}:${bid ?? ''}`} athlete={a} bid={bid} minBid={minBid}
-                      cap={bid === null && mine.length >= rosterSize ? rosterSize : undefined}
-                      available={balance - total + (bid ?? 0)} onOverBudget={overBudget}
-                      error={error?.athleteId === a.id ? error.text : null}
-                      saved={saved?.athleteId === a.id ? saved.text : null}
-                      onSave={(amount) => act(a.id, () => api.placeBid(stage.id, membershipId, a.id, amount),
-                        `Saved: ${credits(amount)} on ${a.name}.`)}
-                      onRemove={() => act(a.id, () => api.deleteBid(stage.id, membershipId, a.id))} />
-                  )}
-                </li>
-              );
-            })}
+                  </li>
+                );
+              })}
           </ul>
-          </>
-          );
-        }}</WithTournament>
-      </BidList>
+        );
+      }}</WithTournament>
     </article>
   );
 }
@@ -232,17 +223,8 @@ function WithTournament({ seasonId, leagueId, children }: {
   return <>{children(useLoad(() => loadLeagueTournament(seasonId, leagueId), [seasonId, leagueId]).data)}</>;
 }
 
-/** Starts open or closed once, on mount: a later `open` change (your first buy) must not snap it shut. */
-/** Closed, its summary reads as a button: solid gold until you've bought (`loud`), outlined after. */
-function BidList({ open, loud, summary, children }: { open: boolean; loud: boolean; summary: ReactNode; children: ReactNode }) {
-  const [startOpen] = useState(open);
-  return (
-    <details className={loud ? 'section bid-cta loud' : 'section bid-cta'} open={startOpen}>
-      <summary>{summary}</summary>
-      {children}
-    </details>
-  );
-}
+/** "Ari Banks" -> "AB": a bought player in a roster slot. */
+const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
 export function BidControl({ athlete, bid, minBid, available, cap, error = null, saved = null, onOverBudget, onSave, onRemove }: {
   athlete: Athlete; bid: number | null; minBid: number;
@@ -288,7 +270,6 @@ export function BidControl({ athlete, bid, minBid, available, cap, error = null,
           <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" /></svg>
         </button>
       )}
-      {cap !== undefined && <small className="hint">Up to {cap} players. Remove one first.</small>}
       {entered && !valid && <small className="error">Put in at least {minBid}, in whole credits.</small>}
       {over && (
         <small className="error" role="alert">

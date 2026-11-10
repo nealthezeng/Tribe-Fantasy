@@ -73,7 +73,7 @@ export function TeamPage() {
       <small className="owner">{owner}</small>
       {error && <p className="error" role="alert">{error}</p>}
       {number !== undefined && <ul className="list"><li><GameRow y={y} membershipId={membershipId} number={number} g={focus} /></li></ul>}
-      {!next ? <p className="muted">No tournament on. Players show once the next tournament's shares are settled.</p>
+      {!next ? <p className="muted">No tournament on</p>
         : !side ? <p className="muted">{team.removed_at ? 'No players.' : 'No players this tournament.'}</p> : (
           <>
             <div className="head">

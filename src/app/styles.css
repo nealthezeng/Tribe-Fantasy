@@ -190,16 +190,6 @@ ul.error { margin: 0; padding-left: 20px; }
 details:is(.card, .section, .settings) { display: block; }
 details:is(.card, .section, .settings)[open] > summary { margin-bottom: var(--s3); }
 details.settings > summary { color: var(--muted); }
-/* Bid on players, closed: a button, so nobody misses that bidding is open. Solid gold before your first bid. */
-details.bid-cta:not([open]) > summary {
-  justify-content: center; min-height: var(--tap-lg); padding: 0 var(--s4); border: 2px solid var(--gold); border-radius: var(--radius-sm);
-  color: var(--gold-text); font-family: var(--font-button); font-weight: var(--fw-button); font-size: var(--fs-button);
-  font-stretch: var(--button-stretch); text-transform: var(--button-case); letter-spacing: var(--button-track);
-}
-details.bid-cta:not([open]) > summary .muted { color: inherit; opacity: 0.75; }
-details.bid-cta:not([open]) > summary:hover { background: color-mix(in srgb, var(--gold) 14%, transparent); }
-details.bid-cta.loud:not([open]) > summary { background: var(--gold); color: var(--on-gold); }
-details.bid-cta.loud:not([open]) > summary:hover { background: var(--gold-hover); } /* rare admin of your league: a quiet fold at the page's end (t227) */
 details > summary { cursor: pointer; min-height: var(--tap); display: flex; align-items: center; gap: var(--s2); font-weight: var(--fw-semi); list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary::before, a.row-link::after { content: ''; flex: none; width: 8px; height: 8px; margin: 0 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); }
@@ -328,7 +318,6 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .bid { display: grid; grid-template-columns: 4.5rem 4rem var(--tap); gap: var(--s2); align-items: center; }
 .bid input, .bid button { padding-inline: var(--s2); } /* "Credits" placeholder must fit the 4.5rem box (t251) */
 .bid small { grid-column: 1 / -1; text-align: right; }
-.bid-row .meta small { flex-basis: 100%; } /* last tournament's points a game, under the name (t322) */
 .icon { width: var(--tap); padding: 0; }
 .icon svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; }
 .list li > .row { flex: 1 1 100%; }
@@ -378,7 +367,6 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .pick-item > :not([popover]) { grid-area: 1 / 1; }
 .pick-item > .factor { align-self: end; justify-self: start; margin-bottom: var(--s2); }
 .factor-room { display: block; height: 1.6em; }
-.pick-item + .pick-item { border-top: 1px solid var(--line); }
 .pick-row:disabled { opacity: 1; color: var(--muted); }
 [aria-busy='true'] .pick-row { cursor: progress; } /* a save is reloading: taps are held until it lands */
 .pick-row .who { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
@@ -413,8 +401,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
    Start"); the step at hand is bold, and its one gold button sits under the line. */
 .steps { font-size: var(--fs-sm); color: var(--muted); }
 .steps .now { color: var(--fg); font-weight: var(--fw-semi); }
-/* The first-visit guide (and the top of Rules): plain numbered steps inside a notice. */
-.guide { display: grid; gap: var(--s3); }
+/* The top of Rules: plain numbered steps. */
 .guide-steps { margin: 0; padding-left: var(--s5); display: grid; gap: var(--s2); }
 /* A secondary way on: underlined text with a drawn arrow that nudges forward on hover. Gold buttons stay for actions. */
 .more { display: inline-flex; align-items: center; gap: var(--s2); min-height: var(--tap); font-weight: var(--fw-semi); }
@@ -431,7 +418,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 .team-switch { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
 .team-switch button { flex: none; white-space: nowrap; }
 /* A team that needs you (no pick, or no bid in an open auction). */
-.team-switch .needs { display: inline-block; width: 8px; height: 8px; margin-left: var(--s2); border-radius: 50%; background: var(--gold); vertical-align: middle; }
+.team-switch .needs, .rooms .needs { display: inline-block; width: 8px; height: 8px; margin-left: var(--s2); border-radius: 50%; background: var(--gold); vertical-align: middle; }
 /* A team that needs you is scrolled out of sight: that edge of the switch glows gold, pulsing unless motion is reduced. */
 .team-switch-wrap::before, .team-switch-wrap::after {
   content: ''; position: absolute; top: 0; bottom: 0; width: 44px; pointer-events: none; opacity: 0; transition: opacity var(--dur) var(--ease);
@@ -503,7 +490,7 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
 /* The sticky header sits above the list, so a browser's own scroll-into-view for a focused control must clear it. */
 .bid input, .bid button { scroll-margin-top: 8rem; }
 .bid-sums { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
-.bid-sums p { display: flex; align-items: baseline; gap: var(--s2); }
+.bid-sums p { flex: 1 1 100%; display: flex; align-items: center; gap: var(--s3); }
 .bid-sums span { color: var(--muted); }
 .flash-bad { color: var(--error); } /* reduced motion: just red while .over lasts */
 @keyframes live-pulse { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.6); opacity: 0; } }
@@ -527,13 +514,13 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
      Chips and segmented buttons stay put so they don't drift off their sliding marker, and nothing on the tally board
      moves. The tally is excluded inside each :not() itself: an opt-out rule after these would lose on specificity.
      tokens.test.ts fails if a lift or squeeze rule forgets it. */
-  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .track, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     transform: translateY(-1px);
   }
-  :is(button, .button):not(.secondary, .linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
+  :is(button, .button):not(.secondary, .linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .track, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):hover:not(:disabled) {
     box-shadow: var(--shadow-lift);
   }
-  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
+  :is(button, .button):not(.linklike, .danger-link, .account-button, .help, .factor, .gear, .pick-row, :where(.subnav, .segmented, .track, .account-menu, .tally-buttons, .tally-head, .tally-bar, .page:has(.tally-bar)) *):active:not(:disabled) {
     transform: scale(0.95); box-shadow: none;
   }
   /* A tally tap must show instantly, and nothing on the board fades (buttons, pills, links), the bright/dark switch
@@ -579,6 +566,54 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
   .since { animation: since-in var(--dur-pop) var(--ease-spring); }
 }
 
+/* Refresh (2026-11-10): the League tab says what is going on with marks, not sentences.
+   .track: the tournament's three steps (Buy, Pick, Play) as a line of bars; the step to do is gold, a done one green.
+   .rooms: Now / Roster / Table / Games, a .segmented row filling the width; a gold dot marks a room that needs you. */
+.track { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s1); }
+.track button, .track button:is(:hover, :active):not(:disabled) {
+  display: grid; justify-items: start; align-content: start; gap: 0; width: 100%; padding: var(--s2) 0 0; border: 0; border-top: 3px solid var(--line-strong);
+  border-radius: 0; background: none; color: var(--muted); text-align: left;
+}
+.track small { color: inherit; font-family: var(--font-sans); font-size: var(--fs-2xs); font-stretch: normal; text-transform: none; letter-spacing: normal; }
+.track .on button, .track .on button:is(:hover, :active):not(:disabled) { border-top-color: var(--gold); color: var(--gold-text); }
+.track .done button, .track .done button:is(:hover, :active):not(:disabled) { border-top-color: var(--ok); color: var(--ok); }
+.rooms { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.rooms button { padding-inline: var(--s1); }
+.rooms button[aria-selected='true'], .rooms button[aria-selected='true']:hover:not(:disabled) { background: var(--fg); color: var(--bg); }
+.room { display: grid; gap: var(--s4); align-content: start; }
+.room[hidden] { display: none; }
+/* Roster slots: one circle a place, dashed while empty, gold with the player's initials once bought. */
+.slots { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.slot { display: grid; place-items: center; width: 32px; height: 32px; border: 2px dashed var(--line-strong); border-radius: 50%; font-size: var(--fs-2xs); font-weight: var(--fw-bold); }
+.slot.on { border: 0; background: var(--gold); color: var(--on-gold); }
+/* A share or a balance as a bar: gold for credits left, blue for the part of a player you own. */
+.bar { flex: 1 1 auto; display: block; min-width: 48px; height: 6px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: inherit; background: var(--gold); }
+.own { display: inline-flex; align-items: center; gap: var(--s2); font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.own .bar { flex: none; width: 64px; }
+.own .bar > i { background: var(--blue); }
+/* Freshness: four pips, all green when rested, fewer and amber after a recent pick. */
+.pips { display: inline-flex; gap: 2px; }
+.pips i { width: 4px; height: 12px; border-radius: var(--radius-pill); background: var(--line-strong); }
+.pips i.lit { background: var(--ok); }
+.pips.low i.lit { background: var(--warn); }
+/* Players as cards, two across: the pick card (each card is the toggle) and the Roster room. */
+.picks, .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+.picks .pick-item, .cards li { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 var(--s3); }
+.picks .pick-item:has([aria-pressed='true']) { border-color: var(--ok); }
+.picks .pick-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; min-height: 84px; padding: var(--s3) 0; }
+.picks .pick-row .who { grid-row: span 2; }
+.picks .pips { align-self: end; justify-self: end; }
+.picks .pick-item > .factor { margin-bottom: var(--s3); margin-left: var(--s3); }
+.cards li { display: grid; gap: var(--s2); align-content: space-between; min-height: 76px; padding-block: var(--s3); overflow-wrap: anywhere; }
+.cards li.off { color: var(--muted); }
+.cards .own .bar { flex: 1 1 auto; width: auto; }
+.count.full { color: var(--ok); }
+/* An unverified score is drawn in outline; it fills in once a keeper verifies. */
+.score.soft .pts { color: transparent; -webkit-text-stroke: 1.5px var(--bar-fg); }
+/* The dock's icons (phones) sit over their labels. */
+.tabs svg { display: none; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
 /* Phones (t92): the tabs dock at the bottom within thumb reach; the top bar keeps the brand and the avatar. Frosted
    like the sticky headers, the gold marker on its top edge. Safari keeps it clear of the iPhone home bar on its own
    (real iPhone, t128); env(safe-area-inset-*) would be 0 anyway without viewport-fit=cover. Hidden while the tally
@@ -588,7 +623,8 @@ th[aria-sort='ascending'] .linklike::after { content: ' ↑' / ''; }
     position: fixed; z-index: 3; inset: auto 0 0; margin: 0;
     background: var(--sticky-bg); border-top: 1px solid var(--pane-border); -webkit-backdrop-filter: var(--pane-blur); backdrop-filter: var(--pane-blur);
   }
-  .tabs a { color: var(--muted); }
+  .tabs a { color: var(--muted); flex-direction: column; gap: 2px; font-size: var(--fs-xs); }
+  .tabs svg { display: block; }
   .tabs a:hover, .tabs a[aria-current='page'] { color: var(--fg); }
   .tabs .ink { top: -1px; bottom: auto; }
   .topbar:has(.tabs) + .shell:not(:has(.tally-bar)) { padding-bottom: calc(48px + var(--dock-height)); }

@@ -131,12 +131,11 @@ describe('TournamentCard', () => {
     expect([...document.querySelectorAll('.game-line .teams > small')].map((e) => e.textContent)).toEqual(['vs UNC', 'vs Duke']);
   });
 
-  it('links both teams in the matchup headline and the opponent on the pick card', async () => {
+  it('links both teams in the matchup headline', async () => {
     await show(afterGame1());
     const hrefs = (name: string) => screen.getAllByRole('link', { name }).map((a) => a.getAttribute('href'));
     expect(hrefs('Zeal')).toEqual(['/team/m1']);
-    expect(hrefs('Flow')).toEqual(['/team/m2', '/team/m2', '/team/m2']); // headline, "You play", league table
-    expect(picks().getByRole('link', { name: 'Flow' }).getAttribute('href')).toBe('/team/m2');
+    expect(hrefs('Flow')).toEqual(['/team/m2']); // the headline; the table's link waits in its own room
   });
 
   /** A player's row in the pick card: the whole row is the toggle button. */
@@ -149,9 +148,11 @@ describe('TournamentCard', () => {
 
   it('pre-selects two players for game 1, then refuses a third until one is cleared', async () => {
     await show(base());
-    expect(picks().getByText('Picks lock when the stat keeper at the field starts game 1. No set time: pick early.')).toBeTruthy(); // no game before it to wait on
+    // When picks lock sits behind the card's "?", not on the card.
+    expect(picks().getByRole('button', { name: "How a player's points count" }).nextElementSibling?.textContent)
+      .toContain('Picks lock when the stat keeper at the field starts game 1. No set time: pick early.');
     expect(picks().getByRole('heading', { name: 'Pick 2 for game 1' }).parentElement?.querySelector('strong.num')?.textContent).toBe('0 of 2');
-    expect(picks().getAllByRole('button', { pressed: false }).map((b) => b.querySelector('b')?.textContent)).toEqual(['Alex', 'Arlo', 'Ash', 'Avery']); // A→Z
+    expect(picks().getAllByRole('button', { pressed: false }).map((b) => b.querySelector('b')?.firstChild?.textContent)).toEqual(['Alex', 'Arlo', 'Ash', 'Avery']); // A→Z (two of them carry the Auto pill)
     fireEvent.click(pickRow('Alex'));
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a3']));
     await waitFor(() => expect(rowsBusy()).toBe('false')); // reloaded
@@ -162,7 +163,7 @@ describe('TournamentCard', () => {
     expect(picks().getAllByRole('button', { pressed: true })).toHaveLength(2);
     expect(picks().getByText('2 of 2')).toBeTruthy();
     expect(pickRow('Avery').disabled).toBe(true);
-    expect(picks().getByText('You have 2 picks. Clear one to change.')).toBeTruthy();
+    expect(picks().getByText('2 of 2').matches('.full')).toBe(true); // the count turns green; no sentence
     // Clearing Alex (rows list by name) sends Ash alone.
     fireEvent.click(picks().getAllByRole('button', { pressed: true })[0]);
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 1, ['a1']));
@@ -173,7 +174,6 @@ describe('TournamentCard', () => {
     const r = liveGame1();
     await show({ ...r, pairings: r.pairings.filter((p) => p.game_id !== 'g2') });
     const ash = picks().getByRole('button', { name: /^Ash\b/, pressed: false });
-    expect(picks().getByText("You'll see who you play once game 1 ends. Picks lock when the stat keeper at the field starts game 2. No set time: pick early.")).toBeTruthy();
     expect(picks().queryByText(/You start next game|joined after/)).toBeNull();
     fireEvent.click(ash);
     await waitFor(() => expect(api.setGamePick).toHaveBeenLastCalledWith('m1', 'S1', 2, ['a1']));
@@ -189,13 +189,13 @@ describe('TournamentCard', () => {
       athletes: [...r.athletes, { id: 'c1', name: 'Cy' }],
       pairings: [r.pairings[0], { game_id: 'g2', home: 'm1', away: null }, { game_id: 'g2', home: 'm2', away: 'm3' }],
     });
-    expect(picks().getByText("Bye in game 2: no opponent, so your standings points don't change.")).toBeTruthy();
+    expect(document.querySelector('.matchup .strip')?.textContent).toContain('Bye'); // the strip says it; the card has no sentence
     expect(picks().getAllByRole('button', { pressed: false })).toHaveLength(4); // a bye start still tires a player: you can pick
   });
 
   it('says a team with no players cannot score', async () => {
     await show({ ...base(), slots: roster('m2', ['b1', 'b2', 'b3', 'b4']) });
-    expect(picks().getByText("You have no players this tournament, so you can't score.")).toBeTruthy();
+    expect(picks().getByText('No players this tournament')).toBeTruthy();
     expect(picks().queryByRole('button')).toBeNull();
     expect(document.body.textContent).not.toMatch(/forfeit/i);
   });
@@ -203,15 +203,17 @@ describe('TournamentCard', () => {
   it('says a team paired after it joined starts the game after', async () => {
     const r = afterGame1();
     await show({ ...r, pairings: r.pairings.map((p) => (p.game_id === 'g2' ? { ...p, home: 'm2', away: null } : p)) });
-    expect(picks().getByText('You joined after game 2 was paired, so you start the game after it.')).toBeTruthy();
+    expect(picks().getByText('You start in game 3')).toBeTruthy();
     expect(picks().queryByRole('button')).toBeNull();
   });
 
-  it('shows each player as a row with your share and tiredness in words', async () => {
+  it('shows each player as a card with the multiplier bubble and freshness pips', async () => {
     await show(afterGame1());
     const ash = pickRow('Ash');
     expect(ash.matches('button.pick-row[aria-pressed="false"]')).toBe(true);
-    expect([...ash.children].map((el) => el.className)).toEqual(['who', 'ring']);
+    expect([...ash.children].map((el) => el.className)).toEqual(['who', 'ring', 'pips low']);
+    expect(ash.querySelectorAll('.pips .lit')).toHaveLength(1); // tired x0.25: one pip of four
+    expect(pickRow('Alex').querySelectorAll('.pips:not(.low) .lit')).toHaveLength(4); // rested
     expect(ash.textContent).toBe('Ash'); // just the name: no words under it
     expect(bubble('Ash').textContent).toBe('×0.25'); // base fixture shares are 1: share 1 × tired ¼, blue from ×0.25
     expect(bubble('Ash').className).toBe('factor mid');
@@ -384,10 +386,10 @@ describe('TournamentCard', () => {
     expect(within(screen.getByRole('region', { name: 'Starters' })).getByText('Avery was out, so Arlo played.')).toBeTruthy();
   });
 
-  it('says who plays if you leave a pick empty', async () => {
+  it('marks who plays if you leave a pick empty', async () => {
     const r = afterGame1();
     await show({ ...r, picks: [...r.picks, { stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id: 'a3' }] });
-    expect(picks().getByText(/^If you don't pick, (Avery|Arlo) plays\.$/)).toBeTruthy();
+    expect(picks().getAllByText('Auto')).toHaveLength(1); // on Avery's or Arlo's card
     expect(picks().getByText('1 of 2')).toBeTruthy();
     // The scoreboard holds your picks, green only once both are in.
     expect(document.querySelector('.score-side')?.textContent).toBe('Your picksAlex');
@@ -395,7 +397,7 @@ describe('TournamentCard', () => {
     cleanup();
     await show({ ...r, picks: [...r.picks, ...['a3', 'a4'].map((athlete_id) => ({ stage_id: 'S1', game_number: 2, membership_id: 'm1', athlete_id }))] });
     expect(document.querySelector('.score-side.picked')?.textContent).toBe('Your picksAlexArlo');
-    expect(picks().queryByText(/If you don't pick/)).toBeNull();
+    expect(picks().queryByText('Auto')).toBeNull();
   });
 
   const owners = () => [...document.querySelectorAll('.display .side')].map((el) => [el.querySelector('.team-link')?.textContent, el.querySelector('.owner')?.textContent ?? null]);
@@ -418,8 +420,6 @@ describe('TournamentCard', () => {
   it("shows the next opponent, the tiredness of last game's starter, and never the opponent's sealed pick", async () => {
     await show(afterGame1());
     expect(screen.getByRole('heading', { name: 'Pick 2 for game 2' })).toBeTruthy();
-    expect(screen.getByText(/^You play/).textContent).toBe('You play Flow.');
-    expect(picks().getByText('Picks lock when the stat keeper at the field starts game 2. No set time: pick early.')).toBeTruthy();
     expect(parts('Ash')).toContain('Tired 0.25');
     // The header leads with the next matchup; neither side's picks are set, and theirs read as hidden.
     expect(screen.getByRole('heading', { name: 'Zeal vs Flow' })).toBeTruthy();
@@ -431,6 +431,28 @@ describe('TournamentCard', () => {
     expect(screen.getByText('Finished · not verified')).toBeTruthy(); // game 1's line
   });
 
+  it('shows one room at a time, opens on the one with something to do, and dots it', async () => {
+    await show(afterGame1()); // game 2 needs two picks
+    const tab = (name: string) => screen.getByRole('tab', { name: new RegExp(`^${name}`) });
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Now (needs you)', 'Roster', 'Table', 'Games']);
+    expect(tab('Now').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getAllByRole('tabpanel').map((p) => p.id)).toEqual(['room-now']); // the others are hidden
+    // The steps: bought, picking, not playing yet.
+    expect([...document.querySelectorAll('.track li')].map((li) => [li.textContent, li.className])).toEqual([['Buy done', 'done'], ['PickGame 2', 'on'], ['Play', '']]);
+    fireEvent.click(tab('Roster'));
+    expect(screen.getAllByRole('tabpanel').map((p) => p.id)).toEqual(['room-roster']);
+    // The Roster room: each player owned, with the share as a bar and a percent.
+    const cards = [...screen.getByRole('region', { name: 'Fall beta players' }).querySelectorAll('.cards li')];
+    expect(cards.map((li) => li.textContent)).toEqual(['Alex100%', 'Arlo100%', 'Ash100%', 'Avery100%']);
+    fireEvent.click(screen.getByRole('button', { name: /^Pick/ })); // a step opens its room
+    expect(tab('Now').getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('opens on the table when there is no game and nothing to buy', async () => {
+    await show({ ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] });
+    expect(screen.getByRole('tab', { name: 'Table' }).getAttribute('aria-selected')).toBe('true');
+  });
+
   it('has nothing to pick between tournaments (T4)', async () => {
     // No games and no playing stage: the next auction hasn't run.
     await show({ ...base(), stages: [{ ...base().stages[0], auction_run_at: null }] });
@@ -440,9 +462,9 @@ describe('TournamentCard', () => {
   });
 
   describe('league table (ruling 8)', () => {
-    const table = () => within(screen.getByRole('article', { name: 'League A' }));
+    const table = () => within(screen.getByRole('article', { name: 'League A', hidden: true }));
 
-    it('shows a short league table with Full table instead of the tiles', async () => {
+    it('shows the whole league table, with All leagues, instead of the tiles', async () => {
       const r = finalGame1();
       // Flow beat Zeal; four more teams (no players) played each other: six rows, Zeal last.
       const more = ['m3', 'm4', 'm5', 'm6'];
@@ -453,11 +475,11 @@ describe('TournamentCard', () => {
         lines: [{ session_id: 'p1', athlete_id: 'a1', stats: { goal: 1 }, points_played: 0 },
           { session_id: 'p1', athlete_id: 'b1', stats: { goal: 2 }, points_played: 0 }],
       });
-      // The top 3, one gap, then the row above yours and yours.
-      expect(table().getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent ?? li.textContent))
-        .toEqual(['Flow', expect.stringMatching(/^Team m/), expect.stringMatching(/^Team m/), '1 more team', expect.stringMatching(/^Team m/), 'Zeal (you)']);
+      // Every team: the Table room has the room for it.
+      expect(table().getAllByRole('listitem', { hidden: true }).map((li) => li.querySelector('strong')?.textContent ?? li.textContent))
+        .toEqual(['Flow', ...Array.from({ length: 4 }, () => expect.stringMatching(/^Team m/)), 'Zeal (you)']);
       expect(document.querySelector('.ranks [aria-current]')?.textContent).toContain('Zeal (you)');
-      expect(table().getByRole('link', { name: 'Full table' }).getAttribute('href')).toBe('/leaderboards');
+      expect(table().getByRole('link', { name: 'All leagues', hidden: true }).getAttribute('href')).toBe('/leaderboards');
       expect(table().queryByRole('button', { name: /Show all/ })).toBeNull();
       expect(screen.queryByText('Place')).toBeNull();
       expect(screen.queryByText('Record')).toBeNull();
@@ -466,20 +488,15 @@ describe('TournamentCard', () => {
     it('shows the league table before any game counts', async () => {
       await show(afterGame1()); // game 1 finished, not verified: nothing counts yet
       expect(table().getByText('Zeal (you)')).toBeTruthy();
-      expect(table().getByRole('link', { name: 'Full table' }).getAttribute('href')).toBe('/leaderboards');
-      // After the pick card, before the games.
-      const [next, league, games] = [screen.getByRole('article', { name: 'Next game' }), screen.getByRole('article', { name: 'League A' }),
-        screen.getByRole('region', { name: 'Zeal games' })];
-      expect(next.compareDocumentPosition(league) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(league.compareDocumentPosition(games) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(table().getByRole('link', { name: 'All leagues', hidden: true }).getAttribute('href')).toBe('/leaderboards');
     });
 
     it('explains how the league table is ordered beside it', async () => {
       await show(afterGame1()); // nothing counts yet: still a table, still explained
-      expect(table().getByRole('button', { name: 'How the table is ordered' })).toBeTruthy();
+      expect(table().getByRole('button', { name: 'How the table is ordered', hidden: true })).toBeTruthy();
       cleanup();
       await show(finalGame1());
-      const help = table().getByRole('button', { name: 'How the table is ordered' });
+      const help = table().getByRole('button', { name: 'How the table is ordered', hidden: true });
       expect(help.previousElementSibling?.textContent).toBe('League A'); // on the heading line
       expect(help.nextElementSibling?.textContent).toContain('Level on points, the team that scored more');
     });
@@ -493,7 +510,7 @@ describe('TournamentCard', () => {
       [...el.querySelectorAll('.t')].map((t) => [...t.children].map((c) => c.textContent)),
       [...el.querySelector('.state')!.children].map((c) => c.textContent),
     ];
-    const region = () => within(screen.getByRole('region', { name: 'Zeal games' })); // named after the team (t130)
+    const region = () => within(screen.getByRole('region', { name: 'Zeal games', hidden: true })); // named after the team (t130)
     /** What a row opens to: its details' body, after the summary. */
     const body = (el: Element) => el.closest('details')!.querySelector(':scope > :not(summary)')!;
     const stage = (id: string, name: string, day: string) =>
@@ -513,7 +530,7 @@ describe('TournamentCard', () => {
         sessions: [...r.sessions, { id: 'p2', verified_at: null }],
       };
       await show(three);
-      expect(screen.getByRole('heading', { name: 'Games' })).toBeTruthy();
+      expect(screen.getByRole('heading', { name: 'Games', hidden: true })).toBeTruthy();
       expect(region().getByText('Fall beta').matches('.game-group > p')).toBe(true);
       expect(lines().map(words)).toEqual([
         ['Game 1', [['Zeal', '6'], ['Flow', '3']], ['Final']],
@@ -552,7 +569,7 @@ describe('TournamentCard', () => {
       expect([...document.querySelectorAll('.game-group > p')].map((p) => p.textContent)).toEqual(['Fall beta', 'Earlier']);
       const opener = region().getByText('Opener · 1 game · 1–0');
       expect(opener.closest('summary')).toBeTruthy(); // the whole row opens it
-      expect(screen.getByRole('region', { name: 'Zeal games' }).textContent).not.toContain('Warmup');
+      expect(screen.getByRole('region', { name: 'Zeal games', hidden: true }).textContent).not.toContain('Warmup');
       // Opened, it lists that tournament's games, one line each.
       expect(words(body(opener).querySelector('.game-line')!)).toEqual(['Game 1', [['Zeal', '6'], ['Flow', '0']], ['Final']]);
     });
@@ -591,7 +608,7 @@ describe('TournamentCard', () => {
       const opened = body(lines()[0]);
       // Yours first, though Flow was home; then the other matchup as one line that opens to its two sides.
       expect([...opened.querySelectorAll(':scope > .stack .by')].map((el) => el.textContent)).toEqual(['Zeal', 'Flow']);
-      const other = within(opened as HTMLElement).getByRole('heading', { name: 'Other matchups' }).parentElement!;
+      const other = within(opened as HTMLElement).getByRole('heading', { name: 'Other matchups', hidden: true }).parentElement!;
       expect([...other.querySelectorAll(':scope > details > summary')].map((s) => s.textContent)).toEqual(['Huck Finn 3 · Layout Legends 5']);
       expect([...other.querySelectorAll('details .by')].map((el) => el.textContent)).toEqual(['Huck Finn', 'Layout Legends']);
       // 3 goals x 3 - 2 turnovers x 1 = 7, at half of Ash.
@@ -657,7 +674,7 @@ describe('TournamentCard', () => {
     });
 
     describe('an earlier tournament left live', () => {
-      const groups = () => [...screen.getByRole('region', { name: 'Zeal games' }).querySelectorAll(':scope > .game-group')];
+      const groups = () => [...screen.getByRole('region', { name: 'Zeal games', hidden: true }).querySelectorAll(':scope > .game-group')];
       const heads = () => groups().map((g) => g.querySelector(':scope > p')?.textContent);
       const folded = (g: Element) => [...g.querySelectorAll(':scope > details > summary')].map((s) => s.textContent);
       const strip = () => document.querySelector('.matchup .strip')!.textContent!;
@@ -781,7 +798,7 @@ describe('TournamentCard', () => {
       // The strip is the league line, with no game from a tournament that's over (DECISION 2).
       expect(stripWords()).toEqual(['League A', '2 teams']);
       expect(scoreboard()).toBeNull();
-      const games = screen.getByRole('region', { name: 'Zeal games' });
+      const games = screen.getByRole('region', { name: 'Zeal games', hidden: true });
       expect([...games.querySelectorAll(':scope > .game-group > p')].map((p) => p.textContent)).toEqual(['Earlier']);
       expect(within(games).getByText('Fall beta · 1 game · 1–0').closest('summary')).toBeTruthy();
       expect(games.querySelector('.game-line .t.lost')?.textContent).toBe('Flow3'); // opened, the loser greyed
@@ -885,7 +902,6 @@ describe('TournamentCard', () => {
       expect(line.querySelector('.t.lost')).toBeNull(); // no result until it's verified
       expect([...line.querySelector('.state')!.children].map((e) => e.textContent)).toEqual(['Finished · not verified', 'unofficial']);
       const opened = line.closest('details')!;
-      expect(opened.textContent).toContain('Unofficial until a keeper verifies.');
       expect(opened.textContent).toContain('Ash · 2 goals');
     });
 

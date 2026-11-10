@@ -186,7 +186,7 @@ describe('TeamPage', () => {
   it('says no tournament on when there is no next game', async () => {
     db.y = tournament({ result: { games: [], next: null } });
     visit(ID2);
-    expect(await screen.findByText("No tournament on. Players show once the next tournament's shares are settled.")).toBeTruthy();
+    expect(await screen.findByText('No tournament on')).toBeTruthy();
     expect(screen.queryByRole('listitem')).toBeNull();
   });
 

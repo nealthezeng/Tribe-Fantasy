@@ -171,7 +171,7 @@ export function SessionPage() {
           {keepers.map((k) => (
             <details key={k}>
               <summary>Tallied by {people.get(k) ?? 'a keeper'}</summary>
-              <StatTable stats={stats} rows={ofCounts(mergeTaps(taps.filter((t) => t.keeperId === k), 0).counts)} legend={false} />
+              <StatTable stats={stats} rows={ofCounts(mergeTaps(taps.filter((t) => t.keeperId === k), 0).counts)} />
             </details>
           ))}
           {iTapped ? (

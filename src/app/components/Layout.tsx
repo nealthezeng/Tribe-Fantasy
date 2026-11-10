@@ -123,8 +123,13 @@ export function Layout() {
           <Link to="/" className="brand"><DiscMark />Tribe Fantasy</Link>
           {session && (
             <nav className="tabs" aria-label="Main" ref={tabs}>
-              {([['/', 'League'], ['/stats', 'Stats'], ['/leaderboards', 'Leaderboards']] as const).map(([to, label]) => (
-                <Link key={to} to={to} aria-current={tab === to ? 'page' : undefined}>{label}</Link>
+              {/* Each tab's drawn icon (a disc, bars, a cup) shows over its label in the phone dock only. */}
+              {([['/', 'League', <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" /></>],
+                ['/stats', 'Stats', <path d="M5 20V10M12 20V4M19 20v-7" />],
+                ['/leaderboards', 'Leaderboards', <path d="M8 4h8v5a4 4 0 0 1-8 0zM12 13v5M8 20h8" />]] as const).map(([to, label, icon]) => (
+                <Link key={to} to={to} aria-current={tab === to ? 'page' : undefined}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true">{icon}</svg>{label}
+                </Link>
               ))}
               <span className="ink" aria-hidden="true" />
             </nav>

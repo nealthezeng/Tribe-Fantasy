@@ -23,7 +23,6 @@ async function sendCode() {
 it('asks for an email to send a code to, in code words (the email carries a code, not only a link)', () => {
   render(<LoginPage />);
   expect(screen.getByRole('button', { name: 'Email me a code' })).toBeTruthy();
-  expect(screen.getByText("We'll email you a 6-digit code.")).toBeTruthy();
   expect(document.body.textContent).not.toMatch(/sign-in link/i);
 });
 

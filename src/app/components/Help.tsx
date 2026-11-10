@@ -38,7 +38,7 @@ const GAMES_BEFORE = ['the game', 'two games', 'three games', 'four games', 'fiv
   'eight games', 'nine games', 'ten games'];
 
 /** Beside the pick card and a team's players: share, tired steps and earlier tournaments, in words (rulings 3–4). */
-export function FactorHelp({ settings: S }: { settings: SeasonSettings }) {
+export function FactorHelp({ settings: S, extra }: { settings: SeasonSettings; /** A last sentence: when picks lock, on the pick card. */ extra?: string }) {
   const tired = S.tiredness_multipliers
     .map((m, i) => (i ? `${GAMES_BEFORE[i]} before, ${fraction(m)}` : `If he was picked for the game before, they count ${fraction(m)}`))
     .join('; ');
@@ -51,7 +51,7 @@ export function FactorHelp({ settings: S }: { settings: SeasonSettings }) {
     + `(${pct(stageMultiplier(g + 1, S))}, then ${pct(stageMultiplier(g + 2, S))}, …), never below ${pct(S.decay_floor)}.`;
   return (
     <Help label="How a player's points count">
-      {["You score your share of a player's points.", tired && `${tired}.`, decay].filter(Boolean).join(' ')}
+      {["You score your share of a player's points.", tired && `${tired}.`, decay, extra].filter(Boolean).join(' ')}
     </Help>
   );
 }

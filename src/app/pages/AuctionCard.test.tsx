@@ -8,7 +8,6 @@ import { api } from '../lib/rpc';
 import { pairKey } from '../../core/week';
 import { DEFAULT_SETTINGS } from '../../core/settings';
 import { loadLeagueTournament } from '../lib/tournament';
-import { todayLocal } from '../lib/stats';
 
 type Row = Record<string, unknown>;
 
@@ -123,8 +122,8 @@ describe('AuctionCard', () => {
     db.stages = [closedStage];
     const { container } = renderCard();
     await loaded();
-    expect(await screen.findByText('Buying closed for Fall. Once shares are settled, your players and game 1 picks show here.')).toBeTruthy();
-    expect(container.textContent!.match(/Buying closed/g)).toHaveLength(1);
+    expect(await screen.findByText('Fall: buying closed')).toBeTruthy();
+    expect(container.textContent!.match(/buying closed/g)).toHaveLength(1);
     expect(loadLeagueTournament).not.toHaveBeenCalled();
   });
 
@@ -145,13 +144,15 @@ describe('AuctionCard', () => {
       + 'player, every slice shrinks to fit. Free credits arrive before each tournament; unspent ones carry over.');
   });
 
-  it('shows the combined header with nothing bought yet, list open, no separate team card', async () => {
+  it('shows the combined header with nothing bought yet: six empty slots, the list under it', async () => {
     db.stages = [openStage as unknown as Row];
     renderCard();
     await screen.findByText(/^Closes in/);
     expect(document.body.textContent).toContain('115 credits left of 115');
     expect(document.body.textContent).toContain('0 of 6 players');
-    expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
+    expect(document.querySelectorAll('.slots .slot')).toHaveLength(6);
+    expect(document.querySelector('.slot.on')).toBeNull();
+    expect(document.querySelector('details')).toBeNull(); // the list is the Roster room's job: no fold
     expect(screen.getByRole('link', { name: 'Get more credits' })).toBeTruthy();
   });
 
@@ -217,11 +218,11 @@ describe('AuctionCard', () => {
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('a', 'Ari Banks') as unknown as Row, athlete('b', 'Bo Castellanos') as unknown as Row];
     renderCard();
-    expect(await screen.findByText('Points a game at B, the last tournament. Tap a name for game by game.')).toBeTruthy();
+    await screen.findByText(/^Closes in/);
     const row = (n: string) => within(screen.getByText(n).closest('li')!);
-    expect(await row('Ari Banks').findByText('4.5 a game')).toBeTruthy();
+    expect(await row('Ari Banks').findByText('4.5 pts/g')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Ari Banks' }).getAttribute('href')).toBe('/player/a?t=B');
-    expect(row('Bo Castellanos').queryByText(/a game/)).toBeNull();
+    expect(row('Bo Castellanos').queryByText(/pts\/g/)).toBeNull();
   });
 
   it('shows the plain list when there is no last tournament', async () => {
@@ -231,7 +232,7 @@ describe('AuctionCard', () => {
     await screen.findByText(/^Closes in/);
     await waitFor(() => expect(loadLeagueTournament).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
-    expect(screen.queryByText(/Points a game at/)).toBeNull();
+    expect(screen.queryByText(/pts\/g/)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Ari Banks' })).toBeNull();
     expect(screen.getByText('Ari Banks')).toBeTruthy();
   });
@@ -259,18 +260,18 @@ describe('AuctionCard', () => {
     expect([...document.querySelectorAll('li.bid-row .title')].map((t) => t.textContent)).toEqual(['Alice', 'Bob']);
   });
 
-  it('keeps the list open through your first buy', async () => {
+  it('fills a roster slot with the initials of the player you buy', async () => {
     db.stages = [openStage as unknown as Row];
     db.athletes = [athlete('b', 'Bob') as unknown as Row];
     renderCard();
     await screen.findByText(/^Closes in/);
-    expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
+    expect(document.querySelector('.slot.on')).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Credits for shares in Bob'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: 'Buy' }));
     await waitFor(() => expect(document.body.textContent).toContain('105 credits left of 115'));
 
-    expect(document.querySelector('details.section')!.hasAttribute('open')).toBe(true);
+    expect([...document.querySelectorAll('.slot.on')].map((s) => s.textContent)).toEqual(['B']);
   });
 
   it('reloads the balance from the ledger (not a stale prop) after an over-budget refusal', async () => {
@@ -303,15 +304,15 @@ describe('AuctionCard', () => {
     const msg = await screen.findByText('Not enough credits for that.');
     expect(msg.closest('li')!.textContent).toContain('Alice');
     const over = await screen.findByText('Buys are 10 credits over your balance.');
-    // The error sits right under the header, before the advice (ruling 83).
+    // The error sits right under the header, before the list (ruling 83).
     expect(over.previousElementSibling!.className).toContain('bid-header');
-    expect(over.nextElementSibling!.textContent).toBe('Picks for game 1 open here once shares are settled.');
+    expect(over.nextElementSibling!.tagName).toBe('UL');
   });
 
   const player = (i: number, name = `P${i}`) => athlete(`p${i}`, name) as unknown as Row;
   const buy = (i: number, amount = 10) => ({ membership_id: 'm1', athlete_id: `p${i}`, amount }) as unknown as Row;
 
-  it('says "N of 6 players", and locks every other row once you hold 6, with the hint', async () => {
+  it('says "N of 6 players", and locks every other row once you hold 6', async () => {
     db.stages = [openStage as unknown as Row];
     db.athletes = [1, 2, 3, 4, 5, 6, 7].map((i) => player(i));
     db.bids = [buy(1), buy(2)];
@@ -328,7 +329,7 @@ describe('AuctionCard', () => {
     expect(document.body.textContent).toContain('6 of 6 players');
     expect((screen.getByLabelText('Credits for shares in P7') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Buy' }) as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByText('Up to 6 players. Remove one first.')).toBeTruthy();
+    expect(document.querySelectorAll('.slot.on')).toHaveLength(6); // the full slots say why
     expect((screen.getByLabelText('Credits for shares in P1') as HTMLInputElement).disabled).toBe(false);
   });
 
@@ -399,37 +400,6 @@ describe('AuctionCard', () => {
     expect((screen.getByLabelText('Credits for shares in Alice') as HTMLInputElement).value).toBe('20');
   });
 
-  const TIRED = 'You pick 2 players a game, and a player you picked for the game before scores ¼. Buying 6 lets you rotate them.';
-
-  it('says why to buy a full roster while you have fewer than 6', async () => {
-    db.stages = [openStage as unknown as Row];
-    db.athletes = [1, 2, 3, 4, 5, 6, 7].map((i) => player(i));
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.getByText(TIRED).className).toBe('hint');
-
-    db.bids = [1, 2, 3, 4, 5, 6].map((i) => buy(i));
-    cleanup();
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.queryByText(TIRED)).toBeNull();
-
-    db.bids = [];
-    db.seasons = [{ settings: { tiredness_multipliers: [] } }];
-    cleanup();
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.queryByText(/a player you picked/)).toBeNull();
-
-    // As many picks a game as players: nothing to rotate.
-    db.seasons = [{ settings: { roster_size: 2 } }];
-    cleanup();
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(document.body.textContent).toContain('0 of 2 players');
-    expect(screen.queryByText(/a player you picked/)).toBeNull();
-  });
-
   it('shows the most of a player each buy can own', async () => {
     db.seasons = [{ settings: { min_shares: 200 } }]; // the numbers below are at a 200-share floor
     db.stages = [openStage as unknown as Row];
@@ -438,12 +408,12 @@ describe('AuctionCard', () => {
     renderCard();
     await screen.findByText(/^Closes in/);
     const row = (n: string) => screen.getByText(n).closest('li')!;
-    expect(within(row('P1')).getByText('You own up to 20%').tagName).toBe('SMALL');
+    expect(within(row('P1')).getByText('You own up to 20%').nextElementSibling?.textContent).toBe('20%'); // spoken; the eye gets a bar and 20%
     expect(within(row('P2')).getByText('You own up to 100%')).toBeTruthy();
     expect(row('P3').textContent).not.toContain('You own');
   });
 
-  it("shows each player's live share total, never under min_shares, and your slice of it", async () => {
+  it("shows a player's live share total once it passes min_shares, and your slice of it", async () => {
     db.seasons = [{ settings: { min_shares: 200 } }]; // the numbers below are at a 200-share floor
     db.stages = [openStage as unknown as Row];
     db.athletes = [player(1), player(2), player(3)];
@@ -452,43 +422,11 @@ describe('AuctionCard', () => {
     renderCard();
     const row = (n: string) => screen.getByText(n).closest('li')!;
     await screen.findByText('500 shares');
-    expect(within(row('P1')).getByText('200 shares').tagName).toBe('SMALL');
+    expect(row('P1').textContent).not.toContain('shares'); // at the floor: nothing to say
     expect(within(row('P1')).getByText('You own about 20%')).toBeTruthy();
     expect(within(row('P2')).getByText('You own about 50%')).toBeTruthy();
-    expect(within(row('P3')).getByText('200 shares')).toBeTruthy(); // no buys yet: the floor
+    expect(row('P3').textContent).not.toContain('shares');
     expect(row('P3').textContent).not.toContain('You own');
-  });
-
-  it('says when the tournament starts and when picks open while buying is open', async () => {
-    db.stages = [{ ...openStage, starts_on: '2099-10-24' } as unknown as Row];
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.getByText('Fall starts Sat, Oct 24. Picks for game 1 open here once shares are settled.').className).toBe('hint');
-
-    db.stages = [{ ...openStage, starts_on: todayLocal() } as unknown as Row]; // its first day
-    cleanup();
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.getByText('Fall starts today. Picks for game 1 open here once shares are settled.')).toBeTruthy();
-
-    db.stages = [openStage as unknown as Row]; // started 2026-10-18, before today
-    cleanup();
-    renderCard();
-    await screen.findByText(/^Closes in/);
-    expect(screen.getByText('Picks for game 1 open here once shares are settled.')).toBeTruthy();
-    expect(screen.queryByText(/Fall starts/)).toBeNull();
-  });
-
-  it('says what comes after buying closes', async () => {
-    db.stages = [{ ...closedStage, starts_on: '2099-10-24' }];
-    renderCard();
-    await loaded();
-    expect(await screen.findByText('Buying closed for Fall. Once shares are settled, your players and game 1 picks show here. '
-      + 'Fall starts Sat, Oct 24.')).toBeTruthy();
-    db.stages = [{ ...closedStage, starts_on: todayLocal() }];
-    cleanup();
-    renderCard();
-    expect(await screen.findByText(/Fall starts today\.$/)).toBeTruthy();
   });
 
   it('reloads when the app comes back on screen', async () => {
@@ -513,7 +451,7 @@ describe('AuctionCard', () => {
       vi.setSystemTime(Date.now() + 2 * 3_600_000); // past bid_close_at, well before the next 15 s tick
       Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
       document.dispatchEvent(new Event('visibilitychange'));
-      expect(await screen.findByText(/^Buying closed for Fall\./)).toBeTruthy();
+      expect(await screen.findByText('Fall: buying closed')).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }

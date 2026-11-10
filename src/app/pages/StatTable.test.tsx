@@ -2,7 +2,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { HashRouter, MemoryRouter, useLocation } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
-import { STAT_LEGEND } from '../lib/words';
 import { StatTable, TournamentSwitch } from './StatTable';
 
 afterEach(cleanup);
@@ -30,7 +29,7 @@ describe('StatTable', () => {
     expect(screen.getByRole('columnheader', { name: 'Turnover' }).getAttribute('title')).toBe('Turnover');
   });
 
-  it('orders stat columns G A D C T, like the legend, whatever order the settings keys come in', () => {
+  it('orders stat columns G A D C T, whatever order the settings keys come in', () => {
     // jsonb hands stat_weights back as goal, block, assist, callahan, turnover (G D A C T).
     const weights = { goal: 3, block: 5, assist: 2, callahan: 8, turnover: -1 };
     render(<MemoryRouter><StatTable stats={Object.keys(weights)} rows={[{ ...ari6, counts: { goal: 1, block: 2, assist: 3 } }]} /></MemoryRouter>);
@@ -78,16 +77,10 @@ describe('StatTable', () => {
     expect(screen.getByRole('cell', { name: 'Ari' }).closest('tr')!.classList.contains('row-target')).toBe(false);
   });
 
-  it('shows the legend under the table', () => {
+  it('has no legend line: each letter head carries its full name', () => {
     render(<MemoryRouter><StatTable stats={['goal']} rows={[ari6]} /></MemoryRouter>);
-    const legend = screen.getByText(STAT_LEGEND);
-    expect(legend.className).toBe('hint');
-    expect(screen.getByRole('table').compareDocumentPosition(legend) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it('leaves the legend out when asked', () => {
-    render(<MemoryRouter><StatTable stats={['goal']} rows={[ari6]} legend={false} /></MemoryRouter>);
-    expect(screen.queryByText(STAT_LEGEND)).toBeNull();
+    expect(document.querySelector('.hint')).toBeNull();
+    expect(screen.getByRole('columnheader', { name: /goal/i }).getAttribute('title')).toMatch(/goal/i);
   });
 
   it('adds the total as the last row, outside the sort', () => {

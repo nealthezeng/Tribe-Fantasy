@@ -174,22 +174,13 @@ describe('CreditsPage with several teams', () => {
   });
 });
 
-describe('First-visit guide on League (t320)', () => {
-  beforeEach(() => localStorage.clear());
-  it('shows the guide above the Get started card for a new user, and Got it lands on the page heading', async () => {
+describe('No tutorial card on League (refresh)', () => {
+  it('shows a new user Get started and nothing that explains the game', async () => {
     await noTeams();
     show();
-    const guide = await screen.findByRole('complementary', { name: 'How it works' });
-    const started = await screen.findByRole('heading', { name: 'Get started' });
-    expect(guide.compareDocumentPosition(started) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Got it' }));
-    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1, name: 'Your teams' }));
-  });
-
-  it('uses the season pick count', async () => {
-    season.loaded = { picks_per_game: 3 };
-    show();
-    await screen.findByText(/Pick 3 each game/);
+    await screen.findByRole('heading', { name: 'Get started' });
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.queryByText('How it works')).toBeNull();
   });
 });
 
@@ -211,9 +202,8 @@ describe('League for a keeper (P9 ruling 11)', () => {
     expect(screen.getByText('CCCs · Game 2 vs UNC')).toBeTruthy();
     expect(screen.getByText('Live')).toBeTruthy();
     expect(loadCurrentGame).toHaveBeenCalledWith('spring'); // the current season
-    // No team: a quiet line instead of the Get started card, so Tally stays the one gold button.
-    expect(await screen.findByText("You don't have a team this season.")).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Join a league' }).className).toBe('more');
+    // No team: a quiet link instead of the Get started card, so Tally stays the one gold button.
+    expect((await screen.findByRole('link', { name: 'Join a league' })).className).toBe('more');
     expect(screen.queryByRole('heading', { name: 'Get started' })).toBeNull();
   });
 
@@ -221,7 +211,7 @@ describe('League for a keeper (P9 ruling 11)', () => {
     vi.mocked(loadCurrentGame).mockResolvedValue(current(true));
     show();
     expect((await screen.findByRole('link', { name: 'Tally game 2' })).className).toBe('more');
-    expect(screen.queryByText("You don't have a team this season.")).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Join a league' })).toBeNull();
   });
 
   it('shows no game card while the game has not started', async () => {

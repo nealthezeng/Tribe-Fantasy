@@ -7,7 +7,7 @@ import type { LeagueTournament } from './tournament';
 export const gameName = (number: number, opponent?: string | null): string =>
   (opponent ? `Game ${number} vs ${opponent}` : `Game ${number}`);
 
-/** The one stat order for words, the legend and stat tables (G A D C T); the tally board keeps its own button order. */
+/** The one stat order for words and stat tables (G A D C T); the tally board keeps its own button order. */
 const STAT_ORDER = ['goal', 'assist', 'block', 'callahan', 'turnover'];
 
 /** Stat keys in STAT_ORDER, any other key after them as given (settings keys come back from jsonb in its own order). */
@@ -19,8 +19,6 @@ export const inStatOrder = (keys: string[]): string[] => {
 /** "1 goal, 2 assists, 1 block" in STAT_ORDER; '' when every count is 0. */
 export const statWords = (stats: Record<string, number>): string =>
   STAT_ORDER.filter((k) => stats[k] > 0).map((k) => `${stats[k]} ${k}${stats[k] === 1 ? '' : 's'}`).join(', ');
-
-export const STAT_LEGEND = 'G goals · A assists · D blocks · C callahans · T turnovers';
 
 /** A factor as an exact percent to 3 significant figures: 0.125 → "12.5%", 0.2 → "20%". */
 export const pctExact = (x: number): string => `${Number((x * 100).toPrecision(3))}%`;

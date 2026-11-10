@@ -9,6 +9,25 @@ duration lives there. `src/app/styles.css` imports it and only reads the tokens.
 (`public/manifest.webmanifest`: the bar and page colours) and the app icons' background. Reuse the classes in
 `styles.css` before adding new ones. No UI libraries.
 
+## Refresh (2026-11-10): read this first
+
+The League tab was rebuilt as four rooms with marks instead of sentences
+(`docs/superpowers/specs/2026-11-10-refresh-rooms.md`). Where a passage below disagrees with this section, this
+section is right; those passages have not been rewritten yet.
+
+- **No explaining text on a working screen.** No guide card, no `.hint` that tells you what to do next. A rule lives
+  behind a "?" or on the Rules page. Errors, labels, status words and the donation lines stay.
+- **Rooms** (`TournamentCard.tsx`): the matchup headline, the `.track` (Buy, Pick, Play: the step to do gold, a done
+  one green, each a button that opens its room), then `.segmented.rooms` (Now, Roster, Table, Games; a gold `.needs`
+  dot on a room that needs you) and one `.room` on screen, the others `hidden`.
+- **Marks** (`styles.css`, "Refresh"): `.slots` / `.slot` (roster places, gold with initials once bought), `.bar`
+  (gold = credits left, blue inside `.own` = the part of a player you own), `.pips` (freshness, four pips, amber when
+  tired), `.picks` and `.cards` (players as cards, two across), `.score.soft` (an unverified score in outline),
+  `.count.full` (a full pick count in green), icons in the phone dock (`.tabs svg`).
+- **Gone**: the first-visit guide, the "Buy shares" fold (`details.bid-cta`), the League tab's short table and "Full
+  table" (the Table room shows the whole league; "All leagues" opens Leaderboards), the stat-table legend, the hint
+  lines listed in the spec.
+
 ## Colour
 
 **Dark first, light on request** (M9): dark is the base, the scoreboard's world of smoked glass, a faint gold and

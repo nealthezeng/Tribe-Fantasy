@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { GameOutcome, NextGame, TournamentSide } from '../../core/tournament';
 import { Avatar } from '../components/Avatar';
@@ -25,9 +25,19 @@ const opponentIn = (g: GameOutcome, membershipId: string): TournamentSide | null
   return m.home.membershipId === membershipId ? m.away : m.home;
 };
 
+/** What open share buying tells the League tab: time left ("in 1 d 4 h") and whether the roster still has room. */
+export interface Buying { left: string; need: boolean }
+/** AuctionCard (the Roster room's child) reports here while buying is open, null otherwise. */
+export const BuyingContext = createContext<(b: Buying | null) => void>(() => {});
+
+type Room = 'now' | 'roster' | 'table' | 'games';
+const ROOMS: [Room, string][] = [['now', 'Now'], ['roster', 'Roster'], ['table', 'Table'], ['games', 'Games']];
+
 /**
- * One team on the League tab, in the order a manager needs it: the matchup headline, what to do now (the next pick,
- * then `children`: the auction), the league's short table, then the games, one line each, by tournament.
+ * One team on the League tab (refresh, 2026-11-10): the matchup headline, the tournament's three steps (Buy, Pick,
+ * Play), then four rooms, one on screen at a time: Now (the score and the next pick), Roster (`children`: share
+ * buying; then the players owned), Table and Games. A gold dot marks a room that needs you. Every room stays mounted
+ * (hidden), so a half-typed buy survives a look at the table.
  */
 export function TournamentCard({ membershipId, leagueId, seasonId, teamName, subtitle, leagueName, children }: {
   membershipId: string; leagueId: string; seasonId: string; teamName: string; subtitle: string; leagueName: string;
@@ -36,30 +46,105 @@ export function TournamentCard({ membershipId, leagueId, seasonId, teamName, sub
   const { data, error, reload } = useLoad(() => loadLeagueTournament(seasonId, leagueId, { live: true }), [seasonId, leagueId]);
   // Live (or finished-but-unverified) paired games of the current tournament change under us: refresh every 15 s while any exists.
   usePoll(reload, !!data && currentGames(data).some((g) => (g.status === 'live' || g.status === 'pending') && g.matchups.length > 0));
+  const [buying, setBuying] = useState<Buying | null>(null);
+  const [chosen, setChosen] = useState<Room | null>(null);
   if (!data) {
     return (
-      <>
+      <BuyingContext.Provider value={setBuying}>
         <div className="matchup"><h2 className="display">{teamName}</h2><p className="strip">{subtitle}</p></div>
         {children}
         {error ? <p className="error" role="alert">{error}</p> : <Loading />}
-      </>
+      </BuyingContext.Provider>
     );
   }
   const { next } = data.result;
+  const focus = focusGame(data, membershipId);
+  const mine = next?.sides.find((x) => x.membershipId === membershipId);
+  const side = mine ?? (focus?.g && sides(focus.g).find((x) => x?.membershipId === membershipId)) ?? null;
+  const picksLeft = mine ? Math.min(data.settings.picks_per_game, mine.players.length) - mine.picked.length : 0;
+  const live = focus?.g?.status === 'live';
+  // Until a room is tapped: the one that needs you, else Now when there is a game, else Roster while buying, else the table.
+  const room = chosen ?? (buying?.need && picksLeft <= 0 ? 'roster' : focus ? 'now' : buying ? 'roster' : 'table');
+  const needs: Partial<Record<Room, boolean>> = { now: picksLeft > 0, roster: !!buying?.need };
+  const steps: { name: string; note?: string; state: 'on' | 'done' | ''; room: Room }[] = [
+    { name: 'Buy', note: buying?.left.replace(/^in /, ''), state: buying ? 'on' : side ? 'done' : '', room: 'roster' },
+    { name: 'Pick', note: next && mine ? `Game ${next.number}` : undefined, state: picksLeft > 0 ? 'on' : next && mine ? 'done' : '', room: 'now' },
+    { name: 'Play', note: live ? 'Live' : undefined, state: live ? 'on' : '', room: 'now' },
+  ];
 
   return (
-    <>
+    <BuyingContext.Provider value={setBuying}>
       <Matchup y={data} membershipId={membershipId} teamName={teamName} subtitle={subtitle} />
       {error && <p className="error" role="alert">{error}</p>}
-      {next && (
-        <article className="card" aria-label="Next game">
-          <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />
-        </article>
-      )}
-      {children}
-      <LeagueTable y={data} membershipId={membershipId} leagueName={leagueName} />
-      <GameList y={data} membershipId={membershipId} teamName={teamName} />
-    </>
+      <ol className="track" aria-label="Tournament steps">
+        {steps.map((s) => (
+          <li key={s.name} className={s.state || undefined} aria-current={s.state === 'on' ? 'step' : undefined}>
+            <button type="button" onClick={() => setChosen(s.room)}>
+              {s.name}{s.state === 'done' && <span className="sr-only"> done</span>}{s.note && <small>{s.note}</small>}
+            </button>
+          </li>
+        ))}
+      </ol>
+      <div className="segmented rooms" role="tablist" aria-label={teamName}>
+        {ROOMS.map(([id, label]) => (
+          <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={room === id} aria-controls={`room-${id}`} onClick={() => setChosen(id)}>
+            {label}{needs[id] && <span className="needs"><span className="sr-only"> (needs you)</span></span>}
+          </button>
+        ))}
+      </div>
+      <div className="room" role="tabpanel" id="room-now" aria-labelledby="tab-now" hidden={room !== 'now'}>
+        <Scoreboard y={data} membershipId={membershipId} teamName={teamName} />
+        {next && (
+          <article className="card" aria-label="Next game">
+            <PickGame key={`${next.stageId}:${next.number}`} y={data} next={next} membershipId={membershipId} onSaved={reload} />
+          </article>
+        )}
+        {!next && !focus?.g && <p className="muted">No game yet</p>}
+      </div>
+      <div className="room" role="tabpanel" id="room-roster" aria-labelledby="tab-roster" hidden={room !== 'roster'}>
+        {children}
+        {side && side.players.length > 0 && <Roster y={data} side={side} title={data.stage.get(focus?.stageId ?? next?.stageId ?? '') ?? 'Players'} />}
+        {!side && !buying && <p className="muted">No players yet</p>}
+      </div>
+      <div className="room" role="tabpanel" id="room-table" aria-labelledby="tab-table" hidden={room !== 'table'}>
+        <LeagueTable y={data} membershipId={membershipId} leagueName={leagueName} />
+      </div>
+      <div className="room" role="tabpanel" id="room-games" aria-labelledby="tab-games" hidden={room !== 'games'}>
+        <GameList y={data} membershipId={membershipId} teamName={teamName} />
+      </div>
+    </BuyingContext.Provider>
+  );
+}
+
+/** How fresh a player is this game, as four pips: all lit when rested, fewer (amber) the more a recent pick tires them. */
+function Pips({ rest }: { rest: number }) {
+  const lit = Math.max(1, Math.round(rest * 4));
+  return <span className={rest < 1 ? 'pips low' : 'pips'} aria-hidden="true">{[0, 1, 2, 3].map((i) => <i key={i} className={i < lit ? 'lit' : undefined} />)}</span>;
+}
+
+/** A share as a short bar and a percent; `label` ("You own about 20%") is what a screen reader hears instead. */
+export const Own = ({ share, label }: { share: number; label?: string }) => (
+  <span className="own">
+    <span className="bar" aria-hidden="true"><i style={{ width: `${Math.min(100, share * 100)}%` }} /></span>
+    {label ? <><span className="sr-only">{label}</span><span aria-hidden="true">{pctExact(share)}</span></> : pctExact(share)}
+  </span>
+);
+
+/** The Roster room once shares are settled: the tournament's players, one card each, with the share owned. */
+function Roster({ y, side, title }: { y: LeagueTournament; side: TournamentSide; title: string }) {
+  const byName = (a: string, b: string) => athleteName(y, a).localeCompare(athleteName(y, b));
+  return (
+    <section className="card" aria-label={`${title} players`}>
+      <div className="head"><h2>{title}</h2><FactorHelp settings={y.settings} /></div>
+      <ul className="cards">
+        {[...side.players].sort(byName).map((id) => (
+          <li key={id} className={y.out.has(id) ? 'off' : undefined}>
+            <b><Link className="team-link" to={`/player/${id}`}>{athleteName(y, id)}</Link>{y.out.has(id) && <> <span className="pill bad">Out</span></>}</b>
+            <Own share={side.share[id]} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -89,9 +174,8 @@ const HeadSide = ({ id, name, owner, choice }: { id: string; name?: string; owne
 
 const RESULT = { W: 'Won', L: 'Lost', T: 'Tied' } as const;
 
-function Matchup({ y, membershipId, teamName, subtitle }: {
-  y: LeagueTournament; membershipId: string; teamName: string; subtitle: string;
-}) {
+/** What the headline and the scoreboard both read off the focus game. */
+function useMatchup(y: LeagueTournament, membershipId: string, track = false) {
   const focus = focusGame(y, membershipId);
   const g = focus?.g ?? null;
   const status = g?.status ?? 'upcoming'; // labels keep the official status; only the numbers below are unofficial
@@ -116,7 +200,7 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   const key = g && !upcoming && mine && them ? seenKey(membershipId, g.game.id) : null;
   const [since, setSince] = useState<{ key: string; chips: NonNullable<ReturnType<typeof changes>>; from: Seen } | null>(null);
   useLayoutEffect(() => {
-    if (!key || !mine || !them) return;
+    if (!track || !key || !mine || !them) return; // only the scoreboard keeps the seen record: two writers would erase the chips
     const cur: Seen = { mine: mine.score, them: them.score, points: { mine: mine.points ?? {}, them: them.points ?? {} } };
     const prev = readSeen(key);
     // First look at this game: count up from nothing (no +N chips, as nothing was seen to change).
@@ -124,41 +208,55 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
     const chips = changes(from, cur);
     if (chips) setSince({ key, chips, from }); // no change: the chips from the last change stay
     writeSeen(key, cur);
-  }, [key, mine, them]);
+  }, [track, key, mine, them]);
   const now = since?.key === key ? since : null;
 
+  return { focus, g, shown, status, final, unofficial, held, mine, them, anyPlayed, upcoming, minePlayers, doomed, wanted, now };
+}
+
+function Matchup({ y, membershipId, teamName, subtitle }: {
+  y: LeagueTournament; membershipId: string; teamName: string; subtitle: string;
+}) {
+  const { focus, g, status, final, unofficial, held, mine, them, anyPlayed, upcoming, doomed } = useMatchup(y, membershipId);
+  return (
+    <div className="matchup">
+      <h2 className="display">
+        {them ? <>
+          <HeadSide id={membershipId} name={teamName} owner={y.owner.get(membershipId)} choice={y.avatar.get(membershipId)} />
+          {' '}<span className="vs">vs</span>{' '}
+          <HeadSide id={them.membershipId} name={y.team.get(them.membershipId)} owner={y.owner.get(them.membershipId)} choice={y.avatar.get(them.membershipId)} />
+        </> : teamName}
+      </h2>
+      <p className="strip">
+        {/* Rule 5: the game, then its status as a word (Live with the dot), no pill but the one that needs you. "Next up"
+            is the strip's own word for the game to come. */}
+        {focus ? <>
+          <span>{labelOf(y, focus.stageId, focus.number)}</span>
+          {them === null ? <span>Bye</span> : <>
+            {status === 'live' ? <span className="live"><span className="dot" aria-hidden="true" />Live</span>
+              : <span>{upcoming || !g ? 'Next up' : statusWord(g)}</span>}
+            {held && <span>{held}</span>}
+            {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
+            {unofficial && <><span>unofficial</span><VerifiedHelp hours={y.settings.stat_lock_hours} /></>}
+          </>}
+          {doomed && <span className="pill warn">Your pick is out</span>}
+        </> : <>
+          <span>{subtitle}</span>
+          <span>{y.result.standings.length} {y.result.standings.length === 1 ? 'team' : 'teams'}</span>
+          {!anyPlayed && <span>No games yet</span>}
+        </>}
+      </p>
+    </div>
+  );
+}
+
+/** The Now room's top: the black scoreboard, then each side's starters. An unverified score is drawn in outline. */
+function Scoreboard({ y, membershipId, teamName }: { y: LeagueTournament; membershipId: string; teamName: string }) {
+  const { g, shown, final, unofficial, mine, them, upcoming, minePlayers, doomed, wanted, now } = useMatchup(y, membershipId, true);
   return (
     <>
-      <div className="matchup">
-        <h2 className="display">
-          {them ? <>
-            <HeadSide id={membershipId} name={teamName} owner={y.owner.get(membershipId)} choice={y.avatar.get(membershipId)} />
-            {' '}<span className="vs">vs</span>{' '}
-            <HeadSide id={them.membershipId} name={y.team.get(them.membershipId)} owner={y.owner.get(them.membershipId)} choice={y.avatar.get(them.membershipId)} />
-          </> : teamName}
-        </h2>
-        <p className="strip">
-          {/* Rule 5: the game, then its status as a word (Live with the dot), no pill but the one that needs you. "Next up"
-              is the strip's own word for the game to come. */}
-          {focus ? <>
-            <span>{labelOf(y, focus.stageId, focus.number)}</span>
-            {them === null ? <span>Bye</span> : <>
-              {status === 'live' ? <span className="live"><span className="dot" aria-hidden="true" />Live</span>
-                : <span>{upcoming || !g ? 'Next up' : statusWord(g)}</span>}
-              {held && <span>{held}</span>}
-              {final && mine?.result && <strong>{RESULT[mine.result]} {signed(mine.delta ?? 0)}</strong>}
-              {unofficial && <><span>unofficial</span><VerifiedHelp hours={y.settings.stat_lock_hours} /></>}
-            </>}
-            {doomed && <span className="pill warn">Your pick is out</span>}
-          </> : <>
-            <span>{subtitle}</span>
-            <span>{y.result.standings.length} {y.result.standings.length === 1 ? 'team' : 'teams'}</span>
-            {!anyPlayed && <span>No games yet</span>}
-          </>}
-        </p>
-      </div>
       {g && them && mine && (
-        <div className="score">
+        <div className={unofficial ? 'score soft' : 'score'}>
           <ScoreSide label={upcoming ? 'Your picks' : 'Your starters'} y={y} athleteIds={minePlayers}
             picked={upcoming && wanted > 0 && minePlayers.length >= wanted && !doomed}
             score={mine.score} from={now?.from.mine} empty={upcoming ? 'No picks yet' : noStarters(mine)} lost={final && mine.result === 'L'} />
@@ -182,15 +280,15 @@ function Matchup({ y, membershipId, teamName, subtitle }: {
   );
 }
 
-/** The league's short table (layout A, ruling 8): the top 3 and your neighbours. "Full table" opens Leaderboards. */
+/** The Table room: the league's standings. "All leagues" opens Leaderboards. */
 function LeagueTable({ y, membershipId, leagueName }: { y: LeagueTournament; membershipId: string; leagueName: string }) {
   return (
     <article className="card" aria-label={leagueName}>
       <div className="head">
         <h2>{leagueName}</h2>
-        <StandingsHelp settings={y.settings} /><Link className="more" to="/leaderboards">Full table</Link>
+        <StandingsHelp settings={y.settings} /><Link className="more" to="/leaderboards">All leagues</Link>
       </div>
-      <RankList rows={mergeStandings([{ name: leagueName, y }])} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} short />
+      <RankList rows={mergeStandings([{ name: leagueName, y }])} membershipId={membershipId} showLeague={false} linkable={new Set(y.team.keys())} />
     </article>
   );
 }
@@ -254,13 +352,13 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const game = y.result.games.find((g) => g.game.stageId === next.stageId && g.game.number === next.number);
   const title = gameName(next.number, game?.game.opponent);
   if (!mine) {
-    return <div className="stack"><h2>{title}</h2><p className="muted">You have no players this tournament, so you can't score.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">No players this tournament</p></div>;
   }
   // A game with no matchups isn't paired yet (B1): it gets paired when the game before it finishes, so pick now.
   const paired = game && game.matchups.length > 0 ? game : undefined;
   const them = paired ? opponentIn(paired, membershipId) : undefined;
   if (paired && them === undefined) {
-    return <div className="stack"><h2>{title}</h2><p className="muted">You joined after game {next.number} was paired, so you start the game after it.</p></div>;
+    return <div className="stack"><h2>{title}</h2><p className="muted">You start in game {next.number + 1}</p></div>;
   }
   const n = y.settings.picks_per_game;
   const wanted = Math.min(n, mine.players.length);
@@ -268,6 +366,8 @@ function PickGame({ y, next, membershipId, onSaved }: {
   const full = picked.length >= n;
   const byName = (a: string, b: string) => name(a).localeCompare(name(b));
   const lock = `Picks lock when the stat keeper at the field starts game ${next.number}. No set time: pick early.`;
+  // Who plays if a pick is left empty: marked Auto on their card.
+  const auto = new Set(mine.replacements.flatMap((r) => (r.picked === null && r.athleteId !== null ? [r.athleteId] : [])));
 
   /** Saves the whole set: set_game_pick replaces the team's picks for this game. */
   async function save(athleteIds: string[]) {
@@ -289,18 +389,11 @@ function PickGame({ y, next, membershipId, onSaved }: {
     <div className="stack">
       <div className="head">
         <h2>Pick {wanted} for game {next.number}{game?.game.opponent && ` vs ${game.game.opponent}`}</h2>
-        <FactorHelp settings={y.settings} />
-        <strong className="num">{picked.length} of {wanted}</strong>
+        <FactorHelp settings={y.settings} extra={lock} />
+        <strong className={picked.length >= wanted ? 'num count full' : 'num count'}>{picked.length} of {wanted}</strong>
       </div>
-      {them ? <>
-        <p>You play <strong><Link className="team-link" to={`/team/${them.membershipId}`}>{y.team.get(them.membershipId)}</Link></strong>.</p>
-        <p className="hint">{lock}</p>
-      </> : them === null ? <>
-        <p>Bye in game {next.number}: no opponent, so your standings points don't change.</p>
-        <p className="hint">{lock}</p>
-      </> : <p className="hint">{next.number > 1 && `You'll see who you play once game ${next.number - 1} ends. `}{lock}</p>}
       {/* The row is the button (ruling 5). Taps during a save and its reload are held, not disabled, so nothing flickers. */}
-      <div aria-busy={saving !== null}>
+      <div className="picks" aria-busy={saving !== null}>
         {[...mine.players].sort(byName).map((id) => {
           const on = picked.includes(id);
           const out = y.out.has(id);
@@ -309,10 +402,11 @@ function PickGame({ y, next, membershipId, onSaved }: {
               <button className="pick-row" aria-pressed={on} disabled={!on && (full || out)}
                 onClick={() => { if (!saving) void save(on ? picked.filter((a) => a !== id) : [...picked, id]); }}>
                 <span className="who">
-                  <b>{name(id)}{out && <> <span className="pill bad">Out</span></>}</b>
+                  <b>{name(id)}{out && <> <span className="pill bad">Out</span></>}{!on && auto.has(id) && <> <span className="pill">Auto</span></>}</b>
                   <span className="factor-room" aria-hidden="true" />
                 </span>
                 <span className="ring" aria-hidden="true" />
+                <Pips rest={mine.rest[id]} />
               </button>
               <Factor side={mine} athleteId={id} />
             </div>
@@ -320,7 +414,6 @@ function PickGame({ y, next, membershipId, onSaved }: {
         })}
       </div>
       <Notice y={y} side={mine} />
-      {full && mine.players.length > picked.length && <p className="hint">You have {n} picks. Clear one to change.</p>}
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );
@@ -343,7 +436,7 @@ function Notice({ y, side, played = false, team }: { y: LeagueTournament; side: 
   const fill = side.replacements.flatMap((r) => (r.picked === null && r.athleteId !== null ? [name(r.athleteId)] : []));
   if (fill.length > 0) {
     const who = fill.join(' and ');
-    lines.push(played ? `${team ?? 'You'} didn't pick, so ${who} played.` : `If you don't pick, ${who} ${fill.length === 1 ? 'plays' : 'play'}.`);
+    if (played) lines.push(`${team ?? 'You'} didn't pick, so ${who} played.`); // before the game the cards say Auto
   }
   return <>{lines.map((t) => <p key={t} className="hint">{t}</p>)}</>;
 }
@@ -435,7 +528,7 @@ function GameLine({ y, g, membershipId, pick = 0 }: { y: LeagueTournament; g: Ga
   return (
     <details>
       <summary className="game-line">{line}</summary>
-      <GameDetail y={y} g={g} o={o} mine={mine ?? null} them={them ?? null} membershipId={membershipId} unofficial={unofficial} />
+      <GameDetail y={y} g={g} o={o} mine={mine ?? null} them={them ?? null} membershipId={membershipId} />
     </details>
   );
 }
@@ -447,9 +540,9 @@ const noStarters = (s: TournamentSide) => (s.players.length ? 'No starters' : 'N
  * An opened game (ruling 9): your matchup's two sides first, then "Other matchups", each a line that opens to its
  * sides. `o` carries the numbers (unofficial while the game isn't verified).
  */
-function GameDetail({ y, g, o, mine, them, membershipId, unofficial }: {
+function GameDetail({ y, g, o, mine, them, membershipId }: {
   y: LeagueTournament; g: GameOutcome; o: GameOutcome; mine: TournamentSide | null; them: TournamentSide | null;
-  membershipId: string; unofficial: boolean;
+  membershipId: string;
 }) {
   const others = mine ? o.matchups.filter((m) => m.home !== mine && m.away !== mine) : o.matchups;
   const named = (s: TournamentSide) => `${y.team.get(s.membershipId) ?? 'A team'}${s.score === null ? '' : ` ${fmt(s.score)}`}`;
@@ -472,7 +565,6 @@ function GameDetail({ y, g, o, mine, them, membershipId, unofficial }: {
           ))}
         </div>
       )}
-      {unofficial && <p className="hint">Unofficial until a keeper verifies.</p>}
     </div>
   );
 }

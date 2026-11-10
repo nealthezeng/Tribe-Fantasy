@@ -2,18 +2,18 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { sortRows, type SortKey, type StatRow, type StatsStage } from '../lib/statsTable';
 import { statLabel } from '../lib/stats';
-import { inStatOrder, STAT_LEGEND, type StatusWord } from '../lib/words';
+import { inStatOrder, type StatusWord } from '../lib/words';
 
 // Short column heads keep a five-stat table inside a phone; the full name stays the accessible one.
 const SHORT: Record<string, string> = { goal: 'G', assist: 'A', block: 'D', callahan: 'C', turnover: 'T' };
 
 /**
  * Totals table, best first; tap a header to sort by it, tap again to flip. With `href` the whole row opens it (rule 1).
- * `total` is a last row outside the sort; the legend spells out the letter heads (ruling 3).
+ * `total` is a last row outside the sort. Each letter head carries its full name as its title and accessible name.
  */
-export function StatTable({ stats: keys, rows, first = 'Player', href, sortable = true, legend = true, total }: {
+export function StatTable({ stats: keys, rows, first = 'Player', href, sortable = true, total }: {
   stats: string[]; rows: StatRow[]; first?: string; href?: (row: StatRow) => string; sortable?: boolean;
-  legend?: boolean; total?: StatRow;
+  total?: StatRow;
 }) {
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'points', desc: true });
   // The sticky first column is see-through until the table scrolls under it (papercut 1).
@@ -21,7 +21,7 @@ export function StatTable({ stats: keys, rows, first = 'Player', href, sortable 
   const navigate = useNavigate();
   if (rows.length === 0) return <p className="muted">No stats recorded.</p>;
   const shown = sortable ? sortRows(rows, sort.key, sort.desc) : rows;
-  const stats = inStatOrder(keys); // G A D C T, as the legend reads, whatever order the settings keys come in
+  const stats = inStatOrder(keys); // G A D C T, whatever order the settings keys come in
   const head = (key: SortKey, text: string, full = text) => (
     <th key={key} title={full} aria-label={full} aria-sort={sortable && sort.key === key ? (sort.desc ? 'descending' : 'ascending') : undefined}>
       {sortable
@@ -54,7 +54,6 @@ export function StatTable({ stats: keys, rows, first = 'Player', href, sortable 
           {total && <tfoot><tr><td>{total.label}</td>{cells(total)}</tr></tfoot>}
         </table>
       </div>
-      {legend && <p className="hint">{STAT_LEGEND}</p>}
     </>
   );
 }
